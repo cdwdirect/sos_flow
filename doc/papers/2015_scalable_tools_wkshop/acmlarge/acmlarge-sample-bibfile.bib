@@ -1,0 +1,3402 @@
+%%% ====================================================================
+%%%  BibTeX-file{
+%%%     author          = "Gerry Murray",
+%%%     version         = "1.2",
+%%%     date            = "2 April 2012",
+%%%     filename        = "acmlarge-sample-bibfile.bib",
+%%%     address         = "ACM, NY",
+%%%     email           = "murray at hq.acm.org",
+%%%     codetable       = "ISO/ASCII",
+%%%     keywords        = "ACM Reference Format, bibliography, citation, references",
+%%%     supported       = "yes",
+%%%     docstring       = "This BibTeX database file contains 'bibdata' entries
+%%%                        that 'match' the examples provided in the Specifications Document
+%%%                        AND, also, 'legacy'-type bibs. It should assist authors in 
+%%%                        choosing the 'correct' at-bibtype and necessary bib-fields
+%%%                        so as to obtain the appropriate ACM Reference Format output. 
+%%%			   It also contains many 'Standard Abbreviations'. "
+%%%  }
+%%% ====================================================================
+
+% Journals
+
+% First the Full Name is given, then the abbreviation used in the AMS Math
+% Reviews, with an indication if it could not be found there.
+% Note the 2nd overwrites the 1st, so swap them if you want the full name.
+
+ %{AMS}
+ @String{AMSTrans = "American Mathematical Society Translations" }
+ @String{AMSTrans = "Amer. Math. Soc. Transl." }
+ @String{BullAMS = "Bulletin of the American Mathematical Society" }
+ @String{BullAMS = "Bull. Amer. Math. Soc." }
+ @String{ProcAMS = "Proceedings of the American Mathematical Society" }
+ @String{ProcAMS = "Proc. Amer. Math. Soc." }
+ @String{TransAMS = "Transactions of the American Mathematical Society" }
+ @String{TransAMS = "Trans. Amer. Math. Soc." }
+
+ %ACM
+ @String{CACM = "Communications of the {ACM}" }
+ @String{CACM = "Commun. {ACM}" }
+ @String{CompServ = "Comput. Surveys" }
+ @String{JACM = "J. ACM" }
+ @String{ACMMathSoft = "{ACM} Transactions on Mathematical Software" }
+ @String{ACMMathSoft = "{ACM} Trans. Math. Software" }
+ @String{SIGNUM = "{ACM} {SIGNUM} Newsletter" }
+ @String{SIGNUM = "{ACM} {SIGNUM} Newslett." }
+
+ @String{AmerSocio = "American Journal of Sociology" }
+ @String{AmerStatAssoc = "Journal of the American Statistical Association" }
+ @String{AmerStatAssoc = "J. Amer. Statist. Assoc." }
+ @String{ApplMathComp = "Applied Mathematics and Computation" }
+ @String{ApplMathComp = "Appl. Math. Comput." }
+ @String{AmerMathMonthly = "American Mathematical Monthly" }
+ @String{AmerMathMonthly = "Amer. Math. Monthly" }
+ @String{BIT = "{BIT}" }
+ @String{BritStatPsych = "British Journal of Mathematical and Statistical
+          Psychology" }
+ @String{BritStatPsych = "Brit. J. Math. Statist. Psych." }
+ @String{CanMathBull = "Canadian Mathematical Bulletin" }
+ @String{CanMathBull = "Canad. Math. Bull." }
+ @String{CompApplMath = "Journal of Computational and Applied Mathematics" }
+ @String{CompApplMath = "J. Comput. Appl. Math." }
+ @String{CompPhys = "Journal of Computational Physics" }
+ @String{CompPhys = "J. Comput. Phys." }
+ @String{CompStruct = "Computers and Structures" }
+ @String{CompStruct = "Comput. \& Structures" }
+ @String{CompJour = "The Computer Journal" }
+ @String{CompJour = "Comput. J." }
+ @String{CompSysSci = "Journal of Computer and System Sciences" }
+ @String{CompSysSci = "J. Comput. System Sci." }
+ @String{Computing = "Computing" }
+ @String{ContempMath = "Contemporary Mathematics" }
+ @String{ContempMath = "Contemp. Math." }
+ @String{Crelle = "Crelle's Journal" }
+ @String{GiornaleMath = "Giornale di Mathematiche" }
+ @String{GiornaleMath = "Giorn. Mat." } % didn't find in AMS MR., ibid.
+
+ %IEEE
+ @String{Computer = "{IEEE} Computer" }
+ @String{IEEETransComp = "{IEEE} Transactions on Computers" }
+ @String{IEEETransComp = "{IEEE} Trans. Comput." }
+ @String{IEEETransAC = "{IEEE} Transactions on Automatic Control" }
+ @String{IEEETransAC = "{IEEE} Trans. Automat. Control" }
+ @String{IEEESpec = "{IEEE} Spectrum" } % didn't find in AMS MR
+ @String{ProcIEEE = "Proceedings of the {IEEE}" }
+ @String{ProcIEEE = "Proc. {IEEE}" } % didn't find in AMS MR
+ @String{IEEETransAeroElec = "{IEEE} Transactions on Aerospace and Electronic
+     Systems" }
+ @String{IEEETransAeroElec = "{IEEE} Trans. Aerospace Electron. Systems" }
+
+ @String{IMANumerAna = "{IMA} Journal of Numerical Analysis" }
+ @String{IMANumerAna = "{IMA} J. Numer. Anal." }
+ @String{InfProcLet = "Information Processing Letters" }
+ @String{InfProcLet = "Inform. Process. Lett." }
+ @String{InstMathApp = "Journal of the Institute of Mathematics and
+     its Applications" }
+ @String{InstMathApp = "J. Inst. Math. Appl." }
+ @String{IntControl = "International Journal of Control" }
+ @String{IntControl = "Internat. J. Control" }
+ @String{IntNumerEng = "International Journal for Numerical Methods in
+     Engineering" }
+ @String{IntNumerEng = "Internat. J. Numer. Methods Engrg." }
+ @String{IntSuper = "International Journal of Supercomputing Applications" }
+ @String{IntSuper = "Internat. J. Supercomputing Applic." } % didn't find
+%% in AMS MR
+ @String{Kibernetika = "Kibernetika" }
+ @String{JResNatBurStand = "Journal of Research of the National Bureau
+     of Standards" }
+ @String{JResNatBurStand = "J. Res. Nat. Bur. Standards" }
+ @String{LinAlgApp = "Linear Algebra and its Applications" }
+ @String{LinAlgApp = "Linear Algebra Appl." }
+ @String{MathAnaAppl = "Journal of Mathematical Analysis and Applications" }
+ @String{MathAnaAppl = "J. Math. Anal. Appl." }
+ @String{MathAnnalen = "Mathematische Annalen" }
+ @String{MathAnnalen = "Math. Ann." }
+ @String{MathPhys = "Journal of Mathematical Physics" }
+ @String{MathPhys = "J. Math. Phys." }
+ @String{MathComp = "Mathematics of Computation" }
+ @String{MathComp = "Math. Comp." }
+ @String{MathScand = "Mathematica Scandinavica" }
+ @String{MathScand = "Math. Scand." }
+ @String{TablesAidsComp = "Mathematical Tables and Other Aids to Computation" }
+ @String{TablesAidsComp = "Math. Tables Aids Comput." }
+ @String{NumerMath = "Numerische Mathematik" }
+ @String{NumerMath = "Numer. Math." }
+ @String{PacificMath = "Pacific Journal of Mathematics" }
+ @String{PacificMath = "Pacific J. Math." }
+ @String{ParDistComp = "Journal of Parallel and Distributed Computing" }
+ @String{ParDistComp = "J. Parallel and Distrib. Comput." } % didn't find
+%% in AMS MR
+ @String{ParComputing = "Parallel Computing" }
+ @String{ParComputing = "Parallel Comput." }
+ @String{PhilMag = "Philosophical Magazine" }
+ @String{PhilMag = "Philos. Mag." }
+ @String{ProcNAS = "Proceedings of the National Academy of Sciences
+                    of the USA" }
+ @String{ProcNAS = "Proc. Nat. Acad. Sci. U. S. A." }
+ @String{Psychometrika = "Psychometrika" }
+ @String{QuartMath = "Quarterly Journal of Mathematics, Oxford, Series (2)" }
+ @String{QuartMath = "Quart. J. Math. Oxford Ser. (2)" }
+ @String{QuartApplMath = "Quarterly of Applied Mathematics" }
+ @String{QuartApplMath = "Quart. Appl. Math." }
+ @String{RevueInstStat = "Review of the International Statisical Institute" }
+ @String{RevueInstStat = "Rev. Inst. Internat. Statist." }
+
+ %SIAM
+ @String{JSIAM = "Journal of the Society for Industrial and Applied
+     Mathematics" }
+ @String{JSIAM = "J. Soc. Indust. Appl. Math." }
+ @String{JSIAMB = "Journal of the Society for Industrial and Applied
+     Mathematics, Series B, Numerical Analysis" }
+ @String{JSIAMB = "J. Soc. Indust. Appl. Math. Ser. B Numer. Anal." }
+ @String{SIAMAlgMeth = "{SIAM} Journal on Algebraic and Discrete Methods" }
+ @String{SIAMAlgMeth = "{SIAM} J. Algebraic Discrete Methods" }
+ @String{SIAMAppMath = "{SIAM} Journal on Applied Mathematics" }
+ @String{SIAMAppMath = "{SIAM} J. Appl. Math." }
+ @String{SIAMComp = "{SIAM} Journal on Computing" }
+ @String{SIAMComp = "{SIAM} J. Comput." }
+ @String{SIAMMatrix = "{SIAM} Journal on Matrix Analysis and Applications" }
+ @String{SIAMMatrix = "{SIAM} J. Matrix Anal. Appl." }
+ @String{SIAMNumAnal = "{SIAM} Journal on Numerical Analysis" }
+ @String{SIAMNumAnal = "{SIAM} J. Numer. Anal." }
+ @String{SIAMReview = "{SIAM} Review" }
+ @String{SIAMReview = "{SIAM} Rev." }
+ @String{SIAMSciStat = "{SIAM} Journal on Scientific and Statistical
+     Computing" }
+ @String{SIAMSciStat = "{SIAM} J. Sci. Statist. Comput." }
+
+ @String{SoftPracExp = "Software Practice and Experience" }
+ @String{SoftPracExp = "Software Prac. Experience" } % didn't find in AMS MR
+ @String{StatScience = "Statistical Science" }
+ @String{StatScience = "Statist. Sci." }
+ @String{Techno = "Technometrics" }
+ @String{USSRCompMathPhys = "{USSR} Computational Mathematics and Mathematical
+     Physics" }
+ @String{USSRCompMathPhys = "{U. S. S. R.} Comput. Math. and Math. Phys." }
+ @String{VLSICompSys = "Journal of {VLSI} and Computer Systems" }
+ @String{VLSICompSys = "J. {VLSI} Comput. Syst." }
+ @String{ZAngewMathMech = "Zeitschrift fur Angewandte Mathematik und
+     Mechanik" }
+ @String{ZAngewMathMech = "Z. Angew. Math. Mech." }
+ @String{ZAngewMathPhys = "Zeitschrift fur Angewandte Mathematik und Physik" }
+ @String{ZAngewMathPhys = "Z. Angew. Math. Phys." }
+
+% Publishers % ================================================= |
+
+ @String{Academic = "Academic Press" }
+ @String{ACMPress = "{ACM} Press" }
+ @String{AdamHilger = "Adam Hilger" }
+ @String{AddisonWesley = "Addison-Wesley" }
+ @String{AllynBacon = "Allyn and Bacon" }
+ @String{AMS = "American Mathematical Society" }
+ @String{Birkhauser = "Birkha{\"u}ser" }
+ @String{CambridgePress = "Cambridge University Press" }
+ @String{Chelsea = "Chelsea" }
+ @String{ClaredonPress = "Claredon Press" }
+ @String{DoverPub = "Dover Publications" }
+ @String{Eyolles = "Eyolles" }
+ @String{HoltRinehartWinston = "Holt, Rinehart and Winston" }
+ @String{Interscience = "Interscience" }
+ @String{JohnsHopkinsPress = "The Johns Hopkins University Press" }
+ @String{JohnWileySons = "John Wiley and Sons" }
+ @String{Macmillan = "Macmillan" }
+ @String{MathWorks = "The Math Works Inc." }
+ @String{McGrawHill = "McGraw-Hill" }
+ @String{NatBurStd = "National Bureau of Standards" }
+ @String{NorthHolland = "North-Holland" }
+ @String{OxfordPress = "Oxford University Press" }  %address Oxford or London?
+ @String{PergamonPress = "Pergamon Press" }
+ @String{PlenumPress = "Plenum Press" }
+ @String{PrenticeHall = "Prentice-Hall" }
+ @String{SIAMPub = "{SIAM} Publications" }
+ @String{Springer = "Springer-Verlag" }
+ @String{TexasPress = "University of Texas Press" }
+ @String{VanNostrand = "Van Nostrand" }
+ @String{WHFreeman = "W. H. Freeman and Co." }
+
+%Entries
+
+@Article{Abril07,
+  author 	= "Patricia S. Abril and Robert Plant",
+  title 	= "The patent holder's dilemma: Buy, sell, or troll?",
+  journal 	= "Communications of the ACM",
+  volume 	= "50",
+  number 	= "1",
+  month 	= jan,
+  year 		= "2007",
+  pages 	= "36--44",
+  doi 		= "10.1145/1188913.1188915",
+  url		= "http://doi.acm.org/10.1145/1219092.1219093",
+  note		= "",
+}
+
+@Article{Cohen07,
+  author 	=	"Sarah Cohen and Werner Nutt and Yehoshua Sagic",
+  title		=	"Deciding equivalances among conjunctive aggregate queries",
+  journal 	=	JACM,
+  articleno	=	"5",
+  numpages	=	"50",
+  volume 	=	"54",
+  number 	= 	"2",
+  month 	=	apr,
+  year 		=	"2007",
+  doi 		=	"10.1145/1219092.1219093",
+  url 		=	"http://doi.acm.org/10.1145/1219092.1219093",
+  acmid		=	"1219093",
+  note 		= 	"",
+}
+
+
+@article{JCohen96,
+  key = 	 "Cohen",
+  editor =       "Jacques Cohen",
+  title =        "Special Issue: Digital Libraries",
+  journal =      CACM,
+  volume =       "39",
+  number = 	 "11",
+  month =	 nov,
+  year = 	 "1996",
+  author = 	 "",
+  publisher = 	 "",
+  chapter = 	"",
+  pages = 	"",
+  series = 	 "",
+  address = 	 "",
+  edition = 	 "",
+  note = 	 "",
+}
+
+
+@Book{Kosiur01,
+  author =       "David Kosiur",
+  title =        "Understanding Policy-Based Networking",
+  publisher =    "Wiley",
+  year =         "2001",
+  address =      "New York, NY",
+  edition =      "2nd.",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  series = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+@Book{Harel79,
+  author =       "David Harel",
+  year =         "1979",
+  title =        "First-Order Dynamic Logic",
+  series =       "Lecture Notes in Computer Science",
+  volume =       "68",
+  address =      "New York, NY",
+  publisher =    "Springer-Verlag",
+  doi = 	 "10.1007/3-540-09237-4",
+  url = 	 "http://dx.doi.org/10.1007/3-540-09237-4",
+  editor = 	 "",
+  number = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+@Inbook{Editor00,
+  author = 	 "",
+  editor =       "Ian Editor",
+  title =        "The title of book one",
+  subtitle =     "The book subtitle",
+  series =       "The name of the series one",
+  year =         "2007",
+  volume = 	 "9",
+  address =      "Chicago",
+  edition =      "1st.",
+  publisher =    "University of Chicago Press",
+  doi = 	 "10.1007/3-540-09237-4",
+  url = 	 "http://dx.doi.org/10.1007/3-540-09456-9",
+  chapter = 	 "",
+  pages = 	 "",
+  number = 	 "",
+  type = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+%
+@InBook{Editor00a,
+  author = 	 "",
+  editor =       "Ian Editor",
+  title =        "The title of book two",
+  subtitle =     "The book subtitle",
+  series =       "The name of the series two",
+  year =         "2008",
+  address =      "Chicago",
+  edition =      "2nd.",
+  publisher =    "University of Chicago Press",
+  doi = 	 "10.1007/3-540-09237-4",
+  url = 	 "http://dx.doi.org/10.1007/3-540-09456-9",
+  volume = 	 "",
+  chapter = 	 "100",
+  pages = 	 "",
+  number = 	 "",
+  type = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+% incollection (has an editor, title, and possibly a booktitle)
+@Incollection{Spector90,
+  author =       "Asad Z. Spector",
+  title =        "Achieving application requirements",
+  booktitle =    "Distributed Systems",
+  publisher =    "ACM Press",
+  address =      "New York, NY",
+  year =         "1990",
+  edition =      "2nd.",
+  chapter =      "",
+  editor = 	 "Sape Mullender",
+  pages =        "19--33",
+  doi = 	 "10.1145/90417.90738",
+  url = 	 "http://doi.acm.org/10.1145/90417.90738",
+  volume =	 "",
+  number = 	 "",
+  series =	 "",
+  type = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+% incollection (has an editor, title, and possibly a booktitle)
+@Incollection{Douglass98,
+  author =       "Bruce P. Douglass and David Harel and Mark B. Trakhtenbrot",
+  title =        "Statecarts in use: structured analysis and object-orientation",
+  series =       "Lecture Notes in Computer Science",
+  booktitle =    "Lectures on Embedded Systems",
+  publisher =    "Springer-Verlag",
+  address =      "London",
+  volume = 	 "1494",
+  year =         "1998",
+  chapter =      "",
+  editor = 	 "Grzegorz Rozenberg and Frits W. Vaandrager",
+  pages =        "368--394",
+  doi = 	 "10.1007/3-540-65193-4_29",
+  url = 	 "http://dx.doi.org/10.1007/3-540-65193-4_29",
+  edition = 	 "",
+  number = 	 "",
+  type = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+@Book{Knuth97,
+  author =       "Donald E. Knuth",
+  title =        "The Art of Computer Programming, Vol. 1: Fundamental Algorithms (3rd. ed.)",
+  publisher =    "Addison Wesley Longman Publishing Co., Inc.",
+  year =         "1997",
+  address =      "",
+  edition =      "",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  series = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+@Book{Knuth98,
+  author =       "Donald E. Knuth",
+  year =         "1998",
+  title =        "The Art of Computer Programming",
+  series =       "Fundamental Algorithms",
+  volume =       "1",
+  edition =      "3rd",
+  address =      "",
+  publisher =    "Addison Wesley Longman Publishing Co., Inc.",
+  doi = 	 "",
+  url = 	 "",
+  editor = 	 "",
+  number = 	 "",
+  month = 	 "",
+  note = 	 "(book)",
+}
+
+@incollection{GM05,
+Author= "Dan Geiger and Christopher Meek",
+Title= "Structured Variational Inference Procedures and their Realizations (as incol)",
+Year= 2005,
+Booktitle="Proceedings of Tenth International Workshop on Artificial Intelligence and Statistics, {\rm The Barbados}",
+Publisher="The Society for Artificial Intelligence and Statistics",
+Month= jan,
+Editors= "Z. Ghahramani and R. Cowell"
+}
+
+@Inproceedings{Smith10,
+  author =       "Stan W. Smith",
+  title =        "An experiment in bibliographic mark-up: Parsing metadata for XML export",
+  booktitle =    "Proceedings of the 3rd. annual workshop on Librarians and Computers",
+  series = 	 "LAC '10",
+  editor = 	 "Reginald N. Smythe and Alexander Noble",
+  volume = 	  "3",
+  year =         "2010",
+  publisher =    "Paparazzi Press",
+  address = 	 "Milan Italy",
+  pages =        "422--431",
+  doi = 	 "99.9999/woot07-S422",
+  url = 	 "http://dx.doi.org/99.0000/woot07-S422",
+  number =	 "",
+  month = 	 "",
+  organization = "",
+  note = 	 "",
+}
+
+@Inproceedings{VanGundy07,
+  author =       "Matthew Van Gundy and Davide Balzarotti and Giovanni Vigna",
+  year =         "2007",
+  title =        "Catch me, if you can: Evading network signatures with web-based polymorphic worms",
+  booktitle =    "Proceedings of the first USENIX workshop on Offensive Technologies",
+  series = 	 "WOOT '07",
+  publisher =    "USENIX Association",
+  address = 	 "Berkley, CA",
+  articleno = 	 "7",
+  numpages = 	 "9",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  pages = 	 "",
+  month = 	 "",
+  organization = "",
+  note = 	 "",
+}
+
+@Inproceedings{VanGundy08,
+  author =       "Matthew Van Gundy and Davide Balzarotti and Giovanni Vigna",
+  year =         "2008",
+  title =        "Catch me, if you can: Evading network signatures with web-based polymorphic worms",
+  booktitle =    "Proceedings of the first USENIX workshop on Offensive Technologies",
+  series = 	 "WOOT '08",
+  publisher =    "USENIX Association",
+  address = 	 "Berkley, CA",
+  articleno = 	 "7",
+  numpages = 	 "2",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  pages = 	 "99-100",
+  month = 	 "",
+  organization = "",
+  note = 	 "",
+}
+
+@Inproceedings{VanGundy09,
+  author =       "Matthew Van Gundy and Davide Balzarotti and Giovanni Vigna",
+  year =         "2009",
+  title =        "Catch me, if you can: Evading network signatures with web-based polymorphic worms",
+  booktitle =    "Proceedings of the first USENIX workshop on Offensive Technologies",
+  series = 	 "WOOT '09",
+  publisher =    "USENIX Association",
+  address = 	 "Berkley, CA",
+  articleno = 	 "",
+  numpages = 	 "",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  pages = 	 "90--100",
+  month = 	 "",
+  organization = "",
+  note = 	 "",
+}
+
+@Inproceedings{Andler79,
+  author =       "Sten Andler",
+  title =        "Predicate Path expressions",
+  booktitle =    "Proceedings of the 6th. ACM SIGACT-SIGPLAN symposium on Principles of Programming Languages",
+  series = 	 "POPL '79",
+  year =         "1979",
+  publisher =    "ACM Press",
+  address = 	 "New York, NY",
+  pages =        "226--236",
+  doi = 	 "10.1145/567752.567774",
+  url = 	 "http://doi.acm.org/10.1145/567752.567774",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  month = 	 "",
+  organization = "",
+  note = 	 "",
+}
+
+@Techreport{Harel78,
+  author =       "David Harel",
+  year =         "1978",
+  title =        "LOGICS of Programs: AXIOMATICS and DESCRIPTIVE POWER",
+  institution =  "Massachusetts Institute of Technology",
+  type =         "MIT Research Lab Technical Report",
+  number =       "TR-200",
+  address =      "Cambridge, MA",
+  month = 	 "",
+  note = 	 "",
+}
+
+@MASTERSTHESIS{anisi03,
+author = {David A. Anisi},
+title = {Optimal Motion Control of a Ground Vehicle},
+school = {Royal Institute of Technology (KTH), Stockholm, Sweden},
+intitution = {FOI-R-0961-SE, Swedish Defence Research Agency (FOI)},
+year = {2003},
+}
+
+
+@Phdthesis{Clarkson85,
+  author =       "Kenneth L. Clarkson",
+  year =         "1985",
+  title =        "Algorithms for Closest-Point Problems (Computational Geometry)",
+  school =       "Stanford University",
+  address =      "Palo Alto, CA",
+  note =         "UMI Order Number: AAT 8506171",
+  type = 	 "",
+  month = 	 "",
+}
+
+
+@misc{Thornburg01,
+  author =       "Harry Thornburg",
+  year =         "2001",
+  title =        "Introduction to Bayesian Statistics",
+  note =         "",
+  url =           "http://ccrma.stanford.edu/~jos/bayes/bayes.html",
+  howpublished = "",
+  month = 	 mar,
+  lastaccessed = "March 2, 2005",
+}
+
+
+@misc{Ablamowicz07,
+  author =       "Rafal Ablamowicz and Bertfried Fauser",
+  year =         "2007",
+  title =        "CLIFFORD: a Maple 11 Package for Clifford Algebra Computations, version 11",
+  note = 	 "",
+  url =          "http://math.tntech.edu/rafal/cliff11/index.html",
+  howpublished = "",
+  month = 	 "",
+  lastaccessed = "February 28, 2008",
+}
+
+
+@misc{Poker06,
+  author =       "Poker-Edge.Com",
+  year =         "2006",
+  month 	= mar,
+  title =        "Stats and Analysis",
+  lastaccessed = "June 7, 2006",
+  url =          "http://www.poker-edge.com/stats.php",
+  howpublished = "",
+}
+
+@misc{Obama08,
+  author 	= "Barack Obama",
+  year 		= "2008",
+  title		= "A more perfect union",
+  howpublished  = "Video",
+  day 		= "5",
+  url 		= "http://video.google.com/videoplay?docid=6528042696351994555",
+  month 	= mar,
+  lastaccessed  = "March 21, 2008",
+  note		=  "",
+}
+
+@misc{JoeScientist001,
+  author =       "Joseph Scientist",
+  year =         "2009",
+  title =        "The fountain of youth",
+  note =         "Patent No. 12345, Filed July 1st., 2008, Issued Aug. 9th., 2009",
+  url =           "",
+  howpublished = "",
+  month = 	 aug,
+  lastaccessed = "",
+}
+
+
+@Inproceedings{Novak03,
+  author =       "Dave Novak",
+  title =        "Solder man",
+  booktitle =    "ACM SIGGRAPH 2003 Video Review on Animation theater Program: Part I - Vol. 145 (July 27--27, 2003)",
+  year =         "2003",
+  publisher = 	 "ACM Press",
+  address = 	 "New York, NY",
+  pages =        "4",
+  month = 	 "March 21, 2008",
+  doi = 	 "99.9999/woot07-S422",
+  url = 	 "http://video.google.com/videoplay?docid=6528042696351994555",
+  note = 	 "",
+  howpublished = "Video",
+  editor = 	 "",
+  volume = 	 "",
+  number = 	 "",
+  series = 	 "",
+  organization = "",
+}
+
+
+@article{Lee05,
+  author =       "Newton Lee",
+  year = 	 "2005",
+  title =        "Interview with Bill Kinder: January 13, 2005",
+  journal = 	 "Comput. Entertain.",
+  articleno =     "4",
+  volume =       "3",
+  number = 	 "1",
+  month =  	 "Jan.-March",
+  doi = 	 "10.1145/1057270.1057278",
+  url = 	 "http://doi.acm.org/10.1145/1057270.1057278",
+  howpublished = "Video",
+  note =	 "",
+}
+
+@article{Rous08,
+  author =       "Bernard Rous",
+  year = 	 "2008",
+  title =        "The Enabling of Digital Libraries",
+  journal = 	 "Digital Libraries",
+  volume =       "12",
+  number = 	 "3",
+  month =  	 jul,
+  articleno = 	 "5",
+  doi = 	 "",
+  url = 	 "",
+  howpublished = "",
+  note =	 "To appear",
+}
+
+@article{384253,
+ author = {Werneck,, Renato and Setubal,, Jo\~{a}o and da Conceic\~{a}o,, Arlindo},
+ title = {(old) Finding minimum congestion spanning trees},
+ journal = {J. Exp. Algorithmics},
+ volume = {5},
+ year = {2000},
+ issn = {1084-6654},
+ pages = {11},
+ doi = {10.1145/351827.384253},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ }
+
+
+@article{Werneck:2000:FMC:351827.384253,
+ author = {Werneck, Renato and Setubal, Jo\~{a}o and da Conceic\~{a}o, Arlindo},
+ title = {(new) Finding minimum congestion spanning trees},
+ journal = {J. Exp. Algorithmics},
+ volume = {5},
+ month = dec,
+ year = {2000},
+ issn = {1084-6654},
+ articleno = {11},
+ url = {http://portal.acm.org/citation.cfm?id=351827.384253},
+ doi = {10.1145/351827.384253},
+ acmid = {384253},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+}
+
+@article{1555162,
+ author = {Conti, Mauro and Di Pietro, Roberto and Mancini, Luigi V. and Mei, Alessandro},
+ title = {(old) Distributed data source verification in wireless sensor networks},
+ journal = {Inf. Fusion},
+ volume = {10},
+ number = {4},
+ year = {2009},
+ issn = {1566-2535},
+ pages = {342--353},
+ doi = {10.1016/j.inffus.2009.01.002},
+ publisher = {Elsevier Science Publishers B. V.},
+ address = {Amsterdam, The Netherlands, The Netherlands},
+ }
+
+@article{Conti:2009:DDS:1555009.1555162,
+ author = {Conti, Mauro and Di Pietro, Roberto and Mancini, Luigi V. and Mei, Alessandro},
+ title = {(new) Distributed data source verification in wireless sensor networks},
+ journal = {Inf. Fusion},
+ volume = {10},
+ number = {4},
+ month = oct,
+ year = {2009},
+ issn = {1566-2535},
+ pages = {342--353},
+ numpages = {12},
+ url = {http://portal.acm.org/citation.cfm?id=1555009.1555162},
+ doi = {10.1016/j.inffus.2009.01.002},
+ acmid = {1555162},
+ publisher = {Elsevier Science Publishers B. V.},
+ address = {Amsterdam, The Netherlands, The Netherlands},
+ keywords = {Clone detection, Distributed protocol, Securing data fusion, Wireless sensor networks},
+}
+
+@inproceedings{Li:2008:PUC:1358628.1358946,
+ author = {Li, Cheng-Lun and Buyuktur, Ayse G. and Hutchful, David K. and Sant, Natasha B. and Nainwal, Satyendra K.},
+ title = {Portalis: using competitive online interactions to support aid initiatives for the homeless},
+ booktitle = {CHI '08 extended abstracts on Human factors in computing systems},
+ year = {2008},
+ isbn = {978-1-60558-012-X},
+ location = {Florence, Italy},
+ pages = {3873--3878},
+ numpages = {6},
+ url = {http://portal.acm.org/citation.cfm?id=1358628.1358946},
+ doi = {10.1145/1358628.1358946},
+ acmid = {1358946},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {cscw, distributed knowledge acquisition, incentive design, online games, recommender systems, reputation systems, user studies, virtual community},
+}
+
+@book{Hollis:1999:VBD:519964,
+ author = {Hollis, Billy S.},
+ title = {Visual Basic 6: Design, Specification, and Objects with Other},
+ year = {1999},
+ isbn = {0130850845},
+ edition = {1st},
+ publisher = {Prentice Hall PTR},
+ address = {Upper Saddle River, NJ, USA},
+ }
+
+
+@book{Goossens:1999:LWC:553897,
+ author = {Goossens, Michel and Rahtz, S. P. and Moore, Ross and Sutor, Robert S.},
+ title = {The  Latex Web Companion: Integrating TEX, HTML, and XML},
+ year = {1999},
+ isbn = {0201433117},
+ edition = {1st},
+ publisher = {Addison-Wesley Longman Publishing Co., Inc.},
+ address = {Boston, MA, USA},
+ }
+
+% need to test genres for errant isbn output
+
+% techreport
+@techreport{897367,
+ author = {Buss, Jonathan F. and Rosenberg, Arnold L. and Knott, Judson D.},
+ title = {Vertex Types in Book-Embeddings},
+ year = {1987},
+ source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3Ancstrlh%3Aumass_cs%3Ancstrl.umassa_cs%2F%2FUM-CS-1987-018},
+ publisher = {University of Massachusetts},
+ address = {Amherst, MA, USA},
+ }
+
+@techreport{Buss:1987:VTB:897367,
+ author = {Buss, Jonathan F. and Rosenberg, Arnold L. and Knott, Judson D.},
+ title = {Vertex Types in Book-Embeddings},
+ year = {1987},
+ source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3Ancstrlh%3Aumass_cs%3Ancstrl.umassa_cs%2F%2FUM-CS-1987-018},
+ publisher = {University of Massachusetts},
+ address = {Amherst, MA, USA},
+ }
+
+% whole proceedings
+
+@proceedings{Czerwinski:2008:1358628,
+ author = {},
+ note = {General Chair-Czerwinski, Mary and General Chair-Lund, Arnie and Program Chair-Tan, Desney},
+ title = {CHI '08: CHI '08 extended abstracts on Human factors in computing systems},
+ year = {2008},
+ isbn = {978-1-60558-012-X},
+ location = {Florence, Italy},
+ order_no = {608085},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ }
+
+% phdthesis
+
+@phdthesis{Clarkson:1985:ACP:911891,
+ author = {Clarkson, Kenneth Lee},
+ advisor = {Yao, Andrew C.},
+ title = {Algorithms for Closest-Point Problems (Computational Geometry)},
+ year = {1985},
+ note = {AAT 8506171},
+ school = {Stanford University},
+ address = {Stanford, CA, USA},
+ }
+% school is being picked up -- but not publisher (which is OK)
+
+% A bibliography
+@Article{1984:1040142,
+ key = {{$\!\!$}},
+ journal = {SIGCOMM Comput. Commun. Rev.},
+ year = {1984},
+ issn = {0146-4833},
+ volume = {13-14},
+ number = {5-1},
+ issue_date = {January/April 1984},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ }
+
+
+% grinder
+@inproceedings{2004:ITE:1009386.1010128,
+ title = {IEEE TCSC Executive Committee},
+ booktitle = {Proceedings of the IEEE International Conference on Web Services},
+ series = {ICWS '04},
+ year = {2004},
+ isbn = {0-7695-2167-3},
+ pages = {.21--},
+ url = {http://dx.doi.org/10.1109/ICWS.2004.64},
+ doi = {10.1109/ICWS.2004.64},
+ acmid = {1010128},
+ publisher = {IEEE Computer Society},
+ address = {Washington, DC, USA},
+key = {{$\!\!$}} ,
+}
+
+% div book
+@book{Mullender:1993:DS(:302430,
+ editor = {Mullender, Sape},
+ title = {Distributed systems (2nd Ed.)},
+ year = {1993},
+ isbn = {0-201-62427-3},
+ publisher = {ACM Press/Addison-Wesley Publishing Co.},
+ address = {New York, NY, USA},
+ }
+
+% master thesis (as techreport and thesis)
+
+@techreport{Petrie:1986:NAD:899644,
+ author = {Petrie, Charles J.},
+ title = {New Algorithms for Dependency-Directed Backtracking (Master's thesis)},
+ year = {1986},
+ source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3Ancstrlh%3Autexas_cs%3AUTEXAS_CS%2F%2FAI86-33},
+ publisher = {University of Texas at Austin},
+ address = {Austin, TX, USA},
+ }
+
+@MASTERSTHESIS{Petrie:1986:NAD:12345,
+ author = {Petrie, Charles J.},
+ title = {New Algorithms for Dependency-Directed Backtracking (Master's thesis)},
+ year = {1986},
+ source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3Ancstrlh%3Autexas_cs%3AUTEXAS_CS%2F%2FAI86-33},
+ school = {University of Texas at Austin},
+ address = {Austin, TX, USA},
+ }
+
+@BOOK{book-minimal,
+   author = "Donald E. Knuth",
+   title = "Seminumerical Algorithms",
+   publisher = "Addison-Wesley",
+   year = "1981",
+}
+
+% incollection (has an editor, title, and possibly a booktitle)
+@INcollection{KA:2001,
+ author = {Kong, Wei-Chang},
+ Title = {The implementation of electronic commerce in SMEs in Singapore (as Incoll)},
+ booktitle = {E-commerce and cultural values},
+ year = {2001},
+ isbn = {1-59140-056-2},
+ pages = {51--74},
+ numpages = {24},
+ url = {http://portal.acm.org/citation.cfm?id=887006.887010},
+ acmid = {887010},
+ publisher = {IGI Publishing},
+ address = {Hershey, PA, USA},
+}
+
+
+% with bibfield 'type' before chapter (note no editor)
+@INBOOK{KAGM:2001,
+ author = {Kong, Wei-Chang},
+ type = {Name of Chapter:},
+ chapter = {The implementation of electronic commerce in SMEs in Singapore (Inbook-w-chap-w-type)},
+ title = {E-commerce and cultural values},
+ year = {2001},
+ isbn = {1-59140-056-2},
+ pages = {51--74},
+ numpages = {24},
+ url = {http://portal.acm.org/citation.cfm?id=887006.887010},
+ acmid = {887010},
+ publisher = {IGI Publishing},
+ address = {Hershey, PA, USA},
+}
+
+%%% Notes! This is because the atsign-INBOOK citation type specifies EITHER
+%%% editor or author, but not both. In experiments with the harvard/dcu
+%%% bibtex style (and presumably this applies to other styles too), bibtex
+%%% ignores the editor information if author information exists in an
+%%% atsign-INBOOK entry. atsign-INCOLLECTION is far more commonly used in references,
+%%% and in the absence of an editor I believe most bibtex styles will just
+%%% ommit the editor from the reference - the chapter information will not
+%%% end up in the in-text citation --- (and) there is a place to put the editor if necessary.
+
+% incollection - (editor is different to author) 
+@incollection{Kong:2002:IEC:887006.887010,
+  author = 	{Kong, Wei-Chang},
+  editor =	{Theerasak Thanasankit},
+  title =	{Chapter 9},
+  booktitle =	{E-commerce and cultural values (Incoll-w-text (chap 9) 'title')},
+  year =	{2002},
+  address =	{Hershey, PA, USA},
+  publisher =	{IGI Publishing},
+  url =		{http://portal.acm.org/citation.cfm?id=887006.887010},
+  pages =	{51--74},
+  numpages =	{24},
+  acmid =	{887010},
+  isbn =	{1-59140-056-2},
+  number = 	 "",
+  type = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+% incol when the chapter is 'text' - due to presence of editor (different to author)
+@incollection{Kong:2003:IEC:887006.887011,
+ author = {Kong, Wei-Chang},
+ title = {The implementation of electronic commerce in SMEs in Singapore (Incoll)},
+ booktitle = {E-commerce and cultural values},
+ editor = {Thanasankit, Theerasak},
+ year = {2003},
+ isbn = {1-59140-056-2},
+ pages = {51--74},
+ numpages = {24},
+ url = {http://portal.acm.org/citation.cfm?id=887006.887010},
+ acmid = {887010},
+ publisher = {IGI Publishing},
+ address = {Hershey, PA, USA},
+}
+
+% inbook with number in chapter
+@InBook{Kong:2004:IEC:123456.887010,
+  author = 	{Kong, Wei-Chang},
+  editor =	{Theerasak Thanasankit},
+  title =	{E-commerce and cultural values - (InBook-num-in-chap)},
+  chapter =	{9},
+  year =	{2004},
+  address =	{Hershey, PA, USA},
+  publisher =	{IGI Publishing},
+  url =		{http://portal.acm.org/citation.cfm?id=887006.887010},
+  pages =	{51--74},
+  numpages =	{24},
+  acmid =	{887010},
+  isbn =	{1-59140-056-2},
+  number = 	 "",
+  type = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+% and inbook with text in chapter
+@Inbook{Kong:2005:IEC:887006.887010,
+  author = 	{Kong, Wei-Chang},
+  editor =	{Theerasak Thanasankit},
+  title =	{E-commerce and cultural values (Inbook-text-in-chap)},
+  chapter =	{The implementation of electronic commerce in SMEs in Singapore},
+  year =	{2005},
+  address =	{Hershey, PA, USA},
+  publisher =	{IGI Publishing},
+  url =		{http://portal.acm.org/citation.cfm?id=887006.887010},
+  type =        {Chapter:},
+  pages =	{51--74},
+  numpages =	{24},
+  acmid =	{887010},
+  isbn =	{1-59140-056-2},
+  number = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+% and inbook with a num and type field
+@Inbook{Kong:2006:IEC:887006.887010,
+  author = 	{Kong, Wei-Chang},
+  editor =	{Theerasak Thanasankit},
+  title =	{E-commerce and cultural values (Inbook-num chap)},
+  chapter =	{22},
+  year =	{2006},
+  address =	{Hershey, PA, USA},
+  publisher =	{IGI Publishing},
+  url =		{http://portal.acm.org/citation.cfm?id=887006.887010},
+  type =        {Chapter (in type field)},
+  pages =	{51--74},
+  numpages =	{24},
+  acmid =	{887010},
+  isbn =	{1-59140-056-2},
+  number = 	 "",
+  month = 	 "",
+  note = 	 "",
+}
+
+
+@article{SaeediMEJ10,
+            author = {Mehdi Saeedi and Morteza Saheb Zamani and Mehdi Sedighi},
+            title = {A library-based synthesis methodology for reversible logic},
+            journal = {Microelectron. J.},
+            volume = {41},
+            number = {4},
+            month = apr,
+            year = {2010},
+            pages = {185--194},
+}
+
+@ARTICLE{SaeediJETC10,
+            author = {Mehdi Saeedi and Morteza Saheb Zamani and Mehdi Sedighi and Zahra Sasanian},
+            title = {Synthesis of Reversible Circuit Using Cycle-Based Approach},
+            journal = {J. Emerg. Technol. Comput. Syst.},
+            volume = {6},
+            number = {4},
+            month = dec,
+            year = {2010}
+            }
+
+% Asad's new version
+@article{Kirschmer:2010:AEI:1958016.1958018,
+ author = {Kirschmer, Markus and Voight, John},
+ title = {Algorithmic Enumeration of Ideal Classes for Quaternion Orders},
+ journal = {SIAM J. Comput.},
+ issue_date = {January 2010},
+ volume = {39},
+ number = {5},
+ month = jan,
+ year = {2010},
+ issn = {0097-5397},
+ pages = {1714--1747},
+ numpages = {34},
+ url = {http://dx.doi.org/10.1137/080734467},
+ doi = {10.1137/080734467},
+ acmid = {1958018},
+ publisher = {Society for Industrial and Applied Mathematics},
+ address = {Philadelphia, PA, USA},
+ keywords = {ideal classes, maximal orders, number theory, quaternion algebras},
+}
+
+
+% incol due to presence of booktitle
+@incollection{Hoare:1972:CIN:1243380.1243382,
+ author = {Hoare, C. A. R.},
+ title = {Chapter II: Notes on data structuring},
+ booktitle = {Structured programming (incoll)},
+ editor = {Dahl, O. J. and Dijkstra, E. W. and Hoare, C. A. R.},
+ year = {1972},
+ isbn = {0-12-200550-3},
+ pages = {83--174},
+ numpages = {92},
+ url = {http://portal.acm.org/citation.cfm?id=1243380.1243382},
+ acmid = {1243382},
+ publisher = {Academic Press Ltd.},
+ address = {London, UK, UK},
+} 
+
+% incol due to presence of booktitle
+@incollection{Lee:1978:TQA:800025.1198348,
+ author = {Lee, Jan},
+ title = {Transcript of question and answer session},
+ booktitle = {History of programming languages I (incoll)},
+ editor = {Wexelblat, Richard L.},
+ year = {1981},
+ isbn = {0-12-745040-8},
+ pages = {68--71},
+ numpages = {4},
+ url = {http://doi.acm.org/10.1145/800025.1198348},
+ doi = {10.1145/800025.1198348},
+ acmid = {1198348},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+}
+
+% incol due to booktitle
+@incollection{Dijkstra:1979:GSC:1241515.1241518,
+ author = {Dijkstra, E.},
+ title = {Go to statement considered harmful},
+ booktitle = {Classics in software engineering (incoll)},
+ year = {1979},
+ isbn = {0-917072-14-6},
+ pages = {27--33},
+ numpages = {7},
+ url = {http://portal.acm.org/citation.cfm?id=1241515.1241518},
+ acmid = {1241518},
+ publisher = {Yourdon Press},
+ address = {Upper Saddle River, NJ, USA},
+} 
+
+% incol due to booktitle
+@incollection{Wenzel:1992:TVA:146022.146089,
+ author = {Wenzel, Elizabeth M.},
+ title = {Three-dimensional virtual acoustic displays},
+ booktitle = {Multimedia interface design (incoll)},
+ year = {1992},
+ isbn = {0-201-54981-6},
+ pages = {257--288},
+ numpages = {32},
+ url = {http://portal.acm.org/citation.cfm?id=146022.146089},
+ doi = {10.1145/146022.146089},
+ acmid = {146089},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+}
+
+% incol due to booktitle
+@incollection{Mumford:1987:MES:54905.54911,
+ author = {Mumford, E.},
+ title = {Managerial expert systems and organizational change: some critical research issues},
+ booktitle = {Critical issues in information systems research (incoll)},
+ year = {1987},
+ isbn = {0-471-91281-6},
+ pages = {135--155},
+ numpages = {21},
+ url = {http://portal.acm.org/citation.cfm?id=54905.54911},
+ acmid = {54911},
+ publisher = {John Wiley \& Sons, Inc.},
+ address = {New York, NY, USA},
+} 
+
+@book{McCracken:1990:SSC:575315,
+ author = {McCracken, Daniel D. and Golden, Donald G.},
+ title = {Simplified Structured COBOL with Microsoft/MicroFocus COBOL},
+ year = {1990},
+ isbn = {0471514071},
+ publisher = {John Wiley \& Sons, Inc.},
+ address = {New York, NY, USA},
+} 
+
+% Let's include Boris / BBeeton entries  (multi-volume works)
+
+@book {MR781537,
+    AUTHOR = {H{\"o}rmander, Lars},
+     TITLE = {The analysis of linear partial differential operators. {III}},
+    SERIES = {Grundlehren der Mathematischen Wissenschaften [Fundamental
+              Principles of Mathematical Sciences]},
+    VOLUME = {275},
+      NOTE = {Pseudodifferential operators},  
+PUBLISHER = {Springer-Verlag},
+   ADDRESS = {Berlin, Germany},
+      YEAR = {1985},
+     PAGES = {viii+525},
+      ISBN = {3-540-13828-5},
+   MRCLASS = {35-02 (35Sxx 47G05 58G15)},
+  MRNUMBER = {781536 (87d:35002a)},
+MRREVIEWER = {Min You Qi},
+}
+
+@book {MR781536,
+    AUTHOR = {H{\"o}rmander, Lars},
+     TITLE = {The analysis of linear partial differential operators. {IV}},
+    SERIES = {Grundlehren der Mathematischen Wissenschaften [Fundamental
+              Principles of Mathematical Sciences]},
+    VOLUME = {275},
+      NOTE = {Fourier integral operators},  
+PUBLISHER = {Springer-Verlag},
+   ADDRESS = {Berlin, Germany},
+      YEAR = {1985},
+     PAGES = {vii+352},
+      ISBN = {3-540-13829-3},
+   MRCLASS = {35-02 (35Sxx 47G05 58G15)},
+  MRNUMBER = {781537 (87d:35002b)},
+MRREVIEWER = {Min You Qi},
+}
+
+%%%%%%%%%%%%%%%%%%%%%% Start of Aptara sample bib entries
+
+% Start of 'original sample' references
+% This file was created with JabRef 2.5.
+% Encoding: Cp1252
+
+@ARTICLE{Adams2007,
+  author = {Adams, D.L. and Sincich, L.C. and Horton, J.C.},
+  title = {Complete pattern of ocular dominance columns in human primary visual
+	cortex},
+  journal = {Journal of Neuroscience},
+  year = {2007},
+  volume = {27},
+  pages = {10391},
+  number = {39},
+  file = {Adams2007.pdf:Adams2007.pdf:PDF},
+  publisher = {Soc Neuroscience}
+}
+
+@ARTICLE{Albus2007,
+  author = {Albus, James S. and Bekey, George A. and Holland, John H. and Kanwisher,
+	Nancy G. and Krichmar, Jeffrey L. and Mishkin, Mortimer and Modha,
+	Dharmendra S. and Raichle, Marcus E. and Shepherd, Gordon M. andTononi,
+	Giulio},
+  title = {A Proposal for a Decade of the Mind Initiative},
+  journal = {Science},
+  year = {2007},
+  volume = {317},
+  pages = {1321},
+  number = {5843},
+  file = {Albus2007.pdf:Albus2007.pdf:PDF},
+  publisher = {AAAS}
+}
+
+@ARTICLE{Atick1990,
+  author = {Atick, J.J. and Redlich, A.N.},
+  title = {Towards a theory of early visual processing},
+  journal = {Neural Computation},
+  year = {1990},
+  volume = {2},
+  pages = {308--320},
+  number = {3},
+  file = {Atick1990.pdf:Atick1990.pdf:PDF},
+  publisher = {MIT Press}
+}
+
+@INPROCEEDINGS{Bair2005,
+  author = {Bair, Alethea and House, Donald and Ware, Colin},
+  title = {Perceptually optimizing textures for layered surfaces},
+  booktitle = {APGV '05: Proceedings of the 2nd symposium on Applied perception
+	in graphics and visualization},
+  year = {2005},
+  pages = {67--74},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/1080402.1080414},
+  file = {Bair2005.pdf:Bair2005.pdf:PDF},
+  keywords = {data visualization, texture perception},
+  location = {A Coro\, {n}a, Spain}
+}
+
+@ARTICLE{Barlow1959,
+  author = {Barlow, B.},
+  title = {Possible Principles Underlying the Transformations of Sensory Messages},
+  journal = {Sensory Communication, Contributions: Contributions},
+  year = {1959},
+  pages = {217},
+  file = {Barlow1959.pdf:Barlow1959.pdf:PDF},
+  publisher = {MIT Press, Massachusetts Institute of Technology}
+}
+
+@ARTICLE{Barlow1972,
+  author = {Barlow, H.B.},
+  title = {Single units and sensation: a neuron doctrine for perceptual psychology},
+  journal = {Perception},
+  year = {1972},
+  volume = {1},
+  pages = {371--394},
+  number = {4},
+  file = {Barlow1972.pdf:Barlow1972.pdf:PDF}
+}
+
+@BOOK{Behnke2003,
+  title = {Hierarchical neural networks for image interpretation},
+  publisher = {Springer},
+  year = {2003},
+  author = {Behnke, Sven},
+  file = {Behnke2003.pdf:Behnke2003.pdf:PDF}
+}
+
+@ARTICLE{Bell1995,
+  author = {Bell, A.J. and Sejnowski, T.J.},
+  title = {An information-maximization approach to blind separation and blind
+	deconvolution},
+  journal = {Neural computation},
+  year = {1995},
+  volume = {7},
+  pages = {1129--1159},
+  number = {6},
+  file = {Bell1995.pdf:Bell1995.pdf:PDF},
+  publisher = {MIT Press}
+}
+
+@ARTICLE{Ben-Shahar2003,
+  author = {Ben-Shahar, O. and Huggins, P.S. and Izo, T. and Zucker, S.W.},
+  title = {Cortical connections and early visual function: intra-and inter-columnar
+	processing},
+  journal = {Journal of Physiology-Paris},
+  year = {2003},
+  volume = {97},
+  pages = {191--208},
+  number = {2-3},
+  file = {Ben-Shahar2003.pdf:Ben-Shahar2003.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@ARTICLE{Ben-Shahar2004,
+  author = {Ben-Shahar, O. and Zucker, S.},
+  title = {Geometrical computations explain projection patterns of long-range
+	horizontal connections in visual cortex},
+  journal = {Neural Computation},
+  year = {2004},
+  volume = {16},
+  pages = {445--476},
+  number = {3},
+  file = {Ben-Shahar2004.pdf:Ben-Shahar2004.pdf:PDF},
+  publisher = {MIT Press}
+}
+
+@ARTICLE{Benavides2006,
+  author = {Benavides-Piccione, R. and Hamzei-Sichani, F. and Ballesteros-Yanez,
+	I. and DeFelipe, J. and Yuste, R.},
+  title = {Dendritic size of pyramidal neurons differs among mouse cortical
+	regions},
+  journal = {Cerebral Cortex},
+  year = {2006},
+  volume = {16},
+  pages = {990},
+  number = {7},
+  file = {Benavides2006.pdf:Benavides2006.pdf:PDF},
+  publisher = {Oxford Univ Press}
+}
+
+@ARTICLE{Bergen1988,
+  author = {Bergen, J.R. and Adelson, E.H.},
+  title = {Early vision and texture perception},
+  journal = {Nature},
+  year = {1988},
+  volume = {333},
+  pages = {363--364},
+  number = {6171},
+  file = {Bergen1988.pdf:Bergen1988.pdf:PDF}
+}
+
+@ARTICLE{Bergen1991,
+  author = {Bergen, J.R. and Landy, M.S.},
+  title = {Computational modeling of visual texture segregation},
+  journal = {Computational models of visual processing},
+  year = {1991},
+  pages = {253--271},
+  file = {Bergen1991.pdf:Bergen1991.pdf:PDF}
+}
+
+@CONFERENCE{Bergman1995,
+  author = {Bergman, Lawrence D. and Rogowitz, Bernice E. and Treinish, Lloyd
+	A.},
+  title = {A rule-based tool for assisting colormap selection},
+  booktitle = {Proceedings of the 6th conference on Visualization'95},
+  year = {1995},
+  organization = {IEEE Computer Society Washington, DC, USA},
+  file = {Bergman1995.pdf:Bergman1995.pdf:PDF}
+}
+
+@ARTICLE{Borland2007,
+  author = {Borland, David and Taylor, Russell M.},
+  title = {Rainbow Color Map (Still) Considered Harmful},
+  journal = {IEEE Computer Graphics and Applications},
+  year = {2007},
+  volume = {27},
+  pages = {14-17},
+  number = {2},
+  address = {Los Alamitos, CA, USA},
+  doi = {10.1109/MCG.2007.46},
+  file = {Borland2007.pdf:Borland2007.pdf:PDF},
+  issn = {0272-1716},
+  publisher = {IEEE Computer Society}
+}
+
+@ARTICLE{Bosking1997,
+  author = {Bosking, William H. and Zhang, Ying and Schofield, Brett and Fitzpatrick,
+	David},
+  title = {Orientation Selectivity and the Arrangement of Horizontal Connections
+	in Tree Shrew Striate Cortex},
+  journal = {J. Neurosci.},
+  year = {1997},
+  volume = {17},
+  pages = {2112-2127},
+  number = {6},
+  eprint = {http://www.jneurosci.org/cgi/reprint/17/6/2112.pdf},
+  file = {Bosking1997.pdf:Bosking1997.pdf:PDF},
+  url = {http://www.jneurosci.org/cgi/content/abstract/17/6/2112}
+}
+
+@ARTICLE{Bricolo1997,
+  author = {Bricolo, E. and Poggio, T. and Logothetis, N.},
+  title = {3D object recognition: A model of view-tuned neurons},
+  journal = {Advances In Neural Information Processing 9},
+  year = {1997},
+  pages = {41--47},
+  file = {Bricolo1997.pdf:Bricolo1997.pdf:PDF},
+  publisher = {Citeseer}
+}
+
+@ELECTRONIC{Bush1990,
+  author = {George H. W. Bush},
+  month = jul,
+  year = {1990},
+  title = {Presidential Proclamation 6158},
+  url = {http://www.loc.gov/loc/brain/proclaim.html},
+  day = {17}
+}
+
+@INPROCEEDINGS{Cabral1993,
+  author = {Cabral, Brian and Leedom, Leith C.},
+  title = {Imaging vector fields using line integral convolution},
+  booktitle = {Proceedings of the 20th Annual Conference on Computer
+	Graphics and Interactive Techniques (SIGGRAPH'93)},
+  year = {1993},
+  pages = {263--270},
+  address = {New York, NY},
+  publisher = {ACM},
+  doi = {10.1145/166117.166151},
+  file = {Cabral1993.pdf:Cabral1993.pdf:PDF},
+  keywords = {flow visualization, data visualization},
+  location = {Anaheim, CA},
+  url = {http://dx.doi.org/10.1145/166117.166151}
+}
+
+@ARTICLE{Callaway2004,
+  author = {Callaway, E.M.},
+  title = {Feedforward, feedback and inhibitory connections in primate visual
+	cortex},
+  journal = {Neural Networks},
+  year = {2004},
+  volume = {17},
+  pages = {625--632},
+  number = {5-6},
+  file = {Callaway2004.pdf:Callaway2004.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@ARTICLE{Callaway2002,
+  author = {Callaway, E.M.},
+  title = {Cell type specificity of local cortical connections},
+  journal = {Journal of neurocytology},
+  year = {2002},
+  volume = {31},
+  pages = {231--237},
+  number = {3},
+  file = {Callaway2002.pdf:Callaway2002.pdf:PDF},
+  publisher = {Springer}
+}
+
+@ARTICLE{Callaway1998,
+  author = {Callaway, E.M.},
+  title = {Local circuits in primary visual cortex of the macaque monkey},
+  journal = {Annual Review of Neuroscience},
+  year = {1998},
+  volume = {21},
+  pages = {47--74},
+  number = {1},
+  publisher = {Annual Reviews}
+}
+
+@ARTICLE{Carpenter1988,
+  author = {Gail Carpenter and Stephen Grossberg},
+  title = {The ART of adaptive pattern recognition by a self-organizing neural
+	network},
+  journal = {Computer},
+  year = {1988},
+  volume = {21},
+  pages = {77--88},
+  file = {Carpenter1988.pdf:Carpenter1988.pdf:PDF}
+}
+
+@ARTICLE{Carpenter1998,
+  author = {Carpenter, G.A. and Grossberg, S. and Lesher, G.W.},
+  title = {The What-and-Where Filter},
+  journal = {Computer Vision and Image Understanding},
+  year = {1998},
+  volume = {69},
+  pages = {1--22},
+  number = {1},
+  file = {Carpenter1998.pdf:Carpenter1998.pdf:PDF}
+}
+
+@ARTICLE{Chalmers2002,
+  author = {Chalmers, D. and Crick and Koch, C.},
+  title = {The puzzle of conscious experience},
+  journal = {Special Editions},
+  year = {2002},
+  file = {Chalmers2002.pdf:Chalmers2002.pdf:PDF},
+  publisher = {Scientific American}
+}
+
+@TECHREPORT{Chikkerur2009,
+  author = {Chikkerur, Sharat and Serre, Thomas and Tan, Cheston and Poggio,
+	Tomaso},
+  title = {An integrated model of visual attention using shape-based features},
+  institution = {Massachusetts Institute of Technology},
+  year = {2009},
+  month = jun,
+  file = {Chikkerur2009.pdf:Chikkerur2009.pdf:PDF},
+  location = {Cambridge, MA},
+  misc = {CBCL paper #278 /MIT-CSAIL-TR #2009-029}
+}
+
+@ARTICLE{Crick2003,
+  author = {Crick, F. and Koch, C.},
+  title = {A framework for consciousness},
+  journal = {nature neuroscience},
+  year = {2003},
+  volume = {6},
+  pages = {119--126},
+  number = {2},
+  file = {Crick2003.pdf:Crick2003.pdf:PDF}
+}
+
+@ARTICLE{Crick2002,
+  author = {Crick, F. and Koch, C.},
+  title = {The problem of consciousness},
+  journal = {Special Editions},
+  year = {2002},
+  file = {Crick2002.pdf:Crick2002.pdf:PDF},
+  publisher = {Scientific American}
+}
+
+@ARTICLE{Daugman1985,
+  author = {John G. Daugman},
+  title = {Uncertainty relation for resolution in space, spatial frequency,
+	and orientation optimized by two-dimensional visual cortical filters},
+  journal = {J. Optical Soc. Amer. A: Optics, Image Science,
+	 Vision},
+  year = {1985},
+  volume = {2},
+  pages = {1160--1169},
+  number = {7},
+  citeulike-article-id = {3873413},
+  file = {Daugman1985.pdf:Daugman1985.pdf:PDF},
+  keywords = {data visualization},
+  posted-at = {2009-01-10 20:08:36},
+  priority = {4}
+}
+
+@ARTICLE{Dehaene1991,
+  author = {Dehaene, S. and Cohen, L.},
+  title = {Two mental calculation systems: A case study of severe acalculia
+	with preserved approximation},
+  journal = {Neuropsychologia},
+  year = {1991},
+  volume = {29},
+  pages = {1045--1074},
+  number = {11},
+  file = {Dehaene1991.pdf:Dehaene1991.pdf:PDF}
+}
+
+@ARTICLE{Dehaene2003a,
+  author = {Dehaene, S. and Sergent, C. and Changeux, J.P.},
+  title = {A neuronal network model linking subjective reports and objective
+	physiological data during conscious perception},
+  journal = {Proceedings of the National Academy of Sciences of the United States
+	of America},
+  year = {2003},
+  volume = {100},
+  pages = {8520},
+  number = {14},
+  file = {Dehaene2003a.pdf:Dehaene2003a.pdf:PDF},
+  publisher = {National Acad Sciences}
+}
+
+@ARTICLE{Dehaene1999,
+  author = {Dehaene, S. and Spelke, E. and Pinel, P. and Stanescu, R. and Tsivkin,
+	S.},
+  title = {Sources of mathematical thinking: Behavioral and brain-imaging evidence},
+  journal = {Science},
+  year = {1999},
+  volume = {284},
+  pages = {970},
+  number = {5416},
+  file = {Dehaene1999.pdf:Dehaene1999.pdf:PDF},
+  publisher = {AAAS}
+}
+
+@ARTICLE{Desimone1995,
+  author = {Desimone, R. and Duncan, J.},
+  title = {Neural mechanisms of selective visual attention},
+  journal = {Annual Review of Neuroscience},
+  year = {1995},
+  volume = {18},
+  pages = {193--222},
+  number = {1},
+  file = {Desimone1995.pdf:Desimone1995.pdf:PDF},
+  publisher = {Annual Reviews}
+}
+
+@BOOK{Battista1998,
+  title = {{Graph drawing: algorithms for the visualization of graphs}},
+  publisher = {Prentice Hall PTR Upper Saddle River, NJ, USA},
+  year = {1998},
+  author = {Di Battista, G. and Eades, P. and Tamassia, R. and Tollis, I.G.}
+}
+
+@INPROCEEDINGS{Dong1995,
+  author = {Dawei W. Dong and Joseph J. Atick},
+  title = {Temporal Decorrelation: A Theory of Lagged and Nonlagged Responses
+	in the Lateral Geniculate Nucleus},
+  booktitle = {Network},
+  year = {1995},
+  pages = {159--178},
+  file = {Dong1995.pdf:Dong1995.pdf:PDF}
+}
+
+@ARTICLE{Dubinski2006,
+  author = {John Dubinski},
+  title = {The great Milky Way -Andromeda collision},
+  journal = {Sky and Telescope},
+  year = {2006},
+  volume = {112},
+  pages = {30},
+  number = {10},
+  month = oct
+}
+
+@INPROCEEDINGS{Eades1989,
+  author = {Peter Eades and Lin Xuemin},
+  title = {How to draw a directed graph},
+  booktitle = {Visual Languages, 1989., IEEE Workshop on},
+  year = {1989},
+  pages = {13-17},
+  month = oct,
+  doi = {10.1109/WVL.1989.77035},
+  keywords = {data visualization, graph visualization}
+}
+
+@ARTICLE{Elder1998,
+  author = {Elder, J.H. and Zucker, S.W.},
+  title = {Evidence for boundary-specific grouping},
+  journal = {Vision Research},
+  year = {1998},
+  volume = {38},
+  pages = {143--152},
+  number = {1},
+  file = {Elder1998.pdf:Elder1998.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@ARTICLE{Elston1996,
+  author = {Elston, Guy N. and Rosa, Marcello G.P. and Calord, Michael B.},
+  title = {Comparison of Dendritic Fields of Layer III Pyramidal Neurons in
+	Striate and Extrastriate Visual Areas of the Marmoset: a Lucifer
+	Yellow Intracellular Injection Study},
+  year = {1996},
+  file = {Elston1996.pdf:Elston1996.pdf:PDF}
+}
+
+@INPROCEEDINGS{Fabrikant2005,
+  author = {Fabrikant, S.I. and Goldsberry, K.},
+  title = {Thematic relevance and perceptual salience of dynamic geovisualization
+	displays},
+  booktitle = {Proceedings of 22nd ICA international cartographic conference: mapping
+	approaches into a changing world},
+  year = {2005},
+  month = jul,
+  day = {9-16},
+  file = {Fabrikant2005.pdf:Fabrikant2005.pdf:PDF},
+  location = {A Coruna, Spain}
+}
+
+@BOOK{Fairchild2005,
+  title = {Color appearance models, Second Edition},
+  publisher = {John wiley \& Sons, Ltd},
+  year = {2005},
+  author = {Mark D. Fairchild},
+  keywords = {modeling},
+  timestamp = {2009.09.10}
+}
+
+@ARTICLE{Field1993,
+  author = {David J. Field and Anthony Hayes and Robert F. Hess},
+  title = {Contour integration by the human visual system: Evidence for a local
+	``association field"},
+  journal = {Vision Res.},
+  year = {1993},
+  volume = {33},
+  pages = {173-193},
+  number = {2},
+  doi = {10.1016/0042-6989(93)90156-Q},
+  file = {Field1993.pdf:Field1993.pdf:PDF},
+  keywords = {flow visualization, contour perception}
+}
+
+@INPROCEEDINGS{Fowler1989,
+  author = {David Fowler and Colin Ware},
+  title = {Strokes for Representing Univariate Vector Field Maps},
+  booktitle = {Proceedings of Graphics Interface},
+  year = {1989},
+  pages = {249--253},
+  month = jun,
+  day = {19--23},
+  address = {Mississauga, Ontario},
+  publisher = {Canadian Human-Computer Communications Society},
+  keywords = {flow visualization, data visualization, contour perception},
+  location = {London, Ontario}
+}
+
+@TECHREPORT{Freeman1997,
+  author = {Freeman, Delma Jr and Reubush, David and McClinton,Charles R. and
+	Rausch, Vincent L. and Crawford, J. Larry },
+  title = {The NASA Hyper-X Program},
+  year = {1997},
+  publisher = {NASA Langley Technical Report Server},
+  source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3ALTRS%3ANASA-97-48iac-dcf}
+}
+
+@MISC{Gansner1990,
+  author = {Gansner, E.R. and North, S.C. and Vo, K.P.},
+  title = {Technique for drawing directed graphs},
+  month = aug # {~28},
+  year = {1990},
+  note = {US Patent 4,953,106},
+  file = {Gansner1990.pdf:Gansner1990.pdf:PDF},
+  publisher = {Google Patents}
+}
+
+@ARTICLE{Ghoniem2005,
+  author = {Ghoniem, Mohammad and Fekete, Jean-Daniel and Castagliola, Philippe},
+  title = {On the readability of graphs using node-link and matrix-based representations:
+	a controlled experiment and statistical analysis},
+  journal = {Information Visualization},
+  year = {2005},
+  volume = {4},
+  pages = {114--135},
+  number = {2},
+  doi = {10.1057/palgrave.ivs.9500092},
+  issn = {1473-8716},
+  publisher = {Palgrave Macmillan}
+}
+
+@ARTICLE{Gilbert1989,
+  author = {Gilbert, CD and Wiesel, TN},
+  title = {Columnar specificity of intrinsic horizontal and corticocortical
+	connections in cat visual cortex},
+  journal = {Journal of Neuroscience},
+  year = {1989},
+  volume = {9},
+  pages = {2432},
+  number = {7},
+  file = {Gilbert1989.pdf:Gilbert1989.pdf:PDF},
+  publisher = {Soc Neuroscience}
+}
+
+@ARTICLE{Gray1999,
+  author = {Gray, C.M.},
+  title = {The Temporal Correlation Hypothesis of Visual Feature Integration::
+	Still Alive and Well},
+  journal = {Neuron},
+  year = {1999},
+  volume = {24},
+  pages = {31--47},
+  number = {1},
+  file = {Gray1999.pdf:Gray1999.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@ARTICLE{Grossberg1999,
+  author = {Stephen Grossberg},
+  title = {How Does The Cerebral Cortex Work? Learning Attention, and Grouping
+	by the Laminar Circuits of Visual Cortex},
+  journal = {Spatial Vision},
+  year = {1999},
+  volume = {12},
+  pages = {163--186}
+}
+
+@ARTICLE{Grossberg1983,
+  author = {Grossberg, S.},
+  title = {The quantized geometry of visual space: The coherent computation
+	of depth, form, and lightness},
+  journal = {Behavioral and Brain Sciences},
+  year = {1983},
+  volume = {6},
+  pages = {1},
+  number = {625-57},
+  file = {Grossberg1983.pdf:Grossberg1983.pdf:PDF}
+}
+
+@INPROCEEDINGS{Grossberg1973,
+  author = {Stephen Grossberg},
+  title = {Contour enhancement, short-term memory, and constancies in reverberating
+	neural networks},
+  year = {1973},
+  volume = {52},
+  pages = {213-257},
+  file = {Grossberg1973.pdf:Grossberg1973.pdf:PDF},
+  journal = {Studies in Applied Mathematics}
+}
+
+@INPROCEEDINGS{Grossberg1997,
+  author = {Stephen Grossberg and Ennio Mingolla and William D. Ross},
+  title = {Visual Brain and visual Perception: How does the Cortex do Perceptual
+	Grouping?},
+  year = {1997},
+  volume = {20},
+  pages = {106--111},
+  file = {Grossberg1997.pdf:Grossberg1997.pdf:PDF},
+  journal = {Trends in Neuroscences}
+}
+
+@ARTICLE{Grossberg1998,
+  author = {Stephen Grossberg and Luiz Pessoa},
+  title = {Texture segregation, surface representation and figure-ground separation},
+  journal = {Vision Research},
+  year = {1998},
+  volume = {38},
+  pages = {2657 - 2684},
+  number = {17},
+  doi = {10.1016/S0042-6989(97)00180-6},
+  file = {Grossberg1998.pdf:Grossberg1998.pdf:PDF},
+  url = {http://www.sciencedirect.com/science/article/B6T0W-3VBWFR9-Y/2/6b28e12231482c4ef350d4b4afe67237}
+}
+
+@ARTICLE{Grossberg2000,
+  author = {Grossberg, S. and Raizada, R.D.S.},
+  title = {Contrast-sensitive perceptual grouping and object-based attention
+	in the laminar circuits of primary visual cortex},
+  journal = {Vision Research},
+  year = {2000},
+  volume = {40},
+  pages = {1413--1432},
+  number = {10-12},
+  file = {Grossberg2000.pdf:Grossberg2000.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@ARTICLE{Grunewald2004,
+  author = {Grunewald, A. and Skoumbourdis, E.K.},
+  title = {The integration of multiple stimulus features by V1 neurons},
+  journal = {Journal of Neuroscience},
+  year = {2004},
+  volume = {24},
+  pages = {9185},
+  number = {41},
+  file = {Grunewald2004.pdf:Grunewald2004.pdf:PDF},
+  publisher = {Soc Neuroscience}
+}
+
+@ARTICLE{Healey2008,
+  author = {Christopher Healey and Sarat Kocherlakota and Vivek Rao and Reshma
+	Mehta and Robert St. Amant},
+  title = {Visual Perception and Mixed-Initiative Interaction for Assisted Visualization
+	Design},
+  journal = {IEEE Transactions on Visualization and Computer Graphics},
+  year = {2008},
+  volume = {14},
+  pages = {396-411},
+  number = {2},
+  address = {Los Alamitos, CA, USA},
+  doi = {10.1109/TVCG.2007.70436},
+  file = {Healey2008.pdf:Healey2008.pdf:PDF},
+  publisher = {IEEE Computer Society}
+}
+
+@ARTICLE{Healey2000,
+  author = {Christopher G. Healey},
+  title = {Building a perceptual visualisation architecture},
+  journal = {Behaviour and Information Technology},
+  year = {2000},
+  volume = {19},
+  pages = {349--366},
+  number = {5}
+}
+
+@ARTICLE{Healey1996a,
+  author = {Healey, Christopher G.},
+  title = {Choosing effective colours for data visualization},
+  year = {1996},
+  pages = {263--ff.},
+  address = {Los Alamitos, CA, USA},
+  booktitle = {VIS '96: Proceedings of the 7th conference on Visualization '96},
+  file = {Healey1996a.pdf:Healey1996a.pdf:PDF},
+  isbn = {0-89791-864-9},
+  location = {San Francisco, California, United States},
+  publisher = {IEEE Computer Society Press}
+}
+
+@PROCEEDINGS{Healey1999,
+  title = {ViA: A Perceptual Visualization Assistant},
+  year = {1999},
+  author = {Christopher G. Healey and Robert St. Amant and Mahmoud S. Elhaddad},
+  booktitle = {In 28th Workshop on Advanced Imagery Pattern Recognition (AIPR-99},
+  pages = {2--11}
+}
+
+@ARTICLE{Healey1996,
+  author = {Healey, Christopher G. and Booth, Kellogg S. and Enns, James T.},
+  title = {High-speed visual estimation using preattentive processing},
+  journal = {ACM Trans. Comput.-Hum. Interact.},
+  year = {1996},
+  volume = {3},
+  pages = {107--135},
+  number = {2},
+  address = {New York, NY, USA},
+  doi = {10.1145/230562.230563},
+  file = {Healey1996.pdf:Healey1996.pdf:PDF;Healey1996a.pdf:Healey1996a.pdf:PDF},
+  issn = {1073-0516},
+  publisher = {ACM}
+}
+
+@ARTICLE{Healey1999a,
+  author = {Christopher G. Healey and James T. Enns},
+  title = {Large Datasets at a Glance: Combining Textures and Colors in Scientific
+	Visualization},
+  journal = {IEEE Transactions on Visualization and Computer Graphics},
+  year = {1999},
+  volume = {5},
+  pages = {145-167},
+  number = {2},
+  address = {Los Alamitos, CA, USA},
+  doi = {10.1109/2945.773807},
+  issn = {1077-2626},
+  publisher = {IEEE Computer Society}
+}
+
+@INPROCEEDINGS{Healey1998,
+  author = {Christopher G. Healey and James T. Enns},
+  title = {Building perceptual textures to visualize multidimensional datasets},
+  booktitle = {VIS '98: Proceedings of the conference on Visualization '98},
+  year = {1998},
+  pages = {111--118},
+  address = {Los Alamitos, CA, USA},
+  publisher = {IEEE Computer Society Press},
+  isbn = {1-58113-106-2},
+  keywords = {texture perception},
+  location = {Research Triangle Park, North Carolina, United States}
+}
+
+@ARTICLE{Hess1999,
+  author = {Robert Hess and David Field},
+  title = {Integration of contours: new insights},
+  journal = {Trends in Cognitive Sciences},
+  year = {1999},
+  volume = {3},
+  pages = {480 - 486},
+  number = {12},
+  doi = {10.1016/S1364-6613(99)01410-2},
+  issn = {1364-6613},
+  keywords = {contour perception},
+  url = {http://www.sciencedirect.com/science/article/B6VH9-3XY1H5B-9/2/68bc5547bd30a4738a8c2e4e80f87e45}
+}
+
+@ARTICLE{Hibbard1999,
+  author = {Hibbard, Bill},
+  title = {Top ten visualization problems},
+  journal = {SIGGRAPH Comput. Graph.},
+  year = {1999},
+  volume = {33},
+  pages = {21--22},
+  number = {2},
+  address = {New York, NY, USA},
+  doi = {10.1145/326460.326485},
+  file = {Hibbard1999.pdf:Hibbard1999.pdf:PDF},
+  issn = {0097-8930},
+  publisher = {ACM}
+}
+
+@ARTICLE{Hodgkin1952,
+  author = {Hodgkin, A. L. and Huxley, A. F.},
+  title = {A quantitative description of membrane current and its application
+	to conduction and excitation in nerve.},
+  journal = {J Physiol},
+  year = {1952},
+  volume = {117},
+  pages = {500--544},
+  number = {4},
+  month = aug,
+  file = {Hodgkin1952.pdf:Hodgkin1952.pdf:PDF},
+  issn = {0022-3751},
+  keywords = {modeling, neurophysiology},
+  url = {http://view.ncbi.nlm.nih.gov/pubmed/12991237}
+}
+
+@INPROCEEDINGS{Holten2009,
+  author = {Danny Holten and Jarke J. van Wijk},
+  title = {A user study on visualizing directed edges in graphs},
+  booktitle = {CHI '09: Proceedings of the 27th international conference on Human
+	factors in computing systems},
+  year = {2009},
+  pages = {2299--2308},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/1518701.1519054},
+  file = {Holten2009.pdf:Holten2009.pdf:PDF},
+  isbn = {978-1-60558-246-7},
+  keywords = {graph visualization},
+  location = {Boston, MA, USA}
+}
+
+@ARTICLE{House2006,
+  author = {Donald House and Alethea S. Bair and Colin Ware},
+  title = {An Approach to the Perceptual Optimization of Complex Visualizations},
+  journal = {IEEE Transactions on Visualization and Computer Graphics},
+  year = {2006},
+  volume = {12},
+  pages = {509--521},
+  number = {4},
+  note = {Member-House, Donald H.},
+  address = {Piscataway, NJ, USA},
+  doi = {10.1109/TVCG.2006.58},
+  file = {House2006.pdf:House2006.pdf:PDF},
+  issn = {1077-2626},
+  keywords = {perceptual optimization, texture perception},
+  publisher = {IEEE Educational Activities Department}
+}
+
+@INPROCEEDINGS{House2002,
+  author = {Donald House and Colin Ware},
+  title = {A Method for the Perceptual Optimization of Complex Visualizations},
+  booktitle = {IEEE Trans. Vis. Comput. Graph},
+  year = {2002},
+  pages = {148--155}
+}
+
+@ARTICLE{Houtkamp2003,
+  author = {Houtkamp, R. and Spekreijse, H. and Roelfsema, PR},
+  title = {A gradual spread of attention during mental curve tracing},
+  journal = {Perception and Psychophysics},
+  year = {2003},
+  volume = {65},
+  pages = {1136--1144},
+  number = {7},
+  file = {Houtkamp2003.pdf:Houtkamp2003.pdf:PDF},
+  publisher = {Psychonomic Society}
+}
+
+@INPROCEEDINGS{Huang2005,
+  author = {Weidong Huang and Peter Eades},
+  title = {How people read graphs},
+  booktitle = {APVis '05: proceedings of the 2005 Asia-Pacific symposium on Information
+	visualisation},
+  year = {2005},
+  pages = {51--58},
+  address = {Darlinghurst, Australia, Australia},
+  publisher = {Australian Computer Society, Inc.},
+  isbn = {1-920-68227-9},
+  keywords = {graph visualization},
+  location = {Sydney, Australia}
+}
+
+@INPROCEEDINGS{Huang2008,
+  author = {Huang, Weidong and Eades, Peter and Hong, Seok-Hee},
+  title = {Beyond time and error: a cognitive approach to the evaluation of
+	graph drawings},
+  booktitle = {BELIV '08: Proceedings of the 2008 conference on BEyond time and
+	errors},
+  year = {2008},
+  pages = {1--8},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/1377966.1377970},
+  isbn = {978-1-60558-016-6},
+  keywords = {graph visualization},
+  location = {Florence, Italy}
+}
+
+@INPROCEEDINGS{Huang2006,
+  author = {Weidong Huang and Seok-Hee Hong and Petern Eades},
+  title = {Predicting graph reading performance: a cognitive approach},
+  booktitle = {APVis '06: Proceedings of the 2006 Asia-Pacific Symposium on Information
+	Visualisation},
+  year = {2006},
+  pages = {207--216},
+  address = {Darlinghurst, Australia, Australia},
+  publisher = {Australian Computer Society, Inc.},
+  isbn = {1-920682-41-4},
+  keywords = {graph visualization},
+  location = {Tokyo, Japan}
+}
+
+@MISC{Hubel1968,
+  author = {Hubel, David H. and Wiesel, Torsten N.},
+  title = {Receptive fields and functional architecture of monkey striate cortex},
+  journal = {J Physiol},
+  year = {1968},
+  volume = {195},
+  pages = {215-243},
+  number = {1},
+  note = {http://www.hubel/papers/uconn.html},
+  file = {Hubel1968.pdf:Hubel1968.pdf:PDF},
+  keywords = {neurophysiology},
+  url = {http://jp.physoc.org/cgi/content/abstract/195/1/215}
+}
+
+@ARTICLE{Hubel1962,
+  author = {Hubel, David H. and Wiesel, Torsten N.},
+  title = {Receptive fields, binocular interaction and functional architecture
+	in the cat's visual cortex},
+  journal = {J. Physiol.},
+  year = {1962},
+  volume = {160},
+  pages = {106-154},
+  number = {1},
+  eprint = {http://jp.physoc.org/cgi/reprint/160/1/106.pdf},
+  file = {Hubel1962.pdf:Hubel1962.pdf:PDF},
+  keywords = {neurophysiology},
+  url = {http://jp.physoc.org}
+}
+
+@ARTICLE{Interrante2000,
+  author = {Interrante, V.},
+  title = {Harnessing natural textures for multivariate visualization},
+  journal = {Computer Graphics and Applications, IEEE},
+  year = {2000},
+  volume = {20},
+  pages = {6-11},
+  number = {6},
+  month = {Nov/Dec},
+  doi = {10.1109/MCG.2000.888001},
+  issn = {0272-1716}
+}
+
+@ARTICLE{Irani2001,
+  author = {Irani,, Pourang and Tingley,, Maureen and Ware,, Colin},
+  title = {Using Perceptual Syntax to Enhance Semantic Content in Diagrams},
+  journal = {IEEE Comput. Graph. Appl.},
+  year = {2001},
+  volume = {21},
+  pages = {76--85},
+  number = {5},
+  address = {Los Alamitos, CA, USA},
+  issn = {0272-1716},
+  publisher = {IEEE Computer Society Press}
+}
+
+@ARTICLE{Irani2003,
+  author = {Irani,, Pourang and Ware,, Colin},
+  title = {Diagramming information structures using 3D perceptual primitives},
+  journal = {ACM Trans. Comput.-Hum. Interact.},
+  year = {2003},
+  volume = {10},
+  pages = {1--19},
+  number = {1},
+  address = {New York, NY, USA},
+  doi = {10.1145/606658.606659},
+  issn = {1073-0516},
+  keywords = {data visualization, object perception},
+  publisher = {ACM}
+}
+
+@INPROCEEDINGS{Irani2000,
+  author = {Irani,, Pourang and Ware,, Colin},
+  title = {Diagrams based on structural object perception},
+  booktitle = {AVI '00: Proceedings of the working conference on Advanced visual
+	interfaces},
+  year = {2000},
+  pages = {61--67},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/345513.345254},
+  isbn = {1-58113-252-2},
+  location = {Palermo, Italy}
+}
+
+@ARTICLE{Itti2001,
+  author = {Itti, L. and Koch, C.},
+  title = {Computational modelling of visual attention.},
+  journal = {Nat Rev Neurosci},
+  year = {2001},
+  volume = {2},
+  pages = {194--203},
+  number = {3},
+  month = mar,
+  abstract = {Five important trends have emerged from recent work on computational
+	models of focal visual attention that emphasize the bottom-up, image-based
+	control of attentional deployment. First, the perceptual saliency
+	of stimuli critically depends on the surrounding context. Second,
+	a unique 'saliency map' that topographically encodes for stimulus
+	conspicuity over the visual scene has proved to be an efficient and
+	plausible bottom-up control strategy. Third, inhibition of return,
+	the process by which the currently attended location is prevented
+	from being attended again, is a crucial element of attentional deployment.
+	Fourth, attention and eye movements tightly interplay, posing computational
+	challenges with respect to the coordinate system used to control
+	attention. And last, scene understanding and object recognition strongly
+	constrain the selection of attended locations. Insights from these
+	five key areas provide a framework for a computational and neurobiological
+	understanding of visual attention.},
+  address = {Hedco Neuroscience Building, University of Southern California, 3641
+	Watt Way, Los Angeles, California 90089-2520, USA. itti@usc.edu},
+  citeulike-article-id = {150306},
+  citeulike-linkout-0 = {http://view.ncbi.nlm.nih.gov/pubmed/11256080},
+  citeulike-linkout-1 = {http://www.hubmed.org/display.cgi?uids=11256080},
+  issn = {1471-003X},
+  keywords = {attention, bioinspiration, feature, saliency, system, vision, visual},
+  owner = {dpineo},
+  posted-at = {2008-08-15 18:26:35},
+  priority = {0},
+  timestamp = {2009.07.22},
+  url = {http://view.ncbi.nlm.nih.gov/pubmed/11256080}
+}
+
+@ARTICLE{Itti2000,
+  author = {Itti, L. and Koch, C. and Braun, J.},
+  title = {Revisiting spatial vision: toward a unifying model},
+  journal = {Journal of the Optical Society of America A},
+  year = {2000},
+  volume = {17},
+  pages = {1899--1917},
+  number = {11},
+  file = {Itti2000.pdf:Itti2000.pdf:PDF},
+  publisher = {OSA}
+}
+
+@INPROCEEDINGS{Iverson1995,
+  author = {Iverson, L., and Zucker, S.W.},
+  title = {Logical/linear operators for image curves},
+  year = {1995},
+  volume = {17},
+  number = {10},
+  pages = {982--996},
+  month = oct,
+  file = {Iverson1995.pdf:Iverson1995.pdf:PDF},
+  journal = {EEE Trans. Pattern Analysis and Machine Intelligence}
+}
+
+@INPROCEEDINGS{Jobard1997,
+  author = {Bruno Jobard and Wilfrid Lefer},
+  title = {Creating evenly-spaced streamlines of arbitrary density},
+  booktitle = {Proceedings of the Eurographics Workshop},
+  year = {1997},
+  pages = {43--56},
+  address = {Berlin},
+  publisher = {Springer Verlag},
+  added-by = {Daniel Acevedo},
+  date-added = {Mon April 24 19:46:19 2006},
+  file = {Jobard1997.pdf:Jobard1997.pdf:PDF},
+  keywords = {flow visualization, data visualization}
+}
+
+@ARTICLE{Johnson2004,
+  author = {Chris Johnson},
+  title = {Top Scientific Visualization Research Problems},
+  journal = {IEEE Computer Graphics and Applications},
+  year = {2004},
+  volume = {24},
+  pages = {13-17},
+  number = {4},
+  address = {Los Alamitos, CA, USA},
+  doi = {10.1109/MCG.2004.20},
+  file = {Johnson2004.pdf:Johnson2004.pdf:PDF},
+  issn = {0272-1716},
+  publisher = {IEEE Computer Society}
+}
+
+@ARTICLE{Johnson2008,
+  author = {Johnson, Chris and Keyes, David and Ruede, Ulrich},
+  title = {Special Issue on Computational Science and Engineering},
+  journal = {SIAM J. Sci. Comput.},
+  year = {2008},
+  volume = {30},
+  pages = {.7--.7},
+  number = {6},
+  address = {Philadelphia, PA, USA},
+  issn = {1064-8275},
+  publisher = {Society for Industrial and Applied Mathematics}
+}
+
+@ARTICLE{Julesz1987,
+  author = {Julesz, B. and Bergen, J. R.},
+  title = {Textons, the fundamental elements in preattentive vision and perception
+	of textures},
+  year = {1987},
+  pages = {243--256},
+  address = {San Francisco, CA, USA},
+  book = {Readings in computer vision: issues, problems, principles, and paradigms},
+  isbn = {0-934613-33-8},
+  publisher = {Morgan Kaufmann Publishers Inc.}
+}
+
+@ARTICLE{Kastner2003,
+  author = {Kastner, S. and Ungerleider, L.G.},
+  title = {Mechanisms of visual attention in the human cortex},
+  year = {2003},
+  publisher = {Annual Reviews}
+}
+
+@ARTICLE{Kindlmann2006,
+  author = {Gordon Kindlmann and Carl-Fredrik Westin},
+  title = {Diffusion Tensor Visualization with Glyph Packing},
+  journal = {IEEE Transactions on Visualization and Computer Graphics (Proceedings
+	Visualization / Information Visualization 2006)},
+  year = {2006},
+  volume = {12},
+  pages = {1329--1335},
+  number = {5},
+  month = {September-October},
+  file = {Kindlmann2006.pdf:Kindlmann2006.pdf:PDF}
+}
+
+@INPROCEEDINGS{Kirby1999,
+  author = {Kirby, R. M. and Marmanis, H. and Laidlaw, David H.},
+  title = {Visualizing multivalued data from 2D incompressible flows using concepts
+	from painting},
+  booktitle = {VIS '99: Proceedings of the conference on Visualization '99},
+  year = {1999},
+  pages = {333--340},
+  address = {Los Alamitos, CA, USA},
+  publisher = {IEEE Computer Society Press},
+  isbn = {0-7803-5897},
+  location = {San Francisco, California, United States}
+}
+
+@TECHREPORT{Laidlaw1998a,
+  author = {Laidlaw, David H. and Ahrens, Eric T. and Kremers, David and Avalos,
+	Matthew J. and Readhead, Carol and Jacobs, Russell E.},
+  title = {Visualizing Diffusion Tensor Images of the Mouse Spinal Cord},
+  year = {1998},
+  address = {Pasadena, CA, USA},
+  publisher = {California Institute of Technology},
+  source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3Acaltechcstr%3A00000188}
+}
+
+@INPROCEEDINGS{Laidlaw2001,
+  author = {Laidlaw,, David H. and Davidson,, J. Scott and Miller,, Timothy S.
+	and da Silva,, Marco and Kirby,, R. M. and Warren,, William H. and
+	Tarr,, Michael},
+  title = {Quantitative comparative evaluation of 2D vector field visualization
+	methods},
+  booktitle = {Proceedings of the Conference on Visualization (VIS'01)},
+  year = {2001},
+  pages = {143--150},
+  address = {Los Alamitos, CA},
+  publisher = {IEEE Computer Society},
+  file = {Laidlaw2001.pdf:Laidlaw2001.pdf:PDF},
+  isbn = {0-7803-7200-X},
+  keywords = {data visualization, flow visualization},
+  location = {San Diego, California}
+}
+
+@INPROCEEDINGS{Laidlaw1998,
+  author = {Laidlaw, David H. and Kremers, David and Ahrens, Eric T. and Avalos,
+	Matthew J.},
+  title = {Visually representing multi-valued scientific data using concepts
+	from painting},
+  booktitle = {SIGGRAPH '98: ACM SIGGRAPH 98 Conference abstracts and applications},
+  year = {1998},
+  pages = {249},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/280953.282211},
+  file = {Laidlaw1998.pdf:Laidlaw1998.pdf:PDF},
+  isbn = {1-58113-046-5},
+  location = {Orlando, Florida, United States}
+}
+
+@ARTICLE{Lamme1998,
+  author = {Lamme, V.A.F. and Super, H. and Spekreijse, H.},
+  title = {Feedforward, horizontal, and feedback processing in the visual cortex},
+  journal = {Current opinion in neurobiology},
+  year = {1998},
+  volume = {8},
+  pages = {529--535},
+  number = {4},
+  file = {Lamme1998.pdf:Lamme1998.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@ARTICLE{Landy1991,
+  author = {Landy, M.S. and Bergen, J.R.},
+  title = {Texture segregation and orientation gradient},
+  journal = {Vision Research},
+  year = {1991},
+  volume = {31},
+  pages = {679--691},
+  number = {4},
+  file = {Landy1991.pdf:Landy1991.pdf:PDF},
+  publisher = {Citeseer}
+}
+
+@TECHREPORT{Li1998,
+  author = {Li, Zhaoping},
+  title = {Pre-attentive segmentation in the primary visual cortex},
+  year = {1998},
+  address = {Cambridge, MA, USA},
+  file = {Li1998.pdf:Li1998.pdf:PDF},
+  publisher = {Massachusetts Institute of Technology},
+  source = {http://www.ncstrl.org:8900/ncstrl/servlet/search?formname=detail\&id=oai%3Ancstrlh%3Amitai%3AMIT-AILab%2F%2FAIM-1640}
+}
+
+@ARTICLE{Li1998a,
+  author = {Li, Zhaoping},
+  title = {A neural model of contour integration in the primary visual cortex},
+  journal = {Neural Comput.},
+  year = {1998},
+  volume = {10},
+  pages = {903--940},
+  number = {4},
+  address = {Cambridge, MA, USA},
+  doi = {10.1162/089976698300017557},
+  file = {Li1998a.pdf:Li1998a.pdf:PDF},
+  issn = {0899-7667},
+  publisher = {MIT Press}
+}
+
+@BOOK{Lund2001,
+  title = {Attention and Pattern Recognition},
+  publisher = {Routledge},
+  address = {New York, NY},
+  year = {2001},
+  author = {Nick Lund},
+  owner = {dpineo},
+  timestamp = {2009.07.23}
+}
+
+@ARTICLE{Malik1990,
+  author = {Malik, J. and Perona, P.},
+  title = {Preattentive texture discrimination with early vision mechanisms},
+  journal = {Journal of the Optical Society of America A},
+  year = {1990},
+  volume = {7},
+  pages = {923--932},
+  number = {5},
+  file = {Malik1990.pdf:Malik1990.pdf:PDF},
+  keywords = {texture perception},
+  publisher = {OSA}
+}
+
+@BOOK{Marr1982,
+  title = {Vision: a computational investigation into the human representation
+	and processing of visual information},
+  publisher = {W. H. Freeman, San Francisco},
+  year = {1982},
+  author = {Marr, D.},
+  keywords = {vision, artificial intelligence},
+  rating = {B}
+}
+
+@ARTICLE{Marr1979,
+  author = {Marr, D. and Hildreth, E. and Poggio, T.},
+  title = {Evidence for a Fifth, Smaller Channel in Early Human Vision},
+  year = {1979},
+  file = {Marr1979.pdf:Marr1979.pdf:PDF}
+}
+
+@ARTICLE{McCulloch1943,
+  author = {Mcculloch, Warren and Pitts, Walter},
+  title = {A logical calculus of the ideas immanent in nervous activity},
+  journal = {Bulletin of Mathematical Biophysics},
+  year = {1943},
+  volume = {5},
+  pages = {115--133},
+  citeulike-article-id = {877892},
+  keywords = {neuron},
+  posted-at = {2006-09-29 16:36:05},
+  priority = {0}
+}
+
+@ARTICLE{Mountcastle1997,
+  author = {Mountcastle, VB},
+  title = {The columnar organization of the neocortex},
+  journal = {Brain},
+  year = {1997},
+  volume = {120},
+  pages = {701-722},
+  number = {4},
+  doi = {10.1093/brain/120.4.701},
+  eprint = {http://brain.oxfordjournals.org/cgi/reprint/120/4/701.pdf},
+  file = {Mountcastle1997.pdf:Mountcastle1997.pdf:PDF},
+  keywords = {neuron},
+  url = {http://brain.oxfordjournals.org/cgi/content/abstract/120/4/701}
+}
+
+@ARTICLE{North2002,
+  author = {North, S.C. and Woodhull, G.},
+  title = {Online hierarchical graph drawing},
+  journal = {Lecture notes in computer science},
+  year = {2002},
+  pages = {232--246},
+  file = {North2002.pdf:North2002.pdf:PDF},
+  publisher = {Springer}
+}
+
+@ARTICLE{Nothdurft1999,
+  author = {Nothdurft,Hans-Christoph and Gallant,Jack L. and Van Essen,David
+	C.},
+  title = {Response modulation by texture surround in primate area V1: Correlates
+	of under anesthesia},
+  journal = {Visual Neuroscience},
+  year = {1999},
+  volume = {16},
+  pages = {15-34},
+  number = {01},
+  doi = {10.1017/S0952523899156189},
+  eprint = {http://journals.cambridge.org/article_S0952523899156189},
+  url = {http://journals.cambridge.org/action/displayAbstract?fromPage=online&aid=40407&fulltextType=RA&fileId=S0952523899156189}
+}
+
+@ARTICLE{Oberkampf2002209,
+  author = {William L. Oberkampf and Timothy G. Trucano},
+  title = {Verification and validation in computational fluid dynamics},
+  journal = {Progress in Aerospace Sciences},
+  year = {2002},
+  volume = {38},
+  pages = {209 - 272},
+  number = {3},
+  doi = {10.1016/S0376-0421(02)00005-2},
+  issn = {0376-0421},
+  keywords = {modeling},
+  url = {http://www.sciencedirect.com/science/article/B6V3V-46D2HBG-1/2/03fa2a1205945510d7dbf668d0874d1e}
+}
+
+@INPROCEEDINGS{Parent1989,
+  author = {Parent, P., and Zucker, S.W.},
+  title = {Trace Inference, Curvature Consistency, and Curve Detection},
+  year = {1989},
+  volume = {11},
+  number = {8},
+  pages = {823-839},
+  month = aug,
+  file = {Parent1989.pdf:Parent1989.pdf:PDF},
+  journal = {IEEE Trans. Pattern Analysis and Machine Intelligence}
+}
+
+@INPROCEEDINGS{Pineo2009,
+  author = {Pineo, Daniel and Ware, Colin},
+  title = {Neural modeling of flow rendering effectiveness},
+  booktitle = {ACM Transactions on Applied Perception
+	
+	},
+  year = {(In press)},
+  publisher = {ACM},
+  file = {Pineo2008.pdf:Pineo2008.pdf:PDF},
+  keywords = {flow visualization}
+}
+
+@INPROCEEDINGS{Pineo2008,
+  author = {Pineo, Daniel and Ware, Colin},
+  title = {Neural modeling of flow rendering effectiveness},
+  booktitle = {Proceedings of the 5th Symposium on Applied Perception
+	in Graphics and Visualization (APGV'08)},
+  year = {2008},
+  pages = {171--178},
+  address = {New York, NY},
+  publisher = {ACM},
+  doi = {10.1145/1394281.1394313},
+  file = {Pineo2008.pdf:Pineo2008.pdf:PDF},
+  isbn = {978-1-59593-981-4},
+  keywords = {flow visualization},
+  location = {Los Angeles, California}
+}
+
+@ARTICLE{Poggio1984,
+  author = {Poggio, T.},
+  title = {Vision by man and machine},
+  journal = {Sci Am},
+  year = {1984},
+  volume = {250},
+  pages = {106--116},
+  number = {4},
+  month = apr,
+  file = {Poggio1984.pdf:Poggio1984.pdf:PDF}
+}
+
+@ARTICLE{Purchase2002,
+  author = {Helen C. Purchase},
+  title = {Metrics for Graph Drawing Aesthetics},
+  journal = {Journal of Visual Languages \& Computing},
+  year = {2002},
+  volume = {13},
+  pages = {501 - 516},
+  number = {5},
+  doi = {10.1006/jvlc.2002.0232},
+  file = {Purchase2002.pdf:Purchase2002.pdf:PDF},
+  issn = {1045-926X},
+  keywords = {data visualization, graph visualization},
+  url = {http://www.sciencedirect.com/science/article/B6WMM-46YHVYF-3/2/41eddd36d6b619b866c108569cfca607}
+}
+
+@INPROCEEDINGS{Purchase1998,
+  author = {Purchase, Helen C.},
+  title = {The effects of graph layout},
+  booktitle = {Computer Human Interaction Conference, 1998. Proceedings. 1998 Australasian},
+  year = {1998},
+  pages = {80-86},
+  month = {Nov-4 Dec},
+  doi = {10.1109/OZCHI.1998.732199},
+  file = {Purchase1998.pdf:Purchase1998.pdf:PDF},
+  keywords = {data visualisation, graph visualization}
+}
+
+@ARTICLE{Purchase1998a,
+  author = {Helen C. Purchase},
+  title = {Performance of Layout Algorithms: Comprehension, not Computation},
+  journal = {Journal of Visual Languages \& Computing},
+  year = {1998},
+  volume = {9},
+  pages = {647 - 657},
+  number = {6},
+  doi = {10.1006/jvlc.1998.0093},
+  issn = {1045-926X},
+  keywords = {graph visualization, data visualization},
+  url = {http://www.sciencedirect.com/science/article/B6WMM-45J5BKS-5/2/f2d27b9e887b63c9f3247c933f4a9bf2}
+}
+
+@INPROCEEDINGS{Purchase1997,
+  author = {Purchase, Helen C.},
+  title = {Which Aesthetic has the Greatest Effect on Human Understanding?},
+  booktitle = {GD '97: Proceedings of the 5th International Symposium on Graph Drawing},
+  year = {1997},
+  pages = {248--261},
+  address = {London, UK},
+  publisher = {Springer-Verlag},
+  file = {Purchase1997.pdf:Purchase1997.pdf:PDF},
+  isbn = {3-540-63938-1},
+  keywords = {graph visualization}
+}
+
+@INPROCEEDINGS{Purchase2000,
+  author = {Purchase, Helen C. and Carrington, David A. and Allder, Jo-Anne},
+  title = {Experimenting with Aesthetics-Based Graph Layout},
+  booktitle = {Diagrams '00: Proceedings of the First International Conference on
+	Theory and Application of Diagrams},
+  year = {2000},
+  pages = {498--501},
+  address = {London, UK},
+  publisher = {Springer-Verlag},
+  isbn = {3-540-67915-4}
+}
+
+@INPROCEEDINGS{Purchase2002a,
+  author = {Purchase, Helen C. and Carrington, David and Allder, Jo-Anne},
+  title = {Empirical Evaluation of Aesthetics-based Graph Layout},
+  year = {2002},
+  volume = {7},
+  number = {3},
+  pages = {233--255},
+  address = {Hingham, MA, USA},
+  publisher = {Kluwer Academic Publishers},
+  doi = {10.1023/A:1016344215610},
+  file = {Purchase2002a.pdf:Purchase2002a.pdf:PDF},
+  issn = {1382-3256},
+  journal = {Empirical Softw. Engg.}
+}
+
+@ARTICLE{Purchase1997a,
+  author = {Purchase, Helen C. and Cohen, R. F. and James, M. I.},
+  title = {An experimental study of the basis for graph drawing algorithms},
+  journal = {J. Exp. Algorithmics},
+  year = {1997},
+  volume = {2},
+  pages = {4},
+  address = {New York, NY, USA},
+  doi = {10.1145/264216.264222},
+  issn = {1084-6654},
+  keywords = {graph visualization},
+  publisher = {ACM}
+}
+
+@ARTICLE{Roelfsema2006,
+  author = {Roelfsema, P.R.},
+  title = {Cortical algorithms for perceptual grouping},
+  year = {2006},
+  file = {Roelfsema2006.pdf:Roelfsema2006.pdf:PDF},
+  publisher = {Annual Reviews}
+}
+
+@ARTICLE{Roelfsema2000,
+  author = {Roelfsema, P.R. and Lamme, V.A.F. and Spekreijse, H.},
+  title = {The implementation of visual routines},
+  journal = {Vision Research},
+  year = {2000},
+  volume = {40},
+  pages = {1385--1411},
+  number = {10-12},
+  file = {Roelfsema2000.pdf:Roelfsema2000.pdf:PDF},
+  publisher = {Elsevier}
+}
+
+@INPROCEEDINGS{Rogowitz1993,
+  author = {Rogowitz,, Bernice E. and Treinish,, Lloyd A.},
+  title = {An architecture for rule-based visualization},
+  booktitle = {VIS '93: Proceedings of the 4th conference on Visualization '93},
+  year = {1993},
+  pages = {236--243},
+  file = {Rogowitz1993.pdf:Rogowitz1993.pdf:PDF},
+  isbn = {0-8186-3940-7},
+  keywords = {data visualization, perceptual modeling},
+  location = {San Jose, California}
+}
+
+@ARTICLE{Rogowitz1996,
+  author = {Rogowitz, Bernice E. and Treinish, Lloyd A. and Bryson, Steve},
+  title = {How not to lie with visualization},
+  journal = {Comput. Phys.},
+  year = {1996},
+  volume = {10},
+  pages = {268--273},
+  number = {3},
+  address = {Woodbury, NY, USA},
+  issn = {0894-1866},
+  publisher = {American Institute of Physics Inc.},
+  url = {http://www.research.ibm.com/dx/proceedings/pravda/truevis.htm}
+}
+
+@ARTICLE{Rosenholtz2007,
+  author = {Rosenholtz, Ruth and Li, Yuanzhen and Nakano, Lisa},
+  title = {Measuring visual clutter},
+  journal = {Journal of Vision},
+  year = {2007},
+  volume = {7},
+  pages = {1--22},
+  number = {2},
+  citeulike-article-id = {2031653},
+  citeulike-linkout-0 = {http://journalofvision.org/7/2/17/},
+  file = {Rosenholtz2007.pdf:Rosenholtz2007.pdf:PDF},
+  keywords = {grouping, ideal\_observer, models, vision},
+  owner = {dpineo},
+  url = {http://journalofvision.org/7/2/17/}
+}
+
+@ARTICLE{Sagi1984,
+  author = {Dov Sagi and Bela Julesz},
+  title = {Detection versus discrimination of visual orientation},
+  journal = {Perception},
+  year = {1984},
+  volume = {13},
+  pages = {619 -– 628},
+  number = {5},
+  file = {Sagi1984.pdf:Sagi1984.pdf:PDF}
+}
+
+@MISC{Boehlert2003,
+  author = {Commmittee on Science},
+  title = {Supercomputing: Is the {U.S.} on the right path?},
+  month = jul,
+  year = {2003},
+  day = {16},
+  file = {Boehlert2003.pdf:Boehlert2003.pdf:PDF},
+  publisher = {House of Representatives}
+}
+
+@PHDTHESIS{Serre2006,
+  author = {Thomas Serre},
+  title = {Learning a Dictionary of Shape-Components in Visual Cortex: Comparison
+	with Neurons, Humans and Machines},
+  year = {2006},
+  file = {Serre2006.pdf:Serre2006.pdf:PDF}
+}
+
+@INPROCEEDINGS{Serre2005b,
+  author = {T. Serre and M. Kouh and C. Cadieu and U. Knoblich and G. Kreiman
+	and T. Poggio and Thomas Serre and Minjoon Kouh and Charles Cadieu
+	and Ulf Knoblich and Gabriel Kreiman and Tomaso Poggio},
+  title = {A theory of object recognition: Computations and circuits in the
+	feedforward path of the ventral stream in primate visual cortex},
+  booktitle = {AI Memo},
+  year = {2005},
+  file = {Serre2005b.pdf:Serre2005b.pdf:PDF}
+}
+
+@INPROCEEDINGS{Serre2005,
+  author = {Serre, Thomas and Wolf, Lior and Poggio, Tomaso},
+  title = {Object Recognition with Features Inspired by Visual Cortex.},
+  booktitle = {Proceedings of 2005 IEEE Computer Society Conference on Computer
+	Vision and Pattern Recognition (CVPR)},
+  year = {2005},
+  month = jun,
+  publisher = {IEEE Computer Society Press},
+  file = {Serre2005.pdf:Serre2005.pdf:PDF},
+  location = {San Diego}
+}
+
+@ARTICLE{Shannon1948,
+  author = {Shannon, Claude Elwood},
+  title = {A mathematical theory of communication},
+  journal = {The Bell System Technical Journal},
+  year = {1948},
+  volume = {27},
+  file = {Shannon1948.pdf:Shannon1948.pdf:PDF},
+  keywords = {information theory}
+}
+
+@INPROCEEDINGS{Shneiderman2008,
+  author = {Shneiderman, Ben},
+  title = {Extreme visualization: squeezing a billion records into a million
+	pixels},
+  booktitle = {SIGMOD '08: Proceedings of the 2008 ACM SIGMOD international conference
+	on Management of data},
+  year = {2008},
+  pages = {3--12},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/1376616.1376618},
+  isbn = {978-1-60558-102-6},
+  location = {Vancouver, Canada}
+}
+
+@ARTICLE{Stein2005,
+  author = {Stein, R.B. and Gossen, E.R. and Jones, K.E.},
+  title = {Neuronal variability: noise or part of the signal?},
+  journal = {Nature Reviews Neuroscience},
+  year = {2005},
+  volume = {6},
+  pages = {389--397},
+  number = {5},
+  file = {Stein2005.pdf:Stein2005.pdf:PDF},
+  publisher = {London: Nature Pub. Group,[2000-}
+}
+
+@ARTICLE{Grossberg2007,
+  author = {Stephen Grossberg, Levin Kuhlmann, Ennio Mingolla},
+  title = {A neural model of 3D shape-from-texture: Multiple-scale filtering,
+	boundary grouping, and surface filling-in},
+  journal = {Vision Research},
+  year = {2007},
+  volume = {5},
+  pages = {634--672},
+  file = {Grossberg2007.pdf:Grossberg2007.pdf:PDF},
+  number = {47}
+}
+
+@ARTICLE{Stork1990,
+  author = {Stork, D.G. and Wilson, H.R.},
+  title = {Do Gabor functions provide appropriate descriptions of visual cortical
+	receptive fields?},
+  journal = {Journal of the Optical Society of America A},
+  year = {1990},
+  volume = {7},
+  pages = {1362--1373},
+  number = {8},
+  file = {Stork1990.pdf:Stork1990.pdf:PDF},
+  publisher = {OSA}
+}
+
+@ARTICLE{Treisman1986,
+  author = {Treisman, Anne},
+  title = {Features and objects in visual processing.},
+  journal = {Scientific American},
+  year = {1986},
+  volume = {255},
+  pages = {114B--125},
+  number = {5},
+  file = {Treisman1986.pdf:Treisman1986.pdf:PDF}
+}
+
+@ARTICLE{Treisman1982,
+  author = {Treisman, A.},
+  title = {Perceptual grouping and attention in visual search for features and
+	for objects},
+  journal = {Journal of Experimental Psychology},
+  year = {1982},
+  volume = {8},
+  pages = {194--214},
+  number = {2},
+  file = {Treisman1982.pdf:Treisman1982.pdf:PDF}
+}
+
+@ARTICLE{Treisman1980,
+  author = {Anne M. Treisman and Garry Gelade},
+  title = {A feature-integration theory of attention},
+  journal = {Cognitive Psychology},
+  year = {1980},
+  volume = {12},
+  pages = {97 - 136},
+  number = {1},
+  doi = {10.1016/0010-0285(80)90005-5},
+  file = {Treisman1980.pdf:Treisman1980.pdf:PDF},
+  issn = {0010-0285},
+  url = {http://www.sciencedirect.com/science/article/B6WCR-4D6RJM2-46/2/b34aa05384b2a7702189c22840489174}
+}
+
+@ARTICLE{Tsotsos1990,
+  author = {Tsotsos, J.K.},
+  title = {Analyzing vision at the complexity level},
+  journal = {Behavioral and brain sciences},
+  year = {1990},
+  volume = {13},
+  pages = {423--469},
+  number = {3},
+  file = {Tsotsos1990.pdf:Tsotsos1990.pdf:PDF}
+}
+
+@ARTICLE{Tsunoda2001,
+  author = {Tsunoda,, K. and Yamane,, Y. and Nishizaki,, M. and Tanifuji,, M.},
+  title = {Complex objects are represented in macaque inferotemporal cortex
+	by the combination of feature columns},
+  journal = {Nature Neuroscience},
+  year = {2001},
+  volume = {4},
+  pages = {832--838},
+  number = {8}
+}
+
+@TECHREPORT{Turk1996,
+  author = {Turk, Greg and Banks, David},
+  title = {Image-guided streamline placement},
+  number = {I-CA2200},
+  year = {1996},
+  pages = {453--460},
+  address = {Santa Barbara, CA},
+  institution = {University of California},
+  doi = {10.1145/237170.237285},
+  file = {Turk1996.pdf:Turk1996.pdf:PDF},
+  isbn = {0-89791-746-4},
+  keywords = {data visualization, flow visualization},
+}
+
+@ARTICLE{Ware2008,
+  author = {Ware,, Colin},
+  title = {Toward a Perceptual Theory of Flow Visualization},
+  journal = {IEEE Comput. Graph. Appl.},
+  year = {2008},
+  volume = {28},
+  pages = {6--11},
+  number = {2},
+  address = {Los Alamitos, CA, USA},
+  doi = {10.1109/MCG.2008.39},
+  file = {Ware2008.pdf:Ware2008.pdf:PDF},
+  issn = {0272-1716},
+  keywords = {data visualization, flow visualization},
+  publisher = {IEEE Computer Society Press}
+}
+
+@INPROCEEDINGS{Ware2006,
+  author = {Ware,, Colin},
+  title = {3D contour perception for flow visualization},
+  booktitle = {APGV '06: Proceedings of the 3rd symposium on Applied perception
+	in graphics and visualization},
+  year = {2006},
+  pages = {101--106},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/1140491.1140512},
+  isbn = {1-59593-429-4},
+  keywords = {data visualization, flow visualization},
+  location = {Boston, Massachusetts}
+}
+
+@BOOK{Ware2004,
+  title = {Information Visualization: Perception for Design, 2nd Ed},
+  publisher = {Morgan Kaufman},
+  address = {San Fransisco, CA, USA},
+  year = {2004},
+  author = {Ware,,Colin},
+  bibsource = {http://www.interaction-design.org/references/},
+  isbn = {1558608192},
+  keywords = {data visualization}
+}
+
+@ARTICLE{Ware1988,
+  author = {Colin Ware},
+  title = {Color sequences for univariate maps: theory, experiments and principles},
+  journal = {IEEE Computer Graphics and Applications},
+  year = {1988},
+  volume = {8},
+  pages = {41--49},
+  number = {5},
+  month = sep,
+  file = {Ware1988.pdf:Ware1988.pdf:PDF}
+}
+
+@ARTICLE{Ware2005,
+  author = {Colin Ware and Robert Bobrow},
+  title = {Supporting visual queries on medium-sized node-link diagrams},
+  journal = {Information Visualization},
+  year = {2005},
+  volume = {4},
+  pages = {49--58},
+  number = {1},
+  doi = {10.1057/palgrave.ivs.9500090},
+  issn = {1473-8716},
+  keywords = {graph visualization},
+  publisher = {Palgrave Macmillan}
+}
+
+@ARTICLE{Ware2004a,
+  author = {Ware, Colin and Bobrow, Robert},
+  title = {Motion to support rapid interactive queries on node--link diagrams},
+  journal = {ACM Trans. Appl. Percept.},
+  year = {2004},
+  volume = {1},
+  pages = {3--18},
+  number = {1},
+  address = {New York, NY, USA},
+  doi = {10.1145/1008722.1008724},
+  issn = {1544-3558},
+  keywords = {graph visualization},
+  publisher = {ACM}
+}
+
+@ARTICLE{Ware1995,
+  author = {Ware, Colin and Knight, William},
+  title = {Using visual texture for information display},
+  journal = {ACM Trans. Graph.},
+  year = {1995},
+  volume = {14},
+  pages = {3--20},
+  number = {1},
+  address = {New York, NY, USA},
+  doi = {10.1145/200972.200974},
+  issn = {0730-0301},
+  publisher = {ACM}
+}
+
+@ARTICLE{Ware2002,
+  author = {Ware, Colin and Purchase, Helen and Colpoys, Linda and McGill, Matthew},
+  title = {Cognitive measurements of graph aesthetics},
+  journal = {Information Visualization},
+  year = {2002},
+  volume = {1},
+  pages = {103--110},
+  number = {2},
+  doi = {10.1057/palgrave.ivs.9500013},
+  file = {Ware2002.pdf:Ware2002.pdf:PDF},
+  issn = {1473-8716},
+  keywords = {graph visualization},
+  publisher = {Palgrave Macmillan}
+}
+
+@ARTICLE{Weiskopf2004,
+  author = {Weiskopf, Daniel},
+  title = {On the Role of Color in the Perception of Motion in Animated Visualizations},
+  year = {2004},
+  pages = {305--312},
+  address = {Washington, DC, USA},
+  booktitle = {VIS '04: Proceedings of the conference on Visualization '04},
+  doi = {10.1109/VIS.2004.73},
+  file = {Weiskopf2004.pdf:Weiskopf2004.pdf:PDF},
+  isbn = {0-7803-8788-0},
+  publisher = {IEEE Computer Society}
+}
+
+@BOOK{Wendt2009,
+  title = {Computational Fluid Dynamics: An Introduction},
+  publisher = {Springer},
+  year = {2009},
+  editor = {John F. Wendt},
+  author = {John F. Wendt and John D. Anderson}
+}
+
+@ARTICLE{Wijk2006,
+  author = {van Wijk, J.J.},
+  title = {Views on visualization},
+  journal = {IEEE transactions on visualization and computer graphics},
+  year = {2006},
+  volume = {12},
+  pages = {1000--433},
+  number = {4},
+  file = {Wijk2006.pdf:Wijk2006.pdf:PDF},
+  publisher = {Citeseer}
+}
+
+@CONFERENCE{Wijk2002,
+  author = {van Wijk, Jarke J.},
+  title = {Image based flow visualization},
+  booktitle = {Proceedings of the 29th annual conference on Computer graphics and
+	interactive techniques},
+  year = {2002},
+  pages = {745--754},
+  organization = {ACM New York, NY, USA},
+  file = {Wijk2002.pdf:Wijk2002.pdf:PDF}
+}
+
+@INPROCEEDINGS{Wijk1991,
+  author = {van Wijk, Jarke J.},
+  title = {Spot noise texture synthesis for data visualization},
+  booktitle = {SIGGRAPH '91: Proceedings of the 18th annual conference on Computer
+	graphics and interactive techniques},
+  year = {1991},
+  pages = {309--318},
+  address = {New York, NY, USA},
+  publisher = {ACM},
+  doi = {10.1145/122718.122751},
+  file = {Wijk1991.pdf:Wijk1991.pdf:PDF},
+  isbn = {0-89791-436-8}
+}
+
+@ARTICLE{Wilson1983,
+  author = {Wilson, H.R. and McFarlane, D.K. and Phillips, G.C.},
+  title = {Spatial frequency tuning of orientation selective units estimated
+	by oblique masking},
+  journal = {Vision Research},
+  year = {1983},
+  volume = {23},
+  pages = {873--882},
+  number = {9},
+  file = {Wilson1983.pdf:Wilson1983.pdf:PDF}
+}
+
+@ARTICLE{Wolfe1989,
+  author = {Jeremy M. Wolfe and Kyle R. Cave and Susan L. Franzel},
+  title = {Guided Search: An Alternative to the Feature Integration Model for
+	Visual Search},
+  journal = {Journal of Experimental Psychology: Human Perception and Performance},
+  year = {1989},
+  volume = {15},
+  pages = {419 - 433},
+  number = {3},
+  file = {Wolfe1989.pdf:Wolfe1989.pdf:PDF},
+  issn = {0096-1523},
+  url = {http://www.sciencedirect.com/science/article/B6X08-46X8WS6-1/2/501dfc15c55b7f804b0900725ef0d027}
+}
+
+@ARTICLE{Yoshimura2005,
+  author = {Yoshimura, Y. and Callaway, E.M.},
+  title = {Fine-scale specificity of cortical networks depends on inhibitory
+	cell type and connectivity},
+  journal = {Nature neuroscience},
+  year = {2005},
+  volume = {8},
+  pages = {1552--1559},
+  number = {11},
+  file = {Yoshimura2005.pdf:Yoshimura2005.pdf:PDF},
+  publisher = {New York, NY: Nature America Inc., c1998-}
+}
+
+@ARTICLE{Zhaoping2005,
+  author = {Li Zhaoping},
+  title = {Border Ownership from Intracortical Interactions in Visual Area V2},
+  journal = {Neuron},
+  year = {2005},
+  volume = {47},
+  pages = {143 - 153},
+  number = {1},
+  doi = {10.1016/j.neuron.2005.04.005},
+  file = {Zhaoping2005.pdf:Zhaoping2005.pdf:PDF},
+  issn = {0896-6273},
+  url = {http://www.sciencedirect.com/science/article/B6WSS-4GJTGTN-G/2/b010ee53b4f67bc64e5ea60e82d3fb8b}
+}
+
+@ARTICLE{Zipser1996,
+  author = {Zipser, K. and Lamme, V.A.F. and Schiller, P.H.},
+  title = {Contextual modulation in primary visual cortex},
+  journal = {Journal of Neuroscience},
+  year = {1996},
+  volume = {16},
+  pages = {7376},
+  number = {22},
+  file = {Zipser1996.pdf:Zipser1996.pdf:PDF},
+  publisher = {Soc Neuroscience}
+}
+
+% ---- Begin Aptara "guide"-specific references ----
+
+%%%%%%%%%%%%%%%%%%%%%% Start of Aptara sample bib entries
+
+% acmsmall-sam.bib
+@InProceedings{Adya-01,
+  author        = {A. Adya and P. Bahl and J. Padhye and A.Wolman and L. Zhou},
+  title         = {A multi-radio unification protocol for {IEEE} 802.11 wireless networks},
+  booktitle     = {Proceedings of the IEEE 1st International Conference on Broadnets Networks (BroadNets'04)},
+  publisher     = "IEEE",
+  address       = "Los Alamitos, CA",		  
+  year          = {2004},
+  pages         = "210--217"
+}
+
+@article{Akyildiz-01,
+  author        = {I. F. Akyildiz and W. Su and Y. Sankarasubramaniam and E. Cayirci},
+  title         = {Wireless Sensor Networks: A Survey},
+  journal       = {Comm. ACM},
+  volume        = 38,
+  number        = "4",
+  year          = {2002},
+  pages         = "393--422"
+}
+
+@article{Akyildiz-02,
+  author        = {I. F. Akyildiz and T. Melodia and K. R. Chowdhury},
+  title         = {A Survey on Wireless Multimedia Sensor Networks},
+  journal       = {Computer Netw.},
+  volume        = 51,
+  number        = "4",
+  year          = {2007},
+  pages         = "921--960"
+}
+
+@InProceedings{Bahl-02,
+  author        = {P. Bahl and R. Chancre and J. Dungeon},
+  title         = {{SSCH}: Slotted Seeded Channel Hopping for Capacity Improvement in {IEEE} 802.11 Ad-Hoc Wireless Networks},
+  booktitle     = {Proceeding of the 10th International Conference on Mobile Computing and Networking (MobiCom'04)},
+  publisher     = "ACM",
+  address       = "New York, NY",		  
+  year          = {2004},
+  pages         = "112--117"
+}
+
+@misc{CROSSBOW,
+  key       = {CROSSBOW},
+  title     = {{XBOW} Sensor Motes Specifications},
+  note      = {http://www.xbow.com},
+  year      = 2008
+}
+
+@article{Culler-01,
+  author        = {D. Culler and D. Estrin and M. Srivastava},
+  title         = {Overview of Sensor Networks},
+  journal       = {IEEE Comput.},
+  volume        = 37,
+  number        = "8 (Special Issue on Sensor Networks)",
+  publisher     = "IEEE",
+  address       = "Los Alamitos, CA",		  
+  year          = {2004},
+  pages         = "41--49"
+}
+
+@misc{Harvard-01,
+    key         = {Harvard CodeBlue},
+    title       = {{CodeBlue}: Sensor Networks for Medical Care},
+    note        = {http://www.eecs.harvard.edu/mdw/ proj/codeblue/},
+    year        = 2008
+}
+
+@InProceedings{Natarajan-01,
+    author      = {A. Natarajan and M. Motani and B. de Silva and K. Yap and K. C. Chua},
+    title       = {Investigating Network Architectures for Body Sensor Networks},
+    booktitle   = {Network Architectures},
+    editor      = {G. Whitcomb and P. Neece},
+    publisher   = "Keleuven Press",
+    address     = "Dayton, OH",		  
+    year        = {2007},
+    pages       = "322--328"
+}
+
+@techreport{Tzamaloukas-01,
+  author        = {A. Tzamaloukas and J. J. Garcia-Luna-Aceves},
+  title         = {Channel-Hopping Multiple Access},
+  number =        {I-CA2301},
+  institution =   {Department of Computer Science, University of California},
+  address =       {Berkeley, CA},
+  year          = {2000}
+}
+
+@BOOK{Zhou-06,
+  author        = {G. Zhou and J. Lu and C.-Y. Wan and M. D. Yarvis and J. A. Stankovic},
+  title         = {Body Sensor Networks},
+  publisher     = "MIT Press",
+  address       = "Cambridge, MA",		  
+  year          = {2008}
+}
+
+@mastersthesis{ko94,
+author = "Jacob Kornerup",
+title = "Mapping Powerlists onto Hypercubes",
+school = "The University of Texas at Austin",
+note = "(In preparation)",
+year = "1994"}
+%month = "dec",}
+
+@PhdThesis{gerndt:89,
+  author =       "Michael Gerndt",
+  title =        "Automatic Parallelization for Distributed-Memory
+                  Multiprocessing Systems",
+  school =       "University of Bonn",
+  year =         1989,
+  address =      "Bonn, Germany",
+  month =        dec
+}
+
+@article{6:1:1,
+author = "J. E. {Archer, Jr.} and R. Conway and F. B. Schneider",
+title = "User recovery and reversal in interactive systems",
+journal = "ACM Trans. Program. Lang. Syst.",
+volume =  "6",
+number = "1",
+month = jan,
+year = 1984,
+pages = "1--19"}
+
+@article{7:1:137,
+author = "D. D. Dunlop and V. R. Basili",
+title = "Generalizing specifications for uniformly implemented loops",
+journal = "ACM Trans. Program. Lang. Syst.",
+volume =  "7",
+number = "1",
+month = jan,
+year = 1985,
+pages = "137--158"}
+
+@article{7:2:183,
+author = "J. Heering and P. Klint",
+title = "Towards monolingual programming environments",
+journal = "ACM Trans. Program. Lang. Syst.",
+volume =  "7",
+number = "2",
+month = apr,
+year = 1985,
+pages = "183--213"}
+
+@book{knuth:texbook,
+author = "Donald E. Knuth",
+title = "The {\TeX{}book}",
+publisher = "Addison-Wesley",
+address = "Reading, MA.",
+year = 1984}
+
+@article{6:3:380,
+author = "E. Korach and D.  Rotem and N. Santoro",
+title = "Distributed algorithms for finding centers and medians in networks",
+journal = "ACM Trans. Program. Lang. Syst.",
+volume =  "6",
+number = "3",
+month = jul,
+year = 1984,
+pages = "380--401"}
+
+@book{lamport:latex,
+author = "Leslie Lamport",
+title = "\it {\LaTeX}: A Document Preparation System",
+publisher = "Addison-Wesley",
+address = "Reading, MA.",
+year = 1986}
+
+@article{7:3:359,
+author = "F. Nielson",
+title = "Program transformations in a denotational setting",
+journal = "ACM Trans. Program. Lang. Syst.",
+volume =  "7",
+number = "3",
+month = jul,
+year = 1985,
+pages = "359--379"}
+
+%testing
+@BOOK{test,
+   author = "Donald E. Knuth",
+   title = "Seminumerical Algorithms",
+   volume = 2,
+   series = "The Art of Computer Programming",
+   publisher = "Addison-Wesley",
+   address = "Reading, MA",
+   edition = "2nd",
+   month = "10~" # jan,
+   year = "1981",
+}
+
+@inproceedings{reid:scribe,
+author = "Brian K. Reid",
+title = "A high-level approach to computer document formatting",
+booktitle = "Proceedings of the 7th Annual Symposium on Principles of
+  Programming Languages",
+month = jan,
+year = 1980,
+publisher = "ACM",
+address = "New York",		  
+pages = "24--31"}
+
+@article{Zhou:2010:MMS:1721695.1721705,
+ author = {Zhou, Gang and Wu, Yafeng and Yan, Ting and He, Tian and Huang, Chengdu and Stankovic, John A. and Abdelzaher, Tarek F.},
+ title = {A multifrequency MAC specially designed for wireless sensor network applications},
+ journal = {ACM Trans. Embed. Comput. Syst.},
+ issue_date = {March 2010},
+ volume = {9},
+ number = {4},
+ month = {April},
+ year = {2010},
+ issn = {1539-9087},
+ pages = {39:1--39:41},
+ articleno = {39},
+ numpages = {41},
+ url = {http://doi.acm.org/10.1145/1721695.1721705},
+ doi = {10.1145/1721695.1721705},
+ acmid = {1721705},
+ publisher = {ACM},
+ address = {New York, NY, USA},
+ keywords = {Wireless sensor networks, media access control, multi-channel, radio interference, time synchronization},
+}
+
+% --------------------------------------------------
+
+@comment{jabref-meta: groupsversion:3;}
+
+@comment{jabref-meta: groupstree:
+0 AllEntriesGroup:;
+1 KeywordGroup:flow visualization\;0\;keywords\;flow visualization\;0\
+;0\;;
+1 KeywordGroup:neurophysiology\;0\;keywords\;neurophysiology\;0\;0\;;
+1 KeywordGroup:information theory\;0\;keywords\;information theory\;0\
+;0\;;
+1 KeywordGroup:modeling\;0\;keywords\;modeling\;0\;0\;;
+1 KeywordGroup:data visualization\;0\;keywords\;data visualization\;0\
+;0\;;
+1 KeywordGroup:object recognition\;0\;keywords\;object recognition\;0\
+;0\;;
+1 KeywordGroup:perceptual modeling\;0\;keywords\;perceptual modeling\;
+0\;0\;;
+1 KeywordGroup:perceptual optimization\;0\;keywords\;perceptual optimi
+zation\;0\;0\;;
+1 KeywordGroup:object perception\;0\;keywords\;object perception\;0\;0
+\;;
+1 KeywordGroup:contour perception\;0\;keywords\;contour perception\;0\
+;0\;;
+1 KeywordGroup:texture perception\;0\;keywords\;texture perception\;0\
+;0\;;
+1 KeywordGroup:graph visualization\;0\;keywords\;graph visualization\;
+0\;0\;;
+}
+
