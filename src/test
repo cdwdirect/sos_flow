@@ -1,4 +1,4 @@
-./sosd --port 20555 --buffer_len 2048 --listen_backlog 10 --work_dir ~/Dropbox/research/sos_flow/src/
+./sosd --port 20555 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)
 echo "Try:"
 echo "     nc localhost 20555"
 echo ""
