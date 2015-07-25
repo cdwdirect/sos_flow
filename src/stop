@@ -1,0 +1,3 @@
+sosd_pid=$(cat sosd.lock)
+kill -15 $sosd_pid
+rm -f sosd.lock

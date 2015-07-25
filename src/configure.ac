@@ -1,0 +1,141 @@
+##########################################################################################
+# Auto configure initialization
+AC_INIT(sos, sos_flow-1.0)
+AC_CONFIG_MACRO_DIR([m4])
+
+#Setup MPI Paths
+# ------------------------------------------------------------------------------
+AC_ARG_WITH([mpi],
+   [  --with-mpi=PATH    prefix where MPI is installed])
+
+mpi_enabled=no
+if test x"$with_mpi" != x"no" ; then	
+    AX_MPI_OPTIONS
+    if test x"$MPI_CXX" != x"none"; then
+      AX_MPI_TESTS
+      CXX=$MPI_CXX
+      mpi_enabled=yes
+    fi
+fi
+
+
+
+LT_INIT([shared static])
+AM_INIT_AUTOMAKE([foreign])
+AC_CONFIG_HEADERS([config.h])
+
+AC_CANONICAL_HOST
+case $host_os in
+    darwin* )
+        LIBSUFFIX=.dynlib
+        AC_SUBST(LIBSUFFIX)
+        ;;
+    * )
+        LIBSUFFIX=.so
+        AC_SUBST(LIBSUFFIX)
+        ;;
+esac
+case $host_cpu in
+    x86_64 )
+        AC_DEFINE(x86_64_ARCH, 1, "x86_64 architecture detected")
+        ;;
+    * )
+        AC_DEFINE(unknown_ARCH, 1, "Architecture is NOT x86_64")
+        ;;
+esac
+
+##########################################################################################
+# Tests
+
+## check for SQLite
+AC_ARG_WITH([sqlite],
+    AS_HELP_STRING([--without-sqlite], [Ignore presence of sqlite and disable it]))
+
+AS_IF([test "x$with_sqlite" != "xno"],
+      [
+PKG_CHECK_MODULES([SQLITE3], [sqlite3], [have_libsqlite3=yes], [have_libsqlite3=no])
+       ],
+      [have_libsqlite3=no])
+
+AS_IF([test "x$have_libsqlite3" = "xyes"],
+      [],
+      [AS_IF([test "x$with_libsqlite3" = "xyes"],
+             [AC_MSG_ERROR([libsqlite3 requested but not found]) ])
+])
+AM_CONDITIONAL([LIB_SQLITE3],  [test "$have_libsqlite3" = "yes"])
+
+## check for LMDB
+#AC_ARG_WITH([lmdb],
+#    AS_HELP_STRING([--without-lmdb], [Ignore presence of lmdb and disable it]))
+
+# only perform this test if requested
+#AS_IF([test "x$with_lmdb" = "xyes"],
+#      [
+#AC_SEARCH_LIBS([mdb_env_create], [lmdb], [have_lmdb=yes], 
+#  [AC_MSG_ERROR([unable to find the mdb_env_create() function])])
+#AC_CHECK_HEADERS([lmdb.h], [found_lmdb_headers=yes; break;])
+#AS_IF([test "x$found_lmdb_headers" != "xyes"], [AC_MSG_ERROR([Unable to find the LMDB headers])])
+#       ],
+#      [have_lmdb=no])
+#
+#AS_IF([test "x$have_lmdb" = "xyes"],
+#      [have_lmdb=no],
+#      [AS_IF([test "x$with_lmdb" = "xyes"],
+#             [AC_MSG_ERROR([lmdb requested but not found])])
+#])
+AM_CONDITIONAL([LIB_LMDB],  [test "$have_lmdb" = "yes"])
+#AM_CONDITIONAL([LIB_LMDB], "no")
+
+# Check for pthreads
+AX_PTHREAD
+
+# Check for nodejs
+#AC_CHECK_PROG(NODEJS,node,"node")
+
+# Check for libMSR
+#AC_CHECK_HEADERS([msr/msr_rapl.h])
+#AC_CHECK_LIB(msr, read_rapl_data)
+
+
+##########################################################################################
+# End of configure summary output
+
+if test "$use_mpi" != "yes"
+then
+echo -e "\e@<:@31m!!! WARNING !!!\e@<:@37m mpi not found for $CC"
+fi
+
+if test "$PTHREAD_CC" != "$CC"
+then
+echo -e "\e@<:@31m!!! WARNING !!!\e@<:@37m pthreads not found for $CC"
+fi
+
+#if test "$NODEJS" == ""
+#then
+#echo -e "\e@<:@31m!!! WARNING !!!\e@<:@37m required nodejs not found"
+#fi
+
+# check in test section doesn't work correctly
+#if test "x$with_sqlite" == "xyes"
+#then
+#if test "x$have_libsqlite3" == "xno"
+#then
+#echo -e "\e@<:@31m!!! WARNING !!!\e@<:@37m required sqlite3 but I couldn't find it"
+#fi
+#fi
+
+echo -e "MPICC is $MPICC"
+echo -e "CC is $CC"
+echo -e "PTHREAD_CC is $CC"
+echo -e "NODEJS is $NODEJS"
+echo -e "host detects as $host"
+
+##########################################################################################
+# Generate files
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT
+
+# CRAY doesn't play nice with libtool... so we need to patch the makefile
+if test "$CRAYPE_VERSION" != ""; then
+#sed -i 's/mode=compile \$(CC) \$(DEFS)/mode=compile $(CC) -fPIC $(DEFS)/' VMPI/Makefile
+fi
