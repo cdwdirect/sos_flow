@@ -17,7 +17,6 @@
 #include <syslog.h>
 #include <string.h>
 #include <pthread.h>
-#include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
 
@@ -67,6 +66,11 @@ int main(int argc, char *argv[]) {
     int i, elem, next_elem;
 
     WORK_DIR = &DEFAULT_DIR;
+
+    /*
+     *  TODO:{ CHAD, INIT } Consider adding a --interactive mode that doesn't
+     *  run as a daemon, displays statistics in real-time, and allows commands.
+     */
 
     /* Process command-line arguments */
     port_number    = -1;
@@ -135,7 +139,17 @@ int main(int argc, char *argv[]) {
             syslog(LOG_INFO, "ERROR attempting to read from client socket.\n");
             dlog("ERROR attempting to read from client socket.\n"); continue; }
 
-        dlog(buffer);  /* Log what we received. */
+
+        /*
+         *  TODO: { CHAD, CACHE, DB } This is where we will add the commit to a
+         *        local store, and where we will come in later with sync signal
+         *        to dirty the store (perhaps).
+         *
+         *        For now, just commit the recieved message to the log.
+         */
+
+
+        dlog(buffer);
 
         /* WRITE REPLY */
         if ( write(client_socket_fd, "ACK\0", 4) < 0 ) {

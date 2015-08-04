@@ -4,8 +4,17 @@
  *
  *
  */
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
-#include <mpi.h>
+#include <string.h>
+#include <pthread.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/stat.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 #include "sos.h"
 #include "sos_debug.h"
@@ -37,41 +46,61 @@ void* SOS_refresh_sub( void *arg );
 
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
     int i;
-    char whoami[SOS_DEFAULT_STRING_LEN];
 
-    memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);
-    switch (role) {
-    case SOS_CLIENT    : sprintf(whoami, "client" ); break;
-    case SOS_SERVER    : sprintf(whoami, "server" ); break;
-    case SOS_DB        : sprintf(whoami, "db"     ); break;
-    default            : sprintf(whoami, "UNKNOWN"); break;
+    SOS.status = SOS_STATUS_INIT;
+    SOS.role = role;
+
+    SOS_SET_WHOAMI(whoami, "SOS_init");
+    dlog(2, "[%s]: Initializing SOS...;\n", whoami);
+
+    if (SOS.role == SOS_CLIENT) {
+        SOS.config.cmd_port = atoi(getenv("SOS_CMD_PORT"));
+        SOS.config.cmd_host = SOS_DEFAULT_LOCALHOST;
+    } else {
+        /* 
+         * [sosd] and other roles will set POST + HOST manually...
+         * but ALL clients should be connecting to the daemon on
+         * the node where they are executing.
+         */
     }
+    
+    SOS.config.buffer_len = SOS_DEFAULT_BUFFER_LEN;
+    SOS.config.cmd_timeout = SOS_DEFAULT_CMD_TIMEOUT;
+    SOS.config.argc = *argc;
+    SOS.config.argv = *argv;
 
-    dlog(2, "[%s]: SOS_init(...);\n", whoami);
+    
+    SOS.uid.pub.next = SOS.uid.sub.next = SOS.uid.seq.next = 0;
+    SOS.uid.pub.last = SOS.uid.sub.last = SOS.uid.seq.last = SOS_DEFAULT_LONG_MAX;
+    pthread_mutex_init( &(SOS.uid.pub.lock), NULL );
+    pthread_mutex_init( &(SOS.uid.sub.lock), NULL );
+    pthread_mutex_init( &(SOS.uid.seq.lock), NULL );
 
-    /* ...
-       TODO: 
+    
+    SOS.ring.send.read_pos = SOS.ring.send.write_pos = 0;
+    SOS.ring.recv.read_pos = SOS.ring.recv.write_pos = 0;
+    SOS.ring.send.size = SOS_DEFAULT_RING_SIZE;
+    SOS.ring.recv.size = SOS_DEFAULT_RING_SIZE;
+    SOS.ring.send.bytes = ( SOS.ring.send.size * sizeof(void *) );
+    SOS.ring.recv.bytes = ( SOS.ring.recv.size * sizeof(void *) );
+    SOS.ring.send.heap = (void **) malloc( SOS.ring.send.bytes );
+    SOS.ring.recv.heap = (void **) malloc( SOS.ring.recv.bytes );
+    memset( SOS.ring.send.heap, '\0', SOS.ring.send.bytes ); 
+    memset( SOS.ring.recv.heap, '\0', SOS.ring.recv.bytes );
+    pthread_mutex_init( &(SOS.ring.send.lock), NULL );
+    pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
+   
+    /*
+     *  TODO:{ CHAD, INIT }
+     *       Here we will request certain configuration things
+     *       from the daemon, such as our client ID.
+     */ 
+    SOS.client_id = "TEMP_ID";
 
-       pub_port = getenv("SOS_PUB_PORT");
-       sub_port = getenv("SOS_SUB_PORT");
-
-       ... */
-
-    SOS_ROLE = role;
-    SOS_ARGC = *argc;
-    SOS_ARGV = *argv;
-    SOS_WARNING_LEVEL = 1;
-
-    SOS_SUB_LIST = (SOS_sub_handle**) malloc(sizeof(SOS_sub_handle*) * SOS_DEFAULT_SUB_MAX);
-
-    SOS_SERIAL_GENERIC_VAL = 0;
-    SOS_SERIAL_PUB_VAL = 0;
-    SOS_SERIAL_SUB_VAL = 0;
-
-    pthread_mutex_init(&SOS_MUTEX_SERIAL, NULL);
-    pthread_mutex_init(&SOS_MUTEX_QUEUES, NULL);
-    pthread_mutex_init(&SOS_MUTEX_PUBLISH_TO, NULL);
-    pthread_mutex_init(&SOS_MUTEX_ANNOUNCE_TO, NULL);
+    
+    /*
+     *  TODO:{ CHAD, INIT } Start any threads...
+     */
     
     return;
 }
@@ -79,17 +108,32 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
 
 void SOS_finalize() {
-    pthread_mutex_destroy(&SOS_MUTEX_SERIAL);
-    pthread_mutex_destroy(&SOS_MUTEX_QUEUES);
-    pthread_mutex_destroy(&SOS_MUTEX_PUBLISH_TO);
-    pthread_mutex_destroy(&SOS_MUTEX_ANNOUNCE_TO);
+
+    /* This will 'notify' any SOS threads to break out of their loops
+     * and return here.  */
+    SOS.status = SOS_STATUS_SHUTDOWN;
+
+    /*
+     *  TODO:{ CHAD, FINALIZE, THREADS } Join any threads.
+     */
+
+    pthread_mutex_destroy( &SOS.ring.send.lock );
+    pthread_mutex_destroy( &SOS.ring.recv.lock );
+    pthread_mutex_destroy( &SOS.uid.pub.lock   );
+    pthread_mutex_destroy( &SOS.uid.sub.lock   );
+    pthread_mutex_destroy( &SOS.uid.seq.lock   );
+    pthread_mutex_destroy( &SOS.global_lock    );
+    
+    free( SOS.ring.send.heap );
+    free( SOS.ring.recv.heap );
+    
     return;
 }
 
 
 
 
-int SOS_next_serial() {
+int SOS_next_id() {
     int next_serial;
 
     pthread_mutex_lock(&SOS_MUTEX_SERIAL);

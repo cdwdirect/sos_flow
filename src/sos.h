@@ -22,29 +22,62 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <limits.h>
+
+#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
+#define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
+    char __SOS_var_name[SOS_DEFAULT_STRING_LEN];                        \
+    {                                                                   \
+        memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
+        switch (SOS.role) {                                             \
+        case SOS_CLIENT    : sprintf(__SOS_var_name, "client(%s).%s", SOS.client_id, __SOS_str_func ); break; \
+        case SOS_SERVER    : sprintf(__SOS_var_name, "server(%s).%s", SOS.client_id, __SOS_str_func ); break; \
+        case SOS_LEADER    : sprintf(__SOS_var_name, "leader(%s).%s", SOS.client_id, __SOS_str_func ); break; \
+        case SOS_DB        : sprintf(__SOS_var_name, "db(%s).%s", SOS.client_id, __SOS_str_func     ); break; \
+        default            : sprintf(__SOS_var_name, "??????(%s).%s", SOS.client_id, __SOS_str_func ); break; \
+        }                                                               \
+    }
 
 
-#define SOS_TIME(now)  { struct timeval t; gettimeofday(&t, NULL); now = t.tv_sec + t.tv_usec/1000000.0; }
-
-
-
-/*
- *  Whenever SOS has a 'temporary' string for element name packing, etc, this
- *  will be the default buffer space that will be allocated for working on it.
- *
- *  This will typically be the maximum 'safe' length of an element name in SOS.
- */
+#define SOS_DEFAULT_LOCALHOST    "localhost"
+#define SOS_DEFAULT_BUFFER_LEN   1024000
+#define SOS_DEFAULT_CMD_TIMEOUT  2048
+#define SOS_DEFAULT_RING_SIZE    1024
 #define SOS_DEFAULT_STRING_LEN   256
-
+#define SOS_DEFAULT_UID_MAX      LONG_MAX
 
 
 /* ************************************ */
 
 
+/*
+ *  NOTE: Data sources / [sos_cmd] are SOS_CLIENT's.
+ *        All [sosd] instances are SOS_DAEMON, and all
+ *        daemons have an upstream target.  The
+ *        notion of an 'enclave' is purely logical.
+ *        There is only a single SOS_LEADER in the
+ *        entire workflow.  Everything doesn't
+ *        necessarily propagate to it, but it is the
+ *        'authority' for the SOS services to sync on
+ *        if there is some reason to.
+ *
+ *        SOS_DB is the role allocated for the helper
+ *        process running alongside the backplane
+ *        SQL server.  This may not be necessary, but
+ *        we'll see... :)   -CW
+ */
+
 enum SOS_role {
     SOS_CLIENT,
     SOS_DAEMON,
+    SOS_LEADER,
     SOS_DB
+};
+
+enum SOS_status {
+    SOS_STATUS_INIT,
+    SOS_STATUS_RUNNING,
+    SOS_STATUS_SHUTDOWN
 };
 
 enum SOS_msg {
@@ -95,42 +128,51 @@ typedef union {
 } SOS_val;
 
 typedef struct {
-    long        guid;
-    SOS_type    type;
-    SOS_val     val;
-    char       *name;
-    char       *channel;
-    int         dirty;
-    double      pack_ts;
-    double      send_ts;
-    double      recv_ts;
-    int         semantic_hint;
-    char       *pragma_msg;
-    int         pragma_len;
-    int         update_priority;
-    int         src_layer;
-    int         src_role;
-    int         scope_hint;
-    int         retention_policy;
+    double        pack;
+    double        send;
+    double        recv;
+} SOS_time;
+
+typedef struct {
+    char         *channel;
+    int           semantic_hint;
+    int           pragma_len;     /* allows for blob's */
+    char         *pragma_msg;
+    int           update_priority;
+    int           src_layer;
+    int           src_role;
+    int           scope_hint;
+    int           retention_policy;
+} SOS_meta;
+
+typedef struct {
+    long          guid;   /* global unique id */
+    int           dirty;
+    SOS_type      type;
+    char         *name;
+    SOS_time      time;
+    SOS_meta      meta;
+    int           len;     /* allows for blob val's */
+    SOS_val       val;
 } SOS_data;
 
 typedef struct {
-    int         origin_pub_uid;
-    int         origin_node_id;
-    int         origin_comm_rank;
-    int         origin_process_id;
-    int         origin_thread_id;
-    SOS_role    origin_role;
-    char       *origin_prog_name;
-    char       *origin_prog_ver;
-    int         target_list;
-    char       *pragma_msg;
-    int         pragma_len;
-    char       *title;
-    int         announced;
-    int         elem_max;
-    int         elem_count;
-    SOS_data  **data;
+    int           origin_pub_id;
+    int           origin_node_id;
+    int           origin_comm_rank;
+    int           origin_process_id;
+    int           origin_thread_id;
+    SOS_role      origin_role;
+    char         *origin_prog_name;
+    char         *origin_prog_ver;
+    int           target_list;
+    char         *pragma_msg;
+    int           pragma_len;
+    char         *title;
+    int           announced;
+    int           elem_max;
+    int           elem_count;
+    SOS_data    **data;
 } SOS_pub_handle;
 
 typedef struct {
@@ -143,29 +185,58 @@ typedef struct {
     SOS_pub_handle *pub;
 } SOS_sub_handle;
 
+typedef struct {
+    char           *cmd_host;
+    int             cmd_port;
+    int             buffer_len;
+    int             cmd_timeout;
+    int             argc;
+    char          **argv;
+} SOS_config;
 
-static const char *SOS_TEMP_STRING = "SOS_TEMP_STRING";
+typedef struct {
+    long            next;
+    long            last;
+    pthread_mutex_t lock;
+} SOS_uid;
 
-int                SOS_ARGC;
-char             **SOS_ARGV;
-int                SOS_RANK;
-int                SOS_SIZE;
+typedef struct {
+    SOS_uid       pub;
+    SOS_uid       sub;
+    SOS_uid       seq;
+} SOS_unique_set;
 
-int                SOS_SERIAL_GENERIC_VAL;
-int                SOS_SERIAL_PUB_VAL;
-int                SOS_SERIAL_SUB_VAL;
-pthread_mutex_t    SOS_MUTEX_SERIAL;
-pthread_mutex_t    SOS_MUTEX_QUEUES;
-pthread_mutex_t    SOS_MUTEX_PUBLISH_TO;
-pthread_mutex_t    SOS_MUTEX_ANNOUNCE_TO;
+typedef struct {
+    int             read_pos;
+    int             write_pos;
+    int             size;
+    long            bytes;
+    void          **heap;
+    pthread_mutex_t lock;
+} SOS_ring_queue;
 
-SOS_role           SOS_ROLE;
+typedef struct {
+    SOS_ring_queue  send;
+    SOS_ring_queue  recv;
+} SOS_ring_set;
+
+typedef struct {
+    SOS_config       config;
+    SOS_role         role;
+    SOS_unique_set   uid;
+    SOS_ring_set     ring;
+    SOS_status       status;
+    int              thread_count;
+    pthread_mutex_t  global_lock;
+    char            *client_id;
+} SOS_runtime;
 
 
 
-char               SOS_pub_buffer[1024000];
-char               SOS_ann_buffer[1024000];
-char               SOS_pos_buffer[512000];
+SOS_runtime SOS;
+
+
+
 
 
 /* Required if included by C++ code. */
@@ -203,7 +274,7 @@ extern "C" {
      * Purpose...: Return a unique (per process) ID for use in keeping
      *             track of replies to subscription requests, etc.
      */
-    int SOS_next_serial();
+    long SOS_next_id( SOS_uid *uid );
 
 
     /*
