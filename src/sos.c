@@ -20,23 +20,21 @@
 #include "sos_debug.h"
 
 
-MPI_Comm SOS_COMM_WORLD;
-MPI_Comm SOS_COMM_LOCAL;
-
-MPI_Comm SOS_ICOMM_APP;
-MPI_Comm SOS_ICOMM_MONITOR;
-MPI_Comm SOS_ICOMM_DB;
-MPI_Comm SOS_ICOMM_POWSCHED;
-MPI_Comm SOS_ICOMM_ANALYTICS;
-
-
 /* Private functions (not in the header file) */
-void SOS_announce_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank);
-void SOS_publish_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank);
-void SOS_free_pub(SOS_pub_handle *pub);
-void SOS_free_sub(SOS_sub_handle *sub);
-void SOS_expand_data(SOS_pub_handle *pub);
-void* SOS_refresh_sub( void *arg );
+void* SOS_THREAD_post( void *arg );
+void* SOS_THREAD_read( void *arg );
+void* SOS_THREAD_scan( void *arg );
+
+void SOS_post_to_daemon( char *msg, char *reply );
+
+//void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank);
+//void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank);
+
+void SOS_free_pub(SOS_pub *pub);
+void SOS_free_sub(SOS_sub *sub);
+void SOS_expand_data(SOS_pub *pub);
+
+//void* SOS_refresh_sub( void *arg );
 
 
 /* **************************************** */
@@ -44,6 +42,9 @@ void* SOS_refresh_sub( void *arg );
 /* **************************************** */
 
 
+
+
+//SOS_FLOW - ready
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
     int i;
 
@@ -69,13 +70,15 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS.config.argc = *argc;
     SOS.config.argv = *argv;
 
+    SOS.uid->pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid->sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid->seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
     
-    SOS.uid.pub.next = SOS.uid.sub.next = SOS.uid.seq.next = 0;
-    SOS.uid.pub.last = SOS.uid.sub.last = SOS.uid.seq.last = SOS_DEFAULT_LONG_MAX;
-    pthread_mutex_init( &(SOS.uid.pub.lock), NULL );
-    pthread_mutex_init( &(SOS.uid.sub.lock), NULL );
-    pthread_mutex_init( &(SOS.uid.seq.lock), NULL );
-
+    SOS.uid->pub.next = SOS.uid->sub.next = SOS.uid->seq.next = 0;
+    SOS.uid->pub.last = SOS.uid->sub.last = SOS.uid->seq.last = SOS_DEFAULT_LONG_MAX;
+    pthread_mutex_init( &(SOS.uid->pub.lock), NULL );
+    pthread_mutex_init( &(SOS.uid->sub.lock), NULL );
+    pthread_mutex_init( &(SOS.uid->seq.lock), NULL );
     
     SOS.ring.send.read_pos = SOS.ring.send.write_pos = 0;
     SOS.ring.recv.read_pos = SOS.ring.recv.write_pos = 0;
@@ -89,34 +92,50 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     memset( SOS.ring.recv.heap, '\0', SOS.ring.recv.bytes );
     pthread_mutex_init( &(SOS.ring.send.lock), NULL );
     pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
-   
+
+    
+    pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
+    pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
+    pthread_create( &SOS.task.scan, NULL, (void *) SOS_TRHEAD_scan, NULL );
+
     /*
      *  TODO:{ CHAD, INIT }
      *       Here we will request certain configuration things
      *       from the daemon, such as our client ID.
      */ 
     SOS.client_id = "TEMP_ID";
-
-    
-    /*
-     *  TODO:{ CHAD, INIT } Start any threads...
-     */
     
     return;
 }
 
 
 
-void SOS_finalize() {
-
-    /* This will 'notify' any SOS threads to break out of their loops
-     * and return here.  */
-    SOS.status = SOS_STATUS_SHUTDOWN;
+//SOS_FLOW - ready
+void SOS_send_to_daemon( char *msg, char *reply ) {
+    SOS_SET_WHOAMI(whoami, "SOS_send_to_daemon");
 
     /*
-     *  TODO:{ CHAD, FINALIZE, THREADS } Join any threads.
+     *
+     *  TODO:{ CHAD, POST } Inject the socket code here.
+     *
      */
 
+    return;
+}
+
+
+
+//SOS_FLOW - ready
+void SOS_finalize() {
+    SOS_SET_WHOAMI(whoami, "SOS_finalize");
+    
+    /* This will 'notify' any SOS threads to break out of their loops. */
+    SOS.status = SOS_STATUS_SHUTDOWN;
+
+    pthread_join( &SOS.task.post, NULL );
+    pthread_join( &SOS.task.read, NULL );
+    pthread_join( &SOS.task.scan, NULL );
+    
     pthread_mutex_destroy( &SOS.ring.send.lock );
     pthread_mutex_destroy( &SOS.ring.recv.lock );
     pthread_mutex_destroy( &SOS.uid.pub.lock   );
@@ -132,24 +151,168 @@ void SOS_finalize() {
 
 
 
-
-int SOS_next_id() {
-    int next_serial;
-
-    pthread_mutex_lock(&SOS_MUTEX_SERIAL);
-    if (SOS_SERIAL_GENERIC_VAL > SOS_DEFAULT_SERIAL_GENERIC_MAX) {
-        /* Default behavior is to cycle through values. */
-        SOS_SERIAL_GENERIC_VAL = 0;
+//SOS_FLOW - ready
+void* SOS_THREAD_post( void *args ) {
+    SOS_SET_WHOAMI(whoami, "SOS_THREAD_post");
+    
+    while (SOS.status = SOS_STATUS_RUNNING) {
+        /*
+         *  Transmit messages to the daemon.
+         * ...
+         *
+         */
     }
-    next_serial = SOS_SERIAL_GENERIC_VAL++;
-    pthread_mutex_unlock(&SOS_MUTEX_SERIAL);
+    return NULL;
+}
+
+
+
+//SOS_FLOW - ready
+void* SOS_THREAD_read( void *args ) {
+    SOS_SET_WHOAMI(whoami, "SOS_THREAD_read");
+
+    while (SOS.status = SOS_STATUS_RUNNING) {
+        /*
+         *  Read the char* messages we've received and unpack into data structures.
+         * ...
+         *
+         */
+    }    
+    return NULL;
+}
+
+
+
+
+//SOS_FLOW - ready
+void* SOS_THREAD_scan( void *args ) {
+    SOS_SET_WHOAMI(whoami "SOS_THREAD_scan");
+    
+    while (SOS.status = SOS_STATUS_RUNNING) {
+        /*
+         *  Check out the dirty data and package it for sending.
+         * ...
+         *
+         */
+    }
+    return NULL;
+}
+
+
+
+
+
+//SOS_FLOW - ready
+long SOS_next_id( uid *id ) {
+    long next_serial;
+
+    pthread_mutex_lock( &(id->lock) );
+    next_serial = id->next++;
+    pthread_mutex_unlock( &(id->lock) );
 
     return next_serial;
 }
 
 
 
-void SOS_expand_data( SOS_pub_handle *pub ) {
+SOS_pub* SOS_new_pub(char *title) {
+    SOS_SET_WHOAMI(whoami, "SOS_new_pub");
+    int i;
+    SOS_pub *new_pub;
+
+    dlog(0, "NOT SOS_FLOW READY.\n");
+    
+/*
+    new_pub = malloc(sizeof(SOS_pub));
+    memset(new_pub, '\0', sizeof(SOS_pub));
+
+    new_pub->origin_puid   = -1;
+    new_pub->announced     = 1;
+    new_pub->origin_role   = SOS_ROLE;
+    new_pub->origin_rank   = SOS_RANK;
+    new_pub->origin_thread = -1;
+    new_pub->origin_prog   = SOS_ARGV[0];
+    new_pub->target_list   = SOS_DEFAULT_PUB_TARGET_LIST;
+    new_pub->pragma_tag    = 0;
+    new_pub->elem_count    = 0;
+    new_pub->elem_max = SOS_DEFAULT_ELEM_MAX;
+    new_pub->data = malloc(sizeof(SOS_data *) * SOS_DEFAULT_ELEM_MAX);
+
+    new_pub->title = (char *) malloc(strlen(title) + 1);
+    memset(new_pub->title, '\0', (strlen(title) + 1));
+    strcpy(new_pub->title, title);
+
+    for (i = 0; i < SOS_DEFAULT_ELEM_MAX; i++) {
+        new_pub->data[i] = malloc(sizeof(SOS_data));
+        memset(new_pub->data[i], '\0', sizeof(SOS_data));
+    }
+    return new_pub;
+*/
+}
+
+
+
+SOS_pub* SOS_new_post(char *title) {
+    SOS_SET_WHOAMI(whoami, "SOS_new_post");
+
+    SOS_pub   *new_post;
+    char      *tmp_str;
+    int        i;
+
+    /*
+     *  A 'post' in the sos_flow system is a pub with a single data element.
+     *  The SOS_post(...) routine is used in place of SOS_pack/SOS_publish.
+     *
+     */
+    
+    new_post = malloc(sizeof(SOS_pub));
+    memset(new_post, '\0', sizeof(SOS_pub));
+
+    new_post->origin_pub_id       = SOS_next_id( SOS.uid->pub );
+    new_post->origin_node_id      = SOS_STR_COPY_OF( SOS.config.node_id, tmp_str );
+    new_post->origin_comm_rank    = -1;
+    new_post->origin_process_id   = -1;
+    new_post->origin_thread_id    = -1;
+    new_post->origin_role         = -1;
+    new_post->origin_prog_name    = -1;
+    new_post->origin_prog_ver     = -1;
+    new_post->title = (char *) malloc(strlen(title) + 1);
+        memset(new_post->title, '\0', (strlen(title) + 1));
+        strcpy(new_post->title, title);
+    new_post->announced           = 0;
+    new_post->elem_count          = 1;
+    new_post->elem_max            = 1;
+
+    new_post->meta.channel     = NULL;
+    new_post->meta.pragma_len  = -1;
+    new_post->meta.pragma_msg  = NULL;
+    new_post->meta.layer       = SOS_LAYER_APP;
+    new_post->meta.nature      = -1;
+    new_post->meta.pri_hint    = SOS_PRI_DEFAULT;
+    new_post->meta.sem_hint    = -1;
+    new_post->meta.scope_hint  = SOS_SCOPE_DEFAULT;
+    new_post->meta.retain_hint = SOS_RETAIN_DEFAULT;
+    
+    new_post->data                = malloc(sizeof(SOS_data *));
+
+    new_post->data[0] = malloc(sizeof(SOS_data));
+        memset(new_pub->data[i], '\0', sizeof(SOS_data));
+        new_post->data[0].guid      = -1;
+        new_post->data[0].name      = -1;
+        new_post->data[0].type      = -1;
+        new_post->data[0].len       = -1;
+        new_post->data[0].val.l_val = -1;
+        new_post->data[0].dirty     = SOS_EMPTY;
+        new_post->data[0].time.pack = -1.0;
+        new_post->data[0].time.send = -1.0;
+        new_post->data[0].time.recv = -1.0;
+
+    return new_pub;
+}
+
+void SOS_expand_data( SOS_pub *pub ) {
+    SOS_SET_WHOAMI(whoami, "SOS_expand_data");
+
     int n;
     SOS_data **expanded_data;
 
@@ -167,6 +330,7 @@ void SOS_expand_data( SOS_pub_handle *pub ) {
 
 
 
+/*
 int SOS_msg_origin_puid( char *msg ) {
     int origin_puid;
     memcpy(&origin_puid, msg, sizeof(int));
@@ -185,7 +349,9 @@ SOS_role SOS_msg_origin_role( char *msg ) {
     return (SOS_role) origin_role;
 }
 
+*/
 
+//SOS_FLOW - ready
 void SOS_strip_str( char *str ) {
     int i, len;
     len = strlen(str);
@@ -200,27 +366,16 @@ void SOS_strip_str( char *str ) {
 
 
 
-void SOS_apply_announce( SOS_pub_handle *pub, char *msg, int msg_size ) {
-    //for extracting values from the msg:
+void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
+    SOS_SET_WHOAMI(whoami, "SOS_apply_announce");
+
     SOS_type val_type;
     int val_id;
     int val_name_len;
     char *val_name;
     int ptr;
-    //misc
     int first_announce;
 
-    char whoami[SOS_DEFAULT_STRING_LEN] = "[...]";
-/*  memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);
-    switch (SOS_ROLE) {
-    case SOS_APP       : sprintf(whoami, "app(%d).apply_announce", SOS_RANK); break;
-    case SOS_MONITOR   : sprintf(whoami, "monitor(%d).apply_announce", SOS_RANK); break;
-    case SOS_DB        : sprintf(whoami, "db(%d).apply_announce", SOS_RANK); break;
-    case SOS_POWSCHED  : sprintf(whoami, "powsched(%d).apply_announce", SOS_RANK); break;
-    case SOS_ANALYTICS : sprintf(whoami, "analytics(%d).apply_announce", SOS_RANK); break;
-    default: sprintf(whoami, "UNKOWN.apply_announce"); break;
-    }
-*/
 
     if (pub->elem_count < 1) {
         first_announce = 1;
@@ -310,7 +465,7 @@ void SOS_apply_announce( SOS_pub_handle *pub, char *msg, int msg_size ) {
 
 
 
-void SOS_apply_publish( SOS_pub_handle *pub, char *msg, int msg_len ) {
+void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
     //for extracting values from the msg:
     int ptr;
     int val_id;
@@ -410,7 +565,7 @@ void SOS_apply_publish( SOS_pub_handle *pub, char *msg, int msg_len ) {
 
 
 
-int SOS_pack( SOS_pub_handle *pub, const char *name, SOS_type pack_type, SOS_val pack_val ) {
+int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_val ) {
     //counter variables
     int i, n;
     //variables for working with adding pack_val SOS_STRINGs
@@ -590,7 +745,7 @@ int SOS_pack( SOS_pub_handle *pub, const char *name, SOS_type pack_type, SOS_val
     return -1;
 }
 
-void SOS_repack( SOS_pub_handle *pub, int index, SOS_val pack_val ) {
+void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
     SOS_data *data;
     int len;
 
@@ -627,7 +782,7 @@ void SOS_repack( SOS_pub_handle *pub, int index, SOS_val pack_val ) {
     return;
 }
 
-SOS_val SOS_get_val(SOS_pub_handle *pub, char *name) {
+SOS_val SOS_get_val(SOS_pub *pub, char *name) {
     int i;
 
     for(i = 0; i < pub->elem_count; i++) {
@@ -638,56 +793,26 @@ SOS_val SOS_get_val(SOS_pub_handle *pub, char *name) {
 
 }
 
-SOS_pub_handle* SOS_new_pub(char *title) {
-    int i;
-    SOS_pub_handle *new_pub;
 
-    new_pub = malloc(sizeof(SOS_pub_handle));
-    memset(new_pub, '\0', sizeof(SOS_pub_handle));
+SOS_sub* SOS_new_sub() {
+    SOS_sub *new_sub;
 
-    new_pub->origin_puid   = -1;     /* <-- This gets set during initial announce... */
-    new_pub->announced     = 1;      /* <-- pub->announced will get zero'ed during pack()'ing */
-    new_pub->origin_role   = SOS_ROLE;
-    new_pub->origin_rank   = SOS_RANK;
-    new_pub->origin_thread = -1;
-    new_pub->origin_prog   = SOS_ARGV[0];
-    new_pub->target_list   = SOS_DEFAULT_PUB_TARGET_LIST;
-    new_pub->pragma_tag    = 0;
-    new_pub->elem_count    = 0;
-    new_pub->elem_max = SOS_DEFAULT_ELEM_MAX;
-    new_pub->data = malloc(sizeof(SOS_data *) * SOS_DEFAULT_ELEM_MAX);
-
-    new_pub->title = (char *) malloc(strlen(title) + 1);
-    memset(new_pub->title, '\0', (strlen(title) + 1));
-    strcpy(new_pub->title, title);
-
-    for (i = 0; i < SOS_DEFAULT_ELEM_MAX; i++) {
-        new_pub->data[i] = malloc(sizeof(SOS_data));
-        memset(new_pub->data[i], '\0', sizeof(SOS_data));
-    }
-    return new_pub;
-}
-
-
-SOS_sub_handle* SOS_new_sub() {
-    SOS_sub_handle *new_sub;
-
-    new_sub = malloc(sizeof(SOS_sub_handle));
-    memset(new_sub, '\0', sizeof(SOS_sub_handle));
+    new_sub = malloc(sizeof(SOS_sub));
+    memset(new_sub, '\0', sizeof(SOS_sub));
     new_sub->active = 1;
     new_sub->pub = SOS_new_pub("---empty---");
 
     return new_sub;
 }
 
-void SOS_free_pub(SOS_pub_handle *pub) {
+void SOS_free_pub(SOS_pub *pub) {
 
     /* TODO:{ FREE_PUB, CHAD } */
   
     return;
 }
 
-void SOS_free_sub(SOS_sub_handle *sub) {
+void SOS_free_sub(SOS_sub *sub) {
 
     /* TODO:{ FREE_SUB, CHAD } */
 
@@ -696,7 +821,7 @@ void SOS_free_sub(SOS_sub_handle *sub) {
 
 
 
-void SOS_display_pub(SOS_pub_handle *pub, FILE *output_to) {
+void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
     if (SOS_DEBUG != 0 ) {
         int i;
         int rank;
@@ -737,18 +862,18 @@ void SOS_display_pub(SOS_pub_handle *pub, FILE *output_to) {
 /* **************************************** */
 
 
-void SOS_announce( SOS_pub_handle *pub ) {
+void SOS_announce( SOS_pub *pub ) {
     SOS_announce_to(pub, SOS_ICOMM_MONITOR, SOS_PAIRED_MONITOR);
     return;
 }
 
 
-void SOS_publish( SOS_pub_handle *pub ) {
+void SOS_publish( SOS_pub *pub ) {
     SOS_publish_to(pub, SOS_ICOMM_MONITOR, SOS_PAIRED_MONITOR);
     return;
 }
 
-void SOS_announce_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank ) {
+void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     int i, n_byte, name_len;
     int composite_tag;
     int ptr;
@@ -826,7 +951,7 @@ void SOS_announce_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank
     //buffer = (char *) malloc(composite_len);
     //if (buffer == NULL) {
     //  dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami);
-    //  MPI_Abort();
+    //  POISON_Abort();
     //  exit(1);
     //}
 
@@ -871,7 +996,7 @@ void SOS_announce_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank
 
     dlog(6, "[%s]:  ---- {ANN} DONE   LEN = %d  PTR = %d\n", whoami, composite_len, ptr);
 
-    PMPI_Send(buffer, composite_len, MPI_CHAR, target_rank, SOS_MSG_ANNOUNCE, target_comm);
+    PPOISON_Send(buffer, composite_len, POISON_CHAR, target_rank, SOS_MSG_ANNOUNCE, target_comm);
 
     //free(buffer);
 
@@ -894,7 +1019,7 @@ void SOS_announce_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank
      *
      * Turn this into a bit-field w/per-role discrimination, and then it can be truly automatic.
      */
-  
+    
     if (SOS_ROLE == SOS_APP) pub->announced = 1;
 
     pthread_mutex_unlock(&SOS_MUTEX_ANNOUNCE_TO);
@@ -903,7 +1028,7 @@ void SOS_announce_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank
 }
 
 
-void SOS_publish_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank ) {
+void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     int i, n_byte, name_len;
     int ptr;
     int composite_len;
@@ -935,7 +1060,7 @@ void SOS_publish_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank 
     }
 
     if (pub->announced == 0) {
-        dlog(7, "[%s]: Attempting to publish an SOS_pub_handle announcing.\n[%s]: This is "    \
+        dlog(7, "[%s]: Attempting to publish an SOS_pub announcing.\n[%s]: This is "    \
              "probably forgetting to manually set \"pub->announced = 1;\" within an sos_cloud" \
              " module.\n[%s]: Recursively calling SOS_announce_to() so we're safe,"            \
              "but this is not efficient!\n", whoami, whoami, whoami);
@@ -986,11 +1111,9 @@ void SOS_publish_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank 
 
     //if (buffer == NULL) {
     //  dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami);
-    //  MPI_Abort();
+    //  POISON_Abort();
     //  exit(1);
-    // }
-
-  
+    // }  
   
     memset(buffer, '\0', (composite_len));
 
@@ -1050,7 +1173,7 @@ void SOS_publish_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank 
 
     }
 
-    PMPI_Send(buffer, composite_len, MPI_CHAR, target_rank, SOS_MSG_PUBLISH, target_comm);
+    PPOISON_Send(buffer, composite_len, POISON_CHAR, target_rank, SOS_MSG_PUBLISH, target_comm);
 
     //free(buffer);
 
@@ -1061,7 +1184,7 @@ void SOS_publish_to( SOS_pub_handle *pub, MPI_Comm target_comm, int target_rank 
 }
 
 
-void SOS_unannounce( SOS_pub_handle *pub ) {
+void SOS_unannounce( SOS_pub *pub ) {
 
     /* TODO:{ UNANNOUNCE, CHAD } */
 
@@ -1076,12 +1199,12 @@ void SOS_unannounce( SOS_pub_handle *pub ) {
 /* **************************************** */
 
 
-SOS_sub_handle* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, int refresh_delay ) {
+SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, int refresh_delay ) {
     int i, msg_len;
     char *msg;
-    MPI_Comm source_comm;
-    MPI_Status status;
-    SOS_sub_handle *new_sub;
+    POISON_Comm source_comm;
+    POISON_Status status;
+    SOS_sub *new_sub;
 
     /* Select the correct MPI communicator. */
 
@@ -1106,25 +1229,25 @@ SOS_sub_handle* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_
 
     /* Send message to target asking for an announcement. */
 
-    PMPI_Send(pub_title, (strlen(pub_title) + 1), MPI_CHAR, source_rank, SOS_MSG_SUBSCRIBE, source_comm);
+    PPOISON_Send(pub_title, (strlen(pub_title) + 1), POISON_CHAR, source_rank, SOS_MSG_SUBSCRIBE, source_comm);
 
     /* Process announcement into the subscription. */
 
-    PMPI_Probe(source_rank, SOS_MSG_ANNOUNCE, source_comm, &status);
-    PMPI_Get_count(&status, MPI_CHAR, &msg_len);
+    PPOISON_Probe(source_rank, SOS_MSG_ANNOUNCE, source_comm, &status);
+    PPOISON_Get_count(&status, POISON_CHAR, &msg_len);
     msg = (char *)malloc(sizeof(char) * msg_len);
     memset(msg, '\0', (sizeof(char) * msg_len));
-    PMPI_Recv(msg, msg_len, MPI_CHAR, source_rank, SOS_MSG_ANNOUNCE, source_comm, &status);
+    PPOISON_Recv(msg, msg_len, POISON_CHAR, source_rank, SOS_MSG_ANNOUNCE, source_comm, &status);
     SOS_apply_announce(new_sub->pub, msg, msg_len);
     free(msg);
 
     /* Process the initial publication into the subscription. */
 
-    PMPI_Probe(source_rank, SOS_MSG_PUBLISH, source_comm, &status);
-    PMPI_Get_count(&status, MPI_CHAR, &msg_len);
+    PPOISON_Probe(source_rank, SOS_MSG_PUBLISH, source_comm, &status);
+    PPOISON_Get_count(&status, POISON_CHAR, &msg_len);
     msg = (char *)malloc(sizeof(char) * msg_len);
     memset(msg, '\0', (sizeof(char) * msg_len));
-    PMPI_Recv(msg, msg_len, MPI_CHAR, source_rank, SOS_MSG_PUBLISH, source_comm, &status);
+    PPOISON_Recv(msg, msg_len, POISON_CHAR, source_rank, SOS_MSG_PUBLISH, source_comm, &status);
     SOS_apply_publish(new_sub->pub, msg, msg_len);
     free(msg);
 
@@ -1152,9 +1275,9 @@ SOS_sub_handle* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_
 
 
 void* SOS_refresh_sub( void *arg ) {
-    SOS_sub_handle *sub = (SOS_sub_handle*) arg;
-    MPI_Comm source_comm;
-    MPI_Status status;
+    SOS_sub *sub = (SOS_sub*) arg;
+    POISON_Comm source_comm;
+    POISON_Status status;
     char *msg;
     int msg_len;
 
@@ -1192,15 +1315,15 @@ void* SOS_refresh_sub( void *arg ) {
 
         /* Notify the target that we want a refresh. */
 
-        PMPI_Send(sub->pub->title, (strlen(sub->pub->title) + 1), MPI_CHAR, sub->source_rank, SOS_MSG_REFRESH, source_comm);
+        PPOISON_Send(sub->pub->title, (strlen(sub->pub->title) + 1), POISON_CHAR, sub->source_rank, SOS_MSG_REFRESH, source_comm);
 
         /* Process the initial publication into the subscription. */
 
-        PMPI_Probe(sub->source_rank, SOS_MSG_PUBLISH, source_comm, &status);
-        PMPI_Get_count(&status, MPI_CHAR, &msg_len);
+        PPOISON_Probe(sub->source_rank, SOS_MSG_PUBLISH, source_comm, &status);
+        PPOISON_Get_count(&status, POISON_CHAR, &msg_len);
         msg = (char *)malloc(sizeof(char) * msg_len);
         memset(msg, '\0', (sizeof(char) * msg_len));
-        PMPI_Recv(msg, msg_len, MPI_CHAR, sub->source_rank, SOS_MSG_PUBLISH, source_comm, &status);
+        PPOISON_Recv(msg, msg_len, POISON_CHAR, sub->source_rank, SOS_MSG_PUBLISH, source_comm, &status);
         SOS_apply_publish(sub->pub, msg, msg_len);
         free(msg);
     }
@@ -1208,7 +1331,7 @@ void* SOS_refresh_sub( void *arg ) {
 }
 
 
-void SOS_unsubscribe(SOS_sub_handle *sub) {
+void SOS_unsubscribe(SOS_sub *sub) {
     sub->active = 0;
     pthread_join(sub->thread_handle, NULL);
     if (sub->suid != -1) SOS_SUB_LIST[sub->suid] = NULL;

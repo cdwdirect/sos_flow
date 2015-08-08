@@ -23,16 +23,16 @@
 
 #ifndef SOS_DEBUG
 
-  /* Nullify the variadic debugging macros wherever they are in code: */
-  #define dlog(level, ...)
-  #define SOS_warn_user(level, ...)
+    /* Nullify the variadic debugging macros wherever they are in code: */
+    #define dlog(level, ...)
+    #define SOS_warn_user(level, ...)
 
 #else
 /* Set the behavior of the debugging macros: */
 
-  /* Simple debug output, no locking: */
-#define dlog(level, ...); if (   (SOS_DEBUG >= level)) { printf(__VA_ARGS__); fflush(stdout); }
-  #define SOS_warn_user(level, ...) if (SOS_WARNING_LEVEL >= level) { printf(__VA_ARGS__); fflush(stdout); }
+    /* Simple debug output, no locking: */
+    #define dlog(level, ...); if (   (SOS_DEBUG >= level)) { printf(__VA_ARGS__); fflush(stdout); }
+    #define SOS_warn_user(level, ...) if (SOS_WARNING_LEVEL >= level) { printf(__VA_ARGS__); fflush(stdout); }
 
 #endif //DEBUG
 
