@@ -268,8 +268,8 @@ DX_MAKEINDEX =
 DX_PDFLATEX = 
 DX_PERL = /usr/bin/perl
 DX_PROJECT = sos_flow
-ECHO_C = \c
-ECHO_N = 
+ECHO_C = 
+ECHO_N = -n
 ECHO_T = 
 EGREP = /usr/bin/grep -E
 EXEEXT = 
@@ -312,7 +312,7 @@ PTHREAD_LIBS =
 RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
-SHELL = /bin/sh
+SHELL = /bin/bash
 STRIP = strip
 VERSION = 0.0
 abs_builddir = /Users/cdw/Dropbox/research/sos_flow/src
@@ -357,7 +357,7 @@ mandir = ${datarootdir}/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /Users/cdw/Dropbox/research/sos_flow
+prefix = /home/cdw/Dropbox/research/sos_flow
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin
@@ -375,7 +375,7 @@ top_srcdir = ..
 #
 sosd_SOURCES = sosd.c
 sosd_CFLAGS = 
-sosd_LDFLAGS = -L.libs -lsos $(APP_LD_FLAGS)
+sosd_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 #
 # --> sos_cmd
@@ -383,7 +383,7 @@ sosd_LDFLAGS = -L.libs -lsos $(APP_LD_FLAGS)
 #
 sos_cmd_SOURCES = sos_cmd.c
 sos_cmd_CFLAGS = 
-sos_cmd_LDFLAGS = -L.libs -lsos $(APP_LD_FLAGS)
+sos_cmd_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 #
 # --> demo_app
@@ -391,7 +391,7 @@ sos_cmd_LDFLAGS = -L.libs -lsos $(APP_LD_FLAGS)
 #
 demo_app_SOURCES = demo_app.c
 demo_app_CFLAGS = 
-demo_app_LDFLAGS = -L.libs -lsos $(APP_LD_FLAGS)
+demo_app_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 # ---------- #
 pkginclude_HEADERS = sos.h    sos_debug.h
@@ -402,7 +402,7 @@ pkginclude_HEADERS = sos.h    sos_debug.h
 #
 lib_LTLIBRARIES = libsos.la
 libsos_la_SOURCES = sos.c sos_debug.h sos_error.h
-libsos_la_CPPFLAGS = -I$(top_srcdir)/src
+libsos_la_CPPFLAGS = -I$(top_srcdir)/src -pthread
 all: all-am
 
 .SUFFIXES:

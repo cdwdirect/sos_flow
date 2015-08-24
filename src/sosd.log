@@ -1,3 +1,7 @@
-[sosd:3198 @ 1438008987.752193] Daemon logging is on-line.
-[sosd:3198 @ 1438008987.752272] Socket open.  Listening....
-[sosd:3198 @ 1438008992.426645] Caught SIGTERM, shutting down.
+[sosd:73542 @ 1440192408.967833] Daemon logging is on-line.
+[sosd:73542 @ 1440192408.968195] Trying an address...
+[sosd:73542 @ 1440192408.968229]    ...got a socket, and bound to it!
+[sosd:73542 @ 1440192408.968238] Listening on socket.
+[sosd:73542 @ 1440192408.968241] Entering the main loop.   while(daemon_running) { ... }
+[sosd:73542 @ 1440192412.345018] Received connection.
+[sosd:73542 @ 1440192412.345588] Hello, SOS world!

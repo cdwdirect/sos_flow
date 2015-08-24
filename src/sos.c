@@ -13,8 +13,9 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
+
 #include <sys/socket.h>
-#include <netinet/in.h>
+#include <netdb.h>
 
 #include "sos.h"
 #include "sos_debug.h"
@@ -26,9 +27,6 @@ void* SOS_THREAD_read( void *arg );
 void* SOS_THREAD_scan( void *arg );
 
 void SOS_post_to_daemon( char *msg, char *reply );
-
-//void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank);
-//void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank);
 
 void SOS_free_pub(SOS_pub *pub);
 void SOS_free_sub(SOS_sub *sub);
@@ -46,40 +44,87 @@ void SOS_expand_data(SOS_pub *pub);
 
 //SOS_FLOW - ready
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
-    int i;
+    char buffer[SOS_DEFAULT_BUFFER_LEN];
+    int i, retval, server_socket_fd;
 
     SOS.status = SOS_STATUS_INIT;
     SOS.role = role;
 
     SOS_SET_WHOAMI(whoami, "SOS_init");
-    dlog(2, "[%s]: Initializing SOS...;\n", whoami);
+    dlog(2, "[%s]: Initializing SOS...\n", whoami);
 
-    if (SOS.role == SOS_CLIENT) {
-        SOS.config.cmd_port = atoi(getenv("SOS_CMD_PORT"));
-        SOS.config.cmd_host = SOS_DEFAULT_LOCALHOST;
+
+    /* Network configuration: */
+
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        SOS.net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
+        SOS.net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
+        SOS.net.server_host   = SOS_DEFAULT_SERVER_HOST;
+        SOS.net.server_port   = getenv("SOS_CMD_PORT");
+        if ( SOS.net.server_port < 1 ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(1); }
+
+        SOS.net.server_hint.ai_family    = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+        SOS.net.server_hint.ai_protocol  = 0;             /* Any protocol */
+        SOS.net.server_hint.ai_socktype  = SOCK_STREAM;    /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+        SOS.net.server_hint.ai_flags     = AI_NUMERICSERV | SOS.net.server_hint.ai_flags;
+
+        retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
+        if ( retval < 0 ) { dlog(0, "[%s]: ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
+
+
+        /* Iterate the possible connections and register with the SOS daemon: */
+        for ( SOS.net.server_addr = SOS.net.result_list ; SOS.net.server_addr != NULL ; SOS.net.server_addr = SOS.net.server_addr->ai_next ) {
+            server_socket_fd = socket(SOS.net.server_addr->ai_family, SOS.net.server_addr->ai_socktype, SOS.net.server_addr->ai_protocol );
+            if ( server_socket_fd == -1 ) continue;
+            if ( connect(
+                     server_socket_fd,
+                     SOS.net.server_addr->ai_addr,
+                     SOS.net.server_addr->ai_addrlen) != -1 ) break; /* success! */
+            close( server_socket_fd );
+        }
+
+        freeaddrinfo( SOS.net.result_list );
+        
+        if (server_socket_fd == NULL) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
+        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
+
+        /* TODO:{ CHAD, INIT } Put together a registration string requesting a GUID for this instance. */
+
+        dlog(2, "[%s]: Connecting to SOS...   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
+        snprintf(buffer, SOS_DEFAULT_BUFFER_LEN, "Hello, SOS world!\n");
+
+        retval = sendto( server_socket_fd, buffer, strlen(buffer), NULL, NULL, NULL );
+        if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
+        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
+
+        retval = recvfrom( server_socket_fd, buffer, (SOS_DEFAULT_BUFFER_LEN - 1), NULL, NULL, NULL );
+        dlog(2, "[%s]: Server responded: %s\n", whoami, buffer);
+        close( server_socket_fd );
+
+
+        
     } else {
         /* 
-         * [sosd] and other roles will set POST + HOST manually...
-         * but ALL clients should be connecting to the daemon on
-         * the node where they are executing.
+         * [sosd] and {control} roles --MUST-- configure their
+         * network / upstream target manually. ALL instances of
+         * SOS_CLIENT should be connecting to the daemon on the
+         * node (localhost) where they are executing.
          */
     }
-    
-    SOS.config.buffer_len = SOS_DEFAULT_BUFFER_LEN;
-    SOS.config.cmd_timeout = SOS_DEFAULT_CMD_TIMEOUT;
+
     SOS.config.argc = *argc;
     SOS.config.argv = *argv;
 
-    SOS.uid->pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    SOS.uid->sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    SOS.uid->seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid.pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid.sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid.seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
     
-    SOS.uid->pub.next = SOS.uid->sub.next = SOS.uid->seq.next = 0;
-    SOS.uid->pub.last = SOS.uid->sub.last = SOS.uid->seq.last = SOS_DEFAULT_LONG_MAX;
-    pthread_mutex_init( &(SOS.uid->pub.lock), NULL );
-    pthread_mutex_init( &(SOS.uid->sub.lock), NULL );
-    pthread_mutex_init( &(SOS.uid->seq.lock), NULL );
-    
+    SOS.uid.pub->next = SOS.uid.sub->next = SOS.uid.seq->next = 0;
+    SOS.uid.pub->last = SOS.uid.sub->last = SOS.uid.seq->last = SOS_DEFAULT_UID_MAX;
+    pthread_mutex_init( &(SOS.uid.pub->lock), NULL );
+    pthread_mutex_init( &(SOS.uid.sub->lock), NULL );
+    pthread_mutex_init( &(SOS.uid.seq->lock), NULL );
+
     SOS.ring.send.read_pos = SOS.ring.send.write_pos = 0;
     SOS.ring.recv.read_pos = SOS.ring.recv.write_pos = 0;
     SOS.ring.send.size = SOS_DEFAULT_RING_SIZE;
@@ -93,32 +138,56 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     pthread_mutex_init( &(SOS.ring.send.lock), NULL );
     pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
 
-    
+    /* TODO:{ CHAD, INIT }  Determine whether or not to start these threads for DAEMON... */
+
     pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
     pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
-    pthread_create( &SOS.task.scan, NULL, (void *) SOS_TRHEAD_scan, NULL );
+    pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
 
     /*
      *  TODO:{ CHAD, INIT }
      *       Here we will request certain configuration things
-     *       from the daemon, such as our client ID.
+     *       from the daemon, such as our (GUID) client_id.
      */ 
+
     SOS.client_id = "TEMP_ID";
-    
+
+
     return;
 }
 
 
 
 //SOS_FLOW - ready
-void SOS_send_to_daemon( char *msg, char *reply ) {
+void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int max_reply_size ) {
     SOS_SET_WHOAMI(whoami, "SOS_send_to_daemon");
+
+    int server_socket_fd;
+    int retval;
 
     /*
      *
      *  TODO:{ CHAD, POST } Inject the socket code here.
-     *
+     *  NOTE: Put a loop in that tries X times with the delay...
      */
+
+    server_socket_fd = socket(
+        SOS.net.server_addr->ai_family,
+        SOS.net.server_addr->ai_socktype,
+        SOS.net.server_addr->ai_protocol );
+
+    if ( server_socket_fd == -1 ) { /* Error getting socket... */ }
+
+    if ( connect( server_socket_fd,
+                  SOS.net.server_addr->ai_addr,
+                  SOS.net.server_addr->ai_addrlen)
+         == -1 ) { /* Error connecting... */ }
+
+
+    retval = sendto(server_socket_fd, msg, msg_len, NULL, NULL, NULL );
+    retval = recvfrom(server_socket_fd, reply, max_reply_size, NULL, NULL, NULL );
+
+    close( server_socket_fd );
 
     return;
 }
@@ -129,22 +198,26 @@ void SOS_send_to_daemon( char *msg, char *reply ) {
 void SOS_finalize() {
     SOS_SET_WHOAMI(whoami, "SOS_finalize");
     
-    /* This will 'notify' any SOS threads to break out of their loops. */
-    SOS.status = SOS_STATUS_SHUTDOWN;
+    if (SOS.role = SOS_ROLE_CLIENT) {
+        /* This will 'notify' any SOS threads to break out of their loops. */
+        SOS.status = SOS_STATUS_SHUTDOWN;
+        
+        pthread_join( &SOS.task.post, NULL );
+        pthread_join( &SOS.task.read, NULL );
+        pthread_join( &SOS.task.scan, NULL );
+        
+        pthread_mutex_destroy( &SOS.ring.send.lock  );
+        pthread_mutex_destroy( &SOS.ring.recv.lock  );
+        pthread_mutex_destroy( &(SOS.uid.pub->lock) );
+        pthread_mutex_destroy( &(SOS.uid.sub->lock) );
+        pthread_mutex_destroy( &(SOS.uid.seq->lock) );
+        pthread_mutex_destroy( &SOS.global_lock     );
+        
+        free( SOS.ring.send.heap );
+        free( SOS.ring.recv.heap );
 
-    pthread_join( &SOS.task.post, NULL );
-    pthread_join( &SOS.task.read, NULL );
-    pthread_join( &SOS.task.scan, NULL );
-    
-    pthread_mutex_destroy( &SOS.ring.send.lock );
-    pthread_mutex_destroy( &SOS.ring.recv.lock );
-    pthread_mutex_destroy( &SOS.uid.pub.lock   );
-    pthread_mutex_destroy( &SOS.uid.sub.lock   );
-    pthread_mutex_destroy( &SOS.uid.seq.lock   );
-    pthread_mutex_destroy( &SOS.global_lock    );
-    
-    free( SOS.ring.send.heap );
-    free( SOS.ring.recv.heap );
+        freeaddrinfo( SOS.net.server_addr );
+    }
     
     return;
 }
@@ -155,7 +228,7 @@ void SOS_finalize() {
 void* SOS_THREAD_post( void *args ) {
     SOS_SET_WHOAMI(whoami, "SOS_THREAD_post");
     
-    while (SOS.status = SOS_STATUS_RUNNING) {
+    while (SOS.status == SOS_STATUS_RUNNING) {
         /*
          *  Transmit messages to the daemon.
          * ...
@@ -171,7 +244,7 @@ void* SOS_THREAD_post( void *args ) {
 void* SOS_THREAD_read( void *args ) {
     SOS_SET_WHOAMI(whoami, "SOS_THREAD_read");
 
-    while (SOS.status = SOS_STATUS_RUNNING) {
+    while (SOS.status == SOS_STATUS_RUNNING) {
         /*
          *  Read the char* messages we've received and unpack into data structures.
          * ...
@@ -186,9 +259,9 @@ void* SOS_THREAD_read( void *args ) {
 
 //SOS_FLOW - ready
 void* SOS_THREAD_scan( void *args ) {
-    SOS_SET_WHOAMI(whoami "SOS_THREAD_scan");
+    SOS_SET_WHOAMI(whoami, "SOS_THREAD_scan");
     
-    while (SOS.status = SOS_STATUS_RUNNING) {
+    while (SOS.status == SOS_STATUS_RUNNING) {
         /*
          *  Check out the dirty data and package it for sending.
          * ...
@@ -203,7 +276,7 @@ void* SOS_THREAD_scan( void *args ) {
 
 
 //SOS_FLOW - ready
-long SOS_next_id( uid *id ) {
+long SOS_next_id( SOS_uid *id ) {
     long next_serial;
 
     pthread_mutex_lock( &(id->lock) );
@@ -235,14 +308,14 @@ SOS_pub* SOS_new_pub(char *title) {
     new_pub->target_list   = SOS_DEFAULT_PUB_TARGET_LIST;
     new_pub->pragma_tag    = 0;
     new_pub->elem_count    = 0;
-    new_pub->elem_max = SOS_DEFAULT_ELEM_MAX;
-    new_pub->data = malloc(sizeof(SOS_data *) * SOS_DEFAULT_ELEM_MAX);
+    new_pub->elem_max = SOS_DEFAULT_ELEM_COUNT;
+    new_pub->data = malloc(sizeof(SOS_data *) * SOS_DEFAULT_ELEM_COUNT);
 
     new_pub->title = (char *) malloc(strlen(title) + 1);
     memset(new_pub->title, '\0', (strlen(title) + 1));
     strcpy(new_pub->title, title);
 
-    for (i = 0; i < SOS_DEFAULT_ELEM_MAX; i++) {
+    for (i = 0; i < SOS_DEFAULT_ELEM_COUNT; i++) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
         memset(new_pub->data[i], '\0', sizeof(SOS_data));
     }
@@ -268,14 +341,16 @@ SOS_pub* SOS_new_post(char *title) {
     new_post = malloc(sizeof(SOS_pub));
     memset(new_post, '\0', sizeof(SOS_pub));
 
-    new_post->origin_pub_id       = SOS_next_id( SOS.uid->pub );
-    new_post->origin_node_id      = SOS_STR_COPY_OF( SOS.config.node_id, tmp_str );
-    new_post->origin_comm_rank    = -1;
-    new_post->origin_process_id   = -1;
-    new_post->origin_thread_id    = -1;
-    new_post->origin_role         = -1;
-    new_post->origin_prog_name    = -1;
-    new_post->origin_prog_ver     = -1;
+    new_post->pub_id       = SOS_next_id( SOS.uid.pub );
+    new_post->node_id      = SOS_STR_COPY_OF( SOS.config.node_id, tmp_str );
+    new_post->comm_rank    = -1;
+    new_post->process_id   = -1;
+    new_post->thread_id    = -1;
+    new_post->comm_rank    = -1;
+    new_post->prog_name    = -1;
+    new_post->prog_ver     = -1;
+    new_post->pragma_len   = -1;
+    new_post->pragma_msg   = NULL;
     new_post->title = (char *) malloc(strlen(title) + 1);
         memset(new_post->title, '\0', (strlen(title) + 1));
         strcpy(new_post->title, title);
@@ -284,30 +359,27 @@ SOS_pub* SOS_new_post(char *title) {
     new_post->elem_max            = 1;
 
     new_post->meta.channel     = NULL;
-    new_post->meta.pragma_len  = -1;
-    new_post->meta.pragma_msg  = NULL;
     new_post->meta.layer       = SOS_LAYER_APP;
     new_post->meta.nature      = -1;
     new_post->meta.pri_hint    = SOS_PRI_DEFAULT;
-    new_post->meta.sem_hint    = -1;
     new_post->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_post->meta.retain_hint = SOS_RETAIN_DEFAULT;
-    
+
     new_post->data                = malloc(sizeof(SOS_data *));
 
     new_post->data[0] = malloc(sizeof(SOS_data));
-        memset(new_pub->data[i], '\0', sizeof(SOS_data));
-        new_post->data[0].guid      = -1;
-        new_post->data[0].name      = -1;
-        new_post->data[0].type      = -1;
-        new_post->data[0].len       = -1;
-        new_post->data[0].val.l_val = -1;
-        new_post->data[0].dirty     = SOS_EMPTY;
-        new_post->data[0].time.pack = -1.0;
-        new_post->data[0].time.send = -1.0;
-        new_post->data[0].time.recv = -1.0;
+        memset(new_post->data[i], '\0', sizeof(SOS_data));
+        new_post->data[0]->guid      = -1;
+        new_post->data[0]->name      = -1;
+        new_post->data[0]->type      = -1;
+        new_post->data[0]->len       = -1;
+        new_post->data[0]->val.l_val = -1;
+        new_post->data[0]->state     = SOS_VAL_STATE_EMPTY;
+        new_post->data[0]->time.pack = -1.0;
+        new_post->data[0]->time.send = -1.0;
+        new_post->data[0]->time.recv = -1.0;
 
-    return new_pub;
+    return new_post;
 }
 
 void SOS_expand_data( SOS_pub *pub ) {
@@ -316,14 +388,14 @@ void SOS_expand_data( SOS_pub *pub ) {
     int n;
     SOS_data **expanded_data;
 
-    expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
+    expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_COUNT) * sizeof(SOS_data *));
     memcpy(expanded_data, pub->data, (pub->elem_max * sizeof(SOS_data *)));
-    for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_MAX); n++) {
+    for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_COUNT); n++) {
         expanded_data[n] = malloc(sizeof(SOS_data));
         memset(expanded_data[n], '\0', sizeof(SOS_data)); }
     free(pub->data);
     pub->data = expanded_data;
-    pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
+    pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_COUNT);
 
     return;
 }
@@ -369,7 +441,8 @@ void SOS_strip_str( char *str ) {
 void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     SOS_SET_WHOAMI(whoami, "SOS_apply_announce");
 
-    SOS_type val_type;
+
+    SOS_val_type val_type;
     int val_id;
     int val_name_len;
     char *val_name;
@@ -391,21 +464,20 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     /* De-serialize the publication header... */
 
     if (!first_announce) {
-        free(pub->origin_prog);
+        free(pub->prog_name);
         free(pub->title);
     }
 
     pub->announced = 0;
 
-    memcpy(&(pub->origin_puid), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[origin_puid]
-    memcpy(&(pub->origin_rank), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[origin_rank]
-    memcpy(&(pub->origin_role), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[origin_role]
-    memcpy(&(pub->target_list), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[target_list]
+    memcpy(&(pub->pub_id), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[origin_puid]
+    memcpy(&(pub->comm_rank), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[origin_rank]
+//    memcpy(&(pub->role), (msg + ptr), sizeof(int));  ptr += sizeof(int);           //[origin_role]
 
     memcpy(&val_name_len, (msg + ptr), sizeof(int));        ptr += sizeof(int);           //[origin_prog_len]
-    pub->origin_prog = (char*) malloc(1 + val_name_len);                                  //#
-    memset(pub->origin_prog, '\0', (1 + val_name_len));                                   //#
-    memcpy(pub->origin_prog, (msg + ptr), val_name_len);    ptr += (1 + val_name_len);    //[origin_prog_name]
+    pub->prog_name = (char*) malloc(1 + val_name_len);                                  //#
+    memset(pub->prog_name, '\0', (1 + val_name_len));                                   //#
+    memcpy(pub->prog_name, (msg + ptr), val_name_len);    ptr += (1 + val_name_len);    //[prog_name]
   
     memcpy(&val_name_len, (msg + ptr), sizeof(int));        ptr += sizeof(int);           //[title_len]
     pub->title = (char*) malloc(1 + val_name_len);                                        //#
@@ -413,10 +485,10 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     memcpy(pub->title, (msg + ptr), val_name_len);          ptr += (1 + val_name_len);    //[title]
  
     dlog(7, "[%s]: Publication header information...\n[%s]:\t"
-	 "pub->origin_puid == %d\n[%s]:\tpub->origin_rank == %d\n[%s]:\tpub->origin_role == %d\n[%s]:\t"
-	 "pub->origin_prog == \"%s\"\n[%s]:\tpub->title == \"%s\"\n",
-	 whoami, whoami, pub->origin_puid, whoami, pub->origin_rank, whoami, pub->origin_role,
-	 whoami, pub->origin_prog, whoami, pub->title);
+	 "pub->pub_id == %d\n[%s]:\tpub->comm_rank == %d\n[%s]:\tpub->meta.nature == %d\n[%s]:\t"
+	 "pub->prog_name == \"%s\"\n[%s]:\tpub->title == \"%s\"\n",
+	 whoami, whoami, pub->pub_id, whoami, pub->comm_rank, whoami, pub->meta.nature,
+	 whoami, pub->prog_name, whoami, pub->title);
 
     /* De-serialize the data elements... */
 
@@ -445,7 +517,7 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
             ptr += (1 + val_name_len);
         } else {
             /* This is a new announcement, so count up the elements: */
-            if (val_type == SOS_STRING) pub->data[val_id]->val.c_val = (char*)SOS_TEMP_STRING;
+            if (val_type == SOS_VAL_TYPE_STRING) pub->data[val_id]->val.c_val = NULL;
             pub->data[val_id]->name = (char *) malloc(val_name_len + 1);
             memset(pub->data[val_id]->name, '\0', (val_name_len + 1));
             memcpy(pub->data[val_id]->name, val_name, val_name_len);
@@ -455,17 +527,20 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
 
         pub->data[val_id]->name[val_name_len] = '\0';
         pub->data[val_id]->type = val_type;
-        pub->data[val_id]->id = val_id;
+        pub->data[val_id]->guid = val_id;
     }
 
     dlog(6, "[%s]: AFTER<<< pub->elem_count=%d   pub->elem_max=%d   msg_size=%d\n", whoami, pub->elem_count, pub->elem_max, msg_size);
 
     return;
+
 }
 
 
 
 void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
+    SOS_SET_WHOAMI(whoami, "SOS_apply_publish");
+
     //for extracting values from the msg:
     int ptr;
     int val_id;
@@ -477,18 +552,7 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
     char *new_str;
     //misc
     int i;
-    char whoami[SOS_DEFAULT_STRING_LEN];
 
-
-    memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);
-    switch (SOS_ROLE) {
-    case SOS_APP       : sprintf(whoami, "app(%d).apply_publish", SOS_RANK); break;
-    case SOS_MONITOR   : sprintf(whoami, "monitor(%d).apply_publish", SOS_RANK); break;
-    case SOS_DB        : sprintf(whoami, "db(%d).apply_publish", SOS_RANK); break;
-    case SOS_POWSCHED  : sprintf(whoami, "powsched(%d).apply_publish", SOS_RANK); break;
-    case SOS_ANALYTICS : sprintf(whoami, "analytics(%d).apply_publush", SOS_RANK); break;
-    default: sprintf(whoami, "UNKOWN.apply_publish"); break;
-    }
 
     if (SOS_DEBUG > 6) {
         for (i = 0; i < msg_len; i++) {
@@ -500,13 +564,7 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
 
     ptr = 0;
 
-    /* EVERY pub-related message gets a 3-int header for use in identification.
-     * We pull it in during the announce, and it is still useful
-     * for a message cracker to pick out the right data structure,
-     * but for now we can skip it.
-     *
-     * Skipping:  [ active ][  rank  ][  role  ]...   */
-
+    /* Skip the header... */
     ptr += (sizeof(int) * 3);
 
     SOS_TIME( val_recv_ts );
@@ -519,23 +577,23 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
         memcpy(&val_len,     (msg + ptr), sizeof(int));     ptr += sizeof(int);
 
         if (val_id >= pub->elem_count) {
-            SOS_warn_user(1, "[%s]: Publishing a value that is larger than the receiving data object:\n", whoami);
-            SOS_warn_user(1, "[%s]:    pub{%s}->elem_count == %d;  new_val_id == %d;\n", whoami, pub->title, pub->elem_count, val_id);
-            SOS_warn_user(1, "[%s]: This indicates that novel NAMEs were packed without an ANNOUNCE call.\n", whoami);
-            SOS_warn_user(1, "[%s]: Discarding this entry and doing nothing.\n", whoami);
+            dlog(1, "[%s]: Publishing a value that is larger than the receiving data object:\n", whoami);
+            dlog(1, "[%s]:    pub{%s}->elem_count == %d;  new_val_id == %d;\n", whoami, pub->title, pub->elem_count, val_id);
+            dlog(1, "[%s]: This indicates that novel NAMEs were packed without an ANNOUNCE call.\n", whoami);
+            dlog(1, "[%s]: Discarding this entry and doing nothing.\n", whoami);
         } else {
-            pub->data[val_id]->pack_ts = val_pack_ts;
-            pub->data[val_id]->send_ts = val_send_ts;
-            pub->data[val_id]->recv_ts = val_recv_ts;
-            pub->data[val_id]->dirty = 1;
+            pub->data[val_id]->time.pack = val_pack_ts;
+            pub->data[val_id]->time.send = val_send_ts;
+            pub->data[val_id]->time.recv = val_recv_ts;
+            pub->data[val_id]->state = SOS_VAL_STATE_DIRTY;
         }
 
         switch (pub->data[val_id]->type) {
-        case SOS_INT : memcpy(   &(pub->data[val_id]->val.i_val), (msg + ptr), val_len); ptr += val_len; break;
-        case SOS_LONG : memcpy(  &(pub->data[val_id]->val.l_val), (msg + ptr), val_len); ptr += val_len; break;
-        case SOS_DOUBLE : memcpy(&(pub->data[val_id]->val.d_val), (msg + ptr), val_len); ptr += val_len; break;
-        case SOS_STRING :
-            if (pub->data[val_id]->val.c_val != (char*)SOS_TEMP_STRING) { 
+        case SOS_VAL_TYPE_INT : memcpy(   &(pub->data[val_id]->val.i_val), (msg + ptr), val_len); ptr += val_len; break;
+        case SOS_VAL_TYPE_LONG : memcpy(  &(pub->data[val_id]->val.l_val), (msg + ptr), val_len); ptr += val_len; break;
+        case SOS_VAL_TYPE_DOUBLE : memcpy(&(pub->data[val_id]->val.d_val), (msg + ptr), val_len); ptr += val_len; break;
+        case SOS_VAL_TYPE_STRING :
+            if (pub->data[val_id]->val.c_val != NULL) { 
                 free(pub->data[val_id]->val.c_val);
             }
             pub->data[val_id]->val.c_val = (char *) malloc((1 + val_len) * sizeof(char));
@@ -544,16 +602,16 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
         }
 
         switch (pub->data[val_id]->type) {
-        case SOS_INT :    dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%d\"\n",  whoami, pub->title, val_id, pub->data[val_id]->val.i_val); break;
-        case SOS_LONG :   dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%ld\"\n", whoami, pub->title, val_id, pub->data[val_id]->val.l_val); break;
-        case SOS_DOUBLE : dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%lf\"\n", whoami, pub->title, val_id, pub->data[val_id]->val.d_val); break;
-        case SOS_STRING : dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%s\"\n",  whoami, pub->title, val_id, pub->data[val_id]->val.c_val); break;
+        case SOS_VAL_TYPE_INT :    dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%d\"\n",  whoami, pub->title, val_id, pub->data[val_id]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG :   dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%ld\"\n", whoami, pub->title, val_id, pub->data[val_id]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE : dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%lf\"\n", whoami, pub->title, val_id, pub->data[val_id]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING : dlog(5, "[%s]: >>>> pub(\"%s\")->data[%d]->val == \"%s\"\n",  whoami, pub->title, val_id, pub->data[val_id]->val.c_val); break;
         }
 
-        if (SOS_ROLE == SOS_DB) {
-            dlog(7, "[%s]:                        ->pack_ts == %lf\n", whoami, pub->data[val_id]->pack_ts);
-            dlog(7, "[%s]:                        ->send_ts == %lf\n", whoami, pub->data[val_id]->send_ts);
-            dlog(7, "[%s]:                        ->recv_ts == %lf\n", whoami, pub->data[val_id]->recv_ts);
+        if (SOS.role == SOS_ROLE_CONTROL) {
+            dlog(7, "[%s]:                        ->time.pack == %lf\n", whoami, pub->data[val_id]->time.pack);
+            dlog(7, "[%s]:                        ->send_ts == %lf\n", whoami, pub->data[val_id]->time.send);
+            dlog(7, "[%s]:                        ->recv_ts == %lf\n", whoami, pub->data[val_id]->time.recv);
         }
 
     }
@@ -565,26 +623,17 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
 
 
 
-int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_val ) {
+int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
+    SOS_SET_WHOAMI(whoami, "SOS_pack");
+
     //counter variables
     int i, n;
-    //variables for working with adding pack_val SOS_STRINGs
+    //variables for working with adding pack_val SOS_VAL_TYPE_STRINGs
     int new_str_len;
     char *new_str_ptr;
     char *pub_str_ptr;
     char *new_name;
-    //misc
-    char whoami[SOS_DEFAULT_STRING_LEN];
 
-    memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);
-    switch (SOS_ROLE) {
-    case SOS_APP       : sprintf(whoami, "app(%d).pack", SOS_RANK); break;
-    case SOS_MONITOR   : sprintf(whoami, "monitor(%d).pack", SOS_RANK); break;
-    case SOS_DB        : sprintf(whoami, "db(%d).pack", SOS_RANK); break;
-    case SOS_POWSCHED  : sprintf(whoami, "powsched(%d).pack", SOS_RANK); break;
-    case SOS_ANALYTICS : sprintf(whoami, "analytics(%d).pack", SOS_RANK); break;
-    default: sprintf(whoami, "UNKOWN.pack"); break;
-    }
 
     //try to find the name in the existing pub schema:
     for (i = 0; i < pub->elem_count; i++) {
@@ -594,14 +643,14 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
 
             switch (pack_type) {
 
-            case SOS_STRING :
+            case SOS_VAL_TYPE_STRING :
                 pub_str_ptr = pub->data[i]->val.c_val;
                 new_str_ptr = pack_val.c_val;
                 new_str_len = strlen(new_str_ptr);
 
                 if (strcmp(pub_str_ptr, new_str_ptr) == 0) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
-                    SOS_TIME(pub->data[i]->pack_ts);
+                    SOS_TIME(pub->data[i]->time.pack);
                     return i;
                 }
 
@@ -614,21 +663,21 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
                 pub->data[i]->val = (SOS_val) pub_str_ptr;
                 break;
 
-            case SOS_INT :
-            case SOS_LONG :
-            case SOS_DOUBLE :
+            case SOS_VAL_TYPE_INT :
+            case SOS_VAL_TYPE_LONG :
+            case SOS_VAL_TYPE_DOUBLE :
 
                 /* Test if the values are equal, otherwise fall through to the non-string assignment. */
 
-                if (pack_type == SOS_INT && (pub->data[i]->val.i_val == pack_val.i_val)) {
+                if (pack_type == SOS_VAL_TYPE_INT && (pub->data[i]->val.i_val == pack_val.i_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
-                    SOS_TIME(pub->data[i]->pack_ts);
+                    SOS_TIME(pub->data[i]->time.pack);
                     return i;
-                } else if (pack_type == SOS_LONG && (pub->data[i]->val.l_val == pack_val.l_val)) {
+                } else if (pack_type == SOS_VAL_TYPE_LONG && (pub->data[i]->val.l_val == pack_val.l_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
-                    SOS_TIME(pub->data[i]->pack_ts);
+                    SOS_TIME(pub->data[i]->time.pack);
                     return i;
-                } else if (pack_type == SOS_DOUBLE) {
+                } else if (pack_type == SOS_VAL_TYPE_DOUBLE) {
                     /*
                      *  TODO:{ PACK } Insert proper floating-point comparator here.
                      */
@@ -640,8 +689,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
                 break;
             }
             pub->data[i]->type = pack_type;
-            pub->data[i]->dirty = 1;
-            SOS_TIME(pub->data[i]->pack_ts);
+            pub->data[i]->state = SOS_VAL_STATE_DIRTY;
+            SOS_TIME(pub->data[i]->time.pack);
 
             dlog(6, "[%s]: (%s) successfully updated [%s] at position %d.\n", whoami, name, pub->data[i]->name, i);
             dlog(6, "[%s]: --------------------------------------------------------------\n", whoami);
@@ -668,7 +717,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
 
         switch (pack_type) {
 
-        case SOS_STRING :
+        case SOS_VAL_TYPE_STRING :
             new_str_ptr = pack_val.c_val;
             new_str_len = strlen(new_str_ptr);
             pub_str_ptr = malloc(new_str_len + 1);
@@ -687,11 +736,11 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
 
         dlog(6, "[%s]: (%s) data copied in successfully.\n", whoami, name);
 
-        pub->data[i]->id = i;
+        pub->data[i]->guid = i;
         pub->data[i]->name = new_name;
         pub->data[i]->type = pack_type;
-        pub->data[i]->dirty = 1;
-        SOS_TIME(pub->data[i]->pack_ts);
+        pub->data[i]->state = SOS_VAL_STATE_DIRTY;
+        SOS_TIME(pub->data[i]->time.pack);
 
         dlog(6, "[%s]: (%s) successfully inserted [%s] at position %d. (DONE)\n", whoami, name, pub->data[i]->name, i);
         dlog(6, "[%s]: --------------------------------------------------------------\n", whoami);
@@ -710,7 +759,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
         //[step 2/2]: insert the new name
         switch (pack_type) {
 
-        case SOS_STRING :
+        case SOS_VAL_TYPE_STRING :
             new_str_ptr = pack_val.c_val;
             new_str_len = strlen(new_str_ptr);
             pub_str_ptr = malloc(new_str_len + 1);
@@ -729,11 +778,11 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_v
 
         dlog(6, "[%s]: ALMOST DONE....\n", whoami);
 
-        pub->data[i]->id = i;
+        pub->data[i]->guid = i;
         pub->data[i]->name = new_name;
         pub->data[i]->type = pack_type;
-        pub->data[i]->dirty = 1;
-        SOS_TIME(pub->data[i]->pack_ts);
+        pub->data[i]->state = SOS_VAL_STATE_DIRTY;
+        SOS_TIME(pub->data[i]->time.pack);
 
         dlog(6, "[%s]: (%s) successfully inserted [%s] at position %d. (DONE)\n", whoami, name, pub->data[i]->name, i);
         dlog(6, "[%s]: --------------------------------------------------------------\n", whoami);
@@ -753,11 +802,11 @@ void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
 
     switch (data->type) {
 
-    case SOS_STRING:
+    case SOS_VAL_TYPE_STRING:
         /* Determine if the string has changed, and if so, free/malloc space for new one. */
         if (strcmp(data->val.c_val, pack_val.c_val) == 0) {
             /* Update the time stamp only. */
-            SOS_TIME( data->pack_ts );
+            SOS_TIME( data->time.pack );
         } else {
             /* Novel string is being packed, free the old one, allocate a copy. */
             free(data->val.c_val);
@@ -765,19 +814,19 @@ void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
             data->val.c_val = (char *) malloc(sizeof(char) * (len + 1));
             memset(data->val.c_val, '\0', len);
             memcpy(data->val.c_val, pack_val.c_val, len);
-            SOS_TIME( data->pack_ts );
+            SOS_TIME( data->time.pack );
         }
         break;
 
-    case SOS_INT:
-    case SOS_LONG:
-    case SOS_DOUBLE:
+    case SOS_VAL_TYPE_INT:
+    case SOS_VAL_TYPE_LONG:
+    case SOS_VAL_TYPE_DOUBLE:
         data->val = pack_val;
-        SOS_TIME(data->pack_ts);
+        SOS_TIME(data->time.pack);
         break;
     }
 
-    data->dirty = 1;
+    data->state = SOS_VAL_STATE_DIRTY;
 
     return;
 }
@@ -831,22 +880,22 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
          * This needs to get cleaned up and restored to a the useful CSV/TSV that it was.
          */
   
-        const char *SOS_TYPE_LOOKUP[4] = {"SOS_INT", "SOS_LONG", "SOS_DOUBLE", "SOS_STRING"};
+        const char *SOS_TYPE_LOOKUP[4] = {"SOS_VAL_TYPE_INT", "SOS_VAL_TYPE_LONG", "SOS_VAL_TYPE_DOUBLE", "SOS_VAL_TYPE_STRING"};
 
         fprintf(output_to, "\n/---------------------------------------------------------------\\\n");
-        fprintf(output_to, "|  %15s(%4d) : origin   %19s : title |\n", pub->origin_prog, pub->origin_rank, pub->title);
+        fprintf(output_to, "|  %15s(%4d) : origin   %19s : title |\n", pub->prog_name, pub->comm_rank, pub->title);
         fprintf(output_to, "|  %3d of %3d elements used.                                    |\n", pub->elem_count, pub->elem_max);
         fprintf(output_to, "|---------------------------------------------------------------|\n");
         fprintf(output_to, "|       index,          id,        type,                   name | = <value>\n");
         fprintf(output_to, "|---------------------------------------------------------------|\n");
         for (i = 0; i < pub->elem_count; i++) {
-            fprintf(output_to, "| %11d,%12d,%12s,", i, pub->data[i]->id, SOS_TYPE_LOOKUP[pub->data[i]->type]);
-            fprintf(output_to, " %c %20s | = ", ((pub->data[i]->dirty) ? '*' : ' '), pub->data[i]->name);
+            fprintf(output_to, "| %11d,%12d,%12s,", i, pub->data[i]->guid, SOS_TYPE_LOOKUP[pub->data[i]->type]);
+            fprintf(output_to, " %c %20s | = ", ((pub->data[i]->state == SOS_VAL_STATE_DIRTY) ? '*' : ' '), pub->data[i]->name);
             switch (pub->data[i]->type) {
-            case SOS_INT : fprintf(output_to, "%d", pub->data[i]->val.i_val); break;
-            case SOS_LONG : fprintf(output_to, "%ld", pub->data[i]->val.l_val); break;
-            case SOS_DOUBLE : fprintf(output_to, "%lf", pub->data[i]->val.d_val); break;
-            case SOS_STRING : fprintf(output_to, "\"%s\"", pub->data[i]->val.c_val); break; }
+            case SOS_VAL_TYPE_INT : fprintf(output_to, "%d", pub->data[i]->val.i_val); break;
+            case SOS_VAL_TYPE_LONG : fprintf(output_to, "%ld", pub->data[i]->val.l_val); break;
+            case SOS_VAL_TYPE_DOUBLE : fprintf(output_to, "%lf", pub->data[i]->val.d_val); break;
+            case SOS_VAL_TYPE_STRING : fprintf(output_to, "\"%s\"", pub->data[i]->val.c_val); break; }
             fprintf(output_to, "\n");
         }
         fprintf(output_to, "\\---------------------------------------------------------------/\n\n");
@@ -863,17 +912,8 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
 
 
 void SOS_announce( SOS_pub *pub ) {
-    SOS_announce_to(pub, SOS_ICOMM_MONITOR, SOS_PAIRED_MONITOR);
-    return;
-}
+    SOS_SET_WHOAMI(whoami, "SOS_announce");
 
-
-void SOS_publish( SOS_pub *pub ) {
-    SOS_publish_to(pub, SOS_ICOMM_MONITOR, SOS_PAIRED_MONITOR);
-    return;
-}
-
-void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     int i, n_byte, name_len;
     int composite_tag;
     int ptr;
@@ -881,43 +921,19 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     char *c_ptr;
     char *buffer;
     //Used for packing, to increase readability:
-    int origin_prog_len;
+    int prog_len;
     int title_len;
     int pack_type;
     int pack_id;
     int pack_name_len;
     char *pack_name;
-    //misc
-    char whoami[SOS_DEFAULT_STRING_LEN];
 
-    pthread_mutex_lock(&SOS_MUTEX_ANNOUNCE_TO);
+    char SOS_ann_buffer[SOS_DEFAULT_BUFFER_LEN];
 
     buffer = SOS_ann_buffer;
   
-    memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);
-    switch (SOS_ROLE) {
-    case SOS_APP       : sprintf(whoami, "app(%d).announce_to", SOS_RANK); break;
-    case SOS_MONITOR   : sprintf(whoami, "monitor(%d).announce_to", SOS_RANK); break;
-    case SOS_DB        : sprintf(whoami, "db(%d).announce_to", SOS_RANK); break;
-    case SOS_POWSCHED  : sprintf(whoami, "powsched(%d).announce_to", SOS_RANK); break;
-    case SOS_ANALYTICS : sprintf(whoami, "analytics(%d).announce_to", SOS_RANK); break;
-    default: sprintf(whoami, "UNKOWN.announce_to"); break;
-    }
-
     composite_len = 0;
 
-    /* Assign a per-process unique ID to this pub, if appropriate. */
-
-    if ((pub->origin_rank == SOS_RANK) && (pub->origin_role == SOS_ROLE)) {
-        if (pub->origin_puid == -1) {
-            /* This is an initial announcement. */
-            pthread_mutex_lock(&SOS_MUTEX_SERIAL);
-            pub->origin_puid = SOS_SERIAL_PUB_VAL++;
-            pthread_mutex_unlock(&SOS_MUTEX_SERIAL);
-        } else {
-            /* This is a re-announcement, leave the pub UID alone. */
-        }
-    }
 
     /* Make space for fixed header data.
      *
@@ -925,19 +941,19 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
      *       3 (int) components at the head of every pub-related message!
      */
 
-    composite_len += sizeof(int);                       //[origin_puid]
-    composite_len += sizeof(int);                       //[origin_rank]
-    composite_len += sizeof(int);                       //[origin_role]
+    composite_len += sizeof(int);                       //[puid]
+    composite_len += sizeof(int);                       //[rank]
+    composite_len += sizeof(int);                       //[role]
 
     composite_len += sizeof(int);                       //[target_list]
-    composite_len += sizeof(int);                       //[origin_prog_len]
-    composite_len += 1 + strlen(pub->origin_prog);      //[origin_prog]
+    composite_len += sizeof(int);                       //[prog_len]
+    composite_len += 1 + strlen(pub->prog_name);      //[prog]
     composite_len += sizeof(int);                       //[pub_title_len]
     composite_len += 1 + strlen(pub->title);            //[pub_title]
 
-    /* TODO:{ PRAGMA_TAG, ORIGIN_THREAD } */
+    /* TODO:{ PRAGMA_TAG, THREAD } */
   
-    dlog(7, "[%s]: pub->origin_prog == \"%s\"\n", whoami, pub->origin_prog);
+    dlog(7, "[%s]: pub->prog_name == \"%s\"\n", whoami, pub->prog_name);
 
     /* Make space for each element... (structure only) */    
 
@@ -951,7 +967,7 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     //buffer = (char *) malloc(composite_len);
     //if (buffer == NULL) {
     //  dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami);
-    //  POISON_Abort();
+    //  //POISON_Abort();
     //  exit(1);
     //}
 
@@ -964,20 +980,19 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     /* Insert the header values... */
 
     dlog(6, "[%s]:   Loading the annoucement with header information...\n[%s]:\t"
-         "pub->origin_puid == %d\n[%s]:\tpub->origin_rank == %d\n[%s]:\tpub->origin_role == %d\n[%s]:\t"
-         "pub->origin_prog == \"%s\"\n[%s]:\tpub->title == \"%s\"\n",
-         whoami, whoami, pub->origin_puid, whoami, pub->origin_rank, whoami, pub->origin_role,
-         whoami, pub->origin_prog, whoami, pub->title);
+         "pub->pub_id == %d\n[%s]:\tpub->comm_rank == %d\n[%s]:\tpub->meta.nature == %d\n[%s]:\t"
+         "pub->prog_name == \"%s\"\n[%s]:\tpub->title == \"%s\"\n",
+         whoami, whoami, pub->pub_id, whoami, pub->comm_rank, whoami, pub->meta.nature,
+         whoami, pub->prog_name, whoami, pub->title);
 
-    origin_prog_len = strlen(pub->origin_prog);
+    prog_len = strlen(pub->prog_name);
     title_len = strlen(pub->title);
 
-    memcpy((buffer + ptr), &(pub->origin_puid), sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &(pub->origin_rank), sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &(pub->origin_role), sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &(pub->target_list), sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &origin_prog_len, sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr), pub->origin_prog, origin_prog_len);  ptr += (1 + origin_prog_len);
+    memcpy((buffer + ptr), &(pub->pub_id), sizeof(int));   ptr += sizeof(int);
+    memcpy((buffer + ptr), &(pub->comm_rank), sizeof(int));   ptr += sizeof(int);
+    memcpy((buffer + ptr), &(pub->meta.nature), sizeof(int));   ptr += sizeof(int);
+    memcpy((buffer + ptr), &prog_len, sizeof(int));      ptr += sizeof(int);
+    memcpy((buffer + ptr), pub->prog_name, prog_len);  ptr += (1 + prog_len);
     memcpy((buffer + ptr), &title_len, sizeof(int));            ptr += sizeof(int);
     memcpy((buffer + ptr), pub->title, title_len);              ptr += (1 + title_len);
 
@@ -985,7 +1000,7 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
   
     for (i = 0; i < pub->elem_count; i++) {
         pack_type     = (int) pub->data[i]->type;
-        pack_id       = (int) pub->data[i]->id;
+        pack_id       = (int) pub->data[i]->guid;
         pack_name_len = strlen(pub->data[i]->name);
         dlog(6, "[%s]:    [%d]:  type: %d   \tid: %d   \tname_len: %d   \tname:\"%s\"\n", whoami, ptr, pack_type, pack_id, pack_name_len, pub->data[i]->name);   
         memcpy((buffer + ptr), &pack_type, sizeof(int));             ptr += sizeof(int);
@@ -996,7 +1011,7 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
 
     dlog(6, "[%s]:  ---- {ANN} DONE   LEN = %d  PTR = %d\n", whoami, composite_len, ptr);
 
-    PPOISON_Send(buffer, composite_len, POISON_CHAR, target_rank, SOS_MSG_ANNOUNCE, target_comm);
+    //PPOISON_Send(buffer, composite_len, //POISON_CHAR, target_rank, SOS_MSG_ANNOUNCE, target_comm);
 
     //free(buffer);
 
@@ -1020,15 +1035,15 @@ void SOS_announce_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
      * Turn this into a bit-field w/per-role discrimination, and then it can be truly automatic.
      */
     
-    if (SOS_ROLE == SOS_APP) pub->announced = 1;
+    if (SOS.role == SOS_ROLE_CLIENT) pub->announced = 1;
 
-    pthread_mutex_unlock(&SOS_MUTEX_ANNOUNCE_TO);
-  
     return;
 }
 
 
-void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
+void SOS_publish( SOS_pub *pub ) {
+    SOS_SET_WHOAMI(whoami, "SOS_publish");
+
     int i, n_byte, name_len;
     int ptr;
     int composite_len;
@@ -1043,22 +1058,11 @@ void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
     //misc
     int dbgcnt;
     int oldptrloc;
-    char whoami[SOS_DEFAULT_STRING_LEN];
 
-    pthread_mutex_lock(&SOS_MUTEX_PUBLISH_TO);
+    char SOS_pub_buffer[SOS_DEFAULT_BUFFER_LEN];
 
     buffer = SOS_pub_buffer;
   
-    memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);
-    switch (SOS_ROLE) {
-    case SOS_APP       : sprintf(whoami, "app(%d).publish_to", SOS_RANK); break;
-    case SOS_MONITOR   : sprintf(whoami, "monitor(%d).publish_to", SOS_RANK); break;
-    case SOS_DB        : sprintf(whoami, "db(%d).publish_to", SOS_RANK); break;
-    case SOS_POWSCHED  : sprintf(whoami, "powsched(%d).publish_to", SOS_RANK); break;
-    case SOS_ANALYTICS : sprintf(whoami, "analytics(%d).publish_to", SOS_RANK); break;
-    default: sprintf(whoami, "UNKOWN.publish_to"); break;
-    }
-
     if (pub->announced == 0) {
         dlog(7, "[%s]: Attempting to publish an SOS_pub announcing.\n[%s]: This is "    \
              "probably forgetting to manually set \"pub->announced = 1;\" within an sos_cloud" \
@@ -1070,39 +1074,48 @@ void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
          * Turn this into a bit field per role, like the target list, and then it is truly automatic.
          */
 
-        SOS_announce_to( pub, target_comm, target_rank );
+        SOS_announce( pub );
     }
 
-    if ((pub->origin_role == SOS_ROLE) && (pub->origin_rank == SOS_RANK)) {
+    /*
+     *  There are some conditionals missing because the use cases has changed.
+     *  That is, the sos library is now flattened to a single layer of
+     *  one-way dumping to the DAEMON process, which does 'something else'
+     *  to move the data onto the backplane SQL database.
+     *
+     *  Essentially, functions that are packing/announcing/publishing stuff
+     *  are now ONLY ever called by the front-end SOS_ROLE_CLIENT's.
+     *
+     */
+
+
         SOS_TIME( pack_send_ts );
         dlog(5, "[%s]: pack_send_ts == %lf\n", whoami, pack_send_ts);
-    }
+
 
     /* Determine the required buffer length for all dirty values. */
 
     composite_len = 0;
 
-    composite_len += sizeof(int);        // [origin_puid]     /* Standard pub-message three element header. */
-    composite_len += sizeof(int);        // [origin_rank]
-    composite_len += sizeof(int);        // [origin_role]
+    composite_len += sizeof(int);        // [puid]     /* Standard pub-message three element header. */
+    composite_len += sizeof(int);        // [rank]
+    composite_len += sizeof(int);        // [role]
 
     for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->dirty == 0) continue;
+        if (pub->data[i]->state == SOS_VAL_STATE_CLEAN) continue;
 
-        if ((pub->origin_role == SOS_ROLE) && (pub->origin_rank == SOS_RANK)) {
             /* Update the sent_ts value only if we're the original sender. */
-            pub->data[i]->send_ts = pack_send_ts;
-        }
+            pub->data[i]->time.send = pack_send_ts;
 
         composite_len += sizeof(int);      // [   id   ]
         composite_len += sizeof(double);   // [pack_ts ]
         composite_len += sizeof(double);   // [ send_ts]
         composite_len += sizeof(int);      // [ length ]
         switch ( pub->data[i]->type ) {    // [  data  ]
-        case SOS_INT :    composite_len += sizeof(int); break;
-        case SOS_LONG :   composite_len += sizeof(long); break;
-        case SOS_DOUBLE : composite_len += sizeof(double); break;
-        case SOS_STRING : composite_len += (1 + strlen(pub->data[i]->val.c_val)); break; }
+        case SOS_VAL_TYPE_INT :    composite_len += sizeof(int); break;
+        case SOS_VAL_TYPE_LONG :   composite_len += sizeof(long); break;
+        case SOS_VAL_TYPE_DOUBLE : composite_len += sizeof(double); break;
+        case SOS_VAL_TYPE_STRING : composite_len += (1 + strlen(pub->data[i]->val.c_val)); break; }
     }
 
     /* Fill the buffer with the dirty values. */
@@ -1111,7 +1124,7 @@ void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
 
     //if (buffer == NULL) {
     //  dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami);
-    //  POISON_Abort();
+    //  //POISON_Abort();
     //  exit(1);
     // }  
   
@@ -1119,31 +1132,31 @@ void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
 
     ptr = 0;
 
-    memcpy((buffer + ptr), &(pub->origin_puid), sizeof(int));    ptr += sizeof(int);
-    memcpy((buffer + ptr), &(pub->origin_rank), sizeof(int));    ptr += sizeof(int);
-    memcpy((buffer + ptr), &(pub->origin_role), sizeof(int));    ptr += sizeof(int);
+    memcpy((buffer + ptr), &(pub->pub_id), sizeof(int));    ptr += sizeof(int);
+    memcpy((buffer + ptr), &(pub->comm_rank), sizeof(int));    ptr += sizeof(int);
+    memcpy((buffer + ptr), &(pub->meta.nature), sizeof(int));    ptr += sizeof(int);
 
     for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->dirty == 0) continue;
+        if (pub->data[i]->state == SOS_VAL_STATE_CLEAN) continue;
 
-        pack_id      = pub->data[i]->id;
-        pack_pack_ts = pub->data[i]->pack_ts;
-        pack_send_ts = pub->data[i]->send_ts;
+        pack_id      = pub->data[i]->guid;
+        pack_pack_ts = pub->data[i]->time.pack;
+        pack_send_ts = pub->data[i]->time.send;
         pack_val     = pub->data[i]->val;
         switch ( pub->data[i]->type ) {
-        case SOS_INT :    pack_len = sizeof(int);    break;
-        case SOS_LONG :   pack_len = sizeof(long);   break;
-        case SOS_DOUBLE : pack_len = sizeof(double); break;
-        case SOS_STRING : pack_len = (int)(strlen( pub->data[i]->val.c_val)); break; }
+        case SOS_VAL_TYPE_INT :    pack_len = sizeof(int);    break;
+        case SOS_VAL_TYPE_LONG :   pack_len = sizeof(long);   break;
+        case SOS_VAL_TYPE_DOUBLE : pack_len = sizeof(double); break;
+        case SOS_VAL_TYPE_STRING : pack_len = (int)(strlen( pub->data[i]->val.c_val)); break; }
 
         dlog(6, "[%s]:    ----\n", whoami);
         dlog(6, "[%s]:      [%d] + (int):%d    \t\"%d\"\n", whoami, ptr, (int)sizeof(int), pack_id);
         dlog(6, "[%s]:      [%d] + (int):%d    \t\"%d\"\n", whoami, (int)(ptr + sizeof(int)), (int)sizeof(int), pack_len);
         switch ( pub->data[i]->type ) {
-        case SOS_INT :    dlog(6, "[%s]:      [%d] + (int):%d    \t\"%d\"\n",  whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.i_val); break;
-        case SOS_LONG :   dlog(6, "[%s]:      [%d] + (long):%d   \t\"%ld\"\n", whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.l_val); break;
-        case SOS_DOUBLE : dlog(6, "[%s]:      [%d] + (double):%d \t\"%lf\"\n", whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.d_val); break;
-        case SOS_STRING : dlog(6, "[%s]:      [%d] + (string):%d \t\"%s\"\n",  whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.c_val); break; }
+        case SOS_VAL_TYPE_INT :    dlog(6, "[%s]:      [%d] + (int):%d    \t\"%d\"\n",  whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG :   dlog(6, "[%s]:      [%d] + (long):%d   \t\"%ld\"\n", whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE : dlog(6, "[%s]:      [%d] + (double):%d \t\"%lf\"\n", whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING : dlog(6, "[%s]:      [%d] + (string):%d \t\"%s\"\n",  whoami, (int)(ptr + (sizeof(int) * 2)), pack_len, pub->data[i]->val.c_val); break; }
 
         memcpy((buffer + ptr), &pack_id, sizeof(int));         ptr += sizeof(int);
         memcpy((buffer + ptr), &pack_pack_ts, sizeof(double)); ptr += sizeof(double);
@@ -1154,10 +1167,10 @@ void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
          * Below we write in the data element's value, that has length of pack_len's value. */
 
         switch (pub->data[i]->type) {
-        case SOS_INT :    memcpy((buffer + ptr), &pack_val.i_val, pack_len);   ptr += pack_len;       break;
-        case SOS_LONG :   memcpy((buffer + ptr), &pack_val.l_val, pack_len);   ptr += pack_len;       break;
-        case SOS_DOUBLE : memcpy((buffer + ptr), &pack_val.d_val, pack_len);   ptr += pack_len;       break;
-        case SOS_STRING : memcpy((buffer + ptr), pack_val.c_val,  pack_len);   ptr += (1 + pack_len); break; }
+        case SOS_VAL_TYPE_INT :    memcpy((buffer + ptr), &pack_val.i_val, pack_len);   ptr += pack_len;       break;
+        case SOS_VAL_TYPE_LONG :   memcpy((buffer + ptr), &pack_val.l_val, pack_len);   ptr += pack_len;       break;
+        case SOS_VAL_TYPE_DOUBLE : memcpy((buffer + ptr), &pack_val.d_val, pack_len);   ptr += pack_len;       break;
+        case SOS_VAL_TYPE_STRING  : memcpy((buffer + ptr), pack_val.c_val,  pack_len);   ptr += (1 + pack_len); break; }
 
         /*
          *  NOTE: Only SOS_APP roles can safely clear the dirty flag on a send.
@@ -1169,16 +1182,14 @@ void SOS_publish_to( SOS_pub *pub, POISON_Comm target_comm, int target_rank ) {
          *        perhaps fed into some automatic analysis engine.
          */
 
-        if (SOS_ROLE == SOS_APP) pub->data[i]->dirty = 0;
+        if (SOS.role == SOS_ROLE_CLIENT) pub->data[i]->state = SOS_VAL_STATE_CLEAN;
 
     }
 
-    PPOISON_Send(buffer, composite_len, POISON_CHAR, target_rank, SOS_MSG_PUBLISH, target_comm);
+    //PPOISON_Send(buffer, composite_len, //POISON_CHAR, target_rank, SOS_MSG_PUBLISH, target_comm);
 
     //free(buffer);
 
-    pthread_mutex_unlock(&SOS_MUTEX_PUBLISH_TO);
-  
     dlog(6, "[%s]:  free(buffer); completed\n", whoami);
     return;
 }
@@ -1202,73 +1213,10 @@ void SOS_unannounce( SOS_pub *pub ) {
 SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, int refresh_delay ) {
     int i, msg_len;
     char *msg;
-    POISON_Comm source_comm;
-    POISON_Status status;
     SOS_sub *new_sub;
 
-    /* Select the correct MPI communicator. */
-
-    if (SOS_ROLE == source_role) {
-        source_comm = SOS_COMM_LOCAL;
-    } else {
-        switch (source_role) {
-        case SOS_APP       : source_comm = SOS_ICOMM_APP; break;
-        case SOS_MONITOR   : source_comm = SOS_ICOMM_MONITOR; break;
-        case SOS_DB        : source_comm = SOS_ICOMM_DB; break;
-        case SOS_POWSCHED  : source_comm = SOS_ICOMM_POWSCHED; break;
-        case SOS_ANALYTICS : source_comm = SOS_ICOMM_ANALYTICS; break;
-        case SOS_SURPLUS :
-        default: return NULL; break;
-        }
-    }
-
-    new_sub = SOS_new_sub();
-    new_sub->source_role = source_role;
-    new_sub->source_rank = source_rank;
-    new_sub->refresh_delay = refresh_delay;
-
-    /* Send message to target asking for an announcement. */
-
-    PPOISON_Send(pub_title, (strlen(pub_title) + 1), POISON_CHAR, source_rank, SOS_MSG_SUBSCRIBE, source_comm);
-
-    /* Process announcement into the subscription. */
-
-    PPOISON_Probe(source_rank, SOS_MSG_ANNOUNCE, source_comm, &status);
-    PPOISON_Get_count(&status, POISON_CHAR, &msg_len);
-    msg = (char *)malloc(sizeof(char) * msg_len);
-    memset(msg, '\0', (sizeof(char) * msg_len));
-    PPOISON_Recv(msg, msg_len, POISON_CHAR, source_rank, SOS_MSG_ANNOUNCE, source_comm, &status);
-    SOS_apply_announce(new_sub->pub, msg, msg_len);
-    free(msg);
-
-    /* Process the initial publication into the subscription. */
-
-    PPOISON_Probe(source_rank, SOS_MSG_PUBLISH, source_comm, &status);
-    PPOISON_Get_count(&status, POISON_CHAR, &msg_len);
-    msg = (char *)malloc(sizeof(char) * msg_len);
-    memset(msg, '\0', (sizeof(char) * msg_len));
-    PPOISON_Recv(msg, msg_len, POISON_CHAR, source_rank, SOS_MSG_PUBLISH, source_comm, &status);
-    SOS_apply_publish(new_sub->pub, msg, msg_len);
-    free(msg);
-
-    /* Create thread and assign it to this sub handle */
-
-    pthread_create(&(new_sub->thread_handle), NULL, (void*) SOS_refresh_sub, (void*) new_sub);
-
-    /* Look for a place in the SOS_SUB_HANDLE[] to stick it, or grow it. */
-
-    for (i = 0; i < SOS_DEFAULT_SUB_MAX; i++) {
-        if (SOS_SUB_LIST[i] == NULL) {
-            new_sub->suid = i;
-            SOS_SUB_LIST[i] = new_sub;
-            return new_sub;
-        }
-    }
-
-    /* Too many subscriptions... */
-
-    new_sub->suid = -1;
-    SOS_warn_user(0, "You have maxed out the number of subscriptions!\n");
+    new_sub = (SOS_sub *) malloc( sizeof(SOS_sub) );
+    memset(new_sub, '\0', sizeof(SOS_sub));
 
     return new_sub;
 }
@@ -1276,65 +1224,19 @@ SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, 
 
 void* SOS_refresh_sub( void *arg ) {
     SOS_sub *sub = (SOS_sub*) arg;
-    POISON_Comm source_comm;
-    POISON_Status status;
+    //POISON_Comm source_comm;
+    //POISON_Status status;
     char *msg;
     int msg_len;
 
-    if (sub->source_role == SOS_ROLE) {
-        source_comm = SOS_COMM_LOCAL;
-    } else {
-        switch(sub->source_role) {
-        case SOS_APP       : source_comm = SOS_ICOMM_APP;       break;
-        case SOS_MONITOR   : source_comm = SOS_ICOMM_MONITOR;   break;
-        case SOS_DB        : source_comm = SOS_ICOMM_DB;        break;
-        case SOS_POWSCHED  : source_comm = SOS_ICOMM_POWSCHED;  break;
-        case SOS_ANALYTICS : source_comm = SOS_ICOMM_ANALYTICS; break;
-        case SOS_SURPLUS   : return NULL; /* Charlie don't surf. */
-        default: break;
-        }
-    }
-
-    /*
-     * TODO:{ CHAD }
-     *
-     * Right now there is not a legit pub<--->sub model in place.
-     * Because of that, we're using pub titles as a unique key.
-     * If multiple pubs are submitted with the same name, searches
-     * will (probably) only return the first pub, or if they
-     * do not 'break' out, they will send ALL instances of that
-     * pub name.  Assuming the key names are all the same, the
-     * receiver will get a huge message and during the processing
-     * of it will be overwriting values so the pub handle will wind
-     * up containing content from some other rank.  Boo.  Obviously
-     * this is something to be fixed.
-     */
-  
     while (sub->active == 1) {
         sleep(sub->refresh_delay);
-
-        /* Notify the target that we want a refresh. */
-
-        PPOISON_Send(sub->pub->title, (strlen(sub->pub->title) + 1), POISON_CHAR, sub->source_rank, SOS_MSG_REFRESH, source_comm);
-
-        /* Process the initial publication into the subscription. */
-
-        PPOISON_Probe(sub->source_rank, SOS_MSG_PUBLISH, source_comm, &status);
-        PPOISON_Get_count(&status, POISON_CHAR, &msg_len);
-        msg = (char *)malloc(sizeof(char) * msg_len);
-        memset(msg, '\0', (sizeof(char) * msg_len));
-        PPOISON_Recv(msg, msg_len, POISON_CHAR, sub->source_rank, SOS_MSG_PUBLISH, source_comm, &status);
-        SOS_apply_publish(sub->pub, msg, msg_len);
-        free(msg);
     }
     return NULL;
 }
 
 
 void SOS_unsubscribe(SOS_sub *sub) {
-    sub->active = 0;
-    pthread_join(sub->thread_handle, NULL);
-    if (sub->suid != -1) SOS_SUB_LIST[sub->suid] = NULL;
-    SOS_free_sub(sub);
+
     return;
 }

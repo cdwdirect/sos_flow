@@ -2,7 +2,7 @@
 <tagfile>
   <compound kind="file">
     <name>config.h</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/</path>
     <filename>config_8h</filename>
     <member kind="define">
       <type>#define</type>
@@ -160,8 +160,27 @@
     </member>
   </compound>
   <compound kind="file">
+    <name>socket_client.c</name>
+    <path>/home/cdw/Dropbox/research/sos_flow/ref/</path>
+    <filename>socket__client_8c</filename>
+    <member kind="function">
+      <type>void</type>
+      <name>error</name>
+      <anchorfile>socket__client_8c.html</anchorfile>
+      <anchor>a4866b2d37ffc80c5ba705d3fcd1e0ecf</anchor>
+      <arglist>(const char *msg)</arglist>
+    </member>
+    <member kind="function">
+      <type>int</type>
+      <name>main</name>
+      <anchorfile>socket__client_8c.html</anchorfile>
+      <anchor>a0ddf1224851353fc92bfbff6f499fa97</anchor>
+      <arglist>(int argc, char *argv[])</arglist>
+    </member>
+  </compound>
+  <compound kind="file">
     <name>demo_app.c</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>demo__app_8c</filename>
     <includes id="sos_8h" name="sos.h" local="yes" imported="no">sos.h</includes>
     <member kind="function">
@@ -178,10 +197,17 @@
       <anchor>a0ddf1224851353fc92bfbff6f499fa97</anchor>
       <arglist>(int argc, char *argv[])</arglist>
     </member>
+    <member kind="variable">
+      <type>int</type>
+      <name>demo_run</name>
+      <anchorfile>demo__app_8c.html</anchorfile>
+      <anchor>a0272739eb74ee52b01b75115b47b81ad</anchor>
+      <arglist></arglist>
+    </member>
   </compound>
   <compound kind="file">
     <name>sos.c</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sos_8c</filename>
     <includes id="sos_8h" name="sos.h" local="yes" imported="no">sos.h</includes>
     <includes id="sos__debug_8h" name="sos_debug.h" local="yes" imported="no">sos_debug.h</includes>
@@ -245,8 +271,8 @@
       <type>void</type>
       <name>SOS_send_to_daemon</name>
       <anchorfile>sos_8c.html</anchorfile>
-      <anchor>a5b2e52b519b7b4c7b8447b07ca7bbc3d</anchor>
-      <arglist>(char *msg, char *reply)</arglist>
+      <anchor>a5e4299cb4473ac230ba67174bd7a43dc</anchor>
+      <arglist>(char *msg, int msg_len, char *reply, int max_reply_size)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
@@ -259,8 +285,8 @@
       <type>long</type>
       <name>SOS_next_id</name>
       <anchorfile>sos_8c.html</anchorfile>
-      <anchor>a526cc2a41a746c13b5c133e4edc86b44</anchor>
-      <arglist>(uid *id)</arglist>
+      <anchor>aa3827624ae09d52534bf77546a94701f</anchor>
+      <arglist>(SOS_uid *id)</arglist>
     </member>
     <member kind="function">
       <type>SOS_pub *</type>
@@ -301,8 +327,8 @@
       <type>int</type>
       <name>SOS_pack</name>
       <anchorfile>sos_8c.html</anchorfile>
-      <anchor>a1af63be1194b845c82949cbe368b2813</anchor>
-      <arglist>(SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_val)</arglist>
+      <anchor>a629a0a22510eb20062a26d471811fc59</anchor>
+      <arglist>(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
@@ -348,20 +374,6 @@
     </member>
     <member kind="function">
       <type>void</type>
-      <name>SOS_announce_to</name>
-      <anchorfile>sos_8c.html</anchorfile>
-      <anchor>ab4fe627d8fd0045e92d539cdea564f71</anchor>
-      <arglist>(SOS_pub *pub, POISON_Comm target_comm, int target_rank)</arglist>
-    </member>
-    <member kind="function">
-      <type>void</type>
-      <name>SOS_publish_to</name>
-      <anchorfile>sos_8c.html</anchorfile>
-      <anchor>a95f6afd930f4f1a98dfd4605d19ba40e</anchor>
-      <arglist>(SOS_pub *pub, POISON_Comm target_comm, int target_rank)</arglist>
-    </member>
-    <member kind="function">
-      <type>void</type>
       <name>SOS_unannounce</name>
       <anchorfile>sos_8c.html</anchorfile>
       <anchor>a967a1b814a0374ca7436191ca948d06f</anchor>
@@ -391,7 +403,7 @@
   </compound>
   <compound kind="file">
     <name>sos.h</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sos_8h</filename>
     <class kind="union">SOS_val</class>
     <class kind="struct">SOS_time</class>
@@ -430,9 +442,23 @@
     </member>
     <member kind="define">
       <type>#define</type>
-      <name>SOS_DEFAULT_LOCALHOST</name>
+      <name>SOS_DEFAULT_SERVER_HOST</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>a19692e5bdfd4b02eea0db4468341d5a3</anchor>
+      <anchor>a7d041757b7794f4ee7025c315aed67e3</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="define">
+      <type>#define</type>
+      <name>SOS_DEFAULT_SERVER_PORT</name>
+      <anchorfile>sos_8h.html</anchorfile>
+      <anchor>a3f62ca6bd806b494e05d5f59d3c556e9</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="define">
+      <type>#define</type>
+      <name>SOS_DEFAULT_MSG_TIMEOUT</name>
+      <anchorfile>sos_8h.html</anchorfile>
+      <anchor>a174ca8a556663fc34d5f7613f569dc9d</anchor>
       <arglist></arglist>
     </member>
     <member kind="define">
@@ -440,13 +466,6 @@
       <name>SOS_DEFAULT_BUFFER_LEN</name>
       <anchorfile>sos_8h.html</anchorfile>
       <anchor>af60fc3781d6c432273ba054fddba02c4</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="define">
-      <type>#define</type>
-      <name>SOS_DEFAULT_CMD_TIMEOUT</name>
-      <anchorfile>sos_8h.html</anchorfile>
-      <anchor>a098af5324c5ffc2469dd84d1525ac244</anchor>
       <arglist></arglist>
     </member>
     <member kind="define">
@@ -478,17 +497,17 @@
       <arglist></arglist>
     </member>
     <member kind="typedef">
-      <type>enum SOS_whoami</type>
-      <name>SOS_whoami</name>
+      <type>enum SOS_role</type>
+      <name>SOS_role</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>a57998c077581a9a64c272c49e9d2cf8c</anchor>
+      <anchor>a8392201f27f449c5b9383fb80f318f9a</anchor>
       <arglist></arglist>
     </member>
     <member kind="typedef">
-      <type>enum SOS_state</type>
-      <name>SOS_state</name>
+      <type>enum SOS_status</type>
+      <name>SOS_status</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>adf46192c56e2df7d89f4c8fee65fe275</anchor>
+      <anchor>aa7cddcbbd8883e1ca0c2c7424aa27e06</anchor>
       <arglist></arglist>
     </member>
     <member kind="typedef">
@@ -556,65 +575,65 @@
     </member>
     <member kind="enumeration">
       <type></type>
-      <name>SOS_whoami</name>
+      <name>SOS_role</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ace9f389f954657d4e2b683ac5cde1008</anchor>
+      <anchor>aa63615415a545ebd5635c39db6fe83b5</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_WHOAMI_CLIENT</name>
+      <name>SOS_ROLE_CLIENT</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ace9f389f954657d4e2b683ac5cde1008ab72bc4eff59cd4b9c58ef39ae02b76f0</anchor>
+      <anchor>aa63615415a545ebd5635c39db6fe83b5ab35ff70fb36a0ac313a00bc6809e7544</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_WHOAMI_DAEMON</name>
+      <name>SOS_ROLE_DAEMON</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ace9f389f954657d4e2b683ac5cde1008ac4de1d56a948b446859469b610eb8db3</anchor>
+      <anchor>aa63615415a545ebd5635c39db6fe83b5a280edd008929912d3e6ca0fca71b1ce0</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_WHOAMI_LEADER</name>
+      <name>SOS_ROLE_LEADER</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ace9f389f954657d4e2b683ac5cde1008ad0cdf057b78db2151b2595db60e38e04</anchor>
+      <anchor>aa63615415a545ebd5635c39db6fe83b5a1dc7077c18c15fd4b70a3de4f8f8dcab</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_WHOAMI_CONTROL</name>
+      <name>SOS_ROLE_CONTROL</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ace9f389f954657d4e2b683ac5cde1008a3c884adf83d58d29cfa1fd94552cdc35</anchor>
+      <anchor>aa63615415a545ebd5635c39db6fe83b5a83a8b6c2153fc11f755d64e7d66ca190</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumeration">
       <type></type>
-      <name>SOS_state</name>
+      <name>SOS_status</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ac99b58a66fb4429deb4e9fd76c8d8305</anchor>
+      <anchor>ab6bdf5dd02d245e782a081d6c56425d0</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_STATE_INIT</name>
+      <name>SOS_STATUS_INIT</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ac99b58a66fb4429deb4e9fd76c8d8305a530192317fe05bf12f831e5fde234283</anchor>
+      <anchor>ab6bdf5dd02d245e782a081d6c56425d0a0ebc2541350105a698083398baa7df72</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_STATE_RUNNING</name>
+      <name>SOS_STATUS_RUNNING</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ac99b58a66fb4429deb4e9fd76c8d8305aff005943df45d4460eacb6e950c46868</anchor>
+      <anchor>ab6bdf5dd02d245e782a081d6c56425d0aa74b4845402d3cc1923e36bd26afb127</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_STATE_SHUTDOWN</name>
+      <name>SOS_STATUS_SHUTDOWN</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>ac99b58a66fb4429deb4e9fd76c8d8305a373c7c27809fd97a01a374d7944bc952</anchor>
+      <anchor>ab6bdf5dd02d245e782a081d6c56425d0add2834f75643495e400d6ed76cd44e19</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumeration">
@@ -696,6 +715,13 @@
     </member>
     <member kind="enumvalue">
       <type>@</type>
+      <name>SOS_VAL_TYPE_INT</name>
+      <anchorfile>sos_8h.html</anchorfile>
+      <anchor>acb51ec44d92a7be6e66f7ae73cd13722a4d757a6e8ac634c4b46af3f0cfe92cc3</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="enumvalue">
+      <type>@</type>
       <name>SOS_VAL_TYPE_LONG</name>
       <anchorfile>sos_8h.html</anchorfile>
       <anchor>acb51ec44d92a7be6e66f7ae73cd13722a667b01ad4a07d27671d1294c380c4a11</anchor>
@@ -710,16 +736,9 @@
     </member>
     <member kind="enumvalue">
       <type>@</type>
-      <name>SOS_VAL_TYPE_TEXT</name>
+      <name>SOS_VAL_TYPE_STRING</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>acb51ec44d92a7be6e66f7ae73cd13722ad6e167d3fe82a89fe90a149b8fafa13d</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="enumvalue">
-      <type>@</type>
-      <name>SOS_VAL_TYPE_BLOB</name>
-      <anchorfile>sos_8h.html</anchorfile>
-      <anchor>acb51ec44d92a7be6e66f7ae73cd13722a01ce6737d7ec613090a03fe094952d9a</anchor>
+      <anchor>acb51ec44d92a7be6e66f7ae73cd13722a198d57a7c3dfb733a7981b1eff74ee5b</anchor>
       <arglist></arglist>
     </member>
     <member kind="enumeration">
@@ -1006,8 +1025,8 @@
       <type>int</type>
       <name>SOS_pack</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>a1af63be1194b845c82949cbe368b2813</anchor>
-      <arglist>(SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_val)</arglist>
+      <anchor>a629a0a22510eb20062a26d471811fc59</anchor>
+      <arglist>(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
@@ -1052,10 +1071,10 @@
       <arglist>(SOS_pub *pub)</arglist>
     </member>
     <member kind="function">
-      <type>void</type>
+      <type>SOS_val</type>
       <name>SOS_get_val</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>abfa8778e1892fda1191fe2a2a0847aa9</anchor>
+      <anchor>a392e496903fa3dcc4462015fa8ee459c</anchor>
       <arglist>(SOS_pub *pub, char *name)</arglist>
     </member>
     <member kind="function">
@@ -1111,8 +1130,8 @@
       <type>void</type>
       <name>SOS_send_to_daemon</name>
       <anchorfile>sos_8h.html</anchorfile>
-      <anchor>a5b2e52b519b7b4c7b8447b07ca7bbc3d</anchor>
-      <arglist>(char *msg, char *reply)</arglist>
+      <anchor>a5e4299cb4473ac230ba67174bd7a43dc</anchor>
+      <arglist>(char *msg, int msg_len, char *reply, int max_reply_size)</arglist>
     </member>
     <member kind="function">
       <type>void</type>
@@ -1145,7 +1164,7 @@
   </compound>
   <compound kind="file">
     <name>sos_cmd.c</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sos__cmd_8c</filename>
     <includes id="sos_8h" name="sos.h" local="yes" imported="no">sos.h</includes>
     <includes id="sos__debug_8h" name="sos_debug.h" local="yes" imported="no">sos_debug.h</includes>
@@ -1158,121 +1177,16 @@
       <arglist></arglist>
     </member>
     <member kind="function">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd</type>
-      <name>ANNOUNCE</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a741144a2e0b567edb5365903e7bae862</anchor>
-      <arglist>(returns guid--&gt; stdout)\n&quot; &quot;--val_name&lt; string &gt;\n&quot; &quot;--val_type&lt; SOS_type &gt;\n&quot; &quot;--val_data\&quot;...\&quot; (quoted &lt;string&gt;</arglist>
-    </member>
-    <member kind="function">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt; n SOS_PRI_IMMEDIATE n n&lt; SOS_layer &gt; SOS_LAYER_FLOW n SOS_LAYER_CONTROL n n&lt; SOS_scope &gt; n SOS_SCOPE_ENCLAVE n n&lt; SOS_retain &gt; n SOS_RETAIN_IMMEDIATE n n n int</type>
+      <type>int</type>
       <name>main</name>
       <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>af6421b9c645db1ba9cf22026ee6813eb</anchor>
+      <anchor>a0ddf1224851353fc92bfbff6f499fa97</anchor>
       <arglist>(int argc, char *argv[])</arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid</type>
-      <name>Commands</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a145d0a6e0cf3976b47e26f9af3f16797</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid</type>
-      <name>REANNOUNCE</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>ab2b83d3061b79ec30c08e0edba90c3b4</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid</type>
-      <name>PUBLISH</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>aa7f1c14bed0bb600cb717933d6a3206b</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n</type>
-      <name>optional</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a7cdc9ec78a292252844a6f324da47fc0</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n</type>
-      <name>SOS_LONG</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a306620b98c1a0bfd9afa0c151ea5619e</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n</type>
-      <name>SOS_DOUBLE</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a020c21806d1300a49254a16eef6aa9f7</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt;</type>
-      <name>SOS_DAEMON</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a813f5c4452965cfe299584d1d64aa587</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt;</type>
-      <name>SOS_LEADER</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>ab40b0ac58e0f8403f253eca9c448fb32</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt;</type>
-      <name>SOS_PRI_LOW</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>ab60e1c6c540b3f3a07619f0d266fa0ad</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt; n SOS_PRI_IMMEDIATE n n&lt; SOS_layer &gt;</type>
-      <name>SOS_LAYER_OS</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>ab537bb681b522edd8093213193dceafd</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt; n SOS_PRI_IMMEDIATE n n&lt; SOS_layer &gt; SOS_LAYER_FLOW n</type>
-      <name>SOS_LAYER_LIB</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>aef6b0509eff50c70cf1a20f8b6ead991</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt; n SOS_PRI_IMMEDIATE n n&lt; SOS_layer &gt; SOS_LAYER_FLOW n SOS_LAYER_CONTROL n n&lt; SOS_scope &gt;</type>
-      <name>SOS_SCOPE_SELF</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>aa8e4d25cfa9a77c398e5f2b0a7747396</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt; n SOS_PRI_IMMEDIATE n n&lt; SOS_layer &gt; SOS_LAYER_FLOW n SOS_LAYER_CONTROL n n&lt; SOS_scope &gt; n</type>
-      <name>SOS_SCOPE_NODE</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>ae1fce982d1a36b88d606da8eca61d82e</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>n Valid REPORT n n Example Commands and Arguments n n sos_cmd after type n val_ts_pack&lt; double &gt; n val_semantic&lt; int &gt; n program_name&lt; string &gt; n SOS_STRING n n&lt; SOS_role &gt; SOS_DB n n&lt; SOS_pri &gt; n SOS_PRI_IMMEDIATE n n&lt; SOS_layer &gt; SOS_LAYER_FLOW n SOS_LAYER_CONTROL n n&lt; SOS_scope &gt; n SOS_SCOPE_ENCLAVE n n&lt; SOS_retain &gt;</type>
-      <name>SOS_RETAIN_SESSION</name>
-      <anchorfile>sos__cmd_8c.html</anchorfile>
-      <anchor>a5b991099f75ac4e60b2470214a280db6</anchor>
-      <arglist></arglist>
     </member>
   </compound>
   <compound kind="file">
     <name>sos_cmd.h</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sos__cmd_8h</filename>
     <includes id="sos_8h" name="sos.h" local="yes" imported="no">sos.h</includes>
     <member kind="function">
@@ -1404,7 +1318,7 @@
   </compound>
   <compound kind="file">
     <name>sos_debug.h</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sos__debug_8h</filename>
     <member kind="define">
       <type>#define</type>
@@ -1420,17 +1334,10 @@
       <anchor>a7c953fbdb66f1bc6f20db24b1007b6cd</anchor>
       <arglist>(level,...)</arglist>
     </member>
-    <member kind="define">
-      <type>#define</type>
-      <name>SOS_warn_user</name>
-      <anchorfile>sos__debug_8h.html</anchorfile>
-      <anchor>a7016e980ac22e21b8ba06d8e86695c16</anchor>
-      <arglist>(level,...)</arglist>
-    </member>
   </compound>
   <compound kind="file">
     <name>sos_error.h</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sos__error_8h</filename>
     <member kind="function">
       <type>int</type>
@@ -1498,9 +1405,15 @@
   </compound>
   <compound kind="file">
     <name>sosd.c</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>sosd_8c</filename>
-    <includes id="sos_8h" name="sos.h" local="yes" imported="no">sos.h</includes>
+    <member kind="define">
+      <type>#define</type>
+      <name>DEBUG</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>ad72dbcf6d0153db1b8d8a58001feed83</anchor>
+      <arglist></arglist>
+    </member>
     <member kind="define">
       <type>#define</type>
       <name>USAGE</name>
@@ -1621,6 +1534,48 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
+      <type>struct sigaction</type>
+      <name>term_act</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>ac64b01664be78a4aab91df5eb96bf877</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct sigaction</type>
+      <name>ill_act</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>afdcf065e581d4a62f35f54f1903887f4</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct sigaction</type>
+      <name>abrt_act</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>add6a13e8053b9a39d84f2327b1820929</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct sigaction</type>
+      <name>fpe_act</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>ac2e44463b23d425bd709e0093047213f</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct sigaction</type>
+      <name>segv_act</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>aedd3cbf6a2b68cd6f530de289074a574</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct sigaction</type>
+      <name>bus_act</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>a2de3001e9155ffbdc8ead79e591f2935</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
       <type>int</type>
       <name>server_socket_fd</name>
       <anchorfile>sosd_8c.html</anchorfile>
@@ -1643,9 +1598,9 @@
     </member>
     <member kind="variable">
       <type>char *</type>
-      <name>buffer</name>
+      <name>server_port</name>
       <anchorfile>sosd_8c.html</anchorfile>
-      <anchor>aff2566f4c366b48d73479bef43ee4d2e</anchor>
+      <anchor>a224ecd463f5987943b7543f0db38de05</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -1670,17 +1625,52 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>struct sockaddr_in</type>
-      <name>server_addr</name>
+      <type>struct addrinfo</type>
+      <name>server_hint</name>
       <anchorfile>sosd_8c.html</anchorfile>
-      <anchor>aa3b1c22a319ba0228cc0bbcb86c04283</anchor>
+      <anchor>a8e084f2c690842f7d27d267ddc4b8253</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>struct sockaddr_in</type>
-      <name>client_addr</name>
+      <type>struct addrinfo *</type>
+      <name>server_addr</name>
       <anchorfile>sosd_8c.html</anchorfile>
-      <anchor>ad210e779a0284ea113fa4cfb1001f52b</anchor>
+      <anchor>af6448fd9245209093aaa43372d82c545</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>char *</type>
+      <name>client_host</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>aafade1970b63a62fc7e25cc58d4c7927</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>char *</type>
+      <name>client_port</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>ae182f91946d7b87506442ed3f37f2cfb</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct addrinfo *</type>
+      <name>result</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>a038426b5bc37c38397b82df829a1f22a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct sockaddr_storage</type>
+      <name>peer_addr</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>ac9a37e44f3f1ac2a67ce61f186a4f89b</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>socklen_t</type>
+      <name>peer_addr_len</name>
+      <anchorfile>sosd_8c.html</anchorfile>
+      <anchor>ae58870d16039066c4a4f43ad8b24ee64</anchor>
       <arglist></arglist>
     </member>
   </compound>
@@ -1727,10 +1717,17 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>SOS_type</type>
+      <type>SOS_val_type</type>
       <name>type</name>
       <anchorfile>structSOS__data.html</anchorfile>
-      <anchor>a0376bff1d087b4d7b3ee899d8c776a63</anchor>
+      <anchor>a029aa37ed5387d1c9cbc57ba391bad12</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>SOS_sem</type>
+      <name>sem_hint</name>
+      <anchorfile>structSOS__data.html</anchorfile>
+      <anchor>a599d0f959436ff1c99aab81f736f7f8e</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -1748,10 +1745,10 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>SOS_dirty</type>
-      <name>dirty</name>
+      <type>SOS_val_state</type>
+      <name>state</name>
       <anchorfile>structSOS__data.html</anchorfile>
-      <anchor>a3bfc570d82c6133750f6996d1aa06e11</anchor>
+      <anchor>af084a88d9475c828c88107e5251f1830</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -1787,13 +1784,6 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>SOS_role</type>
-      <name>role</name>
-      <anchorfile>structSOS__meta.html</anchorfile>
-      <anchor>a83a3996b65d9c606d024c5a5abcdcdea</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
       <type>SOS_nature</type>
       <name>nature</name>
       <anchorfile>structSOS__meta.html</anchorfile>
@@ -1812,13 +1802,6 @@
       <name>pri_hint</name>
       <anchorfile>structSOS__meta.html</anchorfile>
       <anchor>a0946a91a782f401f4adac47e09fae95d</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>SOS_sem</type>
-      <name>sem_hint</name>
-      <anchorfile>structSOS__meta.html</anchorfile>
-      <anchor>aa0c0e8acc0632a4d643ed192438c5816</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -2027,6 +2010,13 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
+      <type>SOS_status</type>
+      <name>status</name>
+      <anchorfile>structSOS__runtime.html</anchorfile>
+      <anchor>a3e66e28dbefebb7927b04e4efa5b6085</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
       <type>SOS_unique_set</type>
       <name>uid</name>
       <anchorfile>structSOS__runtime.html</anchorfile>
@@ -2048,17 +2038,10 @@
       <arglist></arglist>
     </member>
     <member kind="variable">
-      <type>SOS_status</type>
-      <name>status</name>
-      <anchorfile>structSOS__runtime.html</anchorfile>
-      <anchor>a3e66e28dbefebb7927b04e4efa5b6085</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
       <type>SOS_socket_set</type>
-      <name>target</name>
+      <name>net</name>
       <anchorfile>structSOS__runtime.html</anchorfile>
-      <anchor>ab70945f5f6897b75d811c50372b46d53</anchor>
+      <anchor>aec2863a8b9435125924fb39979477cd9</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -2080,45 +2063,52 @@
     <name>SOS_socket_set</name>
     <filename>structSOS__socket__set.html</filename>
     <member kind="variable">
-      <type>struct sockaddr_in</type>
-      <name>server_addr</name>
+      <type>char *</type>
+      <name>server_host</name>
       <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>a56c55b371712123954a7adeb48b0775d</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>struct sockaddr_in</type>
-      <name>client_addr</name>
-      <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>a9b65ffcab638f5438b477cf5d4273b53</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>int</type>
-      <name>server_socket_fd</name>
-      <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>aebd121deafd36ad66b46cf3cdc3cc1e2</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>int</type>
-      <name>client_socket_fd</name>
-      <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>aab7fca8fcd3313eb26e4b2a32821abfd</anchor>
+      <anchor>a07db39f32649381a8ac984131a3057fc</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>char *</type>
-      <name>cmd_host</name>
+      <name>server_port</name>
       <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>aaf4d74a63186db708c602cd1011822aa</anchor>
+      <anchor>abb7fb78e55fd5424be0253171bd16d93</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct addrinfo *</type>
+      <name>server_addr</name>
+      <anchorfile>structSOS__socket__set.html</anchorfile>
+      <anchor>ab8d77830018ac79939731c6712759e7a</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct addringo *</type>
+      <name>result_list</name>
+      <anchorfile>structSOS__socket__set.html</anchorfile>
+      <anchor>af6cc78c2cafdba103824959b3a5facf5</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct addrinfo</type>
+      <name>server_hint</name>
+      <anchorfile>structSOS__socket__set.html</anchorfile>
+      <anchor>a359ccd62dfd44fe8e0e46ab729065bca</anchor>
+      <arglist></arglist>
+    </member>
+    <member kind="variable">
+      <type>struct addrinfo *</type>
+      <name>client_addr</name>
+      <anchorfile>structSOS__socket__set.html</anchorfile>
+      <anchor>abc2af3694ff5b079b770466d3e770512</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
       <type>int</type>
-      <name>cmd_port</name>
+      <name>timeout</name>
       <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>a0427826f43641fc7b06a7cdd1c3d420b</anchor>
+      <anchor>a075f11cb6577a13b65daec771e5e124b</anchor>
       <arglist></arglist>
     </member>
     <member kind="variable">
@@ -2126,13 +2116,6 @@
       <name>buffer_len</name>
       <anchorfile>structSOS__socket__set.html</anchorfile>
       <anchor>a2499997aaa8e9c52952a29389da033e3</anchor>
-      <arglist></arglist>
-    </member>
-    <member kind="variable">
-      <type>int</type>
-      <name>cmd_timeout</name>
-      <anchorfile>structSOS__socket__set.html</anchorfile>
-      <anchor>ab8c58631a0f01668c9fddc04c30435d2</anchor>
       <arglist></arglist>
     </member>
   </compound>
@@ -2322,8 +2305,14 @@
     </member>
   </compound>
   <compound kind="dir">
+    <name>ref</name>
+    <path>/home/cdw/Dropbox/research/sos_flow/ref/</path>
+    <filename>dir_c773687d3ec38c771b6bf4860abcb0ae.html</filename>
+    <file>socket_client.c</file>
+  </compound>
+  <compound kind="dir">
     <name>src</name>
-    <path>/Users/cdw/Dropbox/research/sos_flow/src/</path>
+    <path>/home/cdw/Dropbox/research/sos_flow/src/</path>
     <filename>dir_68267d1309a1af8e8297ef4c3efbcdba.html</filename>
     <file>demo_app.c</file>
     <file>sos.c</file>

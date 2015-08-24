@@ -15,10 +15,11 @@ var sos_8h =
     [ "SOS_task_set", "structSOS__task__set.html", "structSOS__task__set" ],
     [ "SOS_runtime", "structSOS__runtime.html", "structSOS__runtime" ],
     [ "SOS_DEFAULT_BUFFER_LEN", "sos_8h.html#af60fc3781d6c432273ba054fddba02c4", null ],
-    [ "SOS_DEFAULT_CMD_TIMEOUT", "sos_8h.html#a098af5324c5ffc2469dd84d1525ac244", null ],
     [ "SOS_DEFAULT_ELEM_COUNT", "sos_8h.html#acd0994e774fdcc64b7c1c978efa420c9", null ],
-    [ "SOS_DEFAULT_LOCALHOST", "sos_8h.html#a19692e5bdfd4b02eea0db4468341d5a3", null ],
+    [ "SOS_DEFAULT_MSG_TIMEOUT", "sos_8h.html#a174ca8a556663fc34d5f7613f569dc9d", null ],
     [ "SOS_DEFAULT_RING_SIZE", "sos_8h.html#a60fb92dba8bdc5e045c0578c5322076f", null ],
+    [ "SOS_DEFAULT_SERVER_HOST", "sos_8h.html#a7d041757b7794f4ee7025c315aed67e3", null ],
+    [ "SOS_DEFAULT_SERVER_PORT", "sos_8h.html#a3f62ca6bd806b494e05d5f59d3c556e9", null ],
     [ "SOS_DEFAULT_STRING_LEN", "sos_8h.html#a3a10b2e7ad622a8abca762409603b2f9", null ],
     [ "SOS_DEFAULT_UID_MAX", "sos_8h.html#a94119664e06f6f9744a823c59adf88ad", null ],
     [ "SOS_SET_WHOAMI", "sos_8h.html#a5a9e2fddcd8cff2ce2ac9f31f316dbbf", null ],
@@ -29,12 +30,12 @@ var sos_8h =
     [ "SOS_nature", "sos_8h.html#a61c792a2456c59072bba934b172d6015", null ],
     [ "SOS_pri", "sos_8h.html#ae02c66353cdfef84f5d3846d4e94bee3", null ],
     [ "SOS_retain", "sos_8h.html#a67f6be474b8789b01b04500d071ea414", null ],
+    [ "SOS_role", "sos_8h.html#a8392201f27f449c5b9383fb80f318f9a", null ],
     [ "SOS_scope", "sos_8h.html#a5582b771803efbf683f7a3412d56ad9a", null ],
     [ "SOS_sem", "sos_8h.html#a90c8da1bb74e93977bdf2d238b9072cc", null ],
-    [ "SOS_state", "sos_8h.html#adf46192c56e2df7d89f4c8fee65fe275", null ],
+    [ "SOS_status", "sos_8h.html#aa7cddcbbd8883e1ca0c2c7424aa27e06", null ],
     [ "SOS_val_state", "sos_8h.html#a1a655735f9ae6f1ed07119fa4ebfbed4", null ],
     [ "SOS_val_type", "sos_8h.html#a1ca5b53dbec5942c4ef7d7f5fdc1eedd", null ],
-    [ "SOS_whoami", "sos_8h.html#a57998c077581a9a64c272c49e9d2cf8c", null ],
     [ "SOS_layer", "sos_8h.html#af061942b8727efd5f5be33eb70905661", [
       [ "SOS_LAYER_APP", "sos_8h.html#af061942b8727efd5f5be33eb70905661a804be0646a949165676d5067b6184e90", null ],
       [ "SOS_LAYER_OS", "sos_8h.html#af061942b8727efd5f5be33eb70905661a06e7d348cfdc16036003b90efb258e58", null ],
@@ -70,16 +71,22 @@ var sos_8h =
       [ "SOS_RETAIN_SESSION", "sos_8h.html#a3bbbcc42f35ccb66af9baf6d625dc615ac475297324b0c624c5621b5bd4d83272", null ],
       [ "SOS_RETAIN_IMMEDIATE", "sos_8h.html#a3bbbcc42f35ccb66af9baf6d625dc615a23833e1fe980fe60c2efde1851afa799", null ]
     ] ],
+    [ "SOS_role", "sos_8h.html#aa63615415a545ebd5635c39db6fe83b5", [
+      [ "SOS_ROLE_CLIENT", "sos_8h.html#aa63615415a545ebd5635c39db6fe83b5ab35ff70fb36a0ac313a00bc6809e7544", null ],
+      [ "SOS_ROLE_DAEMON", "sos_8h.html#aa63615415a545ebd5635c39db6fe83b5a280edd008929912d3e6ca0fca71b1ce0", null ],
+      [ "SOS_ROLE_LEADER", "sos_8h.html#aa63615415a545ebd5635c39db6fe83b5a1dc7077c18c15fd4b70a3de4f8f8dcab", null ],
+      [ "SOS_ROLE_CONTROL", "sos_8h.html#aa63615415a545ebd5635c39db6fe83b5a83a8b6c2153fc11f755d64e7d66ca190", null ]
+    ] ],
     [ "SOS_scope", "sos_8h.html#ad449c10c9af5cf759b0795328992b4a0", [
       [ "SOS_SCOPE_DEFAULT", "sos_8h.html#ad449c10c9af5cf759b0795328992b4a0abe4b488f56d52c456e41b01db926f66d", null ],
       [ "SOS_SCOPE_SELF", "sos_8h.html#ad449c10c9af5cf759b0795328992b4a0ae311fb3d446b6f712bea71263bab9c41", null ],
       [ "SOS_SCOPE_NODE", "sos_8h.html#ad449c10c9af5cf759b0795328992b4a0a28e89ed8ec63dbd50dcf9c914e4d671f", null ],
       [ "SOS_SCOPE_ENCLAVE", "sos_8h.html#ad449c10c9af5cf759b0795328992b4a0ac8f49bb02e968befc506b469695b1712", null ]
     ] ],
-    [ "SOS_state", "sos_8h.html#ac99b58a66fb4429deb4e9fd76c8d8305", [
-      [ "SOS_STATE_INIT", "sos_8h.html#ac99b58a66fb4429deb4e9fd76c8d8305a530192317fe05bf12f831e5fde234283", null ],
-      [ "SOS_STATE_RUNNING", "sos_8h.html#ac99b58a66fb4429deb4e9fd76c8d8305aff005943df45d4460eacb6e950c46868", null ],
-      [ "SOS_STATE_SHUTDOWN", "sos_8h.html#ac99b58a66fb4429deb4e9fd76c8d8305a373c7c27809fd97a01a374d7944bc952", null ]
+    [ "SOS_status", "sos_8h.html#ab6bdf5dd02d245e782a081d6c56425d0", [
+      [ "SOS_STATUS_INIT", "sos_8h.html#ab6bdf5dd02d245e782a081d6c56425d0a0ebc2541350105a698083398baa7df72", null ],
+      [ "SOS_STATUS_RUNNING", "sos_8h.html#ab6bdf5dd02d245e782a081d6c56425d0aa74b4845402d3cc1923e36bd26afb127", null ],
+      [ "SOS_STATUS_SHUTDOWN", "sos_8h.html#ab6bdf5dd02d245e782a081d6c56425d0add2834f75643495e400d6ed76cd44e19", null ]
     ] ],
     [ "SOS_val_sem", "sos_8h.html#a1976d73aedda0492612fc8d04410d46b", [
       [ "SOS_VAL_SEM_TIME_START", "sos_8h.html#a1976d73aedda0492612fc8d04410d46ba63d5d40812631d8e67330390ab944877", null ],
@@ -95,16 +102,10 @@ var sos_8h =
       [ "SOS_VAL_STATE_EMPTY", "sos_8h.html#af34c9eaa9e9d2ef94dd606f80d301657a6b6567ff298ed61d041b02b6638e37af", null ]
     ] ],
     [ "SOS_val_type", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722", [
+      [ "SOS_VAL_TYPE_INT", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722a4d757a6e8ac634c4b46af3f0cfe92cc3", null ],
       [ "SOS_VAL_TYPE_LONG", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722a667b01ad4a07d27671d1294c380c4a11", null ],
       [ "SOS_VAL_TYPE_DOUBLE", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722ac9e4eeca9af7a97a55007d4469ffa3b8", null ],
-      [ "SOS_VAL_TYPE_TEXT", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722ad6e167d3fe82a89fe90a149b8fafa13d", null ],
-      [ "SOS_VAL_TYPE_BLOB", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722a01ce6737d7ec613090a03fe094952d9a", null ]
-    ] ],
-    [ "SOS_whoami", "sos_8h.html#ace9f389f954657d4e2b683ac5cde1008", [
-      [ "SOS_WHOAMI_CLIENT", "sos_8h.html#ace9f389f954657d4e2b683ac5cde1008ab72bc4eff59cd4b9c58ef39ae02b76f0", null ],
-      [ "SOS_WHOAMI_DAEMON", "sos_8h.html#ace9f389f954657d4e2b683ac5cde1008ac4de1d56a948b446859469b610eb8db3", null ],
-      [ "SOS_WHOAMI_LEADER", "sos_8h.html#ace9f389f954657d4e2b683ac5cde1008ad0cdf057b78db2151b2595db60e38e04", null ],
-      [ "SOS_WHOAMI_CONTROL", "sos_8h.html#ace9f389f954657d4e2b683ac5cde1008a3c884adf83d58d29cfa1fd94552cdc35", null ]
+      [ "SOS_VAL_TYPE_STRING", "sos_8h.html#acb51ec44d92a7be6e66f7ae73cd13722a198d57a7c3dfb733a7981b1eff74ee5b", null ]
     ] ],
     [ "SOS_announce", "sos_8h.html#ac9ed0b67186668a0ed9ccb6353ed6215", null ],
     [ "SOS_apply_announce", "sos_8h.html#a69e132d136d2a8274ffa0e54351c7440", null ],
@@ -114,17 +115,17 @@ var sos_8h =
     [ "SOS_finalize", "sos_8h.html#a83376e35ae6d5144fde6bd6b87272753", null ],
     [ "SOS_free_pub", "sos_8h.html#abc90bb5ab2287a03c33efa38b82e8f8c", null ],
     [ "SOS_free_sub", "sos_8h.html#add47b3e384e40319f90b30fe681e36a1", null ],
-    [ "SOS_get_val", "sos_8h.html#abfa8778e1892fda1191fe2a2a0847aa9", null ],
+    [ "SOS_get_val", "sos_8h.html#a392e496903fa3dcc4462015fa8ee459c", null ],
     [ "SOS_init", "sos_8h.html#a5dc4a3851a7a2e6cc5f352da4f1dbdda", null ],
     [ "SOS_new_post", "sos_8h.html#a9f868c2ccaee473d7206acff91c5ed82", null ],
     [ "SOS_new_pub", "sos_8h.html#a5634c025d9f17ba07c13b118864f1652", null ],
     [ "SOS_new_sub", "sos_8h.html#aad223dfb34fe3a9ef362798fe4a58ed5", null ],
     [ "SOS_next_id", "sos_8h.html#a88e67498800563e426c4c0247e475212", null ],
-    [ "SOS_pack", "sos_8h.html#a1af63be1194b845c82949cbe368b2813", null ],
+    [ "SOS_pack", "sos_8h.html#a629a0a22510eb20062a26d471811fc59", null ],
     [ "SOS_publish", "sos_8h.html#a7ab455b06fa8e56370fdecb4cb95a146", null ],
     [ "SOS_publish_immediately", "sos_8h.html#a6105eefb7e4688d3f160994b849b40da", null ],
     [ "SOS_repack", "sos_8h.html#a55741d06ecae0f15abfc606a3d5e00d9", null ],
-    [ "SOS_send_to_daemon", "sos_8h.html#a5b2e52b519b7b4c7b8447b07ca7bbc3d", null ],
+    [ "SOS_send_to_daemon", "sos_8h.html#a5e4299cb4473ac230ba67174bd7a43dc", null ],
     [ "SOS_strip_str", "sos_8h.html#a107fda89a95b55694364d1e20e2fb4f5", null ],
     [ "SOS_subscribe", "sos_8h.html#ae5f78169501273c784c761181bbeb215", null ],
     [ "SOS_unannounce", "sos_8h.html#a967a1b814a0374ca7436191ca948d06f", null ],

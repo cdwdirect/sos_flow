@@ -3,7 +3,6 @@
 #include <signal.h>
 #include <stdio.h>
 #include <execinfo.h>
-#include <mpi.h>
 
 //#include "sos.h"
 
@@ -77,6 +76,7 @@ static void sos_custom_signal_handler(int sig) {
   fflush(stdout);
   exit(99);
 }
+
 
 struct sigaction term_act;
 struct sigaction ill_act;

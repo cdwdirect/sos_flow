@@ -24,16 +24,21 @@
 #include <sys/time.h>
 #include <limits.h>
 
+#include <sys/socket.h>
+#include <netdb.h>
+
+
+
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
     char __SOS_var_name[SOS_DEFAULT_STRING_LEN];                        \
     {                                                                   \
         memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
         switch (SOS.role) {                                             \
-        case SOS_CLIENT    : sprintf(__SOS_var_name, "client(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
-        case SOS_DAEMON    : sprintf(__SOS_var_name, "daemon(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
-        case SOS_LEADER    : sprintf(__SOS_var_name, "leader(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
-        case SOS_CONTROL   : sprintf(__SOS_var_name, "control(%s).%s", SOS.client_id, __SOS_str_func ); break; \
+        case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
+        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
+        case SOS_ROLE_LEADER    : sprintf(__SOS_var_name, "leader(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
+        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%s).%s", SOS.client_id, __SOS_str_func ); break; \
         default            : sprintf(__SOS_var_name, "------(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
         }                                                               \
     }
@@ -44,9 +49,10 @@
     strcpy( __SOS_tmp_str, __SOS_src_str );                             
 
 
-#define SOS_DEFAULT_LOCALHOST      "localhost"
+#define SOS_DEFAULT_SERVER_HOST    "localhost"
+#define SOS_DEFAULT_SERVER_PORT    22505
+#define SOS_DEFAULT_MSG_TIMEOUT    2048
 #define SOS_DEFAULT_BUFFER_LEN     1024000
-#define SOS_DEFAULT_CMD_TIMEOUT    2048
 #define SOS_DEFAULT_RING_SIZE      1024
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_UID_MAX        LONG_MAX
@@ -54,27 +60,30 @@
 
 /* ************************************ */
 
+/*! What role this program instance is playing in the SOS ecosystem. */
+typedef enum SOS_role {
+    SOS_ROLE_CLIENT,      /*!< All sources of data are CLIENT */
+    SOS_ROLE_DAEMON,      /*!< The instances of sosd are DAEMON */
+    SOS_ROLE_LEADER,      /*!< Daemons involved in coordination are LEADER */
+    SOS_ROLE_CONTROL      /*!< Components of SOS that participate in the environment or workflow are CONTROL */
+} SOS_role;
 
-typedef enum SOS_whoami {
-    SOS_WHOAMI_CLIENT,
-    SOS_WHOAMI_DAEMON,
-    SOS_WHOAMI_LEADER,
-    SOS_WHOAMI_CONTROL
-} SOS_whoami;
+/*! The phase of execution for the SOS runtime. */
+typedef enum SOS_status {
+    SOS_STATUS_INIT,      /*!< Initializing SOS */
+    SOS_STATUS_RUNNING,   /*!< SOS is fully operational */
+    SOS_STATUS_SHUTDOWN   /*!< The SOS system in the process of shutting down */
+} SOS_status;
 
-typedef enum SOS_state {
-    SOS_STATE_INIT,
-    SOS_STATE_RUNNING,
-    SOS_STATE_SHUTDOWN
-} SOS_state;
-
+/*! Classification of messages entering the SOS system from a CLIENT. */
 typedef enum SOS_msg_type {
-    SOS_MSG_TYPE_ANNOUNCE,
-    SOS_MSG_TYPE_REANNOUNCE,
-    SOS_MSG_TYPE_VALUE,
-    SOS_MSG_TYPE_ACKNOWLEDGE,
-    SOS_MSG_TYPE_SHUTDOWN
+    SOS_MSG_TYPE_ANNOUNCE,    /*!< A new value is being tracked, which triggers the return of a GUID for it */
+    SOS_MSG_TYPE_REANNOUNCE,  /*!< Some metadata about a value has changed or new values have been added to a SOS_pub handle */
+    SOS_MSG_TYPE_VALUE,       /*!< An update to a previously announced value */
+    SOS_MSG_TYPE_ACKNOWLEDGE, /*!< A quick acknowledgement of receipt */
+    SOS_MSG_TYPE_SHUTDOWN     /*!< Trigger shutdown procedures */
 } SOS_msg_type;
+
 
 typedef enum SOS_pri {
     SOS_PRI_DEFAULT,
@@ -82,18 +91,21 @@ typedef enum SOS_pri {
     SOS_PRI_IMMEDIATE
 } SOS_pri;
 
+
 typedef enum SOS_val_type {
+    SOS_VAL_TYPE_INT,
     SOS_VAL_TYPE_LONG,
     SOS_VAL_TYPE_DOUBLE,
-    SOS_VAL_TYPE_TEXT,
-    SOS_VAL_TYPE_BLOB
+    SOS_VAL_TYPE_STRING
 } SOS_val_type;
+
 
 typedef enum SOS_val_state {
     SOS_VAL_STATE_CLEAN,
     SOS_VAL_STATE_DIRTY,
     SOS_VAL_STATE_EMPTY
 } SOS_val_state;
+
 
 typedef enum SOS_val_sem {
     SOS_VAL_SEM_TIME_START,
@@ -104,12 +116,14 @@ typedef enum SOS_val_sem {
     SOS_VAL_SEM_VAL_COUNTER
 } SOS_sem;
 
+
 typedef enum SOS_scope {
     SOS_SCOPE_DEFAULT,
     SOS_SCOPE_SELF,
     SOS_SCOPE_NODE,
     SOS_SCOPE_ENCLAVE
 } SOS_scope;
+
 
 typedef enum SOS_layer {
     SOS_LAYER_APP,
@@ -118,6 +132,7 @@ typedef enum SOS_layer {
     SOS_LAYER_FLOW,
     SOS_LAYER_CONTROL
 } SOS_layer;
+
 
 typedef enum SOS_nature {
     SOS_NATURE_CREATE_INPUT,
@@ -131,11 +146,14 @@ typedef enum SOS_nature {
     SOS_NATURE_SOS
 } SOS_nature;
 
+
 typedef enum SOS_retain {
     SOS_RETAIN_DEFAULT,
     SOS_RETAIN_SESSION,
     SOS_RETAIN_IMMEDIATE
 } SOS_retain;
+
+
 
 typedef union {
     int           i_val;        /* default: (null)                */
@@ -154,11 +172,9 @@ typedef struct {
     char         *channel;      /* default: (null)                */
     int           pragma_len;   /* default: -1                    */
     char         *pragma_msg;   /* default: (null)                */
-    SOS_role      role;         /* default: --------- manual      */
     SOS_nature    nature;       /* default: --------- manual      */
     SOS_layer     layer;        /* default: SOS_LAYER_APP         */
     SOS_pri       pri_hint;     /* default: SOS_PRI_DEFAULT       */
-    SOS_sem       sem_hint;     /* default: --------- manual      */
     SOS_scope     scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
     SOS_retain    retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
 } SOS_meta;
@@ -166,10 +182,11 @@ typedef struct {
 typedef struct {
     long          guid;         /* default: (auto)                */
     char         *name;         /* default: --------- manual      */
-    SOS_type      type;         /* default: --------- manual      */
+    SOS_val_type  type;         /* default: --------- manual      */
+    SOS_sem       sem_hint;     /* default: --------- manual      */
     int           len;          /* default: (auto) [on assign]    */
     SOS_val       val;          /* default: --------- manual      */
-    SOS_dirty     dirty;        /* default: SOS_VAL_STATE_EMPTY   */
+    SOS_val_state state;        /* default: SOS_VAL_STATE_EMPTY   */
     SOS_time      time;         /* default: (complex)             */
 } SOS_data;
 
@@ -202,14 +219,14 @@ typedef struct {
 } SOS_sub;
 
 typedef struct {
-    struct sockaddr_in server_addr;
-    struct sockaddr_in client_addr;
-    int         server_socket_fd;
-    int         client_socket_fd;
-    char       *cmd_host;
-    int         cmd_port;
-    int         buffer_len;
-    int         cmd_timeout;
+    char               *server_host;
+    char               *server_port;
+    struct addrinfo    *server_addr;
+    struct addringo    *result_list;
+    struct addrinfo     server_hint;
+    struct addrinfo    *client_addr;          /* used by [sosd] */
+    int                 timeout;
+    int                 buffer_len;
 } SOS_socket_set;
 
 typedef struct {
@@ -245,19 +262,19 @@ typedef struct {
 } SOS_ring_set;
 
 typedef struct {
-    pthread_t      *post;    /* POST pending msgs to the daemon */
-    pthread_t      *read;    /* READ char* msgs, organize into data structures. */
-    pthread_t      *scan;    /* SCAN for dirty data, queue msg for daemon. */
+    pthread_t    *post;    /* POST pending msgs to the daemon */
+    pthread_t    *read;    /* READ char* msgs, organize into data structures. */
+    pthread_t    *scan;    /* SCAN for dirty data, queue msg for daemon. */
 } SOS_task_set;
 
 typedef struct {
     SOS_config       config;
     SOS_role         role;
+    SOS_status       status;
     SOS_unique_set   uid;
     SOS_ring_set     ring;
     SOS_task_set     task;
-    SOS_status       status;
-    SOS_socket_set   target;        /* Daemon or DB, etc. */
+    SOS_socket_set   net;
     pthread_mutex_t  global_lock;
     char            *client_id;
 } SOS_runtime;
@@ -305,8 +322,7 @@ extern "C" {
     /*
      * Function..: SOS_init
      * Purpose...: Configure any preliminary values needed before other
-     *             parts of the SOS system can work.  This should be
-     *             called immediately after MPI_Init().
+     *             parts of the SOS system can work.
      *
      */
     void SOS_init( int *argc, char ***argv, SOS_role role );
@@ -315,7 +331,7 @@ extern "C" {
 
     /*
      * Function..: SOS_finalize
-     * Purpose...: Free up the MPI communicators created during the split.
+     * Purpose...: Unregister with SOS and close down any threads.
      *
      */
     void SOS_finalize();
@@ -324,8 +340,7 @@ extern "C" {
 
     /*
      * Function..: SOS_next_serial   [THREAD SAFE]
-     * Purpose...: Return a unique (per process) ID for use in keeping
-     *             track of replies to subscription requests, etc.
+     * Purpose...: Return a unique ID from some managed uid context.
      */
     long SOS_next_id( SOS_uid *uid );
 
@@ -363,7 +378,7 @@ extern "C" {
      *             and string comparisons across a (potentially) linear scan of
      *             every previously packed data element for a matching name.
      */
-    int SOS_pack( SOS_pub *pub, const char *name, SOS_type pack_type, SOS_val pack_val );
+    int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val );
     void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
 
     SOS_pub* SOS_new_pub(char *pub_name);
@@ -379,7 +394,7 @@ extern "C" {
     void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len );
     void SOS_expand_data( SOS_pub *pub );
     
-    void SOS_get_val( SOS_pub *pub, char *name );
+    SOS_val SOS_get_val( SOS_pub *pub, char *name );
 
     SOS_sub* SOS_new_sub();
   
@@ -390,12 +405,10 @@ extern "C" {
     
     void SOS_announce( SOS_pub *pub );
 
-    /* TODO:{ CHAD, PUBLISH, POST } --> Add SOS_publish_immediately() and SOS_post_immediately(); */
-
     void SOS_publish( SOS_pub *pub );
     void SOS_publish_immediately( SOS_pub *pub );
 
-    void SOS_send_to_daemon( char *msg, char *reply );
+    void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int max_reply_size );
 
     void SOS_unannounce( SOS_pub *pub );
 

@@ -19,20 +19,18 @@
 
 
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
-#define SOS_DEBUG 1
+#define SOS_DEBUG 99
 
 #ifndef SOS_DEBUG
 
     /* Nullify the variadic debugging macros wherever they are in code: */
     #define dlog(level, ...)
-    #define SOS_warn_user(level, ...)
 
 #else
 /* Set the behavior of the debugging macros: */
 
     /* Simple debug output, no locking: */
-    #define dlog(level, ...); if (   (SOS_DEBUG >= level)) { printf(__VA_ARGS__); fflush(stdout); }
-    #define SOS_warn_user(level, ...) if (SOS_WARNING_LEVEL >= level) { printf(__VA_ARGS__); fflush(stdout); }
+    #define dlog(level, ...); if (   (SOS_DEBUG >= level) && SOS.role != SOS_ROLE_DAEMON ) { printf(__VA_ARGS__); fflush(stdout); }
 
 #endif //DEBUG
 

@@ -118,7 +118,7 @@ DIST_COMMON = $(srcdir)/aminclude.am $(srcdir)/Makefile.in \
 	$(srcdir)/Makefile.am $(top_srcdir)/configure \
 	$(am__configure_deps) $(srcdir)/config.h.in AUTHORS COPYING \
 	ChangeLog INSTALL NEWS README compile config.guess config.sub \
-	install-sh missing ltmain.sh
+	depcomp install-sh missing ltmain.sh
 subdir = .
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/m4/libtool.m4 \
@@ -275,8 +275,8 @@ DX_MAKEINDEX =
 DX_PDFLATEX = 
 DX_PERL = /usr/bin/perl
 DX_PROJECT = sos_flow
-ECHO_C = \c
-ECHO_N = 
+ECHO_C = 
+ECHO_N = -n
 ECHO_T = 
 EGREP = /usr/bin/grep -E
 EXEEXT = 
@@ -319,7 +319,7 @@ PTHREAD_LIBS =
 RANLIB = ranlib
 SED = /usr/bin/sed
 SET_MAKE = 
-SHELL = /bin/sh
+SHELL = /bin/bash
 STRIP = strip
 VERSION = 0.0
 abs_builddir = /Users/cdw/Dropbox/research/sos_flow
@@ -364,7 +364,7 @@ mandir = ${datarootdir}/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /Users/cdw/Dropbox/research/sos_flow
+prefix = /home/cdw/Dropbox/research/sos_flow
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin
