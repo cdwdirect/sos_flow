@@ -77,6 +77,7 @@ typedef enum SOS_status {
 
 /*! Classification of messages entering the SOS system from a CLIENT. */
 typedef enum SOS_msg_type {
+    SOS_MSG_TYPE_REGISTER,    /*!< When an SOS_CLIENT comes online, it identifies itself to the daemon. */
     SOS_MSG_TYPE_ANNOUNCE,    /*!< A new value is being tracked, which triggers the return of a GUID for it */
     SOS_MSG_TYPE_REANNOUNCE,  /*!< Some metadata about a value has changed or new values have been added to a SOS_pub handle */
     SOS_MSG_TYPE_VALUE,       /*!< An update to a previously announced value */

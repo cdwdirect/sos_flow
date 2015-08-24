@@ -45,7 +45,7 @@ void SOS_expand_data(SOS_pub *pub);
 //SOS_FLOW - ready
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
     char buffer[SOS_DEFAULT_BUFFER_LEN];
-    int i, retval, server_socket_fd;
+    int i, n, retval, server_socket_fd;
 
     SOS.status = SOS_STATUS_INIT;
     SOS.role = role;
@@ -76,10 +76,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         for ( SOS.net.server_addr = SOS.net.result_list ; SOS.net.server_addr != NULL ; SOS.net.server_addr = SOS.net.server_addr->ai_next ) {
             server_socket_fd = socket(SOS.net.server_addr->ai_family, SOS.net.server_addr->ai_socktype, SOS.net.server_addr->ai_protocol );
             if ( server_socket_fd == -1 ) continue;
-            if ( connect(
-                     server_socket_fd,
-                     SOS.net.server_addr->ai_addr,
-                     SOS.net.server_addr->ai_addrlen) != -1 ) break; /* success! */
+            if ( connect(server_socket_fd, SOS.net.server_addr->ai_addr, SOS.net.server_addr->ai_addrlen) != -1 ) break; /* success! */
             close( server_socket_fd );
         }
 
@@ -91,17 +88,20 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         /* TODO:{ CHAD, INIT } Put together a registration string requesting a GUID for this instance. */
 
         dlog(2, "[%s]: Connecting to SOS...   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
-        snprintf(buffer, SOS_DEFAULT_BUFFER_LEN, "Hello, SOS world!\n");
+        snprintf(buffer, SOS_DEFAULT_BUFFER_LEN, "....____\n");
+        n = strlen(buffer);
+        i = (int) SOS_MSG_TYPE_REGISTER;
+        printf("\n i = %d\n", i);
+        memcpy(buffer, &i, sizeof(int));
+        memcpy((buffer + sizeof(int)), &i, sizeof(int));
 
-        retval = sendto( server_socket_fd, buffer, strlen(buffer), NULL, NULL, NULL );
+        retval = sendto( server_socket_fd, buffer, n, NULL, NULL, NULL );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
 
         retval = recvfrom( server_socket_fd, buffer, (SOS_DEFAULT_BUFFER_LEN - 1), NULL, NULL, NULL );
         dlog(2, "[%s]: Server responded: %s\n", whoami, buffer);
         close( server_socket_fd );
-
-
         
     } else {
         /* 
@@ -165,27 +165,31 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int max_reply_size
     int server_socket_fd;
     int retval;
 
-    /*
-     *
-     *  TODO:{ CHAD, POST } Inject the socket code here.
-     *  NOTE: Put a loop in that tries X times with the delay...
-     */
 
-    server_socket_fd = socket(
-        SOS.net.server_addr->ai_family,
-        SOS.net.server_addr->ai_socktype,
-        SOS.net.server_addr->ai_protocol );
-
-    if ( server_socket_fd == -1 ) { /* Error getting socket... */ }
-
-    if ( connect( server_socket_fd,
-                  SOS.net.server_addr->ai_addr,
-                  SOS.net.server_addr->ai_addrlen)
-         == -1 ) { /* Error connecting... */ }
-
+    retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
+    if ( retval < 0 ) { dlog(0, "[%s]: Error attempting to locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
+    
+    /* Iterate the possible connections and register with the SOS daemon: */
+    for ( SOS.net.server_addr = SOS.net.result_list ; SOS.net.server_addr != NULL ; SOS.net.server_addr = SOS.net.server_addr->ai_next ) {
+        server_socket_fd = socket(SOS.net.server_addr->ai_family, SOS.net.server_addr->ai_socktype, SOS.net.server_addr->ai_protocol );
+        if ( server_socket_fd == -1 ) continue;
+        if ( connect( server_socket_fd, SOS.net.server_addr->ai_addr, SOS.net.server_addr->ai_addrlen) != -1 ) break; /* success! */
+        close( server_socket_fd );
+    }
+    
+    freeaddrinfo( SOS.net.result_list );
+    
+    if (server_socket_fd == NULL) {
+        dlog(0, "[%s]: Error attempting to connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
+        exit(1);  /* TODO:{ COMM }  Make this a loop that tries X times to connect, doesn't crash app. */
+    }
 
     retval = sendto(server_socket_fd, msg, msg_len, NULL, NULL, NULL );
+    if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
+
     retval = recvfrom(server_socket_fd, reply, max_reply_size, NULL, NULL, NULL );
+    if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
+    else { dlog(2, "[%s]: Server replied with: %s\n", whoami, reply); }
 
     close( server_socket_fd );
 
@@ -401,27 +405,6 @@ void SOS_expand_data( SOS_pub *pub ) {
 }
 
 
-
-/*
-int SOS_msg_origin_puid( char *msg ) {
-    int origin_puid;
-    memcpy(&origin_puid, msg, sizeof(int));
-    return origin_puid;
-}
-
-int SOS_msg_origin_rank( char *msg ) {
-    int origin_rank;
-    memcpy(&origin_rank, (msg + sizeof(int)), sizeof(int));
-    return origin_rank;
-}
-
-SOS_role SOS_msg_origin_role( char *msg ) {
-    int origin_role;
-    memcpy(&origin_role, (msg + (sizeof(int) * 2)), sizeof(int));
-    return (SOS_role) origin_role;
-}
-
-*/
 
 //SOS_FLOW - ready
 void SOS_strip_str( char *str ) {
@@ -1211,8 +1194,6 @@ void SOS_unannounce( SOS_pub *pub ) {
 
 
 SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, int refresh_delay ) {
-    int i, msg_len;
-    char *msg;
     SOS_sub *new_sub;
 
     new_sub = (SOS_sub *) malloc( sizeof(SOS_sub) );
@@ -1224,8 +1205,6 @@ SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, 
 
 void* SOS_refresh_sub( void *arg ) {
     SOS_sub *sub = (SOS_sub*) arg;
-    //POISON_Comm source_comm;
-    //POISON_Status status;
     char *msg;
     int msg_len;
 

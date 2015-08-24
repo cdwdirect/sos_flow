@@ -21,11 +21,10 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-//#include "sos.h"
+#include "sos.h"
 
 
 #define DEBUG    1
-
 
 #define USAGE "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
 #define DAEMON_NAME    "sosd"
@@ -76,6 +75,10 @@ socklen_t                 peer_addr_len;
 int main(int argc, char *argv[]) {
     int i, elem, next_elem, byte_count;
     char   *buffer;
+
+    int      msg_type;
+    int      msg_from;
+    char    *msg_data;
 
     //SOS_init( argc, argv, SOS_ROLE_DAEMON );
 
@@ -165,8 +168,44 @@ int main(int argc, char *argv[]) {
         if (i == 0) { dlog("Received connection.\n"); } else { dlog("Error calling getnameinfo() on client connection.\n"); exit(1); }
 
         byte_count = recvfrom( client_socket_fd, (void *) buffer, buffer_len, NULL, (struct sockaddr *) &peer_addr, &peer_addr_len );
-        
-        dlog(buffer);
+        msg_data = buffer;
+
+        if (byte_count > (sizeof(int) * 2)) {
+            memcpy(&msg_type, msg_data, sizeof(int));  msg_data += sizeof(int);
+            memcpy(&msg_from, msg_data, sizeof(int));  msg_data += sizeof(int);
+        } else {
+            dlog("Recieved malformed message.  (Too short)\n");
+            continue;
+        }
+
+        switch (msg_type) {
+        case SOS_MSG_TYPE_REGISTER:
+            dlog("SOS_MSG_TYPE_REGISTER\n");
+            break;
+        case SOS_MSG_TYPE_ANNOUNCE:
+            dlog("SOS_MSG_TYPE_ANNOUNCE\n");
+            break;
+        case SOS_MSG_TYPE_REANNOUNCE:
+            dlog("SOS_MSG_TYPE_REANNOUNCE\n");
+            break;
+        case SOS_MSG_TYPE_VALUE:
+            dlog("SOS_MSG_TYPE_VALUE\n");
+            break;
+        case SOS_MSG_TYPE_ACKNOWLEDGE:
+            dlog("SOS_MSG_TYPE_ACKNOWLEDGE\n");
+            break;
+        case SOS_MSG_TYPE_SHUTDOWN:
+            dlog("SOS_MSG_TYPE_SHUTDOWN\n");
+            break;
+        default:
+            dlog("SOS_MSG_TYPE___UNKNOWN___\n");
+            break;
+        }
+
+        dlog(msg_data);
+
+
+
 
 
         
@@ -177,8 +216,8 @@ int main(int argc, char *argv[]) {
          *
          *        For now, just commit the recieved message to the log.
          */
-        
-        i = sendto( client_socket_fd, (void *) buffer, strlen( buffer ), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
+
+        i = sendto( client_socket_fd, (void *) msg_data, strlen(msg_data), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
         if (i == -1) { dlog("Error sending a response.\n"); dlog(strerror(errno)); }
 
         close( client_socket_fd );
@@ -313,90 +352,4 @@ void signal_handler(int signal) {
     }
 
 } //end: signal_handler
-
-
-
-/* *********************************************************************** */
-
-
-
-    /*
-     *  Fancy handlers global vars...
-
-    struct sigaction term_act;
-    struct sigaction ill_act;
-    struct sigaction abrt_act;
-    struct sigaction fpe_act;
-    struct sigaction segv_act;
-    struct sigaction bus_act;
-
-     *
-     */
-
-
-
-    /*
-     *  Fancy handlers registration...
-     *
-    struct sigaction act;
-    sigemptyset(&act.sa_mask);
-    act.sa_flags = 0;
-    act.sa_handler = signal_handler;
-    sigaction( SIGTERM, &act, &term_act);  
-    sigaction( SIGILL, &act, &ill_act);  
-    sigaction( SIGABRT, &act, &abrt_act);  
-    sigaction( SIGFPE, &act, &fpe_act);  
-    sigaction( SIGSEGV, &act, &segv_act);  
-    sigaction( SIGBUS, &act, &bus_act);  
-    */
-
-
-
-
-    /*
-     *  Fancy handler...
-     *
-     *
-
-    printf("\n");
-    printf("\n");
-    
-    void *trace[32];
-    size_t size, i;
-    char **strings;
-    
-    size    = backtrace( trace, 64 );
-    // overwrite sigaction with caller's address
-    //trace[1] = (void *)ctx.eip;
-    strings = backtrace_symbols( trace, size );
-    
-    printf("\n");
-    printf("BACKTRACE:");
-    printf("\n");
-    printf("\n");
-    
-    char exe[256];
-    int len = readlink("/proc/self/exe", exe, 256);
-    if (len != -1) {
-        exe[len] = '\0';
-    }
-    
-    for( i = 1; i < size; i++ ){
-        printf("%s\n", strings[i]);
-        char syscom[1024];
-        sprintf(syscom,"addr2line -f -e %s %p", exe, trace[i]);
-        system(syscom);
-    }
-    
-    printf("\n");
-    printf("***************************************");
-    printf("\n");
-    printf("\n");
-    fflush(stdout);
-    exit(99);
-
-    */
-    
-
-
 

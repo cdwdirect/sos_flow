@@ -77,18 +77,13 @@
 
 
 /**
- * Main Doxygen/Autotools integration example program.
+ * Command-line tool for interacting with the sos_flow system.
  *
  * @param argc  Number of command line options.
  * @param argv  The command line options.
  * @return      The exit status.
  */
 
-              
-int main(int argc, char *argv[]) {
-    SOS_pub   *pub;
-    SOS_data  *data;
-    int        i, j;
 
     /*
      *  //...template of this program:
@@ -103,24 +98,42 @@ int main(int argc, char *argv[]) {
      */
 
 
+
+              
+int main(int argc, char *argv[]) {
+    SOS_SET_WHOAMI(whoami, "sos_cmd.main");
+
+    SOS_pub   *pub;
+    SOS_data  *data;
+    int        i, j;
+
+    int        msg_out_len;
+    char      *msg_out;
+    char      *msg_reply;
+
     SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
 
+    msg_out   = (char *) malloc( sizeof(char) * SOS_DEFAULT_BUFFER_LEN );
+    msg_reply = (char *) malloc( sizeof(char) * SOS_DEFAULT_BUFFER_LEN );
+    memset(msg_out,   '\0', SOS_DEFAULT_BUFFER_LEN);
+    memset(msg_reply, '\0', SOS_DEFAULT_BUFFER_LEN);
 
-    /* TODO: { CMD } Don't exit immediately.  :)  At present this is to test SOS_init(...) */
+    sprintf(msg_out, "....----Hello, world!\n");
+    msg_out_len = strlen(msg_out);
+
+    for (i = 0; i < 10; i++) {
+        memcpy(msg_out, &i, sizeof(int));
+        memcpy((msg_out + sizeof(int)), &i, sizeof(int));
+
+        dlog(0, "[%s]: Attempting to send...\n", whoami);
+        SOS_send_to_daemon(msg_out, msg_out_len, msg_reply, SOS_DEFAULT_BUFFER_LEN);
+    }
 
     SOS_finalize();
     exit(0);
 
 
-
-
-
-
-
-
-
-
-
+    /* TODO: { CMD } Don't exit immediately.  :)  At present this is to test SOS_init(...) */
 
 
 
