@@ -41,9 +41,18 @@
         fflush(log_fptr);                                               \
     }
 
+void signal_handler(int signal);
 
 void daemon_init();
-void signal_handler(int signal);
+void daemon_setup_socket();
+void daemon_listen_loop();
+void daemon_handle_register(char *msg_data, int msg_size);
+void daemon_handle_announce(char *msg_data, int msg_size);
+void daemon_handle_publish(char *msg_data, int msg_size);
+void daemon_handle_echo(char *msg_data, int msg_size);
+void daemon_handle_shutdown(char *msg_data, int msg_size);
+
+
 
 
 /*--- Daemon management variables ---*/
@@ -72,13 +81,8 @@ socklen_t                 peer_addr_len;
 
 
 
-int main(int argc, char *argv[]) {
-    int i, elem, next_elem, byte_count;
-    char   *buffer;
-
-    int      msg_type;
-    int      msg_from;
-    char    *msg_data;
+int main(int argc, char *argv[])  {
+    int elem, next_elem;
 
     //SOS_init( argc, argv, SOS_ROLE_DAEMON );
 
@@ -112,10 +116,6 @@ int main(int argc, char *argv[]) {
 
     memset(&daemon_pid_str, '\0', 256);
 
-    daemon_init();
-    daemon_running = 1;
-     
-
     /* System logging initialize */
     setlogmask(LOG_UPTO(LOG_ERR));
     openlog(DAEMON_NAME, LOG_CONS | LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
@@ -125,9 +125,108 @@ int main(int argc, char *argv[]) {
 
 
 
-    /* ----- DAEMON CODE BEGINS HERE --------------------- */
+    daemon_init();
+    daemon_setup_socket();
+    daemon_listen_loop();
+
+
+
+    //SOS_finalize();
+  
+    //[cleanup]
+    dlog("Exiting main() beneath the infinite loop.\n");
+    closelog();
+    if (DAEMON_LOG) { fclose(log_fptr); }
+  
+    return(EXIT_SUCCESS);
+} //end: main()
+
+
+
+
+
+
+
+
+
+/* -------------------------------------------------- */
+void daemon_listen_loop() {
+    SOS_msg_header header;
+    int      i, byte_count;
+    char    *buffer;
 
     buffer = (char *) malloc(sizeof(char) * buffer_len);
+
+    dlog("Entering main loop.   while(daemon_running) { ... }\n");
+
+
+    while (daemon_running) {
+        memset(buffer, '\0', buffer_len);
+        peer_addr_len = sizeof(peer_addr);
+        client_socket_fd = accept(server_socket_fd, (struct sockaddr *) &peer_addr, &peer_addr_len);
+        i = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, client_host, NI_MAXHOST, client_port, NI_MAXSERV, NI_NUMERICSERV);
+        if (i == 0) { dlog("Received connection.\n"); } else { dlog("Error calling getnameinfo() on client connection.\n"); exit(1); }
+
+        byte_count = recvfrom( client_socket_fd, (void *) buffer, buffer_len, NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, &peer_addr_len );
+        printf("byte_count=%d    sizeof(header)=%d\n", byte_count, (int) sizeof(SOS_msg_header));
+
+        if (byte_count >= sizeof(SOS_msg_header)) {
+            memcpy(&header, buffer, sizeof(SOS_msg_header));
+        } else {
+            dlog("Recieved malformed message.  (Too short)\n");  continue;
+        }
+
+        switch (header.msg_type) {
+        case SOS_MSG_TYPE_REGISTER: daemon_handle_register (buffer, byte_count); break; 
+        case SOS_MSG_TYPE_ANNOUNCE: daemon_handle_announce (buffer, byte_count); break;
+        case SOS_MSG_TYPE_PUBLISH:  daemon_handle_publish  (buffer, byte_count); break;
+        case SOS_MSG_TYPE_ECHO:     daemon_handle_echo     (buffer, byte_count); break;
+        case SOS_MSG_TYPE_SHUTDOWN: daemon_handle_shutdown (buffer, byte_count); break;
+        default: dlog("SOS_MSG_TYPE___UNKNOWN___   (doing nothing)\n"); break;
+        }
+
+        close( client_socket_fd );
+        
+    }
+
+    free(buffer);
+   
+    return;
+}
+/* -------------------------------------------------- */
+
+
+
+
+void daemon_handle_echo(char *msg_data, int msg_size) { 
+    int i;
+    char *ptr = msg_data;
+    ptr += sizeof(SOS_msg_header);
+
+    i = sendto( client_socket_fd, (void *) ptr, (msg_size - sizeof(SOS_msg_header)), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
+    if (i == -1) { dlog("Error sending a response.\n"); dlog(strerror(errno)); }
+        
+    return;
+}
+
+
+
+
+void daemon_handle_register(char *msg_data, int msg_size) { return; }
+void daemon_handle_announce(char *msg_data, int msg_size) { return; }
+void daemon_handle_publish(char *msg_data, int msg_size)  { return; }
+void daemon_handle_shutdown(char *msg_data, int msg_size) { return; }
+
+
+
+
+
+
+
+
+
+void daemon_setup_socket() {
+    int i;
 
     memset(&server_hint, '\0', sizeof(struct addrinfo));
     server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
@@ -156,103 +255,10 @@ int main(int argc, char *argv[]) {
     listen( server_socket_fd, listen_backlog );
 
     dlog("Listening on socket.\n");
-    dlog("Entering the main loop.   while(daemon_running) { ... }\n");
 
-    while (daemon_running) { /* ========== */
-        memset(buffer, '\0', buffer_len);
-        
-        peer_addr_len = sizeof(peer_addr);
-        client_socket_fd = accept(server_socket_fd, (struct sockaddr *) &peer_addr, &peer_addr_len);
-
-        i = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, client_host, NI_MAXHOST, client_port, NI_MAXSERV, NI_NUMERICSERV);
-        if (i == 0) { dlog("Received connection.\n"); } else { dlog("Error calling getnameinfo() on client connection.\n"); exit(1); }
-
-        byte_count = recvfrom( client_socket_fd, (void *) buffer, buffer_len, NULL, (struct sockaddr *) &peer_addr, &peer_addr_len );
-        msg_data = buffer;
-
-        if (byte_count > (sizeof(int) * 2)) {
-            memcpy(&msg_type, msg_data, sizeof(int));  msg_data += sizeof(int);
-            memcpy(&msg_from, msg_data, sizeof(int));  msg_data += sizeof(int);
-        } else {
-            dlog("Recieved malformed message.  (Too short)\n");
-            continue;
-        }
-
-        switch (msg_type) {
-        case SOS_MSG_TYPE_REGISTER:
-            dlog("SOS_MSG_TYPE_REGISTER\n");
-            break;
-        case SOS_MSG_TYPE_ANNOUNCE:
-            dlog("SOS_MSG_TYPE_ANNOUNCE\n");
-            break;
-        case SOS_MSG_TYPE_REANNOUNCE:
-            dlog("SOS_MSG_TYPE_REANNOUNCE\n");
-            break;
-        case SOS_MSG_TYPE_VALUE:
-            dlog("SOS_MSG_TYPE_VALUE\n");
-            break;
-        case SOS_MSG_TYPE_ACKNOWLEDGE:
-            dlog("SOS_MSG_TYPE_ACKNOWLEDGE\n");
-            break;
-        case SOS_MSG_TYPE_SHUTDOWN:
-            dlog("SOS_MSG_TYPE_SHUTDOWN\n");
-            break;
-        default:
-            dlog("SOS_MSG_TYPE___UNKNOWN___\n");
-            break;
-        }
-
-        dlog(msg_data);
-
-
-
-
-
-        
-        /*
-         *  TODO: { CHAD, CACHE, DB } This is where we will add the commit to a
-         *        local store, and where we will come in later with sync signal
-         *        to dirty the store (perhaps).
-         *
-         *        For now, just commit the recieved message to the log.
-         */
-
-        i = sendto( client_socket_fd, (void *) msg_data, strlen(msg_data), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
-        if (i == -1) { dlog("Error sending a response.\n"); dlog(strerror(errno)); }
-
-        close( client_socket_fd );
-        
-    } /* ========== */
-
-    free(buffer);
-   
-    /* -------------------------------------------------- */
-
-
-    //SOS_finalize();
-  
-    //[cleanup]
-    dlog("Exiting main() beneath the infinite loop.\n");
-    closelog();
-    if (DAEMON_LOG) { fclose(log_fptr); }
-  
-    return(EXIT_SUCCESS);
-} //end: main()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-    
+    return;
+}
+ 
 
 
 void daemon_init() {
@@ -322,7 +328,7 @@ void daemon_init() {
     signal(SIGHUP, signal_handler);
     signal(SIGTERM, signal_handler);
 
-
+    daemon_running = 1;
     return;
 } //end: daemon_init
 

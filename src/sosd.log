@@ -1,38 +1,8 @@
-[sosd:31793 @ 1440457105.025850] Daemon logging is on-line.
-[sosd:31793 @ 1440457105.026004] Trying an address...
-[sosd:31793 @ 1440457105.026022]    ...got a socket, and bound to it!
-[sosd:31793 @ 1440457105.026034] Listening on socket.
-[sosd:31793 @ 1440457105.026040] Entering the main loop.   while(daemon_running) { ... }
-[sosd:31793 @ 1440457108.805000] Received connection.
-[sosd:31793 @ 1440457108.805535] SOS_MSG_TYPE_REGISTER
-[sosd:31793 @ 1440457108.805564] 
-[sosd:31793 @ 1440457108.806960] Received connection.
-[sosd:31793 @ 1440457108.806992] SOS_MSG_TYPE_REGISTER
-[sosd:31793 @ 1440457108.807011] Hello, world!
-[sosd:31793 @ 1440457108.807294] Received connection.
-[sosd:31793 @ 1440457108.807323] SOS_MSG_TYPE_ANNOUNCE
-[sosd:31793 @ 1440457108.807343] Hello, world!
-[sosd:31793 @ 1440457108.807626] Received connection.
-[sosd:31793 @ 1440457108.807654] SOS_MSG_TYPE_REANNOUNCE
-[sosd:31793 @ 1440457108.807676] Hello, world!
-[sosd:31793 @ 1440457108.807899] Received connection.
-[sosd:31793 @ 1440457108.807913] SOS_MSG_TYPE_VALUE
-[sosd:31793 @ 1440457108.807918] Hello, world!
-[sosd:31793 @ 1440457108.808079] Received connection.
-[sosd:31793 @ 1440457108.808090] SOS_MSG_TYPE_ACKNOWLEDGE
-[sosd:31793 @ 1440457108.808094] Hello, world!
-[sosd:31793 @ 1440457108.808250] Received connection.
-[sosd:31793 @ 1440457108.808257] SOS_MSG_TYPE_SHUTDOWN
-[sosd:31793 @ 1440457108.808261] Hello, world!
-[sosd:31793 @ 1440457108.808419] Received connection.
-[sosd:31793 @ 1440457108.808427] SOS_MSG_TYPE___UNKNOWN___
-[sosd:31793 @ 1440457108.808431] Hello, world!
-[sosd:31793 @ 1440457108.808520] Received connection.
-[sosd:31793 @ 1440457108.808527] SOS_MSG_TYPE___UNKNOWN___
-[sosd:31793 @ 1440457108.808531] Hello, world!
-[sosd:31793 @ 1440457108.808616] Received connection.
-[sosd:31793 @ 1440457108.808623] SOS_MSG_TYPE___UNKNOWN___
-[sosd:31793 @ 1440457108.808627] Hello, world!
-[sosd:31793 @ 1440457108.808711] Received connection.
-[sosd:31793 @ 1440457108.808718] SOS_MSG_TYPE___UNKNOWN___
-[sosd:31793 @ 1440457108.808722] Hello, world!
+[sosd: @ 1440807509.836698] Daemon logging is on-line.
+[sosd:30637 @ 1440807509.837031] Trying an address...
+[sosd:30637 @ 1440807509.837053]    ...got a socket, and bound to it!
+[sosd:30637 @ 1440807509.837065] Listening on socket.
+[sosd:30637 @ 1440807509.837072] Entering main loop.   while(daemon_running) { ... }
+[sosd:30637 @ 1440807515.222007] Received connection.
+[sosd:30637 @ 1440807515.222287] Recieved malformed message.  (Too short)
+[sosd:30637 @ 1440884568.381657] Caught SIGTERM, shutting down.

@@ -35,18 +35,13 @@
     {                                                                   \
         memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
         switch (SOS.role) {                                             \
-        case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
-        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
-        case SOS_ROLE_LEADER    : sprintf(__SOS_var_name, "leader(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
-        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%s).%s", SOS.client_id, __SOS_str_func ); break; \
-        default            : sprintf(__SOS_var_name, "------(%s).%s",  SOS.client_id, __SOS_str_func ); break; \
+        case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_LEADER    : sprintf(__SOS_var_name, "leader(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%ld).%s", SOS.my_guid, __SOS_str_func ); break; \
+        default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
         }                                                               \
     }
-
-/* NOTE: The __SOS_tmp_str is not implicitly thread-safe: Use TLS for the ptr. */
-#define SOS_STR_COPY_OF(__SOS_src_str, __SOS_tmp_str)                   \
-    __SOS_tmp_str = malloc( 1 + ( sizeof(char) * strlen(__SOS_src_str)) ); \
-    strcpy( __SOS_tmp_str, __SOS_src_str );                             
 
 
 #define SOS_DEFAULT_SERVER_HOST    "localhost"
@@ -79,9 +74,8 @@ typedef enum SOS_status {
 typedef enum SOS_msg_type {
     SOS_MSG_TYPE_REGISTER,    /*!< When an SOS_CLIENT comes online, it identifies itself to the daemon. */
     SOS_MSG_TYPE_ANNOUNCE,    /*!< A new value is being tracked, which triggers the return of a GUID for it */
-    SOS_MSG_TYPE_REANNOUNCE,  /*!< Some metadata about a value has changed or new values have been added to a SOS_pub handle */
-    SOS_MSG_TYPE_VALUE,       /*!< An update to a previously announced value */
-    SOS_MSG_TYPE_ACKNOWLEDGE, /*!< A quick acknowledgement of receipt */
+    SOS_MSG_TYPE_PUBLISH,     /*!< An update to a previously announced value */
+    SOS_MSG_TYPE_ECHO,        /*!< A quick acknowledgement, echo of msg, good for latency test or keepalive */
     SOS_MSG_TYPE_SHUTDOWN     /*!< Trigger shutdown procedures */
 } SOS_msg_type;
 
@@ -230,6 +224,11 @@ typedef struct {
     int                 buffer_len;
 } SOS_socket_set;
 
+typedef struct {                              /* no pointers, headers get used raw */
+    SOS_msg_type   msg_type;
+    long           my_guid;
+} SOS_msg_header;
+
 typedef struct {
     int               argc;
     char            **argv;
@@ -277,7 +276,7 @@ typedef struct {
     SOS_task_set     task;
     SOS_socket_set   net;
     pthread_mutex_t  global_lock;
-    char            *client_id;
+    long             my_guid;
 } SOS_runtime;
 
 
@@ -383,12 +382,15 @@ extern "C" {
     void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
 
     SOS_pub* SOS_new_pub(char *pub_name);
-    SOS_pub* SOS_new_post(char *pub_name);    /* A 'post' is a pub w/1 data element. */
+    SOS_pub* SOS_new_post(char *pub_name);
+    SOS_pub* SOS_new_pub_sized(char *title, int new_size);
+
+    void SOS_announce( SOS_pub *pub );
+    void SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
 
 
     /*
      *  Functions that have not yet been ported to SOS_FLOW structure...
-     *
      */
     
     void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_len );
@@ -404,12 +406,10 @@ extern "C" {
 
     void SOS_display_pub(SOS_pub *pub, FILE *output_to);
     
-    void SOS_announce( SOS_pub *pub );
 
     void SOS_publish( SOS_pub *pub );
-    void SOS_publish_immediately( SOS_pub *pub );
+    void SOS_publish_immediately( SOS_pub *pub );    /* Do we want this? */
 
-    void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int max_reply_size );
 
     void SOS_unannounce( SOS_pub *pub );
 

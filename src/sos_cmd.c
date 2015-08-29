@@ -103,6 +103,7 @@
 int main(int argc, char *argv[]) {
     SOS_SET_WHOAMI(whoami, "sos_cmd.main");
 
+    SOS_msg_header header;
     SOS_pub   *pub;
     SOS_data  *data;
     int        i, j;
@@ -117,15 +118,20 @@ int main(int argc, char *argv[]) {
     msg_reply = (char *) malloc( sizeof(char) * SOS_DEFAULT_BUFFER_LEN );
     memset(msg_out,   '\0', SOS_DEFAULT_BUFFER_LEN);
     memset(msg_reply, '\0', SOS_DEFAULT_BUFFER_LEN);
+    memset(&header,   '\0', sizeof(SOS_msg_header));
 
-    sprintf(msg_out, "....----Hello, world!\n");
+    sprintf(msg_out, "....----xxxx^^^^Hello, world!\n");
     msg_out_len = strlen(msg_out);
 
     for (i = 0; i < 10; i++) {
-        memcpy(msg_out, &i, sizeof(int));
-        memcpy((msg_out + sizeof(int)), &i, sizeof(int));
+        header.msg_type = i;
+        header.my_guid  = i;
+
+        memcpy(msg_out, &header, sizeof(SOS_msg_header));
 
         dlog(0, "[%s]: Attempting to send...\n", whoami);
+        printf("sending %d bytes...\n", msg_out_len);
+
         SOS_send_to_daemon(msg_out, msg_out_len, msg_reply, SOS_DEFAULT_BUFFER_LEN);
     }
 
