@@ -1,18 +1,48 @@
-[sosd: @ 1440892526.540273] Daemon logging is on-line.
-[sosd:5627 @ 1440892526.541040] Trying an address...
-[sosd:5627 @ 1440892526.541092]    ...got a socket, and bound to it!
-[sosd:5627 @ 1440892526.541108] Listening on socket.
-[sosd:5627 @ 1440892526.541115] Entering main loop.   while(daemon_running) { ... }
-[sosd:5627 @ 1440892530.743419] Received connection.
-[sosd:5627 @ 1440892530.744051] header.msg_type = SOS_MSG_TYPE_REGISTER
-[sosd:5627 @ 1440892530.746564] Received connection.
-[sosd:5627 @ 1440892530.746615] header.msg_type = SOS_MSG_TYPE_REGISTER
-[sosd:5627 @ 1440892530.747017] Received connection.
-[sosd:5627 @ 1440892530.747054] header.msg_type = SOS_MSG_TYPE_ANNOUNCE
-[sosd:5627 @ 1440892530.747552] Received connection.
-[sosd:5627 @ 1440892530.747596] header.msg_type = SOS_MSG_TYPE_PUBLISH
-[sosd:5627 @ 1440892530.748049] Received connection.
-[sosd:5627 @ 1440892530.748076] header.msg_type = SOS_MSG_TYPE_ECHO
-[sosd:5627 @ 1440892530.748511] Received connection.
-[sosd:5627 @ 1440892530.748541] header.msg_type = SOS_MSG_TYPE_SHUTDOWN
-[sosd:5627 @ 1440892530.748572] Exiting main() beneath the infinite loop.
+[client(0).main]: Returned from SOS_init();
+[client(0).main]: Calling daemon_init()...
+[client(0).main]: Calling daemon_setup_socket()...
+[client(0).daemon_setup_socket]: Trying an address...
+[client(0).daemon_setup_socket]:   ...got a socket, and bound to it!
+[client(0).daemon_setup_socket]: Listening on socket.
+[client(0).main]: Calling daemon_listen_loop()...
+[client(0).daemon_listen_loop]: Entering main loop.   while(daemon_running) { ... }
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
+[client(0).daemon_listen_loop]: Received connection.
+[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO

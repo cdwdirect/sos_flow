@@ -21,25 +21,24 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#define DAEMON_LOG     1
+
 #include "sos.h"
-
-
-#define DEBUG    1
+#include "sos_debug.h"
 
 #define USAGE "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
 #define DAEMON_NAME    "sosd"
 #define DEFAULT_DIR    "/tmp"
 #define LOCK_FILE      "sosd.lock"
 #define LOG_FILE       "sosd.log"
-#define DAEMON_LOG     1
-#define GET_TIME(now)  { struct timeval t; gettimeofday(&t, NULL); now = t.tv_sec + t.tv_usec/1000000.0; }
-#define dlog(msg)                                                       \
-    if (DAEMON_LOG) {                                                   \
-        GET_TIME(time_now);                                             \
-        fprintf(log_fptr, "[%s:%s @ %f] %s",                            \
-                DAEMON_NAME, daemon_pid_str, time_now, msg);            \
+
+#define dlog(level, ...);                                               \
+    if (SOS_DEBUG >= level && DAEMON_LOG) {                             \
+        fprintf(log_fptr, __VA_ARGS__);                                 \
         fflush(log_fptr);                                               \
     }
+
+#define GET_TIME(now)  { struct timeval t; gettimeofday(&t, NULL); now = t.tv_sec + t.tv_usec/1000000.0; }
 
 void signal_handler(int signal);
 
@@ -80,11 +79,9 @@ struct sockaddr_storage   peer_addr;
 socklen_t                 peer_addr_len;
 
 
-
 int main(int argc, char *argv[])  {
     int elem, next_elem;
 
-    SOS_init( argc, argv, SOS_ROLE_DAEMON );
     WORK_DIR = &DEFAULT_DIR;
 
     /*
@@ -120,18 +117,23 @@ int main(int argc, char *argv[])  {
     openlog(DAEMON_NAME, LOG_CONS | LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
     syslog(LOG_INFO, "Starting daemon: %s", DAEMON_NAME);
     if (DAEMON_LOG) { log_fptr = fopen(LOG_FILE, "w"); }
-    dlog("Daemon logging is on-line.\n");
 
+    printf("Calling SOS_init...\n");
+    SOS_init( &argc, &argv, SOS_ROLE_DAEMON );
+    SOS_SET_WHOAMI(whoami, "main");
+    dlog(0, "[%s]: Returned from SOS_init();\n", whoami);
 
-
+    dlog(0, "[%s]: Calling daemon_init()...\n", whoami);
     daemon_init();
+    dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
     daemon_setup_socket();
+    dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
     daemon_listen_loop();
 
   
     //[cleanup]
     SOS_finalize();
-    dlog("Exiting main() beneath the infinite loop.\n");
+    dlog(0, "[%s]: Exiting main() beneath the infinite loop.\n", whoami);
     closelog();
     if (DAEMON_LOG) { fclose(log_fptr); }
   
@@ -148,13 +150,15 @@ int main(int argc, char *argv[])  {
 
 /* -------------------------------------------------- */
 void daemon_listen_loop() {
+    SOS_SET_WHOAMI(whoami, "daemon_listen_loop");
+    
     SOS_msg_header header;
     int      i, byte_count;
     char    *buffer;
 
     buffer = (char *) malloc(sizeof(char) * buffer_len);
 
-    dlog("Entering main loop.   while(daemon_running) { ... }\n");
+    dlog(0, "[%s]: Entering main loop.   while(daemon_running) { ... }\n", whoami);
 
 
     while (daemon_running) {
@@ -162,15 +166,14 @@ void daemon_listen_loop() {
         peer_addr_len = sizeof(peer_addr);
         client_socket_fd = accept(server_socket_fd, (struct sockaddr *) &peer_addr, &peer_addr_len);
         i = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, client_host, NI_MAXHOST, client_port, NI_MAXSERV, NI_NUMERICSERV);
-        if (i == 0) { dlog("Received connection.\n"); } else { dlog("Error calling getnameinfo() on client connection.\n"); exit(1); }
+        if (i == 0) { dlog(5, "[%s]: Received connection.\n", whoami); } else { dlog(0, "[%s]: Error calling getnameinfo() on client connection.\n", whoami); exit(1); }
 
         byte_count = recvfrom( client_socket_fd, (void *) buffer, buffer_len, NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, &peer_addr_len );
-        printf("byte_count=%d    sizeof(header)=%d\n", byte_count, (int) sizeof(SOS_msg_header));
 
         if (byte_count >= sizeof(SOS_msg_header)) {
             memcpy(&header, buffer, sizeof(SOS_msg_header));
         } else {
-            dlog("Recieved malformed message.  (Too short)\n");  continue;
+            dlog(0, "[%s]: Recieved malformed message.  (Too short)\n", whoami);  continue;
         }
 
         switch (header.msg_type) {
@@ -179,7 +182,7 @@ void daemon_listen_loop() {
         case SOS_MSG_TYPE_PUBLISH:  daemon_handle_publish  (buffer, byte_count); break;
         case SOS_MSG_TYPE_ECHO:     daemon_handle_echo     (buffer, byte_count); break;
         case SOS_MSG_TYPE_SHUTDOWN: daemon_handle_shutdown (buffer, byte_count); break;
-        default: dlog("SOS_MSG_TYPE___UNKNOWN___   (doing nothing)\n"); break;
+        default: dlog(1, "[%s]: SOS_MSG_TYPE___UNKNOWN___   (doing nothing)\n", whoami); break;
         }
 
         close( client_socket_fd );
@@ -196,14 +199,15 @@ void daemon_listen_loop() {
 
 
 void daemon_handle_echo(char *msg, int msg_size) { 
+    SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
     SOS_msg_header header;
     int ptr = 0;
     int i   = 0;
 
-    dlog("header.msg_type = SOS_MSG_TYPE_ECHO\n");
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ECHO\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     i = sendto( client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
-    if (i == -1) { dlog("Error sending a response.\n"); dlog(strerror(errno)); }
+    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         
     return;
 }
@@ -216,7 +220,7 @@ void daemon_handle_register(char *msg, int msg_size) {
     int ptr = 0;
     int i   = 0;
 
-    dlog("header.msg_type = SOS_MSG_TYPE_REGISTER\n");
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
     return;
@@ -230,7 +234,7 @@ void daemon_handle_announce(char *msg, int msg_size) {
     int ptr = 0;
     int i   = 0;
 
-    dlog("header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n");
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     return;
 }
@@ -243,7 +247,7 @@ void daemon_handle_publish(char *msg, int msg_size)  {
     int ptr = 0;
     int i   = 0;
 
-    dlog("header.msg_type = SOS_MSG_TYPE_PUBLISH\n");
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     return;
 }
@@ -256,8 +260,13 @@ void daemon_handle_shutdown(char *msg, int msg_size) {
     int ptr = 0;
     int i   = 0;
 
-    dlog("header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
+    dlog(1, "[%s]: header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    char response[] = "SOS daemon is shutting down.";
+    
+    i = sendto( client_socket_fd, (void *) response, strlen(response), NULL, NULL, NULL);
+    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
 
     daemon_running = 0;
 
@@ -276,6 +285,7 @@ void daemon_handle_shutdown(char *msg, int msg_size) {
 
 
 void daemon_setup_socket() {
+    SOS_SET_WHOAMI(whoami, "daemon_setup_socket");
     int i;
 
     memset(&server_hint, '\0', sizeof(struct addrinfo));
@@ -288,23 +298,23 @@ void daemon_setup_socket() {
     server_hint.ai_next       = NULL;
 
     i = getaddrinfo(NULL, server_port, &server_hint, &result);
-    if (i != 0) { dlog("Error!  getaddrinfo() failed. Exiting daemon.\n"); exit(EXIT_FAILURE); }
+    if (i != 0) { dlog(0, "[%s]: Error!  getaddrinfo() failed. Exiting daemon.\n", whoami); exit(EXIT_FAILURE); }
 
     for ( server_addr = result ; server_addr != NULL ; server_addr = server_addr->ai_next ) {
-        dlog("Trying an address...\n");
+        dlog(1, "[%s]: Trying an address...\n", whoami);
         server_socket_fd = socket(server_addr->ai_family, server_addr->ai_socktype, server_addr->ai_protocol );
-        if ( server_socket_fd == -1 ) { dlog("   ...failed to get a socket.\n"); continue; }
+        if ( server_socket_fd == -1 ) { dlog(0, "[%s]:   ...failed to get a socket.\n", whoami); continue; }
         if ( bind( server_socket_fd, server_addr->ai_addr, server_addr->ai_addrlen ) == 0 ) break; /* success */
         close( server_socket_fd );
     }
 
-    dlog("   ...got a socket, and bound to it!\n");
-    if ( server_socket_fd == NULL ) { dlog("   ...got a socket but could not bind.\n"); exit(EXIT_FAILURE); }
+    dlog(0, "[%s]:   ...got a socket, and bound to it!\n", whoami);
+    if ( server_socket_fd == NULL ) { dlog(0, "[%s]:   ...got a socket but could not bind.\n", whoami); exit(EXIT_FAILURE); }
     freeaddrinfo(result);
 
     listen( server_socket_fd, listen_backlog );
 
-    dlog("Listening on socket.\n");
+    dlog(0, "[%s]: Listening on socket.\n", whoami);
 
     return;
 }
@@ -312,6 +322,7 @@ void daemon_setup_socket() {
 
 
 void daemon_init() {
+    SOS_SET_WHOAMI(whoami, "daemon_init");
     pid_t pid, sid;
 
     /* [fork]
@@ -385,6 +396,8 @@ void daemon_init() {
 
 
 void signal_handler(int signal) {
+    SOS_SET_WHOAMI(whoami, "signal_handler");
+
     switch (signal) {
     case SIGHUP:
         syslog(LOG_DEBUG, "SIGHUP signal caught.");
@@ -400,7 +413,7 @@ void signal_handler(int signal) {
         syslog(LOG_DEBUG, "SIGTERM signal caught.");
         syslog(LOG_INFO, "Shutting down.\n");
         closelog();
-        dlog("Caught SIGTERM, shutting down.\n");
+        dlog(0, "Caught SIGTERM, shutting down.\n", whoami);
         if (DAEMON_LOG) { fclose(log_fptr); }
         exit(EXIT_SUCCESS);
         break;

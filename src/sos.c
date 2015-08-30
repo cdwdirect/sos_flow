@@ -51,14 +51,48 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     char buffer[SOS_DEFAULT_BUFFER_LEN];
     int i, n, retval, server_socket_fd;
 
-    SOS.status = SOS_STATUS_INIT;
     SOS.role = role;
-
+    SOS.status = SOS_STATUS_INIT;
     SOS_SET_WHOAMI(whoami, "SOS_init");
-    dlog(2, "[%s]: Initializing SOS...\n", whoami);
 
+    dlog(2, "[%s]: Initializing SOS...\n", whoami);
+    dlog(2, "[%s]:   ... setting argc / argv\n", whoami);
+    SOS.config.argc = *argc;
+    SOS.config.argv = *argv;
+
+    dlog(2, "[%s]:   ... allocating uid sets\n", whoami);
+    SOS.uid.pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid.sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    SOS.uid.seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
+    
+    dlog(2, "[%s]:   ... setting defaults for uid sets and initializing mutexes.\n", whoami);
+    SOS.uid.pub->next = SOS.uid.sub->next = SOS.uid.seq->next = 0;
+    SOS.uid.pub->last = SOS.uid.sub->last = SOS.uid.seq->last = SOS_DEFAULT_UID_MAX;
+    pthread_mutex_init( &(SOS.uid.pub->lock), NULL );
+    pthread_mutex_init( &(SOS.uid.sub->lock), NULL );
+    pthread_mutex_init( &(SOS.uid.seq->lock), NULL );
+
+    dlog(2, "[%s]:   ... configuring data rings.\n", whoami);
+    SOS.ring.send.read_pos = SOS.ring.send.write_pos = 0;
+    SOS.ring.recv.read_pos = SOS.ring.recv.write_pos = 0;
+    SOS.ring.send.size = SOS_DEFAULT_RING_SIZE;
+    SOS.ring.recv.size = SOS_DEFAULT_RING_SIZE;
+    SOS.ring.send.bytes = ( SOS.ring.send.size * sizeof(void *) );
+    SOS.ring.recv.bytes = ( SOS.ring.recv.size * sizeof(void *) );
+    SOS.ring.send.heap = (void **) malloc( SOS.ring.send.bytes );
+    SOS.ring.recv.heap = (void **) malloc( SOS.ring.recv.bytes );
+    memset( SOS.ring.send.heap, '\0', SOS.ring.send.bytes ); 
+    memset( SOS.ring.recv.heap, '\0', SOS.ring.recv.bytes );
+    pthread_mutex_init( &(SOS.ring.send.lock), NULL );
+    pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
+
+    dlog(2, "[%s]:   ... launching data migration threads.\n", whoami);
+    pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
+    pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
+    pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
 
     if (SOS.role == SOS_ROLE_CLIENT || SOS.role == SOS_ROLE_CONTROL) {
+        dlog(2, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
         /*
          *
          *  NETWORK CONFIGURATION: CLIENT / CONTROL
@@ -99,7 +133,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          *       from the daemon, such as our (GUID) client_id.
          */ 
 
-        dlog(2, "[%s]: Connecting to SOS...   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
+        dlog(2, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.my_guid  = 0;
         memcpy(buffer, &header, sizeof(SOS_msg_header));
@@ -109,7 +143,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
 
         retval = recvfrom( server_socket_fd, buffer, (SOS_DEFAULT_BUFFER_LEN - 1), NULL, NULL, NULL );
-        dlog(2, "[%s]: Server responded: %s\n", whoami, buffer);
+        dlog(2, "[%s]:   ... server responded: %s\n", whoami, buffer);
+        dlog(2, "[%s]:   ... determining my guid   ", whoami);
+        SOS.my_guid = 0;
+        dlog(2, "(%ld)\n", SOS.my_guid);
+
         close( server_socket_fd );
         
     } else {
@@ -119,49 +157,13 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          *
          */
 
-        printf("STARTING UP SOS in DAEMON mode!\n");
+        dlog(0, "[%s]:   ... skipping socket setup (becase we're the daemon).\n", whoami);
         
         /* TODO:{ INIT } EVPATH setup code goes here. */
 
     }
 
-    SOS.config.argc = *argc;
-    SOS.config.argv = *argv;
-
-    SOS.uid.pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    SOS.uid.sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    SOS.uid.seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    
-    SOS.uid.pub->next = SOS.uid.sub->next = SOS.uid.seq->next = 0;
-    SOS.uid.pub->last = SOS.uid.sub->last = SOS.uid.seq->last = SOS_DEFAULT_UID_MAX;
-    pthread_mutex_init( &(SOS.uid.pub->lock), NULL );
-    pthread_mutex_init( &(SOS.uid.sub->lock), NULL );
-    pthread_mutex_init( &(SOS.uid.seq->lock), NULL );
-
-    SOS.ring.send.read_pos = SOS.ring.send.write_pos = 0;
-    SOS.ring.recv.read_pos = SOS.ring.recv.write_pos = 0;
-    SOS.ring.send.size = SOS_DEFAULT_RING_SIZE;
-    SOS.ring.recv.size = SOS_DEFAULT_RING_SIZE;
-    SOS.ring.send.bytes = ( SOS.ring.send.size * sizeof(void *) );
-    SOS.ring.recv.bytes = ( SOS.ring.recv.size * sizeof(void *) );
-    SOS.ring.send.heap = (void **) malloc( SOS.ring.send.bytes );
-    SOS.ring.recv.heap = (void **) malloc( SOS.ring.recv.bytes );
-    memset( SOS.ring.send.heap, '\0', SOS.ring.send.bytes ); 
-    memset( SOS.ring.recv.heap, '\0', SOS.ring.recv.bytes );
-    pthread_mutex_init( &(SOS.ring.send.lock), NULL );
-    pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
-
-    /* TODO:{ CHAD, INIT }  Determine whether or not to start these threads for DAEMON... */
-
-    if (SOS.role == SOS_ROLE_CLIENT) {
-        pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
-        pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
-        pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
-    }
-    
-    SOS.my_guid = 0;
-
-
+    dlog(2, "[%s]: Done!  Returning.\n", whoami);
     return;
 }
 
@@ -175,7 +177,7 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
     int retval;
 
     retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
-    if ( retval < 0 ) { dlog(0, "[%s]: Error attempting to locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
+    if ( retval < 0 ) { dlog(0, "[%s]: ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
     
     /* Iterate the possible connections and register with the SOS daemon: */
     for ( SOS.net.server_addr = SOS.net.result_list ; SOS.net.server_addr != NULL ; SOS.net.server_addr = SOS.net.server_addr->ai_next ) {
@@ -192,14 +194,12 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
         exit(1);  /* TODO:{ COMM }  Make this a loop that tries X times to connect, doesn't crash app. */
     }
 
-    printf("sending %d bytes...\n", msg_len); fflush(stdout);
-
     retval = sendto(server_socket_fd, msg, msg_len, NULL, NULL, NULL );
     if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
 
     retval = recvfrom(server_socket_fd, reply, reply_len, NULL, NULL, NULL );
     if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
-    else { dlog(2, "[%s]: Server replied with: %s\n", whoami, reply); }
+    else { dlog(2, "[%s]: Server sent a (%d) byte reply: %s\n", whoami, retval, reply); }
 
     close( server_socket_fd );
 
@@ -212,27 +212,28 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
 void SOS_finalize() {
     SOS_SET_WHOAMI(whoami, "SOS_finalize");
     
-    if (SOS.role == SOS_ROLE_CLIENT) {
-        /* This will 'notify' any SOS threads to break out of their loops. */
-        SOS.status = SOS_STATUS_SHUTDOWN;
-        
-        pthread_join( &SOS.task.post, NULL );
-        pthread_join( &SOS.task.read, NULL );
-        pthread_join( &SOS.task.scan, NULL );
-        
-        freeaddrinfo( SOS.net.server_addr );
-    }
+    /* This will 'notify' any SOS threads to break out of their loops. */
+    dlog(0, "[%s]: SOS.status = SOS_STATUS_SHUTDOWN\n", whoami);
+    SOS.status = SOS_STATUS_SHUTDOWN;
 
+    dlog(0, "[%s]: Joining threads...\n", whoami);
+    pthread_join( &SOS.task.post, NULL );
+    pthread_join( &SOS.task.read, NULL );
+    pthread_join( &SOS.task.scan, NULL );
+
+    dlog(0, "[%s]: Destroying mutexes...\n", whoami);
     pthread_mutex_destroy( &SOS.ring.send.lock  );
     pthread_mutex_destroy( &SOS.ring.recv.lock  );
     pthread_mutex_destroy( &(SOS.uid.pub->lock) );
     pthread_mutex_destroy( &(SOS.uid.sub->lock) );
     pthread_mutex_destroy( &(SOS.uid.seq->lock) );
     pthread_mutex_destroy( &SOS.global_lock     );
-    
+
+    dlog(0, "[%s]: Freeing data ring heaps...\n", whoami);
     free( SOS.ring.send.heap );
     free( SOS.ring.recv.heap );
 
+    dlog(0, "[%s]: Done!\n", whoami);
     return;
 }
 

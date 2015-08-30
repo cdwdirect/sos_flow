@@ -108,13 +108,15 @@ int main(int argc, char *argv[]) {
     sprintf(msg_out, "...|...|...|...|Hello, world!");
     msg_out_len = strlen(msg_out);
 
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < SOS_MSG_TYPE_SHUTDOWN; i++) {
         header.msg_type = i;
         header.my_guid  = i;
-
         memcpy(msg_out, &header, sizeof(SOS_msg_header));
-        dlog(0, "[%s]: Attempting to send...\n", whoami);
+
+        memset(msg_reply, '\0', SOS_DEFAULT_BUFFER_LEN);
+
         SOS_send_to_daemon(msg_out, msg_out_len, msg_reply, SOS_DEFAULT_BUFFER_LEN);
+        
     }
 
     SOS_finalize();

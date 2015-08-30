@@ -30,7 +30,11 @@
 /* Set the behavior of the debugging macros: */
 
     /* Simple debug output, no locking: */
-    #define dlog(level, ...); if (   (SOS_DEBUG >= level) && SOS.role != SOS_ROLE_DAEMON ) { printf(__VA_ARGS__); fflush(stdout); }
+    #define dlog(level, ...);                                           \
+    if (SOS_DEBUG >= level && SOS.role != SOS_ROLE_DAEMON) {            \
+        printf(__VA_ARGS__);                                            \
+    }
+
 
 #endif //DEBUG
 
