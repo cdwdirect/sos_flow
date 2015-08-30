@@ -16,7 +16,7 @@ bin_PROGRAMS                = demo_app     sosd     sos_cmd
 #    (daemon)
 #
 sosd_SOURCES                = sosd.c
-sosd_CFLAGS                 =
+sosd_CFLAGS                 = -g
 sosd_LDFLAGS                = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 
@@ -25,7 +25,7 @@ sosd_LDFLAGS                = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 #    (command line tool)
 #
 sos_cmd_SOURCES             = sos_cmd.c
-sos_cmd_CFLAGS              =
+sos_cmd_CFLAGS              = -g
 sos_cmd_LDFLAGS             = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 
@@ -34,7 +34,7 @@ sos_cmd_LDFLAGS             = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 #    (example of use)
 #
 demo_app_SOURCES            = demo_app.c
-demo_app_CFLAGS             =
+demo_app_CFLAGS             = -g
 demo_app_LDFLAGS            = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 

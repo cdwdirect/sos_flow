@@ -47,6 +47,7 @@ void       SOS_expand_data(SOS_pub *pub);
 
 //SOS_FLOW - ready
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
+    SOS_msg_header header;
     char buffer[SOS_DEFAULT_BUFFER_LEN];
     int i, n, retval, server_socket_fd;
 
@@ -99,14 +100,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          */ 
 
         dlog(2, "[%s]: Connecting to SOS...   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
-        snprintf(buffer, SOS_DEFAULT_BUFFER_LEN, "....____\n");
-        n = strlen(buffer);
-        i = (int) SOS_MSG_TYPE_REGISTER;
-        printf("\n i = %d\n", i);
-        memcpy(buffer, &i, sizeof(int));
-        memcpy((buffer + sizeof(int)), &i, sizeof(int));
-
-        retval = sendto( server_socket_fd, buffer, n, NULL, NULL, NULL );
+        header.msg_type = SOS_MSG_TYPE_REGISTER;
+        header.my_guid  = 0;
+        memcpy(buffer, &header, sizeof(SOS_msg_header));
+        
+        retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), NULL, NULL, NULL );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
 
@@ -121,6 +119,8 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          *
          */
 
+        printf("STARTING UP SOS in DAEMON mode!\n");
+        
         /* TODO:{ INIT } EVPATH setup code goes here. */
 
     }
@@ -153,10 +153,12 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
     /* TODO:{ CHAD, INIT }  Determine whether or not to start these threads for DAEMON... */
 
-    pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
-    pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
-    pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
-
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
+        pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
+        pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
+    }
+    
     SOS.my_guid = 0;
 
 
@@ -210,7 +212,7 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
 void SOS_finalize() {
     SOS_SET_WHOAMI(whoami, "SOS_finalize");
     
-    if (SOS.role = SOS_ROLE_CLIENT) {
+    if (SOS.role == SOS_ROLE_CLIENT) {
         /* This will 'notify' any SOS threads to break out of their loops. */
         SOS.status = SOS_STATUS_SHUTDOWN;
         
@@ -218,19 +220,19 @@ void SOS_finalize() {
         pthread_join( &SOS.task.read, NULL );
         pthread_join( &SOS.task.scan, NULL );
         
-        pthread_mutex_destroy( &SOS.ring.send.lock  );
-        pthread_mutex_destroy( &SOS.ring.recv.lock  );
-        pthread_mutex_destroy( &(SOS.uid.pub->lock) );
-        pthread_mutex_destroy( &(SOS.uid.sub->lock) );
-        pthread_mutex_destroy( &(SOS.uid.seq->lock) );
-        pthread_mutex_destroy( &SOS.global_lock     );
-        
-        free( SOS.ring.send.heap );
-        free( SOS.ring.recv.heap );
-
         freeaddrinfo( SOS.net.server_addr );
     }
+
+    pthread_mutex_destroy( &SOS.ring.send.lock  );
+    pthread_mutex_destroy( &SOS.ring.recv.lock  );
+    pthread_mutex_destroy( &(SOS.uid.pub->lock) );
+    pthread_mutex_destroy( &(SOS.uid.sub->lock) );
+    pthread_mutex_destroy( &(SOS.uid.seq->lock) );
+    pthread_mutex_destroy( &SOS.global_lock     );
     
+    free( SOS.ring.send.heap );
+    free( SOS.ring.recv.heap );
+
     return;
 }
 

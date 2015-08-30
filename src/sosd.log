@@ -1,8 +1,18 @@
-[sosd: @ 1440807509.836698] Daemon logging is on-line.
-[sosd:30637 @ 1440807509.837031] Trying an address...
-[sosd:30637 @ 1440807509.837053]    ...got a socket, and bound to it!
-[sosd:30637 @ 1440807509.837065] Listening on socket.
-[sosd:30637 @ 1440807509.837072] Entering main loop.   while(daemon_running) { ... }
-[sosd:30637 @ 1440807515.222007] Received connection.
-[sosd:30637 @ 1440807515.222287] Recieved malformed message.  (Too short)
-[sosd:30637 @ 1440884568.381657] Caught SIGTERM, shutting down.
+[sosd: @ 1440892526.540273] Daemon logging is on-line.
+[sosd:5627 @ 1440892526.541040] Trying an address...
+[sosd:5627 @ 1440892526.541092]    ...got a socket, and bound to it!
+[sosd:5627 @ 1440892526.541108] Listening on socket.
+[sosd:5627 @ 1440892526.541115] Entering main loop.   while(daemon_running) { ... }
+[sosd:5627 @ 1440892530.743419] Received connection.
+[sosd:5627 @ 1440892530.744051] header.msg_type = SOS_MSG_TYPE_REGISTER
+[sosd:5627 @ 1440892530.746564] Received connection.
+[sosd:5627 @ 1440892530.746615] header.msg_type = SOS_MSG_TYPE_REGISTER
+[sosd:5627 @ 1440892530.747017] Received connection.
+[sosd:5627 @ 1440892530.747054] header.msg_type = SOS_MSG_TYPE_ANNOUNCE
+[sosd:5627 @ 1440892530.747552] Received connection.
+[sosd:5627 @ 1440892530.747596] header.msg_type = SOS_MSG_TYPE_PUBLISH
+[sosd:5627 @ 1440892530.748049] Received connection.
+[sosd:5627 @ 1440892530.748076] header.msg_type = SOS_MSG_TYPE_ECHO
+[sosd:5627 @ 1440892530.748511] Received connection.
+[sosd:5627 @ 1440892530.748541] header.msg_type = SOS_MSG_TYPE_SHUTDOWN
+[sosd:5627 @ 1440892530.748572] Exiting main() beneath the infinite loop.

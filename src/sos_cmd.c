@@ -85,21 +85,6 @@
  */
 
 
-    /*
-     *  //...template of this program:
-     *
-     *  SOS_init(argc, argv);                // This handles sosd [daemon] discovery.
-     *
-     *  post = SOS_new_post();               // A 'post' is simply a pub with 1 data element.
-     *  SOS_pack_cmdline(pub, argc, argv);   // Might as well build this into sos.c ...
-     *  SOS_post(post);                      // SOS_post() enqueues the msg, SOS_post_immediately() is a blocking send...
-     *
-     *  SOS_finalize();
-     */
-
-
-
-              
 int main(int argc, char *argv[]) {
     SOS_SET_WHOAMI(whoami, "sos_cmd.main");
 
@@ -120,18 +105,15 @@ int main(int argc, char *argv[]) {
     memset(msg_reply, '\0', SOS_DEFAULT_BUFFER_LEN);
     memset(&header,   '\0', sizeof(SOS_msg_header));
 
-    sprintf(msg_out, "....----xxxx^^^^Hello, world!\n");
+    sprintf(msg_out, "...|...|...|...|Hello, world!");
     msg_out_len = strlen(msg_out);
 
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 6; i++) {
         header.msg_type = i;
         header.my_guid  = i;
 
         memcpy(msg_out, &header, sizeof(SOS_msg_header));
-
         dlog(0, "[%s]: Attempting to send...\n", whoami);
-        printf("sending %d bytes...\n", msg_out_len);
-
         SOS_send_to_daemon(msg_out, msg_out_len, msg_reply, SOS_DEFAULT_BUFFER_LEN);
     }
 

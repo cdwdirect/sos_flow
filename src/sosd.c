@@ -84,8 +84,7 @@ socklen_t                 peer_addr_len;
 int main(int argc, char *argv[])  {
     int elem, next_elem;
 
-    //SOS_init( argc, argv, SOS_ROLE_DAEMON );
-
+    SOS_init( argc, argv, SOS_ROLE_DAEMON );
     WORK_DIR = &DEFAULT_DIR;
 
     /*
@@ -129,11 +128,9 @@ int main(int argc, char *argv[])  {
     daemon_setup_socket();
     daemon_listen_loop();
 
-
-
-    //SOS_finalize();
   
     //[cleanup]
+    SOS_finalize();
     dlog("Exiting main() beneath the infinite loop.\n");
     closelog();
     if (DAEMON_LOG) { fclose(log_fptr); }
@@ -198,12 +195,14 @@ void daemon_listen_loop() {
 
 
 
-void daemon_handle_echo(char *msg_data, int msg_size) { 
-    int i;
-    char *ptr = msg_data;
-    ptr += sizeof(SOS_msg_header);
+void daemon_handle_echo(char *msg, int msg_size) { 
+    SOS_msg_header header;
+    int ptr = 0;
+    int i   = 0;
 
-    i = sendto( client_socket_fd, (void *) ptr, (msg_size - sizeof(SOS_msg_header)), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
+    dlog("header.msg_type = SOS_MSG_TYPE_ECHO\n");
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    i = sendto( client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
     if (i == -1) { dlog("Error sending a response.\n"); dlog(strerror(errno)); }
         
     return;
@@ -211,11 +210,62 @@ void daemon_handle_echo(char *msg_data, int msg_size) {
 
 
 
+void daemon_handle_register(char *msg, int msg_size) {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_register");
+    SOS_msg_header header;
+    int ptr = 0;
+    int i   = 0;
 
-void daemon_handle_register(char *msg_data, int msg_size) { return; }
-void daemon_handle_announce(char *msg_data, int msg_size) { return; }
-void daemon_handle_publish(char *msg_data, int msg_size)  { return; }
-void daemon_handle_shutdown(char *msg_data, int msg_size) { return; }
+    dlog("header.msg_type = SOS_MSG_TYPE_REGISTER\n");
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    return;
+}
+
+
+
+void daemon_handle_announce(char *msg, int msg_size) {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
+    SOS_msg_header header;
+    int ptr = 0;
+    int i   = 0;
+
+    dlog("header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n");
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    return;
+}
+
+
+
+void daemon_handle_publish(char *msg, int msg_size)  {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_publish");
+    SOS_msg_header header;
+    int ptr = 0;
+    int i   = 0;
+
+    dlog("header.msg_type = SOS_MSG_TYPE_PUBLISH\n");
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    return;
+}
+
+
+
+void daemon_handle_shutdown(char *msg, int msg_size) {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
+    SOS_msg_header header;
+    int ptr = 0;
+    int i   = 0;
+
+    dlog("header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    daemon_running = 0;
+
+    return;
+}
+
+
+
 
 
 
