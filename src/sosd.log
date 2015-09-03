@@ -1,48 +1,14 @@
-[client(0).main]: Returned from SOS_init();
-[client(0).main]: Calling daemon_init()...
-[client(0).main]: Calling daemon_setup_socket()...
-[client(0).daemon_setup_socket]: Trying an address...
-[client(0).daemon_setup_socket]:   ...got a socket, and bound to it!
-[client(0).daemon_setup_socket]: Listening on socket.
-[client(0).main]: Calling daemon_listen_loop()...
-[client(0).daemon_listen_loop]: Entering main loop.   while(daemon_running) { ... }
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_announce]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_publish]: header.msg_type = SOS_MSG_TYPE_PUBLISH
-[client(0).daemon_listen_loop]: Received connection.
-[client(0).daemon_handle_echo]: header.msg_type = SOS_MSG_TYPE_ECHO
+[daemon(0).main]: Returned from SOS_init();
+[daemon(0).main]: Calling daemon_setup_socket()...
+[daemon(0).daemon_setup_socket]: Trying an address...
+[daemon(0).daemon_setup_socket]:   ... failed to get a socket.  (Bad file descriptor)
+[daemon(0).daemon_setup_socket]: Trying an address...
+[daemon(0).daemon_setup_socket]:   ... got a socket, and bound to it!
+[daemon(0).daemon_setup_socket]: Listening on socket.
+[daemon(0).main]: Calling daemon_listen_loop()...
+[daemon(0).daemon_listen_loop]: Entering main loop.   while(daemon_running) { ... }
+[daemon(0).daemon_listen_loop]: Received connection.
+[daemon(0).daemon_listen_loop]:   ... byte_count = 16
+[daemon(0).daemon_listen_loop]:   ... msg_type = REGISTER (0)
+[daemon(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[daemon(0).signal_handler]: Caught SIGTERM, shutting down.

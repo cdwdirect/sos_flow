@@ -105,9 +105,9 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS.net.server_port   = getenv("SOS_CMD_PORT");
         if ( SOS.net.server_port < 1 ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(1); }
 
-        SOS.net.server_hint.ai_family    = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
-        SOS.net.server_hint.ai_protocol  = 0;             /* Any protocol */
-        SOS.net.server_hint.ai_socktype  = SOCK_STREAM;    /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+        SOS.net.server_hint.ai_family    = AF_UNSPEC;        /* Allow IPv4 or IPv6 */
+        SOS.net.server_hint.ai_protocol  = 0;                /* Any protocol */
+        SOS.net.server_hint.ai_socktype  = SOCK_STREAM;      /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
         SOS.net.server_hint.ai_flags     = AI_NUMERICSERV | SOS.net.server_hint.ai_flags;
 
         retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
@@ -316,13 +316,13 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
 
     new_pub->pub_id       = SOS_next_id( SOS.uid.pub );
     new_pub->node_id      = SOS.config.node_id;
-    new_pub->process_id   = -1;
-    new_pub->thread_id    = -1;
-    new_pub->comm_rank    = -1;
-    new_pub->prog_name    = -1;
-    new_pub->prog_ver     = -1;
-    new_pub->pragma_len   = -1;
-    new_pub->pragma_msg   = NULL;
+    new_pub->process_id   = 0;
+    new_pub->thread_id    = 0;
+    new_pub->comm_rank    = 0;
+    new_pub->prog_name    = SOS.config.argv[0];
+    new_pub->prog_ver     = &SOS_NULL_STR;
+    new_pub->pragma_len   = 0;
+    new_pub->pragma_msg   = &SOS_NULL_STR;
     new_pub->title = (char *) malloc(strlen(title) + 1);
         memset(new_pub->title, '\0', (strlen(title) + 1));
         strcpy(new_pub->title, title);
@@ -330,9 +330,9 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
 
-    new_pub->meta.channel     = NULL;
+    new_pub->meta.channel     = 0;
     new_pub->meta.layer       = SOS_LAYER_APP;
-    new_pub->meta.nature      = -1;
+    new_pub->meta.nature      = SOS_NATURE_SOS;
     new_pub->meta.pri_hint    = SOS_PRI_DEFAULT;
     new_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
@@ -342,16 +342,16 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     for (i = 0; i < new_size; i++) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
-            new_pub->data[i]->guid      = -1;
-            new_pub->data[i]->name      = -1;
-            new_pub->data[i]->type      = -1;
-            new_pub->data[i]->len       = -1;
-            new_pub->data[i]->val.l_val = -1;
+            new_pub->data[i]->guid      = 0;
+            new_pub->data[i]->name      = &SOS_NULL_STR;
+            new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
+            new_pub->data[i]->len       = 0;
+            new_pub->data[i]->val.l_val = 0;
             new_pub->data[i]->state     = SOS_VAL_STATE_EMPTY;
-            new_pub->data[i]->sem_hint  = -1;
-            new_pub->data[i]->time.pack = -1.0;
-            new_pub->data[i]->time.send = -1.0;
-            new_pub->data[i]->time.recv = -1.0;
+            new_pub->data[i]->sem_hint  = 0;
+            new_pub->data[i]->time.pack = 0.0;
+            new_pub->data[i]->time.send = 0.0;
+            new_pub->data[i]->time.recv = 0.0;
     }
 
     return new_pub;
@@ -393,6 +393,9 @@ void SOS_strip_str( char *str ) {
     return;
 }
 
+
+
+//SOS_FLOW - ready
 void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     SOS_SET_WHOAMI(whoami, "SOS_apply_announce");
 
@@ -415,7 +418,7 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
         first_announce = 0;
         dlog(6, "[%s]: Applying a re-announce.\n", whoami);
     }
-    dlog(6, "[%s]: >>> pub->elem_count=%d   pub->elem_max=%d   msg_size=%d\n", whoami, pub->elem_count, pub->elem_max, msg_size);
+    dlog(6, "[%s]:   ... pub->elem_count=%d   pub->elem_max=%d   msg_size=%d\n", whoami, pub->elem_count, pub->elem_max, msg_size);
 
     if (!first_announce) {
         /* Free all existing strings, they will be overwritten... */
@@ -591,6 +594,13 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
     char *new_name;
 
 
+    switch (pack_type) {
+    case SOS_VAL_TYPE_INT    : dlog(6, "[%s]: (%s) pack_val.i_val = \"%d\"\n",  whoami, name, pack_val.i_val); break;
+    case SOS_VAL_TYPE_LONG   : dlog(6, "[%s]: (%s) pack_val.l_val = \"%ld\"\n", whoami, name, pack_val.l_val); break;
+    case SOS_VAL_TYPE_DOUBLE : dlog(6, "[%s]: (%s) pack_val.d_val = \"%lF\"\n", whoami, name, pack_val.d_val); break;
+    case SOS_VAL_TYPE_STRING : dlog(6, "[%s]: (%s) pack_val.c_val = \"%s\"\n",  whoami, name, pack_val.c_val); break;
+    }
+    
     //try to find the name in the existing pub schema:
     for (i = 0; i < pub->elem_count; i++) {
         if (strcmp(pub->data[i]->name, name) == 0) {
@@ -680,12 +690,19 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             memset(pub_str_ptr, '\0', (new_str_len + 1));
             strncpy(pub_str_ptr, new_str_ptr, new_str_len);
             pub_str_ptr[new_str_len + 1] = '\0';
-            dlog(6, "[%s]: assigning a new string.   \"%s\"   (insert)\n", whoami, pub_str_ptr);
+            dlog(6, "[%s]: (%s) assigning a new string.   \"%s\"   (insert)\n", whoami, name, pub_str_ptr);
             pub->data[i]->val = (SOS_val) pub_str_ptr;
             break;
 
+        case SOS_VAL_TYPE_DOUBLE:
+            dlog(6, "[%s]: (%s) assigning a new double.   \"%lF\"   (insert)\n", whoami, name, pack_val.d_val);
+            pub->data[i]->val = pack_val;
+            break;
+        
+        case SOS_VAL_TYPE_INT:
+        case SOS_VAL_TYPE_LONG:
         default :
-            dlog(6, "[%s]: assigning a new value.   \"%ld\"   (insert)\n", whoami, pack_val.l_val);
+            dlog(6, "[%s]: (%s) assigning a new value.   \"%ld\"   (insert)\n", whoami, name, pack_val.l_val);
             pub->data[i]->val = pack_val;
             break;
         }
@@ -721,12 +738,19 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             pub_str_ptr = malloc(new_str_len + 1);
             strncpy(pub_str_ptr, new_str_ptr, new_str_len);
             pub_str_ptr[new_str_len + 1] = '\0';
-            dlog(6, "[%s]: assigning a new string.   \"%s\"   (expanded)\n", whoami, pack_val.c_val);
+            dlog(6, "[%s]: (%s) assigning a new string.   \"%s\"   (expanded)\n", whoami, name, pack_val.c_val);
             pub->data[i]->val = (SOS_val) pub_str_ptr;
             break;
 
+        case SOS_VAL_TYPE_DOUBLE :
+            dlog(6, "[%s]: (%s) assigning a new double.   \"%lF\"   (expanded)\n", whoami, name, pack_val.d_val);
+            pub->data[i]->val = pack_val;
+            break;
+            
+        case SOS_VAL_TYPE_INT :
+        case SOS_VAL_TYPE_LONG :
         default :
-            dlog(6, "[%s]: assigning a new value.   \"%ld\"   (expanded)\n", whoami, pack_val.l_val);
+            dlog(6, "[%s]: (%s) assigning a new value.   \"%ld\"   (expanded)\n", whoami, name, pack_val.l_val);
             pub->data[i]->val = pack_val;
             break;
 
@@ -751,9 +775,19 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 }
 
 void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
+    SOS_SET_WHOAMI(whoami, "SOS_repack");
     SOS_data *data;
     int len;
 
+    switch (pub->data[index]->type) {
+    case SOS_VAL_TYPE_INT    : dlog(6, "[%s]: (%s) @ %d -- pack_val.i_val = \"%d\"     (update)\n",  whoami, pub->data[index]->name, index, pack_val.i_val); break;
+    case SOS_VAL_TYPE_LONG   : dlog(6, "[%s]: (%s) @ %d -- pack_val.l_val = \"%ld\"     (update)\n", whoami, pub->data[index]->name, index, pack_val.l_val); break;
+    case SOS_VAL_TYPE_DOUBLE : dlog(6, "[%s]: (%s) @ %d -- pack_val.d_val = \"%lF\"     (update)\n", whoami, pub->data[index]->name, index, pack_val.d_val); break;
+    case SOS_VAL_TYPE_STRING : dlog(6, "[%s]: (%s) @ %d -- pack_val.c_val = \"%s\"     (update)\n",  whoami, pub->data[index]->name, index, pack_val.c_val); break;
+    }
+
+
+    
     data = pub->data[index];
 
     switch (data->type) {
@@ -884,15 +918,20 @@ void SOS_announce( SOS_pub *pub ) {
     int   len_title;
     int   len_value_name;
 
-    buffer_len = reply_len = 0;
-
+    dlog(6, "[%s]: Preparing an announcement message...\n",    whoami);
+    dlog(6, "[%s]:   ... determine the size of the message: ", whoami);
+    
     /*
      *   Determine how much space we'll need to describe this pub handle...
      */
-    len_node_id    = 1 + strlen(pub->node_id);
-    len_prog_name  = 1 + strlen(pub->prog_name);
-    len_prog_ver   = 1 + strlen(pub->prog_ver);
-    len_title      = 1 + strlen(pub->title);
+    if (pub->node_id)   { len_node_id    = 1 + strlen(pub->node_id);   } else { len_node_id    = 0; }
+    if (pub->prog_name) { len_prog_name  = 1 + strlen(pub->prog_name); } else { len_prog_name  = 0; }
+    if (pub->prog_ver)  { len_prog_ver   = 1 + strlen(pub->prog_ver);  } else { len_prog_ver   = 0; }
+    if (pub->title)     { len_title      = 1 + strlen(pub->title);     } else { len_title      = 0; }
+
+    dlog(6, "[strings] + ");
+    
+    buffer_len = 0;
     /* Reserve space for the MESSAGE header ... */
     buffer_len += sizeof(SOS_msg_header);
     /* Make space for the PUB HEADER ... */
@@ -911,6 +950,9 @@ void SOS_announce( SOS_pub *pub ) {
     buffer_len += sizeof(int);                     // [ pub->title            ].len()
     buffer_len += len_title;                       // [ pub->title            ].string()
     buffer_len += sizeof(int);                     // [ pub->elem_count       ]
+
+    dlog(6, "[pub_header] + ");
+    
     /* Make space for the METADATA ... */
     buffer_len += sizeof(int);                       // [ pub->meta.channel     ]
     buffer_len += sizeof(int);                       // [ pub->meta.layer       ]
@@ -918,6 +960,9 @@ void SOS_announce( SOS_pub *pub ) {
     buffer_len += sizeof(int);                       // [ pub->meta.pri_hint    ]
     buffer_len += sizeof(int);                       // [ pub->meta.scope_hint  ]
     buffer_len += sizeof(int);                       // [ pub->meta.retain_hint ]
+
+    dlog(6, "[pub_meta] + ");
+
     /* Make space for the DATA deinitions ... */
     for (i = 0; i < pub->elem_count; i++) {
         len_value_name = 1 + strlen(pub->data[i]->name);
@@ -926,8 +971,9 @@ void SOS_announce( SOS_pub *pub ) {
         buffer_len += len_value_name;                    // [ pub->data[i]->name      ].string()
         buffer_len += sizeof(int);                       // [ pub->data[i]->type      ]
     }
+    dlog(6, "[data_defs] = %d bytes\n", buffer_len);
 
-
+    dlog(6, "[%s]:   ... allocating sufficient buffer space.\n", whoami);
     buffer = (char *) malloc(buffer_len);
     if (buffer == NULL) { dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami); exit(1); }
     memset(buffer, '\0', buffer_len);
@@ -940,51 +986,107 @@ void SOS_announce( SOS_pub *pub ) {
     header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
     header.my_guid = SOS.my_guid;
 
+    dlog(6, "[%s]:   ... filling the buffer with the correct values: ", whoami);
+
     /* Populate the MESSAGE header ... */
     memcpy((buffer + ptr), &( header       ),  sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    /* Make space for the HEADER ... */
+
+    dlog(6, "[msg_header] ");
+    
+    /* Fill in the PUB HEADER ... */
     memcpy((buffer + ptr), &( pub->pub_id        ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr), &( len_node_id        ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr),  ( pub->node_id       ),  len_node_id);      ptr += len_node_id;
+
+    if (len_node_id < 1) {
+        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
+    } else {
+        memcpy((buffer + ptr), &( len_node_id        ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( pub->node_id       ),  len_node_id);      ptr += len_node_id;
+    }
+    
     memcpy((buffer + ptr), &( pub->process_id    ),  sizeof(int));      ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->thread_id     ),  sizeof(int));      ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->comm_rank     ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr), &( len_prog_name      ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr),  ( pub->prog_name     ),  len_prog_name);    ptr += len_prog_name;
-    memcpy((buffer + ptr), &( len_prog_ver       ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr),  ( pub->prog_ver      ),  len_prog_ver);     ptr += len_prog_ver;
-    memcpy((buffer + ptr), &( pub->pragma_len    ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr),  ( pub->pragma_msg    ),  pub->pragma_len);  ptr += pub->pragma_len;
-    memcpy((buffer + ptr), &( len_title          ),  sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr),  ( pub->title         ),  len_title);        ptr += len_title;
+
+
+    if (len_prog_name < 2) {
+        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
+    } else {
+        memcpy((buffer + ptr), &( len_prog_name      ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( pub->prog_name     ),  len_prog_name);    ptr += len_prog_name;
+    }
+
+    if (len_prog_ver < 2) {
+        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
+    } else {
+        memcpy((buffer + ptr), &( len_prog_ver       ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( pub->prog_ver      ),  len_prog_ver);     ptr += len_prog_ver;
+    }
+
+    if (pub->pragma_len < 1) {    /* (len < 1) because this might not be a string, we don't calculate with 1 + strlen()... */
+        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
+    } else {
+        memcpy((buffer + ptr), &( pub->pragma_len    ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( pub->pragma_msg    ),  pub->pragma_len);  ptr += pub->pragma_len;
+    }       
+
+    if (len_title < 2) {
+        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
+    } else {
+        memcpy((buffer + ptr), &( len_title          ),  sizeof(int));      ptr += sizeof(int);
+        memcpy((buffer + ptr),  ( pub->title         ),  len_title);        ptr += len_title;
+    }
+    
     memcpy((buffer + ptr), &( pub->elem_count    ),  sizeof(int));      ptr += sizeof(int);
-    /* Make space for the METADATA ... */
+
+    dlog(6, "[pub_header] ");
+
+    /* Fill in the PUB METADATA ... */
     memcpy((buffer + ptr), &( pub->meta.channel     ),  sizeof(int));   ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->meta.layer       ),  sizeof(int));   ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->meta.nature      ),  sizeof(int));   ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->meta.pri_hint    ),  sizeof(int));   ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->meta.scope_hint  ),  sizeof(int));   ptr += sizeof(int);
     memcpy((buffer + ptr), &( pub->meta.retain_hint ),  sizeof(int));   ptr += sizeof(int);
-    /* Make space for the DATA deinitions ... */
+
+    dlog(6, "[pub_metadata] ");
+
+    /* Fill in the DATA deinitions ... */
     for (i = 0; i < pub->elem_count; i++) {
-        len_value_name = strlen( pub->data[i]->name );
+        len_value_name = 1 + strlen( pub->data[i]->name );
+
         memcpy((buffer + ptr), &( pub->data[i]->guid ),  sizeof(long));    ptr += sizeof(long);
-        memcpy((buffer + ptr), &( len_value_name     ),  sizeof(int));     ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( pub->data[i]->name ),  len_value_name);  ptr += len_value_name;
+
+        if (len_value_name < 2) {
+            memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
+            memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
+        } else {
+            memcpy((buffer + ptr), &( len_value_name     ),  sizeof(int));     ptr += sizeof(int);
+            memcpy((buffer + ptr),  ( pub->data[i]->name ),  len_value_name);  ptr += len_value_name;
+        }
+        
         memcpy((buffer + ptr), &( pub->data[i]->type ),  sizeof(int));     ptr += sizeof(int);
     }
 
-
+    dlog(6, "[pub_data_defs]\n");
+    
+    dlog(6, "[%s]:   ... allocating space for a reply message.\n", whoami);
     /* The daemon will reply with a list of GUIDs for all newly announced values. */
-    reply_len = pub->elem_count * sizeof(long);
+    reply_len = 0;
+    reply_len += pub->elem_count * sizeof(long);
     reply     = (char *) malloc(reply_len);
     if (reply == NULL) { dlog(0, "[%s]: FAILURE!! Could not allocate memory for the reply.  char *reply == NULL; /* after malloc()! */", whoami); exit(1); }
     memset(reply, '\0', reply_len);
 
+    dlog(6, "[%s]:   ... sending the message!\n", whoami);
     /* TODO: { ANNOUNCE } Process the returned buffer for the GUID's we need to assign. */
     SOS_send_to_daemon(buffer, buffer_len, reply, reply_len);   /* Response is placed back in the buffer. */
 
-
+    dlog(6, "[%s]:   ... done.\n", whoami);
     pub->announced = 1;
     free(buffer);
 

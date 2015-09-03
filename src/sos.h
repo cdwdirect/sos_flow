@@ -108,7 +108,8 @@ typedef enum SOS_val_sem {
     SOS_VAL_SEM_TIME_STAMP,
     SOS_VAL_SEM_TIME_SPAN,
     SOS_VAL_SEM_VAL_CURRENT,
-    SOS_VAL_SEM_VAL_COUNTER
+    SOS_VAL_SEM_VAL_COUNTER,
+    SOS_VAL_SEM_VAL_LOG
 } SOS_sem;
 
 
@@ -158,14 +159,14 @@ typedef union {
 } SOS_val;
 
 typedef struct {
-    double        pack;         /* default: -1.0                  */
-    double        send;         /* default: -1.0                  */
-    double        recv;         /* default: -1.0                  */
+    double        pack;         /* default: 0.0                   */
+    double        send;         /* default: 0.0                   */
+    double        recv;         /* default: 0.0                   */
 } SOS_time;
 
 typedef struct {
-    char         *channel;      /* default: (null)                */
-    int           pragma_len;   /* default: -1                    */
+    int           channel;      /* default: 0                     */
+    int           pragma_len;   /* default: 0                     */
     char         *pragma_msg;   /* default: (null)                */
     SOS_nature    nature;       /* default: --------- manual      */
     SOS_layer     layer;        /* default: SOS_LAYER_APP         */
@@ -210,7 +211,7 @@ typedef struct {
     int             refresh_delay;
     SOS_role        source_role;
     int             source_rank;
-    SOS_pub *pub;
+    SOS_pub        *pub;
 } SOS_sub;
 
 typedef struct {
@@ -279,7 +280,9 @@ typedef struct {
     long             my_guid;
 } SOS_runtime;
 
-
+int   SOS_NULL_STR_LEN  = sizeof(char);
+char  SOS_NULL_STR_CHAR = '\0';
+char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
 
 /* ----------
  *

@@ -33,7 +33,8 @@
     #define dlog(level, ...);                                           \
     if (SOS_DEBUG >= level && SOS.role != SOS_ROLE_DAEMON) {            \
         printf(__VA_ARGS__);                                            \
-    }
+        if (stdout) fflush(stdout);                                     \
+}
 
 
 #endif //DEBUG
