@@ -119,13 +119,13 @@ int main(int argc, char *argv[])  {
     syslog(LOG_INFO, "Starting daemon: %s", DAEMON_NAME);
     if (DAEMON_LOG) { log_fptr = fopen(LOG_FILE, "w"); }
 
-    printf(0, "Calling daemon_init()...\n");
+    printf("Calling daemon_init()...\n");
     daemon_init();
 
     printf("Calling SOS_init...\n");
-    SOS_init( &argc, &argv, SOS.role );
-    
+    SOS_init( &argc, &argv, SOS.role );    
     SOS_SET_WHOAMI(whoami, "main");
+
     dlog(0, "[%s]: Returned from SOS_init();\n", whoami);
 
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
@@ -136,10 +136,10 @@ int main(int argc, char *argv[])  {
   
     //[cleanup]
     SOS_finalize();
-    dlog(0, "[%s]: Exiting main() beneath the infinite loop.\n", whoami);
+    dlog(0, "[%s]: Exiting main() beneath the listening loop.\n", whoami);
     closelog();
     if (DAEMON_LOG) { fclose(log_fptr); }
-  
+
     return(EXIT_SUCCESS);
 } //end: main()
 
@@ -209,7 +209,9 @@ void daemon_listen_loop() {
     }
 
     free(buffer);
-   
+
+    dlog(1, "[%s]: Leaving the socket listening loop.\n", whoami);
+
     return;
 }
 /* -------------------------------------------------- */
@@ -239,12 +241,13 @@ void daemon_handle_register(char *msg, int msg_size) {
     int ptr = 0;
     int i   = 0;
 
-    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
     char response[] = "SOS daemon got your register!";
     i = sendto( client_socket_fd, (void *) response, strlen(response), NULL, NULL, NULL);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else { dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response); }
 
     return;
 }
@@ -271,7 +274,7 @@ void daemon_handle_announce(char *msg, int msg_size) {
     /* TODO:{ HANDLE_ANNOUNCE } Here we need to build a reply featuring the GUIDs assigned. */
 
     char response[] = "SOS daemon got your announcement!";
-    i = sendto( client_socket_fd, (void *) response, strlen(response), NULL, NULL, NULL);
+    i = sendto( client_socket_fd, (void *) response, (1 + strlen(response)), NULL, NULL, NULL);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
 
     
@@ -297,21 +300,6 @@ void daemon_handle_publish(char *msg, int msg_size)  {
 
     return;
 }
-
-
-/*
-
-12
-11  
-10  
-9
-8:30 **
-7
-6:30
-
- */
-
-
 
 
 
@@ -467,11 +455,11 @@ void daemon_init() {
     /* [file handles]
      *     close unused IO handles
      */
-    #ifndef DEBUG
+//    #ifndef DEBUG
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-    #endif
+//    #endif
 
     /* [signals]
      *     register the signals we care to trap

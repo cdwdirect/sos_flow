@@ -28,6 +28,17 @@
 #include <netdb.h>
 
 
+/*
+ *
+ *   If SOS_DUMP_TO_FILE is enabled, most of the transport routines will be
+ *   disabled and the SOS system will output somewhat 'non-standard' output
+ *   into local files.  The daemon is still used to register the SOS_CLIENT
+ *   and assign it a GUID (for file prefixes).
+ *
+ */
+
+#define SOS_DUMP_TO_FILE 1
+
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
@@ -234,6 +245,8 @@ typedef struct {
     int               argc;
     char            **argv;
     char             *node_id;
+    int               process_id;
+    int               thread_id;
 } SOS_config;
 
 typedef struct {

@@ -59,7 +59,8 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     dlog(2, "[%s]:   ... setting argc / argv\n", whoami);
     SOS.config.argc = *argc;
     SOS.config.argv = *argv;
-
+    SOS.config.process_id = (int) getpid();
+    
     dlog(2, "[%s]:   ... allocating uid sets\n", whoami);
     SOS.uid.pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
     SOS.uid.sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
@@ -125,7 +126,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         freeaddrinfo( SOS.net.result_list );
         
         if (server_socket_fd == NULL) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
-        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
 
         /*
          *  TODO:{ CHAD, INIT }
@@ -136,14 +136,16 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         dlog(2, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.my_guid  = 0;
+        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
         memcpy(buffer, &header, sizeof(SOS_msg_header));
         
         retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), NULL, NULL, NULL );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
-        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
 
-        retval = recvfrom( server_socket_fd, buffer, (SOS_DEFAULT_BUFFER_LEN - 1), NULL, NULL, NULL );
-        dlog(2, "[%s]:   ... server responded: %s\n", whoami, buffer);
+        dlog(2, "[%s]:   ... listening for the server to reply...\n", whoami);
+        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
+        retval = recvfrom( server_socket_fd, (void *) buffer, (SOS_DEFAULT_BUFFER_LEN - 1), NULL, NULL, NULL );
+        dlog(2, "[%s]:   ... server responded: %s   (%d bytes)\n", whoami, buffer, retval);
         dlog(2, "[%s]:   ... determining my guid   ", whoami);
         SOS.my_guid = 0;
         dlog(2, "(%ld)\n", SOS.my_guid);
@@ -316,7 +318,7 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
 
     new_pub->pub_id       = SOS_next_id( SOS.uid.pub );
     new_pub->node_id      = SOS.config.node_id;
-    new_pub->process_id   = 0;
+    new_pub->process_id   = SOS.config.process_id;
     new_pub->thread_id    = 0;
     new_pub->comm_rank    = 0;
     new_pub->prog_name    = SOS.config.argv[0];

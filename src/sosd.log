@@ -1,8 +1,6 @@
 [daemon(0).main]: Returned from SOS_init();
 [daemon(0).main]: Calling daemon_setup_socket()...
 [daemon(0).daemon_setup_socket]: Trying an address...
-[daemon(0).daemon_setup_socket]:   ... failed to get a socket.  (Bad file descriptor)
-[daemon(0).daemon_setup_socket]: Trying an address...
 [daemon(0).daemon_setup_socket]:   ... got a socket, and bound to it!
 [daemon(0).daemon_setup_socket]: Listening on socket.
 [daemon(0).main]: Calling daemon_listen_loop()...
@@ -11,4 +9,9 @@
 [daemon(0).daemon_listen_loop]:   ... byte_count = 16
 [daemon(0).daemon_listen_loop]:   ... msg_type = REGISTER (0)
 [daemon(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
-[daemon(0).signal_handler]: Caught SIGTERM, shutting down.
+[daemon(0).daemon_handle_register]:   ... sent the following reply: SOS daemon got your register!
+[daemon(0).daemon_listen_loop]: Received connection.
+[daemon(0).daemon_listen_loop]:   ... byte_count = 16
+[daemon(0).daemon_listen_loop]:   ... msg_type = REGISTER (0)
+[daemon(0).daemon_handle_register]: header.msg_type = SOS_MSG_TYPE_REGISTER
+[daemon(0).daemon_handle_register]:   ... sent the following reply: SOS daemon got your register!
