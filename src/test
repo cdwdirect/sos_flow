@@ -1,5 +1,0 @@
-rm -f ./sosd.log
-./sosd --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)
-echo "Try:"
-echo "     nc localhost 22505"
-echo ""

@@ -86,8 +86,6 @@
 
 
 int main(int argc, char *argv[]) {
-    SOS_SET_WHOAMI(whoami, "sos_cmd.main");
-
     SOS_msg_header header;
     SOS_pub   *pub;
     SOS_data  *data;
@@ -97,26 +95,29 @@ int main(int argc, char *argv[]) {
     char      *msg_out;
     char      *msg_reply;
 
-    SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
+    i = atoi(getenv("SOS_CMD_COUNT"));
+    if (i == 0) i = 524288;
 
-    msg_out   = (char *) malloc( sizeof(char) * SOS_DEFAULT_BUFFER_LEN );
-    msg_reply = (char *) malloc( sizeof(char) * SOS_DEFAULT_BUFFER_LEN );
-    memset(msg_out,   '\0', SOS_DEFAULT_BUFFER_LEN);
-    memset(msg_reply, '\0', SOS_DEFAULT_BUFFER_LEN);
+    SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
+    SOS_SET_WHOAMI(whoami, "sos_cmd.main");
+
+    msg_out   = (char *) malloc( sizeof(char) * 2048 );
+    msg_reply = (char *) malloc( sizeof(char) * 2048 );
+
+    memset(msg_out,   'x',  2048);
+    memset(msg_reply, '\0', 2048);
     memset(&header,   '\0', sizeof(SOS_msg_header));
 
-    sprintf(msg_out, "...|...|...|...|Hello, world!");
+    msg_out[2047] = '\0';
     msg_out_len = strlen(msg_out);
 
-    for (i = 0; i < SOS_MSG_TYPE_SHUTDOWN; i++) {
-        header.msg_type = i;
-        header.my_guid  = i;
-        memcpy(msg_out, &header, sizeof(SOS_msg_header));
+    header.msg_type = SOS_MSG_TYPE_ECHO;
+    header.my_guid  = 1234;
+    memcpy(msg_out, &header, sizeof(SOS_msg_header));
 
-        memset(msg_reply, '\0', SOS_DEFAULT_BUFFER_LEN);
-
-        SOS_send_to_daemon(msg_out, msg_out_len, msg_reply, SOS_DEFAULT_BUFFER_LEN);
-        
+    for (j = 0; j < i; j++) {
+        memset(msg_reply, '\0', 2048);
+        SOS_send_to_daemon(msg_out, msg_out_len, msg_reply, 2048);
     }
 
     SOS_finalize();

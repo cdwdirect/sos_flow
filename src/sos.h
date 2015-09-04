@@ -27,17 +27,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+/* SOS Configuration Switches... */
 
-/*
- *
- *   If SOS_DUMP_TO_FILE is enabled, most of the transport routines will be
- *   disabled and the SOS system will output somewhat 'non-standard' output
- *   into local files.  The daemon is still used to register the SOS_CLIENT
- *   and assign it a GUID (for file prefixes).
- *
- */
+#define SOS_CONFIG_DUMP_TO_FILE        1
+#define SOS_CONFIG_USE_THREAD_POOL     0
 
-#define SOS_DUMP_TO_FILE 1
 
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
@@ -58,7 +52,7 @@
 #define SOS_DEFAULT_SERVER_HOST    "localhost"
 #define SOS_DEFAULT_SERVER_PORT    22505
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
-#define SOS_DEFAULT_BUFFER_LEN     1024000
+#define SOS_DEFAULT_BUFFER_LEN     1048576
 #define SOS_DEFAULT_RING_SIZE      1024
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_UID_MAX        LONG_MAX

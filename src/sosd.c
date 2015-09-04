@@ -21,8 +21,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#define DAEMON_LOG     1
-
 #include "sos.h"
 #include "sos_debug.h"
 
@@ -31,12 +29,6 @@
 #define DEFAULT_DIR    "/tmp"
 #define LOCK_FILE      "sosd.lock"
 #define LOG_FILE       "sosd.log"
-
-#define dlog(level, ...);                                               \
-    if ((SOS_DEBUG >= level) && DAEMON_LOG) {                           \
-        fprintf(log_fptr, __VA_ARGS__);                                 \
-        fflush(log_fptr);                                               \
-    }
 
 #define GET_TIME(now)  { struct timeval t; gettimeofday(&t, NULL); now = t.tv_sec + t.tv_usec/1000000.0; }
 
@@ -52,13 +44,9 @@ void daemon_handle_echo(char *msg_data, int msg_size);
 void daemon_handle_shutdown(char *msg_data, int msg_size);
 
 
-
-
 /*--- Daemon management variables ---*/
 char   *WORK_DIR;
 int     daemon_running = 0;
-int     lock_fptr;
-FILE*   log_fptr;
 char    daemon_pid_str[256];
 double  time_now = 0.0;
 
@@ -81,8 +69,9 @@ socklen_t                 peer_addr_len;
 
 int main(int argc, char *argv[])  {
     int elem, next_elem;
+    int retval;
 
-    WORK_DIR = &DEFAULT_DIR;
+    WORK_DIR = (char *) &DEFAULT_DIR;
     SOS.role = SOS_ROLE_DAEMON;
 
     /*
@@ -114,10 +103,11 @@ int main(int argc, char *argv[])  {
     memset(&daemon_pid_str, '\0', 256);
 
     /* System logging initialize */
+
     setlogmask(LOG_UPTO(LOG_ERR));
     openlog(DAEMON_NAME, LOG_CONS | LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
     syslog(LOG_INFO, "Starting daemon: %s", DAEMON_NAME);
-    if (DAEMON_LOG) { log_fptr = fopen(LOG_FILE, "w"); }
+    if (DAEMON_LOG) { sos_daemon_log_fptr = fopen(LOG_FILE, "w"); }
 
     printf("Calling daemon_init()...\n");
     daemon_init();
@@ -125,21 +115,27 @@ int main(int argc, char *argv[])  {
     printf("Calling SOS_init...\n");
     SOS_init( &argc, &argv, SOS.role );    
     SOS_SET_WHOAMI(whoami, "main");
-
     dlog(0, "[%s]: Returned from SOS_init();\n", whoami);
 
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
     daemon_setup_socket();
+
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
     daemon_listen_loop();
 
   
-    //[cleanup]
+    /* Cleanup and shut down */
     SOS_finalize();
-    dlog(0, "[%s]: Exiting main() beneath the listening loop.\n", whoami);
-    closelog();
-    if (DAEMON_LOG) { fclose(log_fptr); }
 
+    dlog(0, "[%s]: Closing the socket.\n", whoami);
+    shutdown(server_socket_fd, SHUT_RDWR);
+
+    dlog(0, "[%s]: Exiting daemon's main() gracefully.\n", whoami);
+    closelog();
+    if (DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
+    close(sos_daemon_lock_fptr);
+    remove(LOCK_FILE);
+    
     return(EXIT_SUCCESS);
 } //end: main()
 
@@ -167,7 +163,7 @@ void daemon_listen_loop() {
         i = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, client_host, NI_MAXHOST, client_port, NI_MAXSERV, NI_NUMERICSERV);
         if (i != 0) { dlog(0, "[%s]: Error calling getnameinfo() on client connection.  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
 
-        byte_count = recvfrom( client_socket_fd, (void *) buffer, buffer_len, MSG_WAITALL, NULL, NULL); //(struct sockaddr *) &peer_addr, &peer_addr_len );
+        byte_count = recv( client_socket_fd, (void *) buffer, buffer_len, 0);
         if (byte_count < 1) continue;
         
         dlog(5, "[%s]: Received connection.\n", whoami);
@@ -227,7 +223,9 @@ void daemon_handle_echo(char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ECHO\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
-    i = sendto( client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), NULL, NULL, NULL); //(struct sockaddr *) &peer_addr, peer_addr_len);
+    dlog(5, "[%s]:         message = %s\n", whoami, (msg + ptr));
+
+    i = send( client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         
     return;
@@ -244,10 +242,17 @@ void daemon_handle_register(char *msg, int msg_size) {
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
-    char response[] = "SOS daemon got your register!";
-    i = sendto( client_socket_fd, (void *) response, strlen(response), NULL, NULL, NULL);
+    char response[SOS_DEFAULT_BUFFER_LEN];
+    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
+    sprintf( response, "I received your REGISTER!" );
+
+    i = send( client_socket_fd, (void *) response, strlen(response), 0 );
+
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
-    else { dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response); }
+    else {
+        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
+        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
+    }
 
     return;
 }
@@ -270,12 +275,15 @@ void daemon_handle_announce(char *msg, int msg_size) {
     SOS_apply_announce(new_pub, (msg + ptr), (msg_size - ptr));
     dlog(5, "[%s]:   ... new_pub->elem_count = %d\n", whoami, new_pub->elem_count);
 
-
     /* TODO:{ HANDLE_ANNOUNCE } Here we need to build a reply featuring the GUIDs assigned. */
 
-    char response[] = "SOS daemon got your announcement!";
-    i = sendto( client_socket_fd, (void *) response, (1 + strlen(response)), NULL, NULL, NULL);
+    char response[SOS_DEFAULT_BUFFER_LEN] = "I received your ANNOUNCE!";
+    i = send( client_socket_fd, (void *) response, (1 + strlen(response)), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else {
+        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
+        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
+    }
 
     
     return;
@@ -292,9 +300,16 @@ void daemon_handle_publish(char *msg, int msg_size)  {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
-    char response[] = "SOS daemon got your publish!";
-    i = sendto( client_socket_fd, (void *) response, strlen(response), NULL, NULL, NULL);
+    char response[SOS_DEFAULT_BUFFER_LEN];
+    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN);
+    sprintf( response, "I received your PUBLISH!");
+
+    i = send( client_socket_fd, (void *) response, strlen(response), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else {
+        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
+        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
+    }
 
 
 
@@ -312,9 +327,16 @@ void daemon_handle_shutdown(char *msg, int msg_size) {
     dlog(1, "[%s]: header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
-    char response[] = "SOS daemon is shutting down.";    
-    i = sendto( client_socket_fd, (void *) response, strlen(response), NULL, NULL, NULL);
+    char response[SOS_DEFAULT_BUFFER_LEN];
+    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
+    sprintf( response, "I received your SHUTDOWN!");
+
+    i = send( client_socket_fd, (void *) response, strlen(response), 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else {
+        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
+        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
+    }
 
     daemon_running = 0;
 
@@ -353,13 +375,14 @@ void daemon_setup_socket() {
         }
 
         /*
-         *  Allow this socket to be reused by other tasks (not always good, can mask zombie daemons)
-         *
+         *  Allow this socket to be reused/rebound quickly by the daemon.
+         */
+        
         if ( setsockopt( server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
             dlog(0, "[%s]:   ... could not set socket options.  (%s)\n", whoami, strerror(errno));
             continue;
         }
-         *
+        /*
          */
 
         if ( bind( server_socket_fd, server_addr->ai_addr, server_addr->ai_addrlen ) == -1 ) {
@@ -372,7 +395,7 @@ void daemon_setup_socket() {
         break;
     }
 
-    if ( server_socket_fd == NULL ) {
+    if ( server_socket_fd < 0 ) {
         dlog(0, "[%s]:   ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", whoami, errno, strerror(errno));
         exit(EXIT_FAILURE);
     } else {
@@ -386,11 +409,11 @@ void daemon_setup_socket() {
      */
 
     opts = fcntl(server_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "[%s]: ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Expect strangeness.\n", whoami); }
+    if (opts < 0) { dlog(0, "[%s]: ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", whoami, strerror(errno)); }
     
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(server_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "[%s]: ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Expect strangeness.\n", whoami); }
+    if (i < 0) { dlog(0, "[%s]: ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", whoami, strerror(errno)); }
 
     /*
      *
@@ -439,17 +462,17 @@ void daemon_init() {
     /* [lock file]
      *     create and hold lock file to prevent multiple daemon spawn
      */
-    lock_fptr = open(LOCK_FILE, O_RDWR | O_CREAT, 0640);
-    if (lock_fptr < 0) { 
+    sos_daemon_lock_fptr = open(LOCK_FILE, O_RDWR | O_CREAT, 0640);
+    if (sos_daemon_lock_fptr < 0) { 
         fprintf(stderr, "\nUnable to start daemon (%s): Could not access lock file %s in directory %s\n", \
                 DAEMON_NAME, LOCK_FILE, WORK_DIR);
         exit(EXIT_FAILURE);
     }
-    if (lockf(lock_fptr, F_TLOCK, 0) < 0) {
+    if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
         fprintf(stderr, "\nUnable to start daemon (%s): An instance is already running.\n", DAEMON_NAME);
         exit(EXIT_FAILURE);
     }
-    write(lock_fptr, daemon_pid_str, strlen(daemon_pid_str));
+    write(sos_daemon_lock_fptr, daemon_pid_str, strlen(daemon_pid_str));
 
 
     /* [file handles]

@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <errno.h>
 #include <string.h>
 #include <pthread.h>
 #include <sys/types.h>
@@ -35,6 +36,8 @@ void       SOS_free_sub(SOS_sub *sub);
 void       SOS_expand_data(SOS_pub *pub);
 
 
+/* Private variables (not exposed in the header file) */
+
 
 
 
@@ -53,6 +56,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
     SOS.role = role;
     SOS.status = SOS_STATUS_INIT;
+
     SOS_SET_WHOAMI(whoami, "SOS_init");
 
     dlog(2, "[%s]: Initializing SOS...\n", whoami);
@@ -87,10 +91,15 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     pthread_mutex_init( &(SOS.ring.send.lock), NULL );
     pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
 
-    dlog(2, "[%s]:   ... launching data migration threads.\n", whoami);
-    pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
-    pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
-    pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
+    if (SOS_CONFIG_USE_THREAD_POOL) {
+        dlog(2, "[%s]:   ... launching data migration threads.\n", whoami);
+        retval = pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.post thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+        pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.read thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+        pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.scan thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+    }
 
     if (SOS.role == SOS_ROLE_CLIENT || SOS.role == SOS_ROLE_CONTROL) {
         dlog(2, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
@@ -139,12 +148,14 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
         memcpy(buffer, &header, sizeof(SOS_msg_header));
         
-        retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), NULL, NULL, NULL );
+        retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), 0, 0, 0 );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
         dlog(2, "[%s]:   ... listening for the server to reply...\n", whoami);
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
-        retval = recvfrom( server_socket_fd, (void *) buffer, (SOS_DEFAULT_BUFFER_LEN - 1), NULL, NULL, NULL );
+
+        retval = recv( server_socket_fd, (void *) buffer, (SOS_DEFAULT_BUFFER_LEN - 1), 0);
+        
         dlog(2, "[%s]:   ... server responded: %s   (%d bytes)\n", whoami, buffer, retval);
         dlog(2, "[%s]:   ... determining my guid   ", whoami);
         SOS.my_guid = 0;
@@ -196,10 +207,10 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
         exit(1);  /* TODO:{ COMM }  Make this a loop that tries X times to connect, doesn't crash app. */
     }
 
-    retval = sendto(server_socket_fd, msg, msg_len, NULL, NULL, NULL );
+    retval = send(server_socket_fd, msg, msg_len, 0 );
     if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
 
-    retval = recvfrom(server_socket_fd, reply, reply_len, NULL, NULL, NULL );
+    retval = recv(server_socket_fd, reply, reply_len, 0);
     if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
     else { dlog(2, "[%s]: Server sent a (%d) byte reply: %s\n", whoami, retval, reply); }
 
@@ -218,10 +229,12 @@ void SOS_finalize() {
     dlog(0, "[%s]: SOS.status = SOS_STATUS_SHUTDOWN\n", whoami);
     SOS.status = SOS_STATUS_SHUTDOWN;
 
-    dlog(0, "[%s]: Joining threads...\n", whoami);
-    pthread_join( &SOS.task.post, NULL );
-    pthread_join( &SOS.task.read, NULL );
-    pthread_join( &SOS.task.scan, NULL );
+    if (SOS_CONFIG_USE_THREAD_POOL) {
+        dlog(0, "[%s]: Joining threads...\n", whoami);
+        pthread_join( &SOS.task.post, NULL );
+        pthread_join( &SOS.task.read, NULL );
+        pthread_join( &SOS.task.scan, NULL );
+    }
 
     dlog(0, "[%s]: Destroying mutexes...\n", whoami);
     pthread_mutex_destroy( &SOS.ring.send.lock  );
@@ -245,12 +258,13 @@ void SOS_finalize() {
 void* SOS_THREAD_post( void *args ) {
     SOS_SET_WHOAMI(whoami, "SOS_THREAD_post");
     
-    while (SOS.status == SOS_STATUS_RUNNING) {
+    while (SOS.status != SOS_STATUS_SHUTDOWN) {
         /*
          *  Transmit messages to the daemon.
          * ...
          *
          */
+        sleep(1);
     }
     return NULL;
 }
@@ -261,12 +275,13 @@ void* SOS_THREAD_post( void *args ) {
 void* SOS_THREAD_read( void *args ) {
     SOS_SET_WHOAMI(whoami, "SOS_THREAD_read");
 
-    while (SOS.status == SOS_STATUS_RUNNING) {
+    while (SOS.status != SOS_STATUS_SHUTDOWN) {
         /*
          *  Read the char* messages we've received and unpack into data structures.
          * ...
          *
          */
+        sleep(1);
     }    
     return NULL;
 }
@@ -277,13 +292,14 @@ void* SOS_THREAD_read( void *args ) {
 //SOS_FLOW - ready
 void* SOS_THREAD_scan( void *args ) {
     SOS_SET_WHOAMI(whoami, "SOS_THREAD_scan");
-    
-    while (SOS.status == SOS_STATUS_RUNNING) {
+
+    while (SOS.status == SOS_STATUS_SHUTDOWN) {
         /*
          *  Check out the dirty data and package it for sending.
          * ...
          *
          */
+        sleep(1);
     }
     return NULL;
 }
@@ -513,13 +529,6 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
     char *new_str;
     //misc
     int i;
-
-
-    if (SOS_DEBUG > 6) {
-        for (i = 0; i < msg_len; i++) {
-            printf("[%s]:   msg[%d] == %d\n", whoami, i, (int)msg[i]);
-        }
-    }
 
     dlog(6, "[%s]: Start... (pub->elem_count == %d)\n", whoami, pub->elem_count);
 
@@ -863,35 +872,34 @@ void SOS_free_sub(SOS_sub *sub) {
 
 
 void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
-    if (SOS_DEBUG != 0 ) {
-        int i;
-        int rank;
-
-        /* TODO:{ DISPLAY_PUB, CHAD }
-         *
-         * This needs to get cleaned up and restored to a the useful CSV/TSV that it was.
-         */
-  
-        const char *SOS_TYPE_LOOKUP[4] = {"SOS_VAL_TYPE_INT", "SOS_VAL_TYPE_LONG", "SOS_VAL_TYPE_DOUBLE", "SOS_VAL_TYPE_STRING"};
-
-        fprintf(output_to, "\n/---------------------------------------------------------------\\\n");
-        fprintf(output_to, "|  %15s(%4d) : origin   %19s : title |\n", pub->prog_name, pub->comm_rank, pub->title);
-        fprintf(output_to, "|  %3d of %3d elements used.                                    |\n", pub->elem_count, pub->elem_max);
-        fprintf(output_to, "|---------------------------------------------------------------|\n");
-        fprintf(output_to, "|       index,          id,        type,                   name | = <value>\n");
-        fprintf(output_to, "|---------------------------------------------------------------|\n");
-        for (i = 0; i < pub->elem_count; i++) {
-            fprintf(output_to, "| %11d,%12d,%12s,", i, pub->data[i]->guid, SOS_TYPE_LOOKUP[pub->data[i]->type]);
-            fprintf(output_to, " %c %20s | = ", ((pub->data[i]->state == SOS_VAL_STATE_DIRTY) ? '*' : ' '), pub->data[i]->name);
-            switch (pub->data[i]->type) {
-            case SOS_VAL_TYPE_INT : fprintf(output_to, "%d", pub->data[i]->val.i_val); break;
-            case SOS_VAL_TYPE_LONG : fprintf(output_to, "%ld", pub->data[i]->val.l_val); break;
-            case SOS_VAL_TYPE_DOUBLE : fprintf(output_to, "%lf", pub->data[i]->val.d_val); break;
-            case SOS_VAL_TYPE_STRING : fprintf(output_to, "\"%s\"", pub->data[i]->val.c_val); break; }
-            fprintf(output_to, "\n");
-        }
-        fprintf(output_to, "\\---------------------------------------------------------------/\n\n");
+    int i;
+    int rank;
+    
+    /* TODO:{ DISPLAY_PUB, CHAD }
+     *
+     * This needs to get cleaned up and restored to a the useful CSV/TSV that it was.
+     */
+    
+    const char *SOS_TYPE_LOOKUP[4] = {"SOS_VAL_TYPE_INT", "SOS_VAL_TYPE_LONG", "SOS_VAL_TYPE_DOUBLE", "SOS_VAL_TYPE_STRING"};
+    
+    fprintf(output_to, "\n/---------------------------------------------------------------\\\n");
+    fprintf(output_to, "|  %15s(%4d) : origin   %19s : title |\n", pub->prog_name, pub->comm_rank, pub->title);
+    fprintf(output_to, "|  %3d of %3d elements used.                                    |\n", pub->elem_count, pub->elem_max);
+    fprintf(output_to, "|---------------------------------------------------------------|\n");
+    fprintf(output_to, "|       index,          id,        type,                   name | = <value>\n");
+    fprintf(output_to, "|---------------------------------------------------------------|\n");
+    for (i = 0; i < pub->elem_count; i++) {
+        fprintf(output_to, "| %11d,%12d,%12s,", i, pub->data[i]->guid, SOS_TYPE_LOOKUP[pub->data[i]->type]);
+        fprintf(output_to, " %c %20s | = ", ((pub->data[i]->state == SOS_VAL_STATE_DIRTY) ? '*' : ' '), pub->data[i]->name);
+        switch (pub->data[i]->type) {
+        case SOS_VAL_TYPE_INT : fprintf(output_to, "%d", pub->data[i]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG : fprintf(output_to, "%ld", pub->data[i]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE : fprintf(output_to, "%lf", pub->data[i]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING : fprintf(output_to, "\"%s\"", pub->data[i]->val.c_val); break; }
+        fprintf(output_to, "\n");
     }
+    fprintf(output_to, "\\---------------------------------------------------------------/\n\n");
+    
     return;
 }
 

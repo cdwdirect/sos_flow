@@ -1,3 +1,9 @@
 sosd_pid=$(cat sosd.lock)
 kill -15 $sosd_pid
 rm -f sosd.lock
+echo ""
+echo "Connecting to server to clear blocking recv()..."
+nc localhost 22505 < touchd
+echo ""
+echo "   ... done.  Server is closed down."
+echo ""

@@ -32,7 +32,6 @@ int main(int argc, char *argv[]) {
 
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
-    char    *str_channel  = "basic_channel";
     char    *str_prog_ver = "1.0";
     char    *var_string   = "Hello, world!";
     int      var_int      = 10;
@@ -46,7 +45,7 @@ int main(int argc, char *argv[]) {
 
     dlog(6, "[%s]: Manually configuring some pub metadata...\n", whoami);
     pub->prog_ver         = str_prog_ver;
-    pub->meta.channel     = str_channel;
+    pub->meta.channel     = 3;
     pub->meta.nature      = SOS_NATURE_EXEC_WORK;
     /* Totally optional metadata, the defaults are usually right. */
     pub->meta.layer       = SOS_LAYER_APP;
