@@ -1,3 +1,21 @@
+
+/*
+ *
+ *   NOTE: At present this is a testing tool for battering the daemon with a bunch
+ *         of commands.
+ *
+ *
+ *
+ *
+ */
+
+
+
+
+
+
+
+
 /**
  * @file sos_cmd.c
  *  Insert values into the SOS databse from the command line,

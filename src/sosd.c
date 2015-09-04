@@ -66,7 +66,6 @@ struct addrinfo          *result;
 struct sockaddr_storage   peer_addr;
 socklen_t                 peer_addr_len;
 
-
 int main(int argc, char *argv[])  {
     int elem, next_elem;
     int retval;
@@ -120,11 +119,15 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
     daemon_setup_socket();
 
+
+    /* Go! */
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
     daemon_listen_loop();
 
+
+
   
-    /* Cleanup and shut down */
+    /* Done!  Cleanup and shut down. */
     SOS_finalize();
 
     dlog(0, "[%s]: Closing the socket.\n", whoami);
@@ -236,17 +239,18 @@ void daemon_handle_echo(char *msg, int msg_size) {
 void daemon_handle_register(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_register");
     SOS_msg_header header;
-    int ptr = 0;
-    int i   = 0;
+    int  ptr  = 0;
+    int  i    = 0;
+    long guid = 0;
 
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
+    guid = SOS_next_id( SOS.uid.seq );
     char response[SOS_DEFAULT_BUFFER_LEN];
-    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
-    sprintf( response, "I received your REGISTER!" );
-
-    i = send( client_socket_fd, (void *) response, strlen(response), 0 );
+    memset(response, '\0', SOS_DEFAULT_BUFFER_LEN);
+    memcpy(response, &guid, sizeof(long));
+    i = send( client_socket_fd, (void *) response, sizeof(long), 0 );
 
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
@@ -262,8 +266,9 @@ void daemon_handle_register(char *msg, int msg_size) {
 void daemon_handle_announce(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
-    int ptr = 0;
-    int i   = 0;
+    int  ptr  = 0;
+    int  i    = 0;
+    long guid = 0;
 
     SOS_pub *new_pub;
     new_pub = SOS_new_post("...");
@@ -275,10 +280,11 @@ void daemon_handle_announce(char *msg, int msg_size) {
     SOS_apply_announce(new_pub, (msg + ptr), (msg_size - ptr));
     dlog(5, "[%s]:   ... new_pub->elem_count = %d\n", whoami, new_pub->elem_count);
 
-    /* TODO:{ HANDLE_ANNOUNCE } Here we need to build a reply featuring the GUIDs assigned. */
+    char response[SOS_DEFAULT_BUFFER_LEN];
+    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN);
+    sprintf( response, "I received your ANNOUNCE!");
 
-    char response[SOS_DEFAULT_BUFFER_LEN] = "I received your ANNOUNCE!";
-    i = send( client_socket_fd, (void *) response, (1 + strlen(response)), 0);
+    i = send( client_socket_fd, (void *) response, sizeof(long), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
         dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);

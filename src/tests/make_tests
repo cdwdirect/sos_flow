@@ -1,1 +1,0 @@
-mpicc -o mpi_comm_speed mpi_comm_speed.c

@@ -136,12 +136,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         
         if (server_socket_fd == NULL) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
-        /*
-         *  TODO:{ CHAD, INIT }
-         *       Here we will request certain configuration things
-         *       from the daemon, such as our (GUID) client_id.
-         */ 
-
         dlog(2, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.my_guid  = 0;
@@ -153,12 +147,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
         dlog(2, "[%s]:   ... listening for the server to reply...\n", whoami);
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
-
         retval = recv( server_socket_fd, (void *) buffer, (SOS_DEFAULT_BUFFER_LEN - 1), 0);
         
         dlog(2, "[%s]:   ... server responded: %s   (%d bytes)\n", whoami, buffer, retval);
         dlog(2, "[%s]:   ... determining my guid   ", whoami);
-        SOS.my_guid = 0;
+        memcpy(&SOS.my_guid, buffer, sizeof(long));
         dlog(2, "(%ld)\n", SOS.my_guid);
 
         close( server_socket_fd );
@@ -176,7 +169,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
     }
 
-    dlog(2, "[%s]: Done!  Returning.\n", whoami);
+    dlog(2, "[%s]: Done with SOS_init(), returning to caller.\n", whoami);
     return;
 }
 

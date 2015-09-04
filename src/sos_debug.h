@@ -20,8 +20,7 @@
 
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
 
-#define SOS_DEBUG      1
-//#undef SOS_DEBUG
+#define SOS_DEBUG      99
 
 
 /* Should the daemon do any logging?  (yes/no)  */
