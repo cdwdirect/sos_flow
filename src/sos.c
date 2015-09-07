@@ -20,6 +20,7 @@
 
 #include "sos.h"
 #include "sos_debug.h"
+#include "qhashtbl.h"
 
 
 /* Private functions (not in the header file) */

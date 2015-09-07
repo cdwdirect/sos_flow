@@ -1,0 +1,19 @@
+./stop
+./start
+rm -rf ./test_results/output*.txt
+
+export SOS_CMD_COUNT=1024
+export SOS_PARALLEL_COUNT=50
+
+echo ""
+echo "SOS_CMD_COUNT      = $SOS_CMD_COUNT"
+echo "SOS_PARALLEL_COUNT = $SOS_PARALLEL_COUNT"
+echo ""
+
+for i in `seq 1 $SOS_PARALLEL_COUNT`;
+do
+    ./sos_cmd &> ./test_results/output$i.txt
+done
+
+
+echo "-------"

@@ -27,6 +27,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include "qhashtbl.h"
+
+
 /* SOS Configuration Switches... */
 
 #define SOS_CONFIG_DUMP_TO_FILE        1
@@ -272,6 +275,8 @@ typedef struct {
     SOS_ring_queue  send;
     SOS_ring_queue  recv;
 } SOS_ring_set;
+
+
 
 typedef struct {
     pthread_t    *post;    /* POST pending msgs to the daemon */

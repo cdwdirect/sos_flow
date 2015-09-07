@@ -23,6 +23,8 @@
 
 #include "sos.h"
 #include "sos_debug.h"
+#include "qhashtbl.h"
+
 
 #define USAGE "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
 #define DAEMON_NAME    "sosd"
