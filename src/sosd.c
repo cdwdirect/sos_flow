@@ -42,7 +42,7 @@ void daemon_handle_announce(char *msg_data, int msg_size);
 void daemon_handle_publish(char *msg_data, int msg_size);
 void daemon_handle_echo(char *msg_data, int msg_size);
 void daemon_handle_shutdown(char *msg_data, int msg_size);
-
+void daemon_handle_unknown(char *msg_data, int msg_size);
 
 /*--- Daemon management variables ---*/
 char   *WORK_DIR;
@@ -65,6 +65,10 @@ char                     *client_port;
 struct addrinfo          *result;
 struct sockaddr_storage   peer_addr;
 socklen_t                 peer_addr_len;
+
+SOS_pub *global_test_pub;
+
+
 
 int main(int argc, char *argv[])  {
     int elem, next_elem;
@@ -115,6 +119,7 @@ int main(int argc, char *argv[])  {
     SOS_init( &argc, &argv, SOS.role );    
     SOS_SET_WHOAMI(whoami, "main");
     dlog(0, "[%s]: Returned from SOS_init();\n", whoami);
+    global_test_pub = SOS_new_post("global_test_pub");
 
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
     daemon_setup_socket();
@@ -168,9 +173,6 @@ void daemon_listen_loop() {
 
         byte_count = recv( client_socket_fd, (void *) buffer, buffer_len, 0);
         if (byte_count < 1) continue;
-        
-        dlog(5, "[%s]: Received connection.\n", whoami);
-        dlog(5, "[%s]:   ... byte_count = %d\n", whoami, byte_count);
 
         if (byte_count >= sizeof(SOS_msg_header)) {
             memcpy(&header, buffer, sizeof(SOS_msg_header));
@@ -178,29 +180,29 @@ void daemon_listen_loop() {
             dlog(0, "[%s]:   ... this appears to be a malformed message.  (Too short, discard)\n", whoami);  continue;
         }
 
+        
+        dlog(5, "[%s]: Received connection.\n", whoami);
+        dlog(5, "[%s]:   ... byte_count = %d\n", whoami, byte_count);
+        dlog(5, "[%s]:   ... msg_from = %ld\n", whoami, header.msg_from);
+
         switch (header.msg_type) {
-        case SOS_MSG_TYPE_REGISTER:
-            dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type);
+        case SOS_MSG_TYPE_REGISTER: dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type);
             daemon_handle_register(buffer, byte_count); break; 
 
-        case SOS_MSG_TYPE_ANNOUNCE:
-            dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type);
+        case SOS_MSG_TYPE_ANNOUNCE: dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type);
             daemon_handle_announce(buffer, byte_count); break;
             
-        case SOS_MSG_TYPE_PUBLISH:
-            dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type);
+        case SOS_MSG_TYPE_PUBLISH:  dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type);
             daemon_handle_publish(buffer, byte_count); break;
             
-        case SOS_MSG_TYPE_ECHO:
-            dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type);
+        case SOS_MSG_TYPE_ECHO:     dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type);
             daemon_handle_echo(buffer, byte_count); break;
 
-        case SOS_MSG_TYPE_SHUTDOWN:
-            dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type);
-            daemon_handle_shutdown (buffer, byte_count); break;
+        case SOS_MSG_TYPE_SHUTDOWN: dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type);
+            daemon_handle_shutdown(buffer, byte_count); break;
 
-        default:
-            dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)  (doing nothing)\n", whoami, header.msg_type); break;
+        default:                    dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)\n", whoami, header.msg_type); break;
+            daemon_handle_unknown(buffer, byte_count); break;
         }
 
         close( client_socket_fd );
@@ -226,7 +228,6 @@ void daemon_handle_echo(char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ECHO\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
-    dlog(5, "[%s]:         message = %s\n", whoami, (msg + ptr));
 
     i = send( client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
@@ -246,15 +247,20 @@ void daemon_handle_register(char *msg, int msg_size) {
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
-    guid = SOS_next_id( SOS.uid.seq );
+    if (header.msg_from == 0) {
+        guid = SOS_next_id( SOS.uid.seq );
+    } else {
+        guid = header.msg_from;
+    }
+
     char response[SOS_DEFAULT_BUFFER_LEN];
     memset(response, '\0', SOS_DEFAULT_BUFFER_LEN);
+
     memcpy(response, &guid, sizeof(long));
     i = send( client_socket_fd, (void *) response, sizeof(long), 0 );
 
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
-        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
     }
 
@@ -266,32 +272,62 @@ void daemon_handle_register(char *msg, int msg_size) {
 void daemon_handle_announce(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
-    int  ptr  = 0;
-    int  i    = 0;
-    long guid = 0;
+    int   ptr  = 0;
+    int   i    = 0;
+    long  guid = 0;
+    char *response;
+    int   response_len;
+    char  response_stack[SOS_DEFAULT_BUFFER_LEN];
+    char  response_alloc;
 
-    SOS_pub *new_pub;
-    new_pub = SOS_new_post("...");
+    SOS_pub *pub = global_test_pub;
+
+    response = response_stack;
+    response_alloc = 0;
+    response_len = 0;
+
+    /* TODO: { ANNOUNCE } Container object for pubs, plz.  Don't just allocate a new one every time.  :) */
+
+
+    /* Process the message into a pub handle... */
     
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
-
     dlog(5, "[%s]: calling SOS_apply_announce() ...\n", whoami);
-    SOS_apply_announce(new_pub, (msg + ptr), (msg_size - ptr));
-    dlog(5, "[%s]:   ... new_pub->elem_count = %d\n", whoami, new_pub->elem_count);
 
-    char response[SOS_DEFAULT_BUFFER_LEN];
-    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN);
-    sprintf( response, "I received your ANNOUNCE!");
+    SOS_apply_announce(pub, msg, msg_size);
 
-    i = send( client_socket_fd, (void *) response, sizeof(long), 0);
-    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
-    else {
-        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
-        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
+    dlog(5, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
+
+    /* Supply the calling system with any needed GUID's... */
+
+    response_len = (1 + pub->elem_count) * sizeof(long);
+
+    if (response_len > SOS_DEFAULT_BUFFER_LEN) {
+        response = (char *) malloc( response_len );
+        if (response == NULL) { dlog(0, "[%s]: ERROR!  Could not allocate memory for an announcement response!  (%s)\n", whoami, strerror(errno));  exit(1); }
+        memset (response, '\0', response_len);
+        response_alloc = 1;
     }
 
+
+    ptr = 0;
+    for (i = 0; i < pub->elem_count; i++) {
+        if (pub->data[i]->guid < 1) { guid = SOS_next_id( SOS.uid.seq ); pub->data[i]->guid = guid; } else { guid = pub->data[i]->guid; }
+        dlog(5, "[%s]:       ... pub->data[%d]->guid = %ld\n", whoami, i, guid);
+        memcpy((response + ptr), &guid, sizeof(long));
+        ptr += sizeof(long);
+    }
+
+    if (pub->guid < 1) { guid = SOS_next_id( SOS.uid.seq ); pub->guid = guid; } else { guid = pub->guid; }
+    memcpy((response + ptr), &guid, sizeof(long));
+
+    i = send( client_socket_fd, (void *) response, response_len, 0);
+    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     
+    /* TODO: { daemon_handle_announce } Store this new pub handle somewhere ... */
+
     return;
 }
 
@@ -303,21 +339,30 @@ void daemon_handle_publish(char *msg, int msg_size)  {
     int ptr = 0;
     int i   = 0;
 
+    SOS_pub *pub = global_test_pub;
+
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
+    SOS_apply_publish( pub, msg, msg_size );
+    for (i = 0; i < pub->elem_count; i++) {
+        switch (pub->data[i]->type) {
+        case SOS_VAL_TYPE_INT:    dlog(6, "[%s]   ... pub->data[%d]->val.i_val = %d\n", whoami, i,     pub->data[i]->val.i_val);  break;
+        case SOS_VAL_TYPE_LONG:   dlog(6, "[%s]   ... pub->data[%d]->val.l_val = %ld\n", whoami, i,    pub->data[i]->val.l_val);  break;
+        case SOS_VAL_TYPE_DOUBLE: dlog(6, "[%s]   ... pub->data[%d]->val.d_val = %lf\n", whoami, i,    pub->data[i]->val.d_val);  break;
+        case SOS_VAL_TYPE_STRING: dlog(6, "[%s]   ... pub->data[%d]->val.c_val = \"%s\"\n", whoami, i, pub->data[i]->val.c_val);  break;
+        }
+    }
+
     char response[SOS_DEFAULT_BUFFER_LEN];
-    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN);
-    sprintf( response, "I received your PUBLISH!");
+    memset (response, '\0', SOS_DEFAULT_BUFFER_LEN);
+    sprintf(response, "I received your PUBLISH!");
 
     i = send( client_socket_fd, (void *) response, strlen(response), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
-        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
     }
-
-
 
     return;
 }
@@ -339,12 +384,31 @@ void daemon_handle_shutdown(char *msg, int msg_size) {
 
     i = send( client_socket_fd, (void *) response, strlen(response), 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
-    else {
-        dlog(5, "[%s]:   ... sent the following reply: %s\n", whoami, response);
-        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
-    }
+    else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
 
     daemon_running = 0;
+
+    return;
+}
+
+
+
+void daemon_handle_unknown(char *msg, int msg_size) {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_unknown");
+    SOS_msg_header header;
+    int ptr = 0;
+    int i   = 0;
+
+    dlog(1, "[%s]: header.msg_type = UNKNOWN\n", whoami);
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    char response[SOS_DEFAULT_BUFFER_LEN];
+    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
+    sprintf( response, "SOS daemon did not understand your message!");
+
+    i = send( client_socket_fd, (void *) response, strlen(response), 0 );
+    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
 
     return;
 }
@@ -383,13 +447,10 @@ void daemon_setup_socket() {
         /*
          *  Allow this socket to be reused/rebound quickly by the daemon.
          */
-        
         if ( setsockopt( server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
             dlog(0, "[%s]:   ... could not set socket options.  (%s)\n", whoami, strerror(errno));
             continue;
         }
-        /*
-         */
 
         if ( bind( server_socket_fd, server_addr->ai_addr, server_addr->ai_addrlen ) == -1 ) {
             dlog(0, "[%s]:   ... failed to bind to socket.  (%s)\n", whoami, strerror(errno));
@@ -413,17 +474,13 @@ void daemon_setup_socket() {
     /*
      *   Enforce that this is a BLOCKING socket:
      */
-
     opts = fcntl(server_socket_fd, F_GETFL);
     if (opts < 0) { dlog(0, "[%s]: ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", whoami, strerror(errno)); }
-    
-    opts = opts & !(O_NONBLOCK);
+ 
+   opts = opts & !(O_NONBLOCK);
     i    = fcntl(server_socket_fd, F_SETFL, opts);
     if (i < 0) { dlog(0, "[%s]: ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", whoami, strerror(errno)); }
 
-    /*
-     *
-     */
 
     listen( server_socket_fd, listen_backlog );
     dlog(0, "[%s]: Listening on socket.\n", whoami);
@@ -484,16 +541,13 @@ void daemon_init() {
     /* [file handles]
      *     close unused IO handles
      */
-//    #ifndef DEBUG
     close(STDIN_FILENO);
     close(STDOUT_FILENO);
     close(STDERR_FILENO);
-//    #endif
 
     /* [signals]
      *     register the signals we care to trap
      */
-
     signal(SIGCHLD, SIG_IGN);
     signal(SIGTSTP, SIG_IGN);
     signal(SIGTTOU, SIG_IGN);
@@ -503,7 +557,7 @@ void daemon_init() {
 
     daemon_running = 1;
     return;
-} //end: daemon_init
+}
 
 
 
@@ -530,5 +584,5 @@ void signal_handler(int signal) {
 
     }
 
-} //end: signal_handler
+}
 

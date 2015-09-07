@@ -108,13 +108,15 @@ int main(int argc, char *argv[]) {
     SOS_pub   *pub;
     SOS_data  *data;
     int        i, j;
+    int        cmd_count;
+    char      *cmd_count_env;
 
     int        msg_out_len;
     char      *msg_out;
     char      *msg_reply;
 
-    i = atoi(getenv("SOS_CMD_COUNT"));
-    if (i == 0) i = 524288;
+    cmd_count_env = getenv("SOS_CMD_COUNT");
+    if (cmd_count_env == NULL) { i = 1024; } else { i = atoi(cmd_count_env); }
 
     SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
     SOS_SET_WHOAMI(whoami, "sos_cmd.main");
@@ -130,7 +132,7 @@ int main(int argc, char *argv[]) {
     msg_out_len = strlen(msg_out);
 
     header.msg_type = SOS_MSG_TYPE_ECHO;
-    header.my_guid  = 1234;
+    header.msg_from = SOS.my_guid;
     memcpy(msg_out, &header, sizeof(SOS_msg_header));
 
     for (j = 0; j < i; j++) {

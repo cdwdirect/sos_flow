@@ -58,13 +58,19 @@ int main(int argc, char *argv[]) {
     i = SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, (SOS_val) var_string      );
     i = SOS_pack(pub, "example_dbl", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double      );
 
+    
+    dlog(0, "[%s]: Announcing the pub...\n", whoami);
+    SOS_announce(pub);
+
+    dlog(0, "[%s]: Publishing the pub...\n", whoami);
+    SOS_publish(pub);
+
     dlog(0, "[%s]: Re-packing the last value...\n", whoami);
     var_double = 99.9;
     SOS_repack(pub, i, (SOS_val) var_double);
 
-    
-    dlog(0, "[%s]: Announcing the pub...\n", whoami);
-    SOS_announce(pub);
+    dlog(0, "[%s]: Re-Publishing the pub...\n", whoami);
+    SOS_publish(pub);
 
     /*
      *  Skipping the threaded part for now.

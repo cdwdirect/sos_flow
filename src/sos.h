@@ -171,52 +171,56 @@ typedef struct {
 
 typedef struct {
     int           channel;      /* default: 0                     */
-    int           pragma_len;   /* default: 0                     */
-    char         *pragma_msg;   /* default: (null)                */
     SOS_nature    nature;       /* default: --------- manual      */
     SOS_layer     layer;        /* default: SOS_LAYER_APP         */
     SOS_pri       pri_hint;     /* default: SOS_PRI_DEFAULT       */
     SOS_scope     scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
     SOS_retain    retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
+    int           pragma_len;   /* default: 0                     */
+    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
+    char         *pragma_msg;   /* default: (null)                */
 } SOS_meta;
 
 typedef struct {
     long          guid;         /* default: (auto)                */
-    char         *name;         /* default: --------- manual      */
     SOS_val_type  type;         /* default: --------- manual      */
     SOS_sem       sem_hint;     /* default: --------- manual      */
-    int           len;          /* default: (auto) [on assign]    */
+    int           val_len;      /* default: (auto) [on assign]    */
     SOS_val       val;          /* default: --------- manual      */
     SOS_val_state state;        /* default: SOS_VAL_STATE_EMPTY   */
     SOS_time      time;         /* default: (complex)             */
+    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
+    char         *name;         /* default: --------- manual      */
 } SOS_data;
 
 typedef struct {
-    int           pub_id;       /* default: (auto)                */
-    char         *node_id;      /* default: SOS.config.node_id    */
+    long          guid;         /* default: (auto, on announce)   */
     int           process_id;   /* default: -1                    */
     int           thread_id;    /* default: -1                    */
     int           comm_rank;    /* default: -1                    */
     SOS_meta      meta;         /* default: (complex)             */
-    char         *prog_name;    /* default: argv[0] / manual      */
-    char         *prog_ver;     /* default: (null)                */
-    int           pragma_len;   /* default: -1                    */
-    char         *pragma_msg;   /* default: (null)                */
-    char         *title;        /* default: (null)                */
     int           announced;    /* default: 0                     */
     int           elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
     int           elem_count;   /* default: 0                     */
+    int           pragma_len;   /* default: -1                    */
+    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
+    char         *pragma_msg;   /* default: (null)                */
+    char         *node_id;      /* default: SOS.config.node_id    */
+    char         *prog_name;    /* default: argv[0] / manual      */
+    char         *prog_ver;     /* default: (null)                */
+    char         *title;        /* default: (null)                */
     SOS_data    **data;
 } SOS_pub;
 
 typedef struct {
-    int             suid;
-    int             active;
-    pthread_t       thread_handle;
-    int             refresh_delay;
-    SOS_role        source_role;
-    int             source_rank;
-    SOS_pub        *pub;
+    int           suid;
+    int           active;
+    pthread_t     thread_handle;
+    int           refresh_delay;
+    SOS_role      source_role;
+    int           source_rank;
+    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
+    SOS_pub      *pub;
 } SOS_sub;
 
 typedef struct {
@@ -232,7 +236,7 @@ typedef struct {
 
 typedef struct {                              /* no pointers, headers get used raw */
     SOS_msg_type   msg_type;
-    long           my_guid;
+    long           msg_from;
 } SOS_msg_header;
 
 typedef struct {

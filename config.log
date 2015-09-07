@@ -423,7 +423,7 @@ configure: failed program was:
 configure:11697: result: no
 configure:11595: checking whether pthreads work without any flags
 configure:11688: gcc -o conftest -g -O2     conftest.c   >&5
-/tmp/cct3Qglp.o: In function `main':
+/tmp/ccV2klhF.o: In function `main':
 /home/cdw/Dropbox/research/sos_flow/conftest.c:30: undefined reference to `pthread_create'
 /home/cdw/Dropbox/research/sos_flow/conftest.c:31: undefined reference to `pthread_join'
 /home/cdw/Dropbox/research/sos_flow/conftest.c:33: undefined reference to `__pthread_register_cancel'
