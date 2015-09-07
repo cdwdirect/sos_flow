@@ -1,4 +1,10 @@
 sosd
 sosd.lock
 sosd.log
+demo_app
+sos_cmd
+./libs/*
 *~
+*.lo
+*.so
+*.o
