@@ -60,7 +60,8 @@ demo_app-demo_app.o: demo_app.c /usr/include/stdc-predef.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/include/x86_64-linux-gnu/bits/in.h /usr/include/rpc/netdb.h \
- /usr/include/x86_64-linux-gnu/bits/netdb.h sos_debug.h
+ /usr/include/x86_64-linux-gnu/bits/netdb.h qhashtbl.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdbool.h sos_debug.h
 
 /usr/include/stdc-predef.h:
 
@@ -223,5 +224,9 @@ sos.h:
 /usr/include/rpc/netdb.h:
 
 /usr/include/x86_64-linux-gnu/bits/netdb.h:
+
+qhashtbl.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdbool.h:
 
 sos_debug.h:

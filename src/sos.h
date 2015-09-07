@@ -240,6 +240,7 @@ typedef struct {
 typedef struct {                              /* no pointers, headers get used raw */
     SOS_msg_type   msg_type;
     long           msg_from;
+    long           pub_guid;
 } SOS_msg_header;
 
 typedef struct {
@@ -292,6 +293,7 @@ typedef struct {
     SOS_ring_set     ring;
     SOS_task_set     task;
     SOS_socket_set   net;
+    qhashtbl_t      *tbl;
     pthread_mutex_t  global_lock;
     long             my_guid;
 } SOS_runtime;

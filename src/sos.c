@@ -160,12 +160,13 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     } else {
         /*
          *
-         *  NETWORK CONFIGURATION: DAEMON / DATABASE / etc.
+         *  CONFIGURATION: DAEMON / DATABASE / etc.
          *
          */
 
+        SOS.tbl = qhashtbl(SOS_DEFAULT_ELEM_COUNT);
+
         dlog(0, "[%s]:   ... skipping socket setup (becase we're the daemon).\n", whoami);
-        
         /* TODO:{ INIT } EVPATH setup code goes here. */
 
     }
@@ -451,7 +452,6 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     dlog(6, "[msg_header(%d)] ", ptr);
 
     /* Process the PUB HEADER ... */
-    memcpy(&( pub->guid          ), (msg + ptr), sizeof(long));   ptr += sizeof(long);
     memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, "{ pub_id(%d), ", str_len);
     pub->node_id =       strndup(   (msg + ptr), str_len );       ptr += str_len;
     memcpy(&( pub->process_id    ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
@@ -526,7 +526,6 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
 
     SOS_msg_header header;
     double recv_ts;
-    long   pub_guid;
     int    dirty_elem_count;
     int    ptr;
     int    i;
@@ -541,10 +540,9 @@ void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
 
     ptr = 0;
     memcpy(&header,    (msg + ptr), sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    memcpy(&pub_guid,         (msg + ptr), sizeof(long));    ptr += sizeof(long);
     memcpy(&dirty_elem_count, (msg + ptr), sizeof(int));     ptr += sizeof(int);
 
-    dlog(6, "[%s]:   ... pub->guid = %ld     dirty_elem_count = %d\n", whoami, pub_guid, dirty_elem_count);
+    dlog(6, "[%s]:   ... pub->guid = %ld     dirty_elem_count = %d\n", whoami, header.pub_guid, dirty_elem_count);
 
     for (i = 0; i < dirty_elem_count; i++) {
         memcpy(&index,        (msg + ptr), sizeof(int));     ptr += sizeof(int);
@@ -990,7 +988,6 @@ void SOS_announce( SOS_pub *pub ) {
     /* Reserve space for the MESSAGE header ... */
     buffer_len += sizeof(SOS_msg_header);
     /* Make space for the PUB HEADER ... */
-    buffer_len += sizeof(long);                    // [ pub->guid             ]
     buffer_len += sizeof(int);                     // [ pub->node_id          ].len()
     buffer_len += len_node_id;                     // [ pub->node_id          ].string()
     buffer_len += sizeof(int);                     // [ pub->process_id       ]
@@ -1042,6 +1039,7 @@ void SOS_announce( SOS_pub *pub ) {
     ptr = 0;
     header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
     header.msg_from = SOS.my_guid;
+    header.pub_guid = pub->guid;
 
     dlog(6, "[%s]:   ... filling the buffer with the correct values: ", whoami);
 
@@ -1050,8 +1048,6 @@ void SOS_announce( SOS_pub *pub ) {
     dlog(6, "[msg_header(%d)] ", ptr);
     
     /* Fill in the PUB HEADER ... */
-    memcpy((buffer + ptr), &( pub->guid        ),        sizeof(long));     ptr += sizeof(long);
-
     if (len_node_id < 1) {
         memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
         memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
@@ -1208,7 +1204,6 @@ void SOS_publish( SOS_pub *pub ) {
     buffer_len += sizeof(SOS_msg_header); dlog(6, "[message_head(%d)] ", buffer_len);
 
     /* Reserve space for the PUB IDENTIFICATION */
-    buffer_len += sizeof(long);           dlog(6, "[pub_guid(%d)] ", buffer_len);
     buffer_len += sizeof(int);            dlog(6, "[dirty_elem_count(%d) ]", buffer_len);
 
     /* Reserve space for PUB DATA (that is dirty) */
@@ -1250,11 +1245,11 @@ void SOS_publish( SOS_pub *pub ) {
 
     header.msg_type = SOS_MSG_TYPE_PUBLISH;
     header.msg_from = SOS.my_guid;
+    header.pub_guid = pub->guid;
 
     /* Fill the buffer with the dirty values. */
     ptr = 0;
     memcpy((buffer + ptr), &(header       ), sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    memcpy((buffer + ptr), &(pub->guid            ), sizeof(long));   ptr += sizeof(long);
     memcpy((buffer + ptr), &(dirty_elem_count     ), sizeof(int));    ptr += sizeof(int);
     for (i = 0; i < pub->elem_count; i++) {
         if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;

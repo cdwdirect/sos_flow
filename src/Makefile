@@ -136,7 +136,7 @@ am__installdirs = "$(DESTDIR)$(libdir)" "$(DESTDIR)$(bindir)" \
 	"$(DESTDIR)$(pkgincludedir)"
 LTLIBRARIES = $(lib_LTLIBRARIES)
 libsos_la_LIBADD =
-am_libsos_la_OBJECTS = libsos_la-sos.lo
+am_libsos_la_OBJECTS = libsos_la-sos.lo libsos_la-qhashtbl.lo
 libsos_la_OBJECTS = $(am_libsos_la_OBJECTS)
 AM_V_lt = $(am__v_lt_$(V))
 am__v_lt_ = $(am__v_lt_$(AM_DEFAULT_VERBOSITY))
@@ -155,7 +155,7 @@ sos_cmd_LDADD = $(LDADD)
 sos_cmd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(sos_cmd_CFLAGS) \
 	$(CFLAGS) $(sos_cmd_LDFLAGS) $(LDFLAGS) -o $@
-am_sosd_OBJECTS = sosd-sosd.$(OBJEXT)
+am_sosd_OBJECTS = sosd-sosd.$(OBJEXT) sosd-qhashtbl.$(OBJEXT)
 sosd_OBJECTS = $(am_sosd_OBJECTS)
 sosd_LDADD = $(LDADD)
 sosd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
@@ -373,7 +373,7 @@ top_srcdir = ..
 # --> sosd
 #    (daemon)
 #
-sosd_SOURCES = sosd.c
+sosd_SOURCES = sosd.c qhashtbl.c
 sosd_CFLAGS = -g
 sosd_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
@@ -401,8 +401,16 @@ pkginclude_HEADERS = sos.h    sos_debug.h
 #    (shared library)
 #
 lib_LTLIBRARIES = libsos.la
-libsos_la_SOURCES = sos.c sos_debug.h sos_error.h
+libsos_la_SOURCES = sos.c sos_debug.h sos_error.h qhashtbl.c
 libsos_la_CPPFLAGS = -I$(top_srcdir)/src -pthread
+
+#
+#
+#
+#
+demo_app_DEPENDENCIES = $(lib_LTLIBRARIES)
+sosd_DEPENDENCIES = $(lib_LTLIBRARIES)
+sos_cmd_DEPENDENCIES = $(lib_LTLIBRARIES)
 all: all-am
 
 .SUFFIXES:
@@ -544,8 +552,10 @@ distclean-compile:
 	-rm -f *.tab.c
 
 include ./$(DEPDIR)/demo_app-demo_app.Po
+include ./$(DEPDIR)/libsos_la-qhashtbl.Plo
 include ./$(DEPDIR)/libsos_la-sos.Plo
 include ./$(DEPDIR)/sos_cmd-sos_cmd.Po
+include ./$(DEPDIR)/sosd-qhashtbl.Po
 include ./$(DEPDIR)/sosd-sosd.Po
 
 .c.o:
@@ -575,6 +585,13 @@ libsos_la-sos.lo: sos.c
 #	$(AM_V_CC)source='sos.c' object='libsos_la-sos.lo' libtool=yes \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsos_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libsos_la-sos.lo `test -f 'sos.c' || echo '$(srcdir)/'`sos.c
+
+libsos_la-qhashtbl.lo: qhashtbl.c
+	$(AM_V_CC)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsos_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT libsos_la-qhashtbl.lo -MD -MP -MF $(DEPDIR)/libsos_la-qhashtbl.Tpo -c -o libsos_la-qhashtbl.lo `test -f 'qhashtbl.c' || echo '$(srcdir)/'`qhashtbl.c
+	$(AM_V_at)$(am__mv) $(DEPDIR)/libsos_la-qhashtbl.Tpo $(DEPDIR)/libsos_la-qhashtbl.Plo
+#	$(AM_V_CC)source='qhashtbl.c' object='libsos_la-qhashtbl.lo' libtool=yes \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) $(LIBTOOLFLAGS) --mode=compile $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(libsos_la_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o libsos_la-qhashtbl.lo `test -f 'qhashtbl.c' || echo '$(srcdir)/'`qhashtbl.c
 
 demo_app-demo_app.o: demo_app.c
 	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(demo_app_CFLAGS) $(CFLAGS) -MT demo_app-demo_app.o -MD -MP -MF $(DEPDIR)/demo_app-demo_app.Tpo -c -o demo_app-demo_app.o `test -f 'demo_app.c' || echo '$(srcdir)/'`demo_app.c
@@ -617,6 +634,20 @@ sosd-sosd.obj: sosd.c
 #	$(AM_V_CC)source='sosd.c' object='sosd-sosd.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -c -o sosd-sosd.obj `if test -f 'sosd.c'; then $(CYGPATH_W) 'sosd.c'; else $(CYGPATH_W) '$(srcdir)/sosd.c'; fi`
+
+sosd-qhashtbl.o: qhashtbl.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -MT sosd-qhashtbl.o -MD -MP -MF $(DEPDIR)/sosd-qhashtbl.Tpo -c -o sosd-qhashtbl.o `test -f 'qhashtbl.c' || echo '$(srcdir)/'`qhashtbl.c
+	$(AM_V_at)$(am__mv) $(DEPDIR)/sosd-qhashtbl.Tpo $(DEPDIR)/sosd-qhashtbl.Po
+#	$(AM_V_CC)source='qhashtbl.c' object='sosd-qhashtbl.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -c -o sosd-qhashtbl.o `test -f 'qhashtbl.c' || echo '$(srcdir)/'`qhashtbl.c
+
+sosd-qhashtbl.obj: qhashtbl.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -MT sosd-qhashtbl.obj -MD -MP -MF $(DEPDIR)/sosd-qhashtbl.Tpo -c -o sosd-qhashtbl.obj `if test -f 'qhashtbl.c'; then $(CYGPATH_W) 'qhashtbl.c'; else $(CYGPATH_W) '$(srcdir)/qhashtbl.c'; fi`
+	$(AM_V_at)$(am__mv) $(DEPDIR)/sosd-qhashtbl.Tpo $(DEPDIR)/sosd-qhashtbl.Po
+#	$(AM_V_CC)source='qhashtbl.c' object='sosd-qhashtbl.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -c -o sosd-qhashtbl.obj `if test -f 'qhashtbl.c'; then $(CYGPATH_W) 'qhashtbl.c'; else $(CYGPATH_W) '$(srcdir)/qhashtbl.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -857,14 +888,6 @@ uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-am uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-pkgincludeHEADERS
 
-
-#
-#
-#
-#
-# demo_app_DEPENDENCIES       = $(lib_LTLIBRARIES)
-# sosd_DEPENDENCIES           = $(lib_LTLIBRARIES)
-# sos_cmd_DEPENDENCIES        = $(lib_LTLIBRARIES)
 #
 
 # ########## #

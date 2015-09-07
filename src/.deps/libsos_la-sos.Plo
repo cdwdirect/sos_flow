@@ -65,7 +65,8 @@ libsos_la-sos.lo: sos.c /usr/include/stdc-predef.h /usr/include/stdio.h \
  /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
  /usr/include/x86_64-linux-gnu/bits/local_lim.h \
  /usr/include/linux/limits.h \
- /usr/include/x86_64-linux-gnu/bits/posix2_lim.h sos_debug.h
+ /usr/include/x86_64-linux-gnu/bits/posix2_lim.h qhashtbl.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdbool.h sos_debug.h
 
 /usr/include/stdc-predef.h:
 
@@ -244,5 +245,9 @@ sos.h:
 /usr/include/linux/limits.h:
 
 /usr/include/x86_64-linux-gnu/bits/posix2_lim.h:
+
+qhashtbl.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdbool.h:
 
 sos_debug.h:

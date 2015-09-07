@@ -68,8 +68,6 @@ struct addrinfo          *result;
 struct sockaddr_storage   peer_addr;
 socklen_t                 peer_addr_len;
 
-SOS_pub *global_test_pub;
-
 
 
 int main(int argc, char *argv[])  {
@@ -120,9 +118,6 @@ int main(int argc, char *argv[])  {
     printf("Calling SOS_init...\n");
     SOS_init( &argc, &argv, SOS.role );    
     SOS_SET_WHOAMI(whoami, "main");
-    dlog(0, "[%s]: Returned from SOS_init();\n", whoami);
-    global_test_pub = SOS_new_post("global_test_pub");
-
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
     daemon_setup_socket();
 
@@ -130,9 +125,6 @@ int main(int argc, char *argv[])  {
     /* Go! */
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
     daemon_listen_loop();
-
-
-
   
     /* Done!  Cleanup and shut down. */
     SOS_finalize();
@@ -160,13 +152,15 @@ void daemon_listen_loop() {
 
     buffer = (char *) malloc(sizeof(char) * buffer_len);
 
-    dlog(0, "[%s]: Entering main loop.   while(daemon_running) { ... }\n", whoami);
+    dlog(0, "[%s]: Entering main loop...\n", whoami);
 
 
     while (daemon_running) {
         memset(buffer, '\0', buffer_len);
         memset(&header, '\0', sizeof(SOS_msg_header));
         byte_count = 0;
+
+        dlog(5, "[%s]: Listening for a message...\n", whoami);
         
         peer_addr_len = sizeof(peer_addr);
         client_socket_fd = accept(server_socket_fd, (struct sockaddr *) &peer_addr, &peer_addr_len);
@@ -179,9 +173,8 @@ void daemon_listen_loop() {
         if (byte_count >= sizeof(SOS_msg_header)) {
             memcpy(&header, buffer, sizeof(SOS_msg_header));
         } else {
-            dlog(0, "[%s]:   ... this appears to be a malformed message.  (Too short, discard)\n", whoami);  continue;
+            dlog(0, "[%s]:   ... Received short (useless) message.\n", whoami);  continue;
         }
-
         
         dlog(5, "[%s]: Received connection.\n", whoami);
         dlog(5, "[%s]:   ... byte_count = %d\n", whoami, byte_count);
@@ -274,28 +267,48 @@ void daemon_handle_register(char *msg, int msg_size) {
 void daemon_handle_announce(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
-    int   ptr  = 0;
-    int   i    = 0;
-    long  guid = 0;
+    int   ptr;
+    int   i;
+    long  guid;
     char *response;
     int   response_len;
     char  response_stack[SOS_DEFAULT_BUFFER_LEN];
     char  response_alloc;
 
-    SOS_pub *pub = global_test_pub;
+    SOS_pub *pub;
+    char     guid_str[SOS_DEFAULT_STRING_LEN];
 
     response = response_stack;
     response_alloc = 0;
     response_len = 0;
 
-    /* TODO: { ANNOUNCE } Container object for pubs, plz.  Don't just allocate a new one every time.  :) */
-
-
     /* Process the message into a pub handle... */
-    
+
+    ptr = 0;
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n", whoami);
+
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    guid = header.pub_guid;
+
+    /* If this is a freshly announced pub, assign it a GUID. */
+    if (guid < 1) { guid = SOS_next_id( SOS.uid.seq ); }
+    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+    sprintf(guid_str, "%ld", guid);
+    /* Check the table for this pub ... */
+    dlog(5, "[%s]:    ... checking SOS.tbl for GUID(%s) --> ", whoami, guid_str);
+    pub = (SOS_pub *) SOS.tbl->get(SOS.tbl, guid_str);
+    if (pub == NULL) {
+        dlog(5, "NOPE!  Adding new pub to the table.\n");
+        /* If it's not in the table, add it. */
+        pub = SOS_new_pub(guid_str);
+        SOS.tbl->put(SOS.tbl, guid_str, pub);
+        pub->guid = guid;
+    } else {
+        dlog(5, "FOUND IT!\n");
+    }
+
     dlog(5, "[%s]: calling SOS_apply_announce() ...\n", whoami);
+
 
     SOS_apply_announce(pub, msg, msg_size);
 
@@ -316,7 +329,7 @@ void daemon_handle_announce(char *msg, int msg_size) {
     ptr = 0;
     for (i = 0; i < pub->elem_count; i++) {
         if (pub->data[i]->guid < 1) { guid = SOS_next_id( SOS.uid.seq ); pub->data[i]->guid = guid; } else { guid = pub->data[i]->guid; }
-        dlog(5, "[%s]:       ... pub->data[%d]->guid = %ld\n", whoami, i, guid);
+        dlog(5, "[%s]:       >   pub(%s)->data[%d]->guid = %ld\n", whoami, guid_str, i, guid);
         memcpy((response + ptr), &guid, sizeof(long));
         ptr += sizeof(long);
     }
@@ -330,6 +343,8 @@ void daemon_handle_announce(char *msg, int msg_size) {
     
     /* TODO: { daemon_handle_announce } Store this new pub handle somewhere ... */
 
+    dlog(5, "[%s]:   ... Done.\n", whoami);
+
     return;
 }
 
@@ -338,21 +353,44 @@ void daemon_handle_announce(char *msg, int msg_size) {
 void daemon_handle_publish(char *msg, int msg_size)  {
     SOS_SET_WHOAMI(whoami, "daemon_handle_publish");
     SOS_msg_header header;
-    int ptr = 0;
-    int i   = 0;
+    long  guid = 0;
+    int   ptr = 0;
+    int   i   = 0;
 
-    SOS_pub *pub = global_test_pub;
+    SOS_pub *pub;
+    char     guid_str[SOS_DEFAULT_STRING_LEN];
+
+    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    guid = header.pub_guid;
+
+    /* If this is a freshly announced pub, assign it a GUID. */
+    if (guid < 1) { guid = SOS_next_id( SOS.uid.seq ); }
+    sprintf(guid_str, "%ld", guid);
+    /* Check the table for this pub ... */
+    dlog(5, "[%s]:   ... checking SOS.tbl for GUID(%s) --> ", whoami, guid_str);
+    pub = (SOS_pub *) SOS.tbl->get(SOS.tbl, guid_str);
+    if (pub == NULL) {
+        /* If it's not in the table, add it. */
+        dlog(5, "not found, ADDING new pub to the table.\n");
+        pub = SOS_new_pub(guid_str);
+        SOS.tbl->put(SOS.tbl, guid_str, pub);
+        pub->guid = guid;
+    } else {
+        dlog(5, "FOUND it!\n");
+    }
 
     SOS_apply_publish( pub, msg, msg_size );
+
+
     for (i = 0; i < pub->elem_count; i++) {
         switch (pub->data[i]->type) {
-        case SOS_VAL_TYPE_INT:    dlog(6, "[%s]   ... pub->data[%d]->val.i_val = %d\n", whoami, i,     pub->data[i]->val.i_val);  break;
-        case SOS_VAL_TYPE_LONG:   dlog(6, "[%s]   ... pub->data[%d]->val.l_val = %ld\n", whoami, i,    pub->data[i]->val.l_val);  break;
-        case SOS_VAL_TYPE_DOUBLE: dlog(6, "[%s]   ... pub->data[%d]->val.d_val = %lf\n", whoami, i,    pub->data[i]->val.d_val);  break;
-        case SOS_VAL_TYPE_STRING: dlog(6, "[%s]   ... pub->data[%d]->val.c_val = \"%s\"\n", whoami, i, pub->data[i]->val.c_val);  break;
+        case SOS_VAL_TYPE_INT:    dlog(5, "[%s]:       |   pub(%s)->data[%d]->val.i_val = %d\n", whoami, guid_str,     i, pub->data[i]->val.i_val);  break;
+        case SOS_VAL_TYPE_LONG:   dlog(5, "[%s]:       |   pub(%s)->data[%d]->val.l_val = %ld\n", whoami, guid_str,    i, pub->data[i]->val.l_val);  break;
+        case SOS_VAL_TYPE_DOUBLE: dlog(5, "[%s]:       |   pub(%s)->data[%d]->val.d_val = %lf\n", whoami, guid_str,    i, pub->data[i]->val.d_val);  break;
+        case SOS_VAL_TYPE_STRING: dlog(5, "[%s]:       |   pub(%s)->data[%d]->val.c_val = \"%s\"\n", whoami, guid_str, i, pub->data[i]->val.c_val);  break;
         }
     }
 
@@ -365,6 +403,8 @@ void daemon_handle_publish(char *msg, int msg_size)  {
     else {
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
     }
+
+    dlog(5, "[%s]:   ... Done.\n", whoami);
 
     return;
 }

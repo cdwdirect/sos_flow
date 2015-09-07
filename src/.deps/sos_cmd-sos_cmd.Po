@@ -53,8 +53,10 @@ sos_cmd-sos_cmd.o: sos_cmd.c /usr/include/stdc-predef.h \
  /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdint.h /usr/include/stdint.h \
  /usr/include/x86_64-linux-gnu/bits/wchar.h \
  /usr/include/x86_64-linux-gnu/bits/in.h /usr/include/rpc/netdb.h \
- /usr/include/x86_64-linux-gnu/bits/netdb.h sos_debug.h sos_error.h \
- /usr/include/string.h /usr/include/x86_64-linux-gnu/bits/string.h \
+ /usr/include/x86_64-linux-gnu/bits/netdb.h qhashtbl.h \
+ /usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdbool.h sos_debug.h \
+ sos_error.h /usr/include/string.h \
+ /usr/include/x86_64-linux-gnu/bits/string.h \
  /usr/include/x86_64-linux-gnu/bits/string2.h \
  /usr/include/x86_64-linux-gnu/bits/string3.h /usr/include/signal.h \
  /usr/include/x86_64-linux-gnu/bits/signum.h \
@@ -206,6 +208,10 @@ sos.h:
 /usr/include/rpc/netdb.h:
 
 /usr/include/x86_64-linux-gnu/bits/netdb.h:
+
+qhashtbl.h:
+
+/usr/lib/gcc/x86_64-linux-gnu/4.8/include/stdbool.h:
 
 sos_debug.h:
 

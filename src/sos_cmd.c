@@ -187,9 +187,9 @@ int main(int argc, char *argv[]) {
                 }
             }
       
-            else if ( strcmp(argv[i], "--val_channel"     ) == 0) { pub->meta.channel = argv[j]; }
+            else if ( strcmp(argv[i], "--val_channel"     ) == 0) { pub->meta.channel = atoi(argv[j]); }
             else if ( strcmp(argv[i], "--val_ts_pack"     ) == 0) { sscanf(argv[j], "%lf", &(data->time.pack)); }
-            else if ( strcmp(argv[i], "--val_semantic"    ) == 0) { sscanf(argv[j], "%d", &(data->sem_hint));  }
+            else if ( strcmp(argv[i], "--val_semantic"    ) == 0) { sscanf(argv[j], "%d", (int *) &(data->sem_hint));  }
             else if ( strcmp(argv[i], "--program_name"    ) == 0) {   }
             else if ( strcmp(argv[i], "--program_version" ) == 0) {   }
             else if ( strcmp(argv[i], "--val_pragma"      ) == 0) {   }

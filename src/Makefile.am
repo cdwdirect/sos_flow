@@ -15,7 +15,7 @@ bin_PROGRAMS                = demo_app     sosd     sos_cmd
 # --> sosd
 #    (daemon)
 #
-sosd_SOURCES                = sosd.c
+sosd_SOURCES                = sosd.c qhashtbl.c
 sosd_CFLAGS                 = -g
 sosd_LDFLAGS                = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
@@ -48,7 +48,7 @@ pkginclude_HEADERS          = sos.h    sos_debug.h
 #    (shared library)
 #
 lib_LTLIBRARIES             = libsos.la
-libsos_la_SOURCES           = sos.c sos_debug.h sos_error.h
+libsos_la_SOURCES           = sos.c sos_debug.h sos_error.h qhashtbl.c
 libsos_la_CPPFLAGS          = -I$(top_srcdir)/src -pthread
 
 
@@ -56,9 +56,9 @@ libsos_la_CPPFLAGS          = -I$(top_srcdir)/src -pthread
 #
 #
 #
-# demo_app_DEPENDENCIES       = $(lib_LTLIBRARIES)
-# sosd_DEPENDENCIES           = $(lib_LTLIBRARIES)
-# sos_cmd_DEPENDENCIES        = $(lib_LTLIBRARIES)
+ demo_app_DEPENDENCIES       = $(lib_LTLIBRARIES)
+ sosd_DEPENDENCIES           = $(lib_LTLIBRARIES)
+ sos_cmd_DEPENDENCIES        = $(lib_LTLIBRARIES)
 #
 
 
