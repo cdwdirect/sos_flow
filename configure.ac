@@ -26,6 +26,26 @@ case $host_os in
         ;;
 esac
 
+
+## check for SQLite
+AC_ARG_WITH([sqlite],
+    AS_HELP_STRING([--without-sqlite], [Ignore presence of sqlite and disable it]))
+
+AS_IF([test "x$with_sqlite" != "xno"],
+      [
+PKG_CHECK_MODULES([SQLITE3], [sqlite3], [have_libsqlite3=yes], [have_libsqlite3=no])
+       ],
+      [have_libsqlite3=no])
+
+AS_IF([test "x$have_libsqlite3" = "xyes"],
+      [],
+      [AS_IF([test "x$with_libsqlite3" = "xyes"],
+             [AC_MSG_ERROR([libsqlite3 requested but not found]) ])
+])
+AM_CONDITIONAL([LIB_SQLITE3],  [test "$have_libsqlite3" = "yes"])
+
+
+
 # Check for pthreads
 AX_PTHREAD
 

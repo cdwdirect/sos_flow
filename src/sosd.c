@@ -23,6 +23,10 @@
 
 #include "sos.h"
 #include "sos_debug.h"
+#include "sos_error.h"
+
+#include "sosd.h"
+#include "sosd_db_sqlite.h"
 #include "qhashtbl.h"
 
 
@@ -34,47 +38,13 @@
 
 #define GET_TIME(now)  { struct timeval t; gettimeofday(&t, NULL); now = t.tv_sec + t.tv_usec/1000000.0; }
 
-void signal_handler(int signal);
-
-void daemon_init();
-void daemon_setup_socket();
-void daemon_listen_loop();
-void daemon_handle_register(char *msg_data, int msg_size);
-void daemon_handle_announce(char *msg_data, int msg_size);
-void daemon_handle_publish(char *msg_data, int msg_size);
-void daemon_handle_echo(char *msg_data, int msg_size);
-void daemon_handle_shutdown(char *msg_data, int msg_size);
-void daemon_handle_unknown(char *msg_data, int msg_size);
-
-/*--- Daemon management variables ---*/
-char   *WORK_DIR;
-int     daemon_running = 0;
-char    daemon_pid_str[256];
-double  time_now = 0.0;
-
-/*--- Networking variables ---*/
-int     server_socket_fd;
-int     client_socket_fd;
-int     port_number;
-char   *server_port;
-int     buffer_len;
-int     listen_backlog;
-int     client_len;
-struct addrinfo           server_hint;
-struct addrinfo          *server_addr;
-char                     *client_host;
-char                     *client_port;
-struct addrinfo          *result;
-struct sockaddr_storage   peer_addr;
-socklen_t                 peer_addr_len;
-
 
 
 int main(int argc, char *argv[])  {
     int elem, next_elem;
     int retval;
 
-    WORK_DIR = (char *) &DEFAULT_DIR;
+    SOSD.work_dir = (char *) &DEFAULT_DIR;
     SOS.role = SOS_ROLE_DAEMON;
 
     /*
@@ -85,25 +55,25 @@ int main(int argc, char *argv[])  {
 
     /* Process command-line arguments */
     if ( argc < 7 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
-    port_number    = -1;
-    buffer_len     = -1;
-    listen_backlog = -1;
+    SOSD.net.port_number    = -1;
+    SOSD.net.buffer_len     = -1;
+    SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) { fprintf(stderr, "%s\n", USAGE); exit(1); }
-        if (      strcmp(argv[elem], "--port"            ) == 0) { server_port    = argv[next_elem];       }
-        else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { buffer_len     = atoi(argv[next_elem]); }
-        else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { listen_backlog = atoi(argv[next_elem]); }
-        else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { WORK_DIR       = argv[next_elem];       } /* optional */
+        if (      strcmp(argv[elem], "--port"            ) == 0) { SOSD.net.server_port    = argv[next_elem];       }
+        else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { SOSD.net.buffer_len     = atoi(argv[next_elem]); }
+        else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
+        else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.work_dir           = argv[next_elem];       } /* optional */
         else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
-    port_number = atoi(server_port);
-    if ( (port_number < 1)
-         || (buffer_len < 1)
-         || (listen_backlog < 1) )
+    SOSD.net.port_number = atoi(SOSD.net.server_port);
+    if ( (SOSD.net.port_number < 1)
+         || (SOSD.net.buffer_len < 1)
+         || (SOSD.net.listen_backlog < 1) )
         { fprintf(stderr, "%s\n", USAGE); exit(1); }
 
-    memset(&daemon_pid_str, '\0', 256);
+    memset(&SOSD.daemon_pid_str, '\0', 256);
 
     /* System logging initialize */
 
@@ -113,25 +83,28 @@ int main(int argc, char *argv[])  {
     if (DAEMON_LOG) { sos_daemon_log_fptr = fopen(LOG_FILE, "w"); }
 
     printf("Calling daemon_init()...\n");
-    daemon_init();
-
+    SOS_daemon_init();
     printf("Calling SOS_init...\n");
     SOS_init( &argc, &argv, SOS.role );    
     SOS_SET_WHOAMI(whoami, "main");
+
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
-    daemon_setup_socket();
+    SOS_daemon_setup_socket();
+    dlog(0, "[%s]: Calling daemon_init_database()...\n", whoami);
+    SOS_daemon_init_database();
 
 
     /* Go! */
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
-    daemon_listen_loop();
+    SOS_daemon_listen_loop();
   
+
+
     /* Done!  Cleanup and shut down. */
+    pthread_mutex_destroy( &(SOSD.guid->lock) );
     SOS_finalize();
-
     dlog(0, "[%s]: Closing the socket.\n", whoami);
-    shutdown(server_socket_fd, SHUT_RDWR);
-
+    shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     dlog(0, "[%s]: Exiting daemon's main() gracefully.\n", whoami);
     closelog();
     if (DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
@@ -143,31 +116,27 @@ int main(int argc, char *argv[])  {
 
 
 /* -------------------------------------------------- */
-void daemon_listen_loop() {
+void SOS_daemon_listen_loop() {
     SOS_SET_WHOAMI(whoami, "daemon_listen_loop");
-    
     SOS_msg_header header;
     int      i, byte_count;
-    char    *buffer;
 
-    buffer = (char *) malloc(sizeof(char) * buffer_len);
+    char    *buffer;
+    buffer = (char *) malloc(sizeof(char) * SOSD.net.buffer_len);
 
     dlog(0, "[%s]: Entering main loop...\n", whoami);
-
-
-    while (daemon_running) {
-        memset(buffer, '\0', buffer_len);
+    while (SOSD.daemon_running) {
+        memset(buffer, '\0', SOSD.net.buffer_len);
         memset(&header, '\0', sizeof(SOS_msg_header));
         byte_count = 0;
 
         dlog(5, "[%s]: Listening for a message...\n", whoami);
-        
-        peer_addr_len = sizeof(peer_addr);
-        client_socket_fd = accept(server_socket_fd, (struct sockaddr *) &peer_addr, &peer_addr_len);
-        i = getnameinfo((struct sockaddr *) &peer_addr, peer_addr_len, client_host, NI_MAXHOST, client_port, NI_MAXSERV, NI_NUMERICSERV);
+        SOSD.net.peer_addr_len = sizeof(SOSD.net.peer_addr);
+        SOSD.net.client_socket_fd = accept(SOSD.net.server_socket_fd, (struct sockaddr *) &SOSD.net.peer_addr, &SOSD.net.peer_addr_len);
+        i = getnameinfo((struct sockaddr *) &SOSD.net.peer_addr, SOSD.net.peer_addr_len, SOSD.net.client_host, NI_MAXHOST, SOSD.net.client_port, NI_MAXSERV, NI_NUMERICSERV);
         if (i != 0) { dlog(0, "[%s]: Error calling getnameinfo() on client connection.  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
 
-        byte_count = recv( client_socket_fd, (void *) buffer, buffer_len, 0);
+        byte_count = recv(SOSD.net.client_socket_fd, (void *) buffer, SOSD.net.buffer_len, 0);
         if (byte_count < 1) continue;
 
         if (byte_count >= sizeof(SOS_msg_header)) {
@@ -182,30 +151,29 @@ void daemon_listen_loop() {
 
         switch (header.msg_type) {
         case SOS_MSG_TYPE_REGISTER: dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type);
-            daemon_handle_register(buffer, byte_count); break; 
+            SOS_daemon_handle_register(buffer, byte_count); break; 
 
         case SOS_MSG_TYPE_ANNOUNCE: dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type);
-            daemon_handle_announce(buffer, byte_count); break;
+            SOS_daemon_handle_announce(buffer, byte_count); break;
             
         case SOS_MSG_TYPE_PUBLISH:  dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type);
-            daemon_handle_publish(buffer, byte_count); break;
+            SOS_daemon_handle_publish(buffer, byte_count); break;
             
         case SOS_MSG_TYPE_ECHO:     dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type);
-            daemon_handle_echo(buffer, byte_count); break;
+            SOS_daemon_handle_echo(buffer, byte_count); break;
 
         case SOS_MSG_TYPE_SHUTDOWN: dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type);
-            daemon_handle_shutdown(buffer, byte_count); break;
+            SOS_daemon_handle_shutdown(buffer, byte_count); break;
 
         default:                    dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)\n", whoami, header.msg_type); break;
-            daemon_handle_unknown(buffer, byte_count); break;
+            SOS_daemon_handle_unknown(buffer, byte_count); break;
         }
 
-        close( client_socket_fd );
+        close( SOSD.net.client_socket_fd );
         
     }
 
     free(buffer);
-
     dlog(1, "[%s]: Leaving the socket listening loop.\n", whoami);
 
     return;
@@ -215,7 +183,7 @@ void daemon_listen_loop() {
 
 
 
-void daemon_handle_echo(char *msg, int msg_size) { 
+void SOS_daemon_handle_echo(char *msg, int msg_size) { 
     SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
     SOS_msg_header header;
     int ptr = 0;
@@ -224,7 +192,7 @@ void daemon_handle_echo(char *msg, int msg_size) {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ECHO\n", whoami);
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
-    i = send( client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), 0);
+    i = send(SOSD.net.client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         
     return;
@@ -232,7 +200,7 @@ void daemon_handle_echo(char *msg, int msg_size) {
 
 
 
-void daemon_handle_register(char *msg, int msg_size) {
+void SOS_daemon_handle_register(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_register");
     SOS_msg_header header;
     int  ptr  = 0;
@@ -252,7 +220,7 @@ void daemon_handle_register(char *msg, int msg_size) {
     memset(response, '\0', SOS_DEFAULT_BUFFER_LEN);
 
     memcpy(response, &guid, sizeof(long));
-    i = send( client_socket_fd, (void *) response, sizeof(long), 0 );
+    i = send( SOSD.net.client_socket_fd, (void *) response, sizeof(long), 0 );
 
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
@@ -264,7 +232,7 @@ void daemon_handle_register(char *msg, int msg_size) {
 
 
 
-void daemon_handle_announce(char *msg, int msg_size) {
+void SOS_daemon_handle_announce(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
     int   ptr;
@@ -296,12 +264,12 @@ void daemon_handle_announce(char *msg, int msg_size) {
     sprintf(guid_str, "%ld", guid);
     /* Check the table for this pub ... */
     dlog(5, "[%s]:    ... checking SOS.tbl for GUID(%s) --> ", whoami, guid_str);
-    pub = (SOS_pub *) SOS.tbl->get(SOS.tbl, guid_str);
+    pub = (SOS_pub *) SOSD.tbl->get(SOSD.tbl, guid_str);
     if (pub == NULL) {
         dlog(5, "NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
         pub = SOS_new_pub(guid_str);
-        SOS.tbl->put(SOS.tbl, guid_str, pub);
+        SOSD.tbl->put(SOSD.tbl, guid_str, pub);
         pub->guid = guid;
     } else {
         dlog(5, "FOUND IT!\n");
@@ -337,12 +305,10 @@ void daemon_handle_announce(char *msg, int msg_size) {
     if (pub->guid < 1) { guid = SOS_next_id( SOS.uid.seq ); pub->guid = guid; } else { guid = pub->guid; }
     memcpy((response + ptr), &guid, sizeof(long));
 
-    i = send( client_socket_fd, (void *) response, response_len, 0);
+    i = send( SOSD.net.client_socket_fd, (void *) response, response_len, 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     
-    /* TODO: { daemon_handle_announce } Store this new pub handle somewhere ... */
-
     dlog(5, "[%s]:   ... Done.\n", whoami);
 
     return;
@@ -350,7 +316,7 @@ void daemon_handle_announce(char *msg, int msg_size) {
 
 
 
-void daemon_handle_publish(char *msg, int msg_size)  {
+void SOS_daemon_handle_publish(char *msg, int msg_size)  {
     SOS_SET_WHOAMI(whoami, "daemon_handle_publish");
     SOS_msg_header header;
     long  guid = 0;
@@ -371,12 +337,12 @@ void daemon_handle_publish(char *msg, int msg_size)  {
     sprintf(guid_str, "%ld", guid);
     /* Check the table for this pub ... */
     dlog(5, "[%s]:   ... checking SOS.tbl for GUID(%s) --> ", whoami, guid_str);
-    pub = (SOS_pub *) SOS.tbl->get(SOS.tbl, guid_str);
+    pub = (SOS_pub *) SOSD.tbl->get(SOSD.tbl, guid_str);
     if (pub == NULL) {
         /* If it's not in the table, add it. */
         dlog(5, "not found, ADDING new pub to the table.\n");
         pub = SOS_new_pub(guid_str);
-        SOS.tbl->put(SOS.tbl, guid_str, pub);
+        SOSD.tbl->put(SOSD.tbl, guid_str, pub);
         pub->guid = guid;
     } else {
         dlog(5, "FOUND it!\n");
@@ -398,7 +364,7 @@ void daemon_handle_publish(char *msg, int msg_size)  {
     memset (response, '\0', SOS_DEFAULT_BUFFER_LEN);
     sprintf(response, "I received your PUBLISH!");
 
-    i = send( client_socket_fd, (void *) response, strlen(response), 0);
+    i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
@@ -411,7 +377,7 @@ void daemon_handle_publish(char *msg, int msg_size)  {
 
 
 
-void daemon_handle_shutdown(char *msg, int msg_size) {
+void SOS_daemon_handle_shutdown(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
     int ptr = 0;
@@ -424,18 +390,18 @@ void daemon_handle_shutdown(char *msg, int msg_size) {
     memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
     sprintf( response, "I received your SHUTDOWN!");
 
-    i = send( client_socket_fd, (void *) response, strlen(response), 0 );
+    i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
 
-    daemon_running = 0;
+    SOSD.daemon_running = 0;
 
     return;
 }
 
 
 
-void daemon_handle_unknown(char *msg, int msg_size) {
+void SOS_daemon_handle_unknown(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_unknown");
     SOS_msg_header header;
     int ptr = 0;
@@ -448,7 +414,7 @@ void daemon_handle_unknown(char *msg, int msg_size) {
     memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
     sprintf( response, "SOS daemon did not understand your message!");
 
-    i = send( client_socket_fd, (void *) response, strlen(response), 0 );
+    i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
 
@@ -457,7 +423,7 @@ void daemon_handle_unknown(char *msg, int msg_size) {
 
 
 
-void daemon_setup_socket() {
+void SOS_daemon_setup_socket() {
     SOS_SET_WHOAMI(whoami, "daemon_setup_socket");
     int i;
     int yes;
@@ -465,23 +431,23 @@ void daemon_setup_socket() {
 
     yes = 1;
 
-    memset(&server_hint, '\0', sizeof(struct addrinfo));
-    server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
-    server_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
-    server_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
-    server_hint.ai_protocol   = 0;             /* Any protocol */
-    server_hint.ai_canonname  = NULL;
-    server_hint.ai_addr       = NULL;
-    server_hint.ai_next       = NULL;
+    memset(&SOSD.net.server_hint, '\0', sizeof(struct addrinfo));
+    SOSD.net.server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+    SOSD.net.server_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+    SOSD.net.server_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
+    SOSD.net.server_hint.ai_protocol   = 0;             /* Any protocol */
+    SOSD.net.server_hint.ai_canonname  = NULL;
+    SOSD.net.server_hint.ai_addr       = NULL;
+    SOSD.net.server_hint.ai_next       = NULL;
 
-    i = getaddrinfo(NULL, server_port, &server_hint, &result);
+    i = getaddrinfo(NULL, SOSD.net.server_port, &SOSD.net.server_hint, &SOSD.net.result);
     if (i != 0) { dlog(0, "[%s]: Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
 
-    for ( server_addr = result ; server_addr != NULL ; server_addr = server_addr->ai_next ) {
+    for ( SOSD.net.server_addr = SOSD.net.result ; SOSD.net.server_addr != NULL ; SOSD.net.server_addr = SOSD.net.server_addr->ai_next ) {
         dlog(1, "[%s]: Trying an address...\n", whoami);
 
-        server_socket_fd = socket(server_addr->ai_family, server_addr->ai_socktype, server_addr->ai_protocol );
-        if ( server_socket_fd < 1) {
+        SOSD.net.server_socket_fd = socket(SOSD.net.server_addr->ai_family, SOSD.net.server_addr->ai_socktype, SOSD.net.server_addr->ai_protocol );
+        if ( SOSD.net.server_socket_fd < 1) {
             dlog(0, "[%s]:   ... failed to get a socket.  (%s)\n", whoami, strerror(errno));
             continue;
         }
@@ -489,42 +455,41 @@ void daemon_setup_socket() {
         /*
          *  Allow this socket to be reused/rebound quickly by the daemon.
          */
-        if ( setsockopt( server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+        if ( setsockopt( SOSD.net.server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
             dlog(0, "[%s]:   ... could not set socket options.  (%s)\n", whoami, strerror(errno));
             continue;
         }
 
-        if ( bind( server_socket_fd, server_addr->ai_addr, server_addr->ai_addrlen ) == -1 ) {
+        if ( bind( SOSD.net.server_socket_fd, SOSD.net.server_addr->ai_addr, SOSD.net.server_addr->ai_addrlen ) == -1 ) {
             dlog(0, "[%s]:   ... failed to bind to socket.  (%s)\n", whoami, strerror(errno));
-            close( server_socket_fd );
+            close( SOSD.net.server_socket_fd );
             continue;
         } 
-
-        /* If we get here, we're good to go! */
+        /* If we get here, we're good to stop looking. */
         break;
     }
 
-    if ( server_socket_fd < 0 ) {
+    if ( SOSD.net.server_socket_fd < 0 ) {
         dlog(0, "[%s]:   ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", whoami, errno, strerror(errno));
         exit(EXIT_FAILURE);
     } else {
         dlog(0, "[%s]:   ... got a socket, and bound to it!\n", whoami);
     }
 
-    freeaddrinfo(result);
+    freeaddrinfo(SOSD.net.result);
 
     /*
      *   Enforce that this is a BLOCKING socket:
      */
-    opts = fcntl(server_socket_fd, F_GETFL);
+    opts = fcntl(SOSD.net.server_socket_fd, F_GETFL);
     if (opts < 0) { dlog(0, "[%s]: ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", whoami, strerror(errno)); }
  
-   opts = opts & !(O_NONBLOCK);
-    i    = fcntl(server_socket_fd, F_SETFL, opts);
+    opts = opts & !(O_NONBLOCK);
+    i    = fcntl(SOSD.net.server_socket_fd, F_SETFL, opts);
     if (i < 0) { dlog(0, "[%s]: ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", whoami, strerror(errno)); }
 
 
-    listen( server_socket_fd, listen_backlog );
+    listen( SOSD.net.server_socket_fd, SOSD.net.listen_backlog );
     dlog(0, "[%s]: Listening on socket.\n", whoami);
 
     return;
@@ -532,9 +497,20 @@ void daemon_setup_socket() {
  
 
 
-void daemon_init() {
+void SOS_daemon_init_database() {
+
+    SOS_db_init_database();
+    SOS_db_create_tables();
+
+    return;
+}
+
+
+
+void SOS_daemon_init() {
     SOS_SET_WHOAMI(whoami, "daemon_init");
     pid_t pid, sid;
+    int rc;
 
     /* [fork]
      *     split off from the parent process (& terminate parent)
@@ -546,8 +522,8 @@ void daemon_init() {
     }
     if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
 
-    sprintf(daemon_pid_str, "%d", getpid());
-    fprintf(stderr, "Starting daemon (%s) with PID = %s\n", DAEMON_NAME, daemon_pid_str);
+    sprintf(SOSD.daemon_pid_str, "%d", getpid());
+    fprintf(stderr, "Starting daemon (%s) with PID = %s\n", DAEMON_NAME, SOSD.daemon_pid_str);
 
     /* [child session]
      *     create/occupy independent session from parent process
@@ -558,9 +534,9 @@ void daemon_init() {
         fprintf(stderr, "Unable to start daemon (%s): Could not acquire a session id.\n", DAEMON_NAME); 
         exit(EXIT_FAILURE);
     }
-    if ((chdir(WORK_DIR)) < 0) {
+    if ((chdir(SOSD.work_dir)) < 0) {
         fprintf(stderr, "Unable to start daemon (%s): Could not change to working directory: %s\n", \
-                DAEMON_NAME, WORK_DIR);
+                DAEMON_NAME, SOSD.work_dir);
         exit(EXIT_FAILURE);
     }
 
@@ -570,14 +546,14 @@ void daemon_init() {
     sos_daemon_lock_fptr = open(LOCK_FILE, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) { 
         fprintf(stderr, "\nUnable to start daemon (%s): Could not access lock file %s in directory %s\n", \
-                DAEMON_NAME, LOCK_FILE, WORK_DIR);
+                DAEMON_NAME, LOCK_FILE, SOSD.work_dir);
         exit(EXIT_FAILURE);
     }
     if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
         fprintf(stderr, "\nUnable to start daemon (%s): An instance is already running.\n", DAEMON_NAME);
         exit(EXIT_FAILURE);
     }
-    write(sos_daemon_lock_fptr, daemon_pid_str, strlen(daemon_pid_str));
+    rc = write(sos_daemon_lock_fptr, SOSD.daemon_pid_str, strlen(SOSD.daemon_pid_str));
 
 
     /* [file handles]
@@ -590,41 +566,26 @@ void daemon_init() {
     /* [signals]
      *     register the signals we care to trap
      */
-    signal(SIGCHLD, SIG_IGN);
-    signal(SIGTSTP, SIG_IGN);
-    signal(SIGTTOU, SIG_IGN);
-    signal(SIGTTIN, SIG_IGN);
-    signal(SIGHUP, signal_handler);
-    signal(SIGTERM, signal_handler);
+    if (SOS_DEBUG) SOS_register_signal_handler();
 
-    daemon_running = 1;
+    /* [guid's]
+     *     configure the issuer of guids for this daemon
+     */
+    /* TODO: { GUID SOSD INIT } Make this sub-divide for groups of nodes. */
+    SOSD.guid->next = 1;
+    SOSD.guid->last = SOS_DEFAULT_UID_MAX;
+    pthread_mutex_init( &(SOSD.guid->lock), NULL );
+
+
+    /* [hashtable]
+     *    storage system for received pubs.  (will enque their key -> db)
+     */
+    SOSD.tbl = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+
+
+    SOSD.daemon_running = 1;
     return;
 }
 
 
-
-void signal_handler(int signal) {
-    SOS_SET_WHOAMI(whoami, "signal_handler");
-
-    switch (signal) {
-    case SIGHUP:
-        syslog(LOG_DEBUG, "SIGHUP signal caught.");
-        break;
-
-    case SIGTERM:
-        /* Future-proofing for non-blocking socket accept calls... */
-        daemon_running = 0;
-
-        /* [shutdown]
-         *     close logs to write them to disk.
-         */
-        syslog(LOG_DEBUG, "SIGTERM signal caught.");
-        syslog(LOG_INFO, "Shutting down.\n");
-        closelog();
-        dlog(0, "[%s]: Caught SIGTERM, shutting down.\n", whoami);
-        break;
-
-    }
-
-}
 

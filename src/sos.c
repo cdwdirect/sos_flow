@@ -20,7 +20,6 @@
 
 #include "sos.h"
 #include "sos_debug.h"
-#include "qhashtbl.h"
 
 
 /* Private functions (not in the header file) */
@@ -38,8 +37,9 @@ void       SOS_expand_data(SOS_pub *pub);
 
 
 /* Private variables (not exposed in the header file) */
-
-
+int   SOS_NULL_STR_LEN  = sizeof(char);
+char  SOS_NULL_STR_CHAR = '\0';
+char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
 
 
 /* **************************************** */
@@ -94,11 +94,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
     if (SOS_CONFIG_USE_THREAD_POOL) {
         dlog(2, "[%s]:   ... launching data migration threads.\n", whoami);
-        retval = pthread_create( &SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
+        retval = pthread_create( SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
         if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.post thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-        pthread_create( &SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
+        retval = pthread_create( SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
         if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.read thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-        pthread_create( &SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
+        retval = pthread_create( SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
         if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.scan thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
     }
 
@@ -114,7 +114,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS.net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS.net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS.net.server_port   = getenv("SOS_CMD_PORT");
-        if ( SOS.net.server_port < 1 ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(1); }
+        if ( strlen(SOS.net.server_port) == 0 ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(1); }
 
         SOS.net.server_hint.ai_family    = AF_UNSPEC;        /* Allow IPv4 or IPv6 */
         SOS.net.server_hint.ai_protocol  = 0;                /* Any protocol */
@@ -135,7 +135,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
         freeaddrinfo( SOS.net.result_list );
         
-        if (server_socket_fd == NULL) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
+        if (server_socket_fd == 0) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
         dlog(2, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
@@ -163,8 +163,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          *  CONFIGURATION: DAEMON / DATABASE / etc.
          *
          */
-
-        SOS.tbl = qhashtbl(SOS_DEFAULT_ELEM_COUNT);
 
         dlog(0, "[%s]:   ... skipping socket setup (becase we're the daemon).\n", whoami);
         /* TODO:{ INIT } EVPATH setup code goes here. */
@@ -197,7 +195,7 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
     
     freeaddrinfo( SOS.net.result_list );
     
-    if (server_socket_fd == NULL) {
+    if (server_socket_fd == 0) {
         dlog(0, "[%s]: Error attempting to connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
         exit(1);  /* TODO:{ COMM }  Make this a loop that tries X times to connect, doesn't crash app. */
     }
@@ -207,7 +205,7 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
 
     retval = recv(server_socket_fd, reply, reply_len, 0);
     if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
-    else { dlog(6, "[%s]: Server sent a (%d) byte reply.\n", whoami, retval, reply); }
+    else { dlog(6, "[%s]: Server sent a (%d) byte reply.\n", whoami, retval); }
 
     close( server_socket_fd );
 
@@ -226,9 +224,9 @@ void SOS_finalize() {
 
     if (SOS_CONFIG_USE_THREAD_POOL) {
         dlog(0, "[%s]: Joining threads...\n", whoami);
-        pthread_join( &SOS.task.post, NULL );
-        pthread_join( &SOS.task.read, NULL );
-        pthread_join( &SOS.task.scan, NULL );
+        pthread_join( *SOS.task.post, NULL );
+        pthread_join( *SOS.task.read, NULL );
+        pthread_join( *SOS.task.scan, NULL );
     }
 
     dlog(0, "[%s]: Destroying mutexes...\n", whoami);
@@ -909,7 +907,6 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
     fprintf(output_to, "|       index,          id,        type,                   name | = <value>\n");
     fprintf(output_to, "|---------------------------------------------------------------|\n");
     for (i = 0; i < pub->elem_count; i++) {
-        fprintf(output_to, "| %11d,%12d,%12s,", i, pub->data[i]->guid, SOS_TYPE_LOOKUP[pub->data[i]->type]);
         fprintf(output_to, " %c %20s | = ", ((pub->data[i]->state == SOS_VAL_STATE_DIRTY) ? '*' : ' '), pub->data[i]->name);
         switch (pub->data[i]->type) {
         case SOS_VAL_TYPE_INT : fprintf(output_to, "%d", pub->data[i]->val.i_val); break;

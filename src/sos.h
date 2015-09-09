@@ -11,9 +11,6 @@
  *                    you are strongly encouraged to apply mutexes around
  *                    SOS function calls in your code.
  *
- *                    Certain functions such as SOS_next_serial(); ARE
- *                    thread safe, as SOS uses them in threaded contexts
- *                    internally.
  *
  */
 
@@ -26,8 +23,6 @@
 
 #include <sys/socket.h>
 #include <netdb.h>
-
-#include "qhashtbl.h"
 
 
 /* SOS Configuration Switches... */
@@ -57,107 +52,113 @@
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
 #define SOS_DEFAULT_BUFFER_LEN     1048576
 #define SOS_DEFAULT_RING_SIZE      1024
+#define SOS_DEFAULT_TABLE_SIZE     128
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_UID_MAX        LONG_MAX
 #define SOS_DEFAULT_ELEM_COUNT     64
 
 /* ************************************ */
 
-/*! What role this program instance is playing in the SOS ecosystem. */
-typedef enum SOS_role {
-    SOS_ROLE_CLIENT,      /*!< All sources of data are CLIENT */
-    SOS_ROLE_DAEMON,      /*!< The instances of sosd are DAEMON */
-    SOS_ROLE_LEADER,      /*!< Daemons involved in coordination are LEADER */
-    SOS_ROLE_CONTROL      /*!< Components of SOS that participate in the environment or workflow are CONTROL */
-} SOS_role;
 
-/*! The phase of execution for the SOS runtime. */
-typedef enum SOS_status {
-    SOS_STATUS_INIT,      /*!< Initializing SOS */
-    SOS_STATUS_RUNNING,   /*!< SOS is fully operational */
-    SOS_STATUS_SHUTDOWN   /*!< The SOS system in the process of shutting down */
-} SOS_status;
+#define FOREACH_ROLE(ROLE)                      \
+    ROLE(SOS_ROLE_CLIENT)                       \
+    ROLE(SOS_ROLE_DAEMON)                       \
+    ROLE(SOS_ROLE_LEADER)                       \
+    ROLE(SOS_ROLE_CONTROL)                      \
+    
+#define FOREACH_STATUS(STATUS)                  \
+    STATUS(SOS_STATUS_INIT)                     \
+    STATUS(SOS_STATUS_RUNNING)                  \
+    STATUS(SOS_STATUS_SHUTDOWN)                 \
+    
+#define FOREACH_MSG_TYPE(MSG_TYPE)              \
+    MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
+    MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \
+    MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
+    MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
+    MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
+    
+#define FOREACH_PRI(PRI)                        \
+    PRI(SOS_PRI_DEFAULT)                        \
+    PRI(SOS_PRI_LOW)                            \
+    PRI(SOS_PRI_IMMEDIATE)                      \
 
-/*! Classification of messages entering the SOS system from a CLIENT. */
-typedef enum SOS_msg_type {
-    SOS_MSG_TYPE_REGISTER,    /*!< When an SOS_CLIENT comes online, it identifies itself to the daemon. */
-    SOS_MSG_TYPE_ANNOUNCE,    /*!< A new value is being tracked, which triggers the return of a GUID for it */
-    SOS_MSG_TYPE_PUBLISH,     /*!< An update to a previously announced value */
-    SOS_MSG_TYPE_ECHO,        /*!< A quick acknowledgement, echo of msg, good for latency test or keepalive */
-    SOS_MSG_TYPE_SHUTDOWN     /*!< Trigger shutdown procedures */
-} SOS_msg_type;
+#define FOREACH_VAL_TYPE(VAL_TYPE)              \
+    VAL_TYPE(SOS_VAL_TYPE_INT)                  \
+    VAL_TYPE(SOS_VAL_TYPE_LONG)                 \
+    VAL_TYPE(SOS_VAL_TYPE_DOUBLE)               \
+    VAL_TYPE(SOS_VAL_TYPE_STRING)               \
 
+#define FOREACH_VAL_STATE(VAL_STATE)            \
+    VAL_STATE(SOS_VAL_STATE_CLEAN)              \
+    VAL_STATE(SOS_VAL_STATE_DIRTY)              \
+    VAL_STATE(SOS_VAL_STATE_EMPTY)              \
 
-typedef enum SOS_pri {
-    SOS_PRI_DEFAULT,
-    SOS_PRI_LOW,
-    SOS_PRI_IMMEDIATE
-} SOS_pri;
+#define FOREACH_SEM(SEM)                        \
+    SEM(SOS_SEM_TIME_START)                     \
+    SEM(SOS_SEM_TIME_STOP)                      \
+    SEM(SOS_SEM_TIME_STAMP)                     \
+    SEM(SOS_SEM_TIME_SPAN)                      \
+    SEM(SOS_SEM_VAL_CURRENT)                    \
+    SEM(SOS_SEM_VAL_COUNTER)                    \
+    SEM(SOS_SEM_VAL_LOG)                        \
 
+#define FOREACH_SCOPE(SCOPE)                    \
+    SCOPE(SOS_SCOPE_DEFAULT)                    \
+    SCOPE(SOS_SCOPE_SELF)                       \
+    SCOPE(SOS_SCOPE_NODE)                       \
+    SCOPE(SOS_SCOPE_ENCLAVE)                    \
 
-typedef enum SOS_val_type {
-    SOS_VAL_TYPE_INT,
-    SOS_VAL_TYPE_LONG,
-    SOS_VAL_TYPE_DOUBLE,
-    SOS_VAL_TYPE_STRING
-} SOS_val_type;
+#define FOREACH_LAYER(LAYER)                    \
+    LAYER(SOS_LAYER_APP)                        \
+    LAYER(SOS_LAYER_OS)                         \
+    LAYER(SOS_LAYER_LIB)                        \
+    LAYER(SOS_LAYER_FLOW)                       \
+    LAYER(SOS_LAYER_CONTROL)                    \
 
+#define FOREACH_NATURE(NATURE)                  \
+    NATURE(SOS_NATURE_CREATE_INPUT)             \
+    NATURE(SOS_NATURE_CREATE_OUTPUT)            \
+    NATURE(SOS_NATURE_CREATE_VIZ)               \
+    NATURE(SOS_NATURE_EXEC_WORK)                \
+    NATURE(SOS_NATURE_BUFFER)                   \
+    NATURE(SOS_NATURE_SUPPORT_EXEC)             \
+    NATURE(SOS_NATURE_SUPPORT_FLOW)             \
+    NATURE(SOS_NATURE_CONTROL_FLOW)             \
+    NATURE(SOS_NATURE_SOS)                      \
+        
+#define FOREACH_RETAIN(RETAIN)                  \
+    RETAIN(SOS_RETAIN_DEFAULT)                  \
+    RETAIN(SOS_RETAIN_SESSION)                  \
+    RETAIN(SOS_RETAIN_IMMEDIATE)                \
+    
 
-typedef enum SOS_val_state {
-    SOS_VAL_STATE_CLEAN,
-    SOS_VAL_STATE_DIRTY,
-    SOS_VAL_STATE_EMPTY
-} SOS_val_state;
+#define GENERATE_ENUM(ENUM) ENUM,
+#define GENERATE_STRING(STRING) #STRING,
 
+typedef enum { FOREACH_ROLE(GENERATE_ENUM)      } SOS_role;
+typedef enum { FOREACH_STATUS(GENERATE_ENUM)    } SOS_status;
+typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)  } SOS_msg_type;
+typedef enum { FOREACH_PRI(GENERATE_ENUM)       } SOS_pri;
+typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)  } SOS_val_type;
+typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM) } SOS_val_state;
+typedef enum { FOREACH_SEM(GENERATE_ENUM)       } SOS_sem;
+typedef enum { FOREACH_SCOPE(GENERATE_ENUM)     } SOS_scope;
+typedef enum { FOREACH_LAYER(GENERATE_ENUM)     } SOS_layer;
+typedef enum { FOREACH_NATURE(GENERATE_ENUM)    } SOS_nature;
+typedef enum { FOREACH_RETAIN(GENERATE_ENUM)    } SOS_retain;
 
-typedef enum SOS_val_sem {
-    SOS_VAL_SEM_TIME_START,
-    SOS_VAL_SEM_TIME_STOP,
-    SOS_VAL_SEM_TIME_STAMP,
-    SOS_VAL_SEM_TIME_SPAN,
-    SOS_VAL_SEM_VAL_CURRENT,
-    SOS_VAL_SEM_VAL_COUNTER,
-    SOS_VAL_SEM_VAL_LOG
-} SOS_sem;
-
-
-typedef enum SOS_scope {
-    SOS_SCOPE_DEFAULT,
-    SOS_SCOPE_SELF,
-    SOS_SCOPE_NODE,
-    SOS_SCOPE_ENCLAVE
-} SOS_scope;
-
-
-typedef enum SOS_layer {
-    SOS_LAYER_APP,
-    SOS_LAYER_OS,
-    SOS_LAYER_LIB,
-    SOS_LAYER_FLOW,
-    SOS_LAYER_CONTROL
-} SOS_layer;
-
-
-typedef enum SOS_nature {
-    SOS_NATURE_CREATE_INPUT,
-    SOS_NATURE_CREATE_OUTPUT,
-    SOS_NATURE_CREATE_VIZ,
-    SOS_NATURE_EXEC_WORK,
-    SOS_NATURE_BUFFER,
-    SOS_NATURE_SUPPORT_EXEC,
-    SOS_NATURE_SUPPORT_FLOW,
-    SOS_NATURE_CONTROL_FLOW,
-    SOS_NATURE_SOS
-} SOS_nature;
-
-
-typedef enum SOS_retain {
-    SOS_RETAIN_DEFAULT,
-    SOS_RETAIN_SESSION,
-    SOS_RETAIN_IMMEDIATE
-} SOS_retain;
-
-
+static const char *SOS_role_string[] =      { FOREACH_ROLE(GENERATE_STRING)      };
+static const char *SOS_status_string[] =    { FOREACH_STATUS(GENERATE_STRING)    };
+static const char *SOS_msg_type_string[] =  { FOREACH_MSG_TYPE(GENERATE_STRING)  };
+static const char *SOS_pri_string[] =       { FOREACH_PRI(GENERATE_STRING)       };
+static const char *SOS_val_type_string[] =  { FOREACH_VAL_TYPE(GENERATE_STRING)  };
+static const char *SOS_val_state_string[] = { FOREACH_VAL_STATE(GENERATE_STRING) };
+static const char *SOS_sem_string[] =       { FOREACH_SEM(GENERATE_STRING)       };
+static const char *SOS_scope_string[] =     { FOREACH_SCOPE(GENERATE_STRING)     };
+static const char *SOS_layer_string[] =     { FOREACH_LAYER(GENERATE_STRING)     };
+static const char *SOS_nature_string[] =    { FOREACH_NATURE(GENERATE_STRING)    };
+static const char *SOS_retain_string[] =    { FOREACH_RETAIN(GENERATE_STRING)    };
 
 typedef union {
     int           i_val;        /* default: (null)                */
@@ -179,9 +180,6 @@ typedef struct {
     SOS_pri       pri_hint;     /* default: SOS_PRI_DEFAULT       */
     SOS_scope     scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
     SOS_retain    retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
-    int           pragma_len;   /* default: 0                     */
-    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
-    char         *pragma_msg;   /* default: (null)                */
 } SOS_meta;
 
 typedef struct {
@@ -230,7 +228,7 @@ typedef struct {
     char               *server_host;
     char               *server_port;
     struct addrinfo    *server_addr;
-    struct addringo    *result_list;
+    struct addrinfo    *result_list;
     struct addrinfo     server_hint;
     struct addrinfo    *client_addr;          /* used by [sosd] */
     int                 timeout;
@@ -293,14 +291,9 @@ typedef struct {
     SOS_ring_set     ring;
     SOS_task_set     task;
     SOS_socket_set   net;
-    qhashtbl_t      *tbl;
     pthread_mutex_t  global_lock;
     long             my_guid;
 } SOS_runtime;
-
-int   SOS_NULL_STR_LEN  = sizeof(char);
-char  SOS_NULL_STR_CHAR = '\0';
-char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
 
 /* ----------
  *

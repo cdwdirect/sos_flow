@@ -15,13 +15,21 @@
 
 
 ######################################################################################
-# Makefile.am : Automake configuration for SOS_FLOW project                    [START]
+#  Makefile.am : Automake configuration for SOS_FLOW project                   [START]
 #
 #
-# NOTE: For Cray systems: ...
+#  Target: CRAY 
 #
-# APP_LD_FLAGS = -dynamic
+#  APP_LD_FLAGS = -dynamic
 #
+#
+#
+#
+#  Target: ACISS
+#
+#  SQLITE3_CFLAGS = -I/usr/local/packages/sqlite/3.8/include
+#  SQLITE3_LD_FLAGS = -L/usr/local/packages/sqlite/3.8/lib
+
 # ########## #
 
 
@@ -155,7 +163,8 @@ sos_cmd_LDADD = $(LDADD)
 sos_cmd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(sos_cmd_CFLAGS) \
 	$(CFLAGS) $(sos_cmd_LDFLAGS) $(LDFLAGS) -o $@
-am_sosd_OBJECTS = sosd-sosd.$(OBJEXT) sosd-qhashtbl.$(OBJEXT)
+am_sosd_OBJECTS = sosd-sosd.$(OBJEXT) sosd-qhashtbl.$(OBJEXT) \
+	sosd-sosd_db_sqlite.$(OBJEXT)
 sosd_OBJECTS = $(am_sosd_OBJECTS)
 sosd_LDADD = $(LDADD)
 sosd_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
@@ -306,6 +315,9 @@ PACKAGE_TARNAME = sos_flow
 PACKAGE_URL = 
 PACKAGE_VERSION = 0.0
 PATH_SEPARATOR = :
+PKG_CONFIG = /usr/bin/pkg-config
+PKG_CONFIG_LIBDIR = 
+PKG_CONFIG_PATH = 
 PTHREAD_CC = gcc
 PTHREAD_CFLAGS = -pthread
 PTHREAD_LIBS = 
@@ -313,6 +325,8 @@ RANLIB = ranlib
 SED = /bin/sed
 SET_MAKE = 
 SHELL = /bin/bash
+SQLITE3_CFLAGS =  
+SQLITE3_LIBS = -lsqlite3  
 STRIP = strip
 VERSION = 0.0
 abs_builddir = /home/cdw/Dropbox/research/sos_flow/src
@@ -357,7 +371,7 @@ mandir = ${datarootdir}/man
 mkdir_p = $(MKDIR_P)
 oldincludedir = /usr/include
 pdfdir = ${docdir}
-prefix = /home/cdw/Dropbox/research/sos_flow
+prefix = /usr/local
 program_transform_name = s,x,x,
 psdir = ${docdir}
 sbindir = ${exec_prefix}/sbin
@@ -373,9 +387,9 @@ top_srcdir = ..
 # --> sosd
 #    (daemon)
 #
-sosd_SOURCES = sosd.c qhashtbl.c
-sosd_CFLAGS = -g
-sosd_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
+sosd_SOURCES = sosd.c qhashtbl.c sosd_db_sqlite.c
+sosd_CFLAGS = -g $(SQLITE3_CFLAGS)
+sosd_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS) $(SQLITE3_LDFLAGS)
 
 #
 # --> sos_cmd
@@ -394,23 +408,15 @@ demo_app_CFLAGS = -g
 demo_app_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 # ---------- #
-pkginclude_HEADERS = sos.h    sos_debug.h
+pkginclude_HEADERS = sos.h    sos_debug.h    sos_error.h   sosd.h   sosd_db_sqlite.h
 
 #
 # --> libsos.la
 #    (shared library)
 #
 lib_LTLIBRARIES = libsos.la
-libsos_la_SOURCES = sos.c sos_debug.h sos_error.h qhashtbl.c
+libsos_la_SOURCES = sos.c qhashtbl.c
 libsos_la_CPPFLAGS = -I$(top_srcdir)/src -pthread
-
-#
-#
-#
-#
-demo_app_DEPENDENCIES = $(lib_LTLIBRARIES)
-sosd_DEPENDENCIES = $(lib_LTLIBRARIES)
-sos_cmd_DEPENDENCIES = $(lib_LTLIBRARIES)
 all: all-am
 
 .SUFFIXES:
@@ -557,6 +563,7 @@ include ./$(DEPDIR)/libsos_la-sos.Plo
 include ./$(DEPDIR)/sos_cmd-sos_cmd.Po
 include ./$(DEPDIR)/sosd-qhashtbl.Po
 include ./$(DEPDIR)/sosd-sosd.Po
+include ./$(DEPDIR)/sosd-sosd_db_sqlite.Po
 
 .c.o:
 	$(AM_V_CC)$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<
@@ -648,6 +655,20 @@ sosd-qhashtbl.obj: qhashtbl.c
 #	$(AM_V_CC)source='qhashtbl.c' object='sosd-qhashtbl.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -c -o sosd-qhashtbl.obj `if test -f 'qhashtbl.c'; then $(CYGPATH_W) 'qhashtbl.c'; else $(CYGPATH_W) '$(srcdir)/qhashtbl.c'; fi`
+
+sosd-sosd_db_sqlite.o: sosd_db_sqlite.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -MT sosd-sosd_db_sqlite.o -MD -MP -MF $(DEPDIR)/sosd-sosd_db_sqlite.Tpo -c -o sosd-sosd_db_sqlite.o `test -f 'sosd_db_sqlite.c' || echo '$(srcdir)/'`sosd_db_sqlite.c
+	$(AM_V_at)$(am__mv) $(DEPDIR)/sosd-sosd_db_sqlite.Tpo $(DEPDIR)/sosd-sosd_db_sqlite.Po
+#	$(AM_V_CC)source='sosd_db_sqlite.c' object='sosd-sosd_db_sqlite.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -c -o sosd-sosd_db_sqlite.o `test -f 'sosd_db_sqlite.c' || echo '$(srcdir)/'`sosd_db_sqlite.c
+
+sosd-sosd_db_sqlite.obj: sosd_db_sqlite.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -MT sosd-sosd_db_sqlite.obj -MD -MP -MF $(DEPDIR)/sosd-sosd_db_sqlite.Tpo -c -o sosd-sosd_db_sqlite.obj `if test -f 'sosd_db_sqlite.c'; then $(CYGPATH_W) 'sosd_db_sqlite.c'; else $(CYGPATH_W) '$(srcdir)/sosd_db_sqlite.c'; fi`
+	$(AM_V_at)$(am__mv) $(DEPDIR)/sosd-sosd_db_sqlite.Tpo $(DEPDIR)/sosd-sosd_db_sqlite.Po
+#	$(AM_V_CC)source='sosd_db_sqlite.c' object='sosd-sosd_db_sqlite.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sosd_CFLAGS) $(CFLAGS) -c -o sosd-sosd_db_sqlite.obj `if test -f 'sosd_db_sqlite.c'; then $(CYGPATH_W) 'sosd_db_sqlite.c'; else $(CYGPATH_W) '$(srcdir)/sosd_db_sqlite.c'; fi`
 
 mostlyclean-libtool:
 	-rm -f *.lo
@@ -888,6 +909,14 @@ uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-am uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-pkgincludeHEADERS
 
+
+#
+#
+#
+#
+# demo_app_DEPENDENCIES       = $(lib_LTLIBRARIES)
+# sosd_DEPENDENCIES           = $(lib_LTLIBRARIES)
+# sos_cmd_DEPENDENCIES        = $(lib_LTLIBRARIES)
 #
 
 # ########## #

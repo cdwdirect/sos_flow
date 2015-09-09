@@ -22,10 +22,10 @@
 
 #define SOS_DEBUG      5
 
-
 /* Should the daemon do any logging?  (yes/no)  */
 
 #define DAEMON_LOG     1
+
 
 int     sos_daemon_lock_fptr;
 FILE*   sos_daemon_log_fptr;
