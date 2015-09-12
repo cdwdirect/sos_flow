@@ -27,11 +27,31 @@ extern int daemon_running;  /* from: sosd.c */
 void SOS_simple_signal_handler(int signal);
 
 
+void SOS_simple_signal_handler(int signal) {
+    SOS_SET_WHOAMI(whoami, "SOS_simple_signal_handler");
 
+    switch (signal) {
+    case SIGTERM:
+        SOSD.daemon_running = 0;
+        syslog(LOG_DEBUG, "SIGTERM signal caught.");
+        syslog(LOG_INFO, "Shutting down.\n");
+        closelog();
+        dlog(0, "[%s]: Caught SIGTERM, shutting down.\n", whoami);
+        break;
+    }
+}
+
+
+
+
+
+/* TODO: { SIGNAL HANDLER} Has a bug that leads to recursive death-spiral.  : (  */
 static void SOS_custom_signal_handler(int sig) {
-    SOS_SET_WHOAMI(whoami, "signal_handler");
+    SOS_SET_WHOAMI(whoami, "SOS_custom_signal_handler");
+    static int recursion_flag;
     int crank = 0;
     int csize = 0;
+
 
     if (SOS.role == SOS_ROLE_DAEMON) {
         if (sig == SIGHUP) {
@@ -47,9 +67,6 @@ static void SOS_custom_signal_handler(int sig) {
         }
     }
   
-    dlog(0, "\n");
-    dlog(0, "\n");
-    
     void *trace[32];
     size_t size, i;
     char **strings;
@@ -66,14 +83,14 @@ static void SOS_custom_signal_handler(int sig) {
     int len = readlink("/proc/self/exe", exe, 256);
     if (len != -1) { exe[len] = '\0'; }
 
-    char crash_rpt[SOS_DEFAULT_STRING_LEN];
-    snprintf(crash_rpt, SOS_DEFAULT_STRING_LEN, "%s.crash_backtrace", exe);
-    remove(crash_rpt);
+    //char crash_rpt[SOS_DEFAULT_STRING_LEN];
+    //sprintf(crash_rpt, "%s.crash_backtrace", exe);
+    //remove(crash_rpt);
     
     // skip the first frame, it is this handler
     for( i = 1; i < size; i++ ){
         dlog(0, "%s\n", strings[i]);
-        
+
         // char syscom[1024];
         // memset(syscom, '\0', 1024);
         // sprintf(syscom, "addr2line -f -e ./.libs/%s -p >> %s", exe, crash_rpt, trace[i]);
@@ -84,10 +101,30 @@ static void SOS_custom_signal_handler(int sig) {
     dlog(0, "***************************************");
     dlog(0, "\n");
     dlog(0, "\n");
-    if (SOS.role != SOS_ROLE_DAEMON) exit(99);
+    exit(99);
 }
 
 int SOS_register_signal_handler() {
+    SOS_SET_WHOAMI(whoami, "SOS_register_signal_handler");
+
+    dlog(0, "[%s]: Register the signal handler.\n", whoami);
+
+    /*
+     *
+     *
+    dlog(0, "[%s]:   ... choosing: simple handler\n", whoami);
+    struct sigaction act;
+    sigemptyset(&act.sa_mask);
+    act.sa_flags = SA_RESTART;
+    act.sa_handler = SOS_simple_signal_handler;
+    sigaction(SIGTERM, &act, &SOS_term_act);
+    return;
+     */
+
+    /*
+     *  Register the more robust back-tracing handler...
+     */
+    dlog(0, "[%s]:   ... choosing: custom handler w/backtrack\n", whoami);
     struct sigaction act;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
@@ -100,6 +137,7 @@ int SOS_register_signal_handler() {
     sigaction(SIGBUS,  &act, &SOS_bus_act);
     sigaction(SIGHUP,  &act, &SOS_hup_act);
     return 0;
+    
 }
 
 int SOS_unregister_signal_handler() {
@@ -120,29 +158,4 @@ void SOS_test_signal_handler() {
 
 
 
-/* Deprecated: */
-void SOS_simple_signal_handler(int signal) {
-    SOS_SET_WHOAMI(whoami, "signal_handler");
-
-    switch (signal) {
-    case SIGHUP:
-        syslog(LOG_DEBUG, "SIGHUP signal caught.");
-        break;
-
-    case SIGTERM:
-        /* Future-proofing for non-blocking socket accept calls... */
-        SOSD.daemon_running = 0;
-
-        /* [shutdown]
-         *     close logs to write them to disk.
-         */
-        syslog(LOG_DEBUG, "SIGTERM signal caught.");
-        syslog(LOG_INFO, "Shutting down.\n");
-        closelog();
-        dlog(0, "[%s]: Caught SIGTERM, shutting down.\n", whoami);
-        break;
-
-    }
-
-}
 

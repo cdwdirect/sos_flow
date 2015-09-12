@@ -17,7 +17,7 @@
 # ########## #
 
 
-bin_PROGRAMS                = demo_app     sosd     sos_cmd
+bin_PROGRAMS                = demo_app     sosd     sos_cmd     mpi_to_sos
 
 #
 # --> sosd
@@ -25,7 +25,7 @@ bin_PROGRAMS                = demo_app     sosd     sos_cmd
 #
 sosd_SOURCES                = sosd.c qhashtbl.c sosd_db_sqlite.c
 sosd_CFLAGS                 = -g $(SQLITE3_CFLAGS)
-sosd_LDFLAGS                = -L.libs -lsos -pthread $(APP_LD_FLAGS) $(SQLITE3_LDFLAGS)
+sosd_LDFLAGS                = -L.libs -lsos -pthread -lsqlite3 $(APP_LD_FLAGS) $(SQLITE3_LDFLAGS)
 
 
 #
@@ -44,6 +44,17 @@ sos_cmd_LDFLAGS             = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 demo_app_SOURCES            = demo_app.c
 demo_app_CFLAGS             = -g
 demo_app_LDFLAGS            = -L.libs -lsos -pthread $(APP_LD_FLAGS)
+
+
+
+#
+# --> mpi_to_sos
+#    (example of use)
+#
+
+mpi_to_sos_SOURCES            = mpi_to_sos.c
+mpi_to_sos_CFLAGS             = -g -I/usr/lib/openmpi/include -I/usr/lib/openmpi/include/openmpi -pthread -L/usr//lib -L/usr/lib/openmpi/lib -lmpi -ldl -lhwloc
+mpi_to_sos_LDFLAGS            = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
 
 # ---------- #

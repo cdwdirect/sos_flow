@@ -23,17 +23,17 @@
 
 
 /* Private functions (not in the header file) */
-void *     SOS_THREAD_post( void *arg );
-void *     SOS_THREAD_read( void *arg );
-void *     SOS_THREAD_scan( void *arg );
+void*  SOS_THREAD_post( void *arg );
+void*  SOS_THREAD_read( void *arg );
+void*  SOS_THREAD_scan( void *arg );
 
-void       SOS_post_to_daemon( char *msg, char *reply );
+void   SOS_post_to_daemon( char *msg, char *reply );
+long   SOS_next_id( SOS_uid *uid );
+void   SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
+void   SOS_expand_data( SOS_pub *pub );
 
-SOS_pub *  SOS_new_pub_sized( char *title, int size );
-
-void       SOS_free_pub(SOS_pub *pub);
-void       SOS_free_sub(SOS_sub *sub);
-void       SOS_expand_data(SOS_pub *pub);
+void   SOS_ring_put(void *item);
+void*  SOS_ring_get(void);
 
 
 /* Private variables (not exposed in the header file) */
@@ -60,40 +60,47 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
     SOS_SET_WHOAMI(whoami, "SOS_init");
 
-    dlog(2, "[%s]: Initializing SOS...\n", whoami);
-    dlog(2, "[%s]:   ... setting argc / argv\n", whoami);
+    dlog(1, "[%s]: Initializing SOS...\n", whoami);
+    dlog(1, "[%s]:   ... setting argc / argv\n", whoami);
     SOS.config.argc = *argc;
     SOS.config.argv = *argv;
     SOS.config.process_id = (int) getpid();
     
-    dlog(2, "[%s]:   ... allocating uid sets\n", whoami);
+    dlog(1, "[%s]:   ... allocating uid sets\n", whoami);
     SOS.uid.pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
     SOS.uid.sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
     SOS.uid.seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
     
-    dlog(2, "[%s]:   ... setting defaults for uid sets and initializing mutexes.\n", whoami);
+    dlog(1, "[%s]:   ... setting defaults for uid sets.\n", whoami);
     SOS.uid.pub->next = SOS.uid.sub->next = SOS.uid.seq->next = 1;
     SOS.uid.pub->last = SOS.uid.sub->last = SOS.uid.seq->last = SOS_DEFAULT_UID_MAX;
-    pthread_mutex_init( &(SOS.uid.pub->lock), NULL );
-    pthread_mutex_init( &(SOS.uid.sub->lock), NULL );
-    pthread_mutex_init( &(SOS.uid.seq->lock), NULL );
 
-    dlog(2, "[%s]:   ... configuring data rings.\n", whoami);
-    SOS.ring.send.read_pos = SOS.ring.send.write_pos = 0;
-    SOS.ring.recv.read_pos = SOS.ring.recv.write_pos = 0;
-    SOS.ring.send.size = SOS_DEFAULT_RING_SIZE;
-    SOS.ring.recv.size = SOS_DEFAULT_RING_SIZE;
-    SOS.ring.send.bytes = ( SOS.ring.send.size * sizeof(void *) );
-    SOS.ring.recv.bytes = ( SOS.ring.recv.size * sizeof(void *) );
-    SOS.ring.send.heap = (void **) malloc( SOS.ring.send.bytes );
-    SOS.ring.recv.heap = (void **) malloc( SOS.ring.recv.bytes );
-    memset( SOS.ring.send.heap, '\0', SOS.ring.send.bytes ); 
-    memset( SOS.ring.recv.heap, '\0', SOS.ring.recv.bytes );
-    pthread_mutex_init( &(SOS.ring.send.lock), NULL );
-    pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
+    if (SOS_CONFIG_USE_MUTEXES) {
+        dlog(1, "[%s]:      ... initializing their mutexes.\n", whoami);
+        pthread_mutex_init( &(SOS.uid.pub->lock), NULL );
+        pthread_mutex_init( &(SOS.uid.sub->lock), NULL );
+        pthread_mutex_init( &(SOS.uid.seq->lock), NULL );
+    }
+
+    dlog(1, "[%s]:   ... configuring data rings.\n", whoami);
+    SOS.ring.send.read_pos   = SOS.ring.send.write_pos   = 0;
+    SOS.ring.recv.read_pos   = SOS.ring.recv.write_pos   = 0;
+    SOS.ring.send.elem_count = SOS_DEFAULT_RING_SIZE;
+    SOS.ring.recv.elem_count = SOS_DEFAULT_RING_SIZE;
+    SOS.ring.send.elem_size  = sizeof(void *);
+    SOS.ring.recv.elem_size  = sizeof(void *);
+    SOS.ring.send.heap       = (void **) malloc( SOS.ring.send.elem_count * SOS.ring.send.elem_size );
+    SOS.ring.recv.heap       = (void **) malloc( SOS.ring.recv.elem_count * SOS.ring.recv.elem_size );
+    memset( SOS.ring.send.heap, '\0', (SOS.ring.send.elem_count * SOS.ring.send.elem_size) ); 
+    memset( SOS.ring.recv.heap, '\0', (SOS.ring.recv.elem_count * SOS.ring.recv.elem_size) );
+    if (SOS_CONFIG_USE_MUTEXES) {
+        dlog(1, "[%s]:      ... initializing their mutexes.\n", whoami);
+        pthread_mutex_init( &(SOS.ring.send.lock), NULL );
+        pthread_mutex_init( &(SOS.ring.recv.lock), NULL );
+    }
 
     if (SOS_CONFIG_USE_THREAD_POOL) {
-        dlog(2, "[%s]:   ... launching data migration threads.\n", whoami);
+        dlog(1, "[%s]:   ... launching data migration threads.\n", whoami);
         retval = pthread_create( SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
         if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.post thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
         retval = pthread_create( SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
@@ -103,7 +110,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     }
 
     if (SOS.role == SOS_ROLE_CLIENT || SOS.role == SOS_ROLE_CONTROL) {
-        dlog(2, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
+        dlog(1, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
         /*
          *
          *  NETWORK CONFIGURATION: CLIENT / CONTROL
@@ -114,7 +121,8 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS.net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS.net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS.net.server_port   = getenv("SOS_CMD_PORT");
-        if ( strlen(SOS.net.server_port) == 0 ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(1); }
+        if ( SOS.net.server_port == NULL ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(-1); }
+        if ( strlen(SOS.net.server_port) < 2 ) { dlog(0, "[%s]: ERROR!  SOS_CMD_PORT environment variable is not set!\n", whoami); exit(-1); }
 
         SOS.net.server_hint.ai_family    = AF_UNSPEC;        /* Allow IPv4 or IPv6 */
         SOS.net.server_hint.ai_protocol  = 0;                /* Any protocol */
@@ -137,7 +145,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         
         if (server_socket_fd == 0) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
-        dlog(2, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
+        dlog(1, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = 0;
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
@@ -146,14 +154,14 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), 0, 0, 0 );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
-        dlog(2, "[%s]:   ... listening for the server to reply...\n", whoami);
+        dlog(1, "[%s]:   ... listening for the server to reply...\n", whoami);
         memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
         retval = recv( server_socket_fd, (void *) buffer, (SOS_DEFAULT_BUFFER_LEN - 1), 0);
         
         dlog(6, "[%s]:   ... server responded with %d bytes.\n", whoami, retval);
-        dlog(2, "[%s]:   ... determining my guid   ", whoami);
+        dlog(1, "[%s]:   ... determining my guid   ", whoami);
         memcpy(&SOS.my_guid, buffer, sizeof(long));
-        dlog(2, "(%ld)\n", SOS.my_guid);
+        dlog(1, "(%ld)\n", SOS.my_guid);
 
         close( server_socket_fd );
         
@@ -169,7 +177,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
     }
 
-    dlog(2, "[%s]: Done with SOS_init(), returning to caller.\n", whoami);
+    dlog(1, "[%s]:   ... done with SOS_init().\n", whoami);
     return;
 }
 
@@ -229,13 +237,15 @@ void SOS_finalize() {
         pthread_join( *SOS.task.scan, NULL );
     }
 
-    dlog(0, "[%s]: Destroying mutexes...\n", whoami);
-    pthread_mutex_destroy( &SOS.ring.send.lock  );
-    pthread_mutex_destroy( &SOS.ring.recv.lock  );
-    pthread_mutex_destroy( &(SOS.uid.pub->lock) );
-    pthread_mutex_destroy( &(SOS.uid.sub->lock) );
-    pthread_mutex_destroy( &(SOS.uid.seq->lock) );
-    pthread_mutex_destroy( &SOS.global_lock     );
+    if (SOS_CONFIG_USE_MUTEXES) {
+        dlog(0, "[%s]: Destroying mutexes...\n", whoami);
+        pthread_mutex_destroy( &SOS.ring.send.lock  );
+        pthread_mutex_destroy( &SOS.ring.recv.lock  );
+        pthread_mutex_destroy( &(SOS.uid.pub->lock) );
+        pthread_mutex_destroy( &(SOS.uid.sub->lock) );
+        pthread_mutex_destroy( &(SOS.uid.seq->lock) );
+        pthread_mutex_destroy( &SOS.global_lock     );
+    }
 
     dlog(0, "[%s]: Freeing data ring heaps...\n", whoami);
     free( SOS.ring.send.heap );
@@ -305,9 +315,17 @@ void* SOS_THREAD_scan( void *args ) {
 long SOS_next_id( SOS_uid *id ) {
     long next_serial;
 
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_lock( &(id->lock) );
+    #endif
+
     next_serial = id->next++;
+
+    /* TODO: { NEXT_ID } Have a proper failure state if we are out of ID's... */
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_unlock( &(id->lock) );
+    #endif
 
     return next_serial;
 }
@@ -332,7 +350,7 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     new_pub->comm_rank    = 0;
     new_pub->prog_name    = SOS.config.argv[0];
     new_pub->prog_ver     = SOS_NULL_STR;
-    new_pub->pragma_len   = SOS_NULL_STR_LEN;
+    new_pub->pragma_len   = 0;
     new_pub->pragma_msg   = SOS_NULL_STR;
     new_pub->title = (char *) malloc(strlen(title) + 1);
         memset(new_pub->title, '\0', (strlen(title) + 1));
@@ -403,191 +421,6 @@ void SOS_strip_str( char *str ) {
   
     return;
 }
-
-
-
-//SOS_FLOW - ready
-void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
-    SOS_SET_WHOAMI(whoami, "SOS_apply_announce");
-
-    SOS_val_type   val_type;
-    SOS_msg_header header;
-    int            i;
-    int            new_elem_count;
-    long           new_guid;
-    int            str_len;
-    int            val_id;
-    int            val_name_len;
-    char          *val_name;
-    int            ptr;
-    int            first_announce;
-
-    if (pub->elem_count < 1) {
-        first_announce = 1;
-        dlog(6, "[%s]: Applying a first announce to this publication, as the receiving end's pub handle is empty.\n", whoami);
-    } else {
-        first_announce = 0;
-        dlog(6, "[%s]: Applying a re-announce.\n", whoami);
-    }
-    dlog(6, "[%s]:   ... pub->elem_count=%d   pub->elem_max=%d   msg_size=%d\n", whoami, pub->elem_count, pub->elem_max, msg_size);
-
-    if (!first_announce) {
-        /* Free all existing strings, they will be overwritten... */
-        free(pub->node_id);
-        free(pub->prog_name);
-        free(pub->prog_ver);
-        if (pub->pragma_len > 0) free(pub->pragma_msg);
-        free(pub->title);
-        for (i = 0; i < pub->elem_count; i++) {
-            free( pub->data[i]->name );
-        }
-    }
-
-    dlog(6, "[%s]:   ... extracting values from the message: ", whoami);
-    ptr = 0;
-    /* Extract the MESSAGE header ... */
-    memcpy(&( header ), (msg + ptr), sizeof(SOS_msg_header));     ptr += sizeof(SOS_msg_header);
-    dlog(6, "[msg_header(%d)] ", ptr);
-
-    /* Process the PUB HEADER ... */
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, "{ pub_id(%d), ", str_len);
-    pub->node_id =       strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( pub->process_id    ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    memcpy(&( pub->thread_id     ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    memcpy(&( pub->comm_rank     ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " prog_name(%d), ", str_len);
-    pub->prog_name =     strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " prog_ver(%d), ", str_len);
-    pub->prog_ver =      strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( pub->pragma_len    ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " pragma_len(%d), ", pub->pragma_len);
-    pub->pragma_msg = (char *) malloc( sizeof(char) * pub->pragma_len );
-    memcpy(&( pub->pragma_msg    ), (msg + ptr), pub->pragma_len );   ptr += pub->pragma_len;
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " title(%d) }\n", str_len);
-    pub->title =         strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( new_elem_count     ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    
-    while ( pub->elem_max < new_elem_count ) SOS_expand_data( pub );
-    pub->elem_count = new_elem_count;
-    dlog(6, "[pub_head(%d)] ", ptr);
-
-    /* Process the PUB METADATA ... */
-    memcpy(&( pub->meta.channel     ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.layer       ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.nature      ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.pri_hint    ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.scope_hint  ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.retain_hint ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    dlog(6, "[pub_meta(%d)] ", ptr);
-
-    /* Process the PUB DATA ELEMENTS ... */
-    for (i = 0; i < new_elem_count; i++) {
-        if (ptr >= msg_size) break;
-
-        memcpy(&( new_guid              ), (msg + ptr), sizeof(long));  ptr += sizeof(long);
-        if ( new_guid == 0 ) {
-            /* Assign a new GUID to this data element. */
-            new_guid = SOS_next_id( SOS.uid.seq );   /* TODO: { GUID } Make this work correctly for demon vs. client? */
-        } else if ( new_guid != pub->data[i]->guid ) {
-            /* Things have (somehow) shifted in the pub, so wipe the data and hope for a publish.
-             * This really should not happen, but just in case... */
-            switch ( pub->data[i]->type ) {
-            case SOS_VAL_TYPE_STRING: if (!first_announce && pub->data[i]->val.c_val) free( pub->data[i]->val.c_val ); break;
-            case SOS_VAL_TYPE_DOUBLE: pub->data[i]->val.d_val = 0.0; break;
-            case SOS_VAL_TYPE_INT:    pub->data[i]->val.i_val = 0;   break;
-            case SOS_VAL_TYPE_LONG:   pub->data[i]->val.l_val = 0;   break;
-            }
-        }
-        pub->data[i]->guid = new_guid;
-        if (!first_announce) free( pub->data[i]->name );
-        memcpy(&( str_len               ), (msg + ptr), sizeof(int));  ptr += sizeof(int);
-        pub->data[i]->name =    strndup(   (msg + ptr), str_len);      ptr += str_len;
-        memcpy(&( pub->data[i]->type    ), (msg + ptr), sizeof(int));  ptr += sizeof(int);
-
-        pub->data[i]->state = SOS_VAL_STATE_EMPTY;  /* All Announcements set data[] to empty, until a pub comes in. */
-    }
-    dlog(6, "[pub_data(%d)]\n", ptr);
-    dlog(6, "[%s]:   ... new_elem_count = %d.\n", whoami, new_elem_count);
-
-    i = new_elem_count;
-    while ( i < pub->elem_max ) { pub->data[i]->state = SOS_VAL_STATE_EMPTY; i++; }
-
-    dlog(6, "[%s]:   ... done.\n", whoami);
-
-    return;
-
-}
-
-
-
-void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
-    SOS_SET_WHOAMI(whoami, "SOS_apply_publish");
-
-    SOS_msg_header header;
-    double recv_ts;
-    int    dirty_elem_count;
-    int    ptr;
-    int    i;
-    /* For loading data values: */
-    int    index;
-    double pack_ts;
-    double send_ts;
-    int    val_len;
-    
-    SOS_TIME( recv_ts );
-    dlog(6, "[%s]: Applying updated values to pub{%s} ...\n", whoami, pub->title);
-
-    ptr = 0;
-    memcpy(&header,    (msg + ptr), sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    memcpy(&dirty_elem_count, (msg + ptr), sizeof(int));     ptr += sizeof(int);
-
-    dlog(6, "[%s]:   ... pub->guid = %ld     dirty_elem_count = %d\n", whoami, header.pub_guid, dirty_elem_count);
-
-    for (i = 0; i < dirty_elem_count; i++) {
-        memcpy(&index,        (msg + ptr), sizeof(int));     ptr += sizeof(int);
-        memcpy(&pack_ts,      (msg + ptr), sizeof(double));  ptr += sizeof(double);
-        memcpy(&send_ts,      (msg + ptr), sizeof(double));  ptr += sizeof(double);
-        memcpy(&val_len,      (msg + ptr), sizeof(int));     ptr += sizeof(int);
-
-        if (index >= pub->elem_count) {
-            dlog(1, "[%s]:   ...\n", whoami);
-            dlog(1, "[%s]:   ... ERROR!  Attempting to apply published data into an index larger than\n", whoami);
-            dlog(1, "[%s]:   ...         the announced publication handle's highest element index.\n", whoami);
-            dlog(1, "[%s]:   ...\n", whoami);
-            dlog(1, "[%s]:   ...    pub{%s}->elem_count == %d;  (incoming) index == %d;\n", whoami, pub->title, pub->elem_count, index);
-            dlog(1, "[%s]:   ...\n", whoami);
-            dlog(1, "[%s]:   ...  (Discarding this element update and skipping ahead.)\n", whoami);
-            dlog(1, "[%s]:   ... ----------\n", whoami);
-            ptr += val_len;
-            continue;
-        }
-
-        dlog(6, "[%s]:   ... Value received for: data[%d]->name(\"%s\") = ", whoami, index, pub->data[index]->name);
-
-        pub->data[index]->time.pack = pack_ts;
-        pub->data[index]->time.send = send_ts;
-        pub->data[index]->time.recv = recv_ts;
-        pub->data[index]->state     = SOS_VAL_STATE_DIRTY;
-
-        switch (pub->data[index]->type) {
-        case SOS_VAL_TYPE_INT :    memcpy(&(pub->data[index]->val.i_val), (msg + ptr), val_len); ptr += val_len; dlog(6, "%d\n",  pub->data[index]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG :   memcpy(&(pub->data[index]->val.l_val), (msg + ptr), val_len); ptr += val_len; dlog(6, "%ld\n", pub->data[index]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE : memcpy(&(pub->data[index]->val.d_val), (msg + ptr), val_len); ptr += val_len; dlog(6, "%lf\n", pub->data[index]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING :
-            if (pub->data[index]->val.c_val != NULL) { 
-                free(pub->data[index]->val.c_val);
-            }
-            pub->data[index]->val.c_val = (char *) malloc((val_len) * sizeof(char));
-            memset(pub->data[index]->val.c_val, '\0', (val_len));
-            memcpy(pub->data[index]->val.c_val, (msg + ptr), val_len); ptr += (val_len);
-            dlog(6, "\"%s\"\n", pub->data[index]->val.c_val); break;
-        }
-    }
-
-    dlog(6, "[%s]:   ... Done.\n", whoami);
-
-    return;
-}
-
 
 
 

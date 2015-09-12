@@ -26,6 +26,7 @@ typedef struct {
 typedef struct {
     char   *work_dir;
     char   *db_file;
+    int     db_ready;
     int     daemon_running;
     char    daemon_pid_str[256];
     double  time_now;
@@ -47,16 +48,20 @@ SOS_daemon_runtime SOSD;
 extern "C" {
 #endif
 
-void SOS_daemon_init();
-void SOS_daemon_setup_socket();
-void SOS_daemon_init_database();
-void SOS_daemon_listen_loop();
-void SOS_daemon_handle_register(char *msg_data, int msg_size);
-void SOS_daemon_handle_announce(char *msg_data, int msg_size);
-void SOS_daemon_handle_publish(char *msg_data, int msg_size);
-void SOS_daemon_handle_echo(char *msg_data, int msg_size);
-void SOS_daemon_handle_shutdown(char *msg_data, int msg_size);
-void SOS_daemon_handle_unknown(char *msg_data, int msg_size);
+    void SOS_daemon_init();
+    void SOS_daemon_setup_socket();
+    void SOS_daemon_init_database();
+    void SOS_daemon_listen_loop();
+    void SOS_daemon_handle_register(char *msg_data, int msg_size);
+    void SOS_daemon_handle_announce(char *msg_data, int msg_size);
+    void SOS_daemon_handle_publish(char *msg_data, int msg_size);
+    void SOS_daemon_handle_echo(char *msg_data, int msg_size);
+    void SOS_daemon_handle_shutdown(char *msg_data, int msg_size);
+    void SOS_daemon_handle_unknown(char *msg_data, int msg_size);
+    
+    void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_len );
+    void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len );
+
 
 #ifdef __cplusplus
 }

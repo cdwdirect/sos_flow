@@ -1,7 +1,8 @@
-echo "Clearing the log file."
+if [ -z $1 ]; then echo "   >>> Starting the sosd daemon..."; fi;
+if [ -z $1 ]; then echo "   >>> Clearing the log file."; fi;
 rm -f ./sosd.log
-echo "Launching the sosd daemon...   (port:$SOS_CMD_PORT)"
+if [ -z $1 ]; then echo "   >>> Clearing the database."; fi;
+rm -f ./sosd.db
+if [ -z $1 ]; then echo "   >>> Launching the sosd daemon...   (port:$SOS_CMD_PORT)" ; fi;
 ./sosd --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)
-echo "Try:"
-echo "     nc localhost 22505"
-echo ""
+if [ -z $1 ]; then ps `cat sosd.lock` ; fi;

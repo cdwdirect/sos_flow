@@ -1,0 +1,14 @@
+#!/bin/bash
+#  Usage: ./testmpi <from_size> <to_size> <step_amt> [RESULTS_ONLY/SILENT]
+#                        $1          $2       $3              $4
+#
+echo "Running from $1 to $2 in increments of $3 ..."
+echo ""
+./stop SILENT
+./start SILENT
+if [ -z $4 ]; then echo "   >>> Launching $1 instances of ./mpi_to_sos ..." ; fi;
+mpirun -np 1 ./mpi_to_sos SHOW_HEADER
+for ((s=$1; s<=$2; s+=$3)); do
+    mpirun -np $s ./mpi_to_sos;
+done
+if [ -z $4 ]; then echo "   >>>   ... Done." ; fi;

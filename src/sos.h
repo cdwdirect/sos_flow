@@ -27,10 +27,15 @@
 
 /* SOS Configuration Switches... */
 
-#define SOS_CONFIG_DUMP_TO_FILE        1
+/*
+ *   TODO: { VMPI } Merge in the capability of the former SOS project...
+ *
+ */
+
 #define SOS_CONFIG_USE_THREAD_POOL     0
-
-
+#define SOS_CONFIG_USE_MUTEXES         0
+#define SOS_CONFIG_USE_VMPI            1
+#define SOS_CONFIG_USE_SOCKETS         1
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
@@ -45,7 +50,6 @@
         default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
         }                                                               \
     }
-
 
 #define SOS_DEFAULT_SERVER_HOST    "localhost"
 #define SOS_DEFAULT_SERVER_PORT    22505
@@ -65,11 +69,13 @@
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_LEADER)                       \
     ROLE(SOS_ROLE_CONTROL)                      \
+    ROLE(SOS_ROLE___MAX)                        \
     
 #define FOREACH_STATUS(STATUS)                  \
     STATUS(SOS_STATUS_INIT)                     \
     STATUS(SOS_STATUS_RUNNING)                  \
     STATUS(SOS_STATUS_SHUTDOWN)                 \
+    STATUS(SOS_STATUS___MAX)                    \
     
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
@@ -77,22 +83,31 @@
     MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
     MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
     MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
+    MSG_TYPE(SOS_MSG_TYPE___MAX)                \
     
 #define FOREACH_PRI(PRI)                        \
     PRI(SOS_PRI_DEFAULT)                        \
     PRI(SOS_PRI_LOW)                            \
     PRI(SOS_PRI_IMMEDIATE)                      \
+    PRI(SOS_PRI___MAX)                          \
 
 #define FOREACH_VAL_TYPE(VAL_TYPE)              \
     VAL_TYPE(SOS_VAL_TYPE_INT)                  \
     VAL_TYPE(SOS_VAL_TYPE_LONG)                 \
     VAL_TYPE(SOS_VAL_TYPE_DOUBLE)               \
     VAL_TYPE(SOS_VAL_TYPE_STRING)               \
+    VAL_TYPE(SOS_VAL_TYPE___MAX)                \
 
 #define FOREACH_VAL_STATE(VAL_STATE)            \
     VAL_STATE(SOS_VAL_STATE_CLEAN)              \
     VAL_STATE(SOS_VAL_STATE_DIRTY)              \
     VAL_STATE(SOS_VAL_STATE_EMPTY)              \
+    VAL_STATE(SOS_VAL_STATE___MAX)              \
+
+#define FOREACH_ENTRY_TYPE(ENTRY_TYPE)          \
+    ENTRY_TYPE(SOS_ENTRY_TYPE_VALUE)            \
+    ENTRY_TYPE(SOS_ENTRY_TYPE_EVENT)            \
+    ENTRY_TYPE(SOS_ENTRY_TYPE___MAX)            \
 
 #define FOREACH_SEM(SEM)                        \
     SEM(SOS_SEM_TIME_START)                     \
@@ -102,12 +117,31 @@
     SEM(SOS_SEM_VAL_CURRENT)                    \
     SEM(SOS_SEM_VAL_COUNTER)                    \
     SEM(SOS_SEM_VAL_LOG)                        \
+    SEM(SOS_SEM___MAX)                          \
+
+#define FOREACH_VAL_BEHAVIOR(BEHAVIOR)          \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_DEFAULT)          \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_STATIC)           \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_RISING)           \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_FALLING)          \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_PLATEAU)          \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_OSCILLATING)      \
+    BEHAVIOR(SOS_VAL_BEHAVIOR_ARC)              \
+    BEHAVIOR(SOS_VAL_BEHAVIOR___MAX)            \
+
+#define FOREACH_MOOD(MOOD)                      \
+    MOOD(SOS_MOOD_DEFAULT)                      \
+    MOOD(SOS_MOOD_GOOD)                         \
+    MOOD(SOS_MOOD_BAD)                          \
+    MOOD(SOS_MOOD_UGLY)                         \
+    MOOD(SOS_MOOD___MAX)                        \
 
 #define FOREACH_SCOPE(SCOPE)                    \
     SCOPE(SOS_SCOPE_DEFAULT)                    \
     SCOPE(SOS_SCOPE_SELF)                       \
     SCOPE(SOS_SCOPE_NODE)                       \
     SCOPE(SOS_SCOPE_ENCLAVE)                    \
+    SCOPE(SOS_SCOPE___MAX)                      \
 
 #define FOREACH_LAYER(LAYER)                    \
     LAYER(SOS_LAYER_APP)                        \
@@ -115,6 +149,7 @@
     LAYER(SOS_LAYER_LIB)                        \
     LAYER(SOS_LAYER_FLOW)                       \
     LAYER(SOS_LAYER_CONTROL)                    \
+    LAYER(SOS_LAYER___MAX)                      \
 
 #define FOREACH_NATURE(NATURE)                  \
     NATURE(SOS_NATURE_CREATE_INPUT)             \
@@ -126,39 +161,66 @@
     NATURE(SOS_NATURE_SUPPORT_FLOW)             \
     NATURE(SOS_NATURE_CONTROL_FLOW)             \
     NATURE(SOS_NATURE_SOS)                      \
+    NATURE(SOS_NATURE___MAX)                    \
         
 #define FOREACH_RETAIN(RETAIN)                  \
     RETAIN(SOS_RETAIN_DEFAULT)                  \
     RETAIN(SOS_RETAIN_SESSION)                  \
     RETAIN(SOS_RETAIN_IMMEDIATE)                \
-    
+    RETAIN(SOS_RETAIN___MAX)                    \
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-typedef enum { FOREACH_ROLE(GENERATE_ENUM)      } SOS_role;
-typedef enum { FOREACH_STATUS(GENERATE_ENUM)    } SOS_status;
-typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)  } SOS_msg_type;
-typedef enum { FOREACH_PRI(GENERATE_ENUM)       } SOS_pri;
-typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)  } SOS_val_type;
-typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM) } SOS_val_state;
-typedef enum { FOREACH_SEM(GENERATE_ENUM)       } SOS_sem;
-typedef enum { FOREACH_SCOPE(GENERATE_ENUM)     } SOS_scope;
-typedef enum { FOREACH_LAYER(GENERATE_ENUM)     } SOS_layer;
-typedef enum { FOREACH_NATURE(GENERATE_ENUM)    } SOS_nature;
-typedef enum { FOREACH_RETAIN(GENERATE_ENUM)    } SOS_retain;
+typedef enum { FOREACH_ROLE(GENERATE_ENUM)         } SOS_role;
+typedef enum { FOREACH_STATUS(GENERATE_ENUM)       } SOS_status;
+typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)     } SOS_msg_type;
+typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
+typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
+typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
+typedef enum { FOREACH_SEM(GENERATE_ENUM)          } SOS_sem;
+typedef enum { FOREACH_SCOPE(GENERATE_ENUM)        } SOS_scope;
+typedef enum { FOREACH_LAYER(GENERATE_ENUM)        } SOS_layer;
+typedef enum { FOREACH_NATURE(GENERATE_ENUM)       } SOS_nature;
+typedef enum { FOREACH_RETAIN(GENERATE_ENUM)       } SOS_retain;
 
-static const char *SOS_role_string[] =      { FOREACH_ROLE(GENERATE_STRING)      };
-static const char *SOS_status_string[] =    { FOREACH_STATUS(GENERATE_STRING)    };
-static const char *SOS_msg_type_string[] =  { FOREACH_MSG_TYPE(GENERATE_STRING)  };
-static const char *SOS_pri_string[] =       { FOREACH_PRI(GENERATE_STRING)       };
-static const char *SOS_val_type_string[] =  { FOREACH_VAL_TYPE(GENERATE_STRING)  };
-static const char *SOS_val_state_string[] = { FOREACH_VAL_STATE(GENERATE_STRING) };
-static const char *SOS_sem_string[] =       { FOREACH_SEM(GENERATE_STRING)       };
-static const char *SOS_scope_string[] =     { FOREACH_SCOPE(GENERATE_STRING)     };
-static const char *SOS_layer_string[] =     { FOREACH_LAYER(GENERATE_STRING)     };
-static const char *SOS_nature_string[] =    { FOREACH_NATURE(GENERATE_STRING)    };
-static const char *SOS_retain_string[] =    { FOREACH_RETAIN(GENERATE_STRING)    };
+/* TODO: { EXPANDED SEMANTICS } Add these to pack/announce/publish ... */
+typedef enum { FOREACH_VAL_BEHAVIOR(GENERATE_ENUM) } SOS_val_behavior;
+typedef enum { FOREACH_ENTRY_TYPE(GENERATE_ENUM)   } SOS_entry_type;
+typedef enum { FOREACH_MOOD(GENERATE_ENUM)         } SOS_mood;
+
+static const char *SOS_ROLE_string[] =         { FOREACH_ROLE(GENERATE_STRING)         };
+static const char *SOS_STATUS_string[] =       { FOREACH_STATUS(GENERATE_STRING)       };
+static const char *SOS_MSG_TYPE_string[] =     { FOREACH_MSG_TYPE(GENERATE_STRING)     };
+static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
+static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
+static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
+static const char *SOS_SEM_string[] =          { FOREACH_SEM(GENERATE_STRING)          };
+static const char *SOS_SCOPE_string[] =        { FOREACH_SCOPE(GENERATE_STRING)        };
+static const char *SOS_LAYER_string[] =        { FOREACH_LAYER(GENERATE_STRING)        };
+static const char *SOS_NATURE_string[] =       { FOREACH_NATURE(GENERATE_STRING)       };
+static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)       };
+
+/* TODO: { EXPANDED SEMANTICS } Add these to pack/announce/publish ... (see above) */
+static const char *SOS_VAL_BEHAVIOR_string[] = { FOREACH_VAL_BEHAVIOR(GENERATE_STRING) };
+static const char *SOS_ENTRY_TYPE_string[] =   { FOREACH_ENTRY_TYPE(GENERATE_STRING)   };
+static const char *SOS_MOOD_string[] =         { FOREACH_MOOD(GENERATE_STRING)         };
+
+
+#define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
+#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **";
+/*  Examples:   char *pub_layer     = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
+ *              char *data_type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
+ *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
+ */
+
+
+/* NOTE: You can cut down on system calls by doing a single copy call
+ *       to take care of all the static content (add all new pointers
+ *       below the __MEMCPY_END entry).
+ *           Example:
+ *                     memcpy(&dest, &src, (&(src->__MEMCPY_END) - &src));
+ */
 
 typedef union {
     int           i_val;        /* default: (null)                */
@@ -180,18 +242,19 @@ typedef struct {
     SOS_pri       pri_hint;     /* default: SOS_PRI_DEFAULT       */
     SOS_scope     scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
     SOS_retain    retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
+    char          __MEMCPY_END; /* .............................. */
 } SOS_meta;
 
 typedef struct {
-    long          guid;         /* default: (auto)                */
-    SOS_val_type  type;         /* default: --------- manual      */
-    SOS_sem       sem_hint;     /* default: --------- manual      */
-    int           val_len;      /* default: (auto) [on assign]    */
-    SOS_val       val;          /* default: --------- manual      */
-    SOS_val_state state;        /* default: SOS_VAL_STATE_EMPTY   */
-    SOS_time      time;         /* default: (complex)             */
-    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
-    char         *name;         /* default: --------- manual      */
+    long           guid;         /* default: (auto)                */
+    SOS_val_type   type;         /* default: --------- manual      */
+    int            val_len;      /* default: (auto) [on assign]    */
+    SOS_val        val;          /* default: --------- manual      */
+    SOS_val_state  state;        /* default: SOS_VAL_STATE_EMPTY   */
+    SOS_sem        sem_hint;     /* default: --------- manual      */
+    SOS_time       time;         /* default: (complex)             */
+    char           __MEMCPY_END; /* .............................. */
+    char          *name;         /* default: --------- manual      */
 } SOS_data;
 
 typedef struct {
@@ -204,7 +267,7 @@ typedef struct {
     int           elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
     int           elem_count;   /* default: 0                     */
     int           pragma_len;   /* default: -1                    */
-    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
+    char          __MEMCPY_END; /* .............................. */
     char         *pragma_msg;   /* default: (null)                */
     char         *node_id;      /* default: SOS.config.node_id    */
     char         *prog_name;    /* default: argv[0] / manual      */
@@ -216,12 +279,12 @@ typedef struct {
 typedef struct {
     int           suid;
     int           active;
-    pthread_t     thread_handle;
     int           refresh_delay;
     SOS_role      source_role;
     int           source_rank;
-    char          __PTR_BEGIN__;/* .........(only pointers follow)*/
+    char          __MEMCPY_END; /* .............................. */
     SOS_pub      *pub;
+    pthread_t     thread_handle;
 } SOS_sub;
 
 typedef struct {
@@ -264,8 +327,8 @@ typedef struct {
 typedef struct {
     int             read_pos;
     int             write_pos;
-    int             size;
-    long            bytes;
+    int             elem_count;
+    int             elem_size;
     void          **heap;
     pthread_mutex_t lock;
 } SOS_ring_queue;
@@ -274,8 +337,6 @@ typedef struct {
     SOS_ring_queue  send;
     SOS_ring_queue  recv;
 } SOS_ring_set;
-
-
 
 typedef struct {
     pthread_t    *post;    /* POST pending msgs to the daemon */
@@ -312,125 +373,32 @@ SOS_runtime SOS;
 extern "C" {
 #endif
 
+    /* ----- [ core functions ] ----- */
+    void      SOS_init( int *argc, char ***argv, SOS_role role );
+    SOS_pub*  SOS_new_pub(char *pub_name);
+    SOS_pub*  SOS_new_post(char *pub_name);
+    SOS_pub*  SOS_new_pub_sized(char *title, int new_size);
+    int       SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val );
+    void      SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
+    void      SOS_announce( SOS_pub *pub );
+    void      SOS_publish( SOS_pub *pub );
+    void      SOS_finalize();
+    /* ----- [ utilities ] ----- */
+    void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
+    SOS_val   SOS_get_val( SOS_pub *pub, char *name );
+    void      SOS_strip_str(char *str);
 
-    
-/* =========== [summary] =================== */
-/*
-
-    ---- SOS_FLOW - ready functions ----
-
-
-    void SOS_init( int *argc, char ***argv, SOS_role role );
-    void SOS_finalize();
-
-    long SOS_next_id( SOS_uid *uid );
-    void SOS_strip_str(char *str);
-
-
-    
-*/  
-/* ----------- [util] ---------------------- */
+    /* NOTE: See sos.c for additional "private" functions. */
 
 
 
-    /*
-     * Function..: SOS_init
-     * Purpose...: Configure any preliminary values needed before other
-     *             parts of the SOS system can work.
-     *
-     */
-    void SOS_init( int *argc, char ***argv, SOS_role role );
-
-    
-
-    /*
-     * Function..: SOS_finalize
-     * Purpose...: Unregister with SOS and close down any threads.
-     *
-     */
-    void SOS_finalize();
-  
-
-
-    /*
-     * Function..: SOS_next_serial   [THREAD SAFE]
-     * Purpose...: Return a unique ID from some managed uid context.
-     */
-    long SOS_next_id( SOS_uid *uid );
-
-
-    
-    /*
-     * Function..: SOS_strip_str
-     * Purpose...: Convenience function to clear out extended characters from a string.
-     *
-     */
-    void SOS_strip_str(char *str);
-
-
-    
-    /*
-     * Function..: SOS_pack
-     * Purpose...: Helper function that packs name/val arrays into a handle.
-     * Notes.....: It manages all malloc/free internally, and grows pubs to support
-     *             arbitrarily large schemas as needed.  This SOS_pack() function
-     *             is how you define your schema to SOS.
-     *
-     *             The recommended behavior is to pack empty values into each
-     *             unique 'name' you intend to publish, and then announce, all
-     *             during your program initialization.  After that, you can
-     *             make calls to SOS_pack() OR SOS_repack() to update values, and
-     *             make calls to SOS_publish() to send all changed values out.
-     *
-     *             -- PERFORMANCE ADVISORY --
-     *
-     *             This function returns the index of the name in the pub's
-     *             data store.  If you capture that value, you can use it when
-     *             making calls to SOS_repack().  This can be considerably faster
-     *             depending on your schema's size and ordering.  SOS_repack has
-     *             O(1) performance with low overhead, vs. O(n) for SOS_pack
-     *             and string comparisons across a (potentially) linear scan of
-     *             every previously packed data element for a matching name.
-     */
-    int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val );
-    void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
-
-    SOS_pub* SOS_new_pub(char *pub_name);
-    SOS_pub* SOS_new_post(char *pub_name);
-    SOS_pub* SOS_new_pub_sized(char *title, int new_size);
-
-    void SOS_announce( SOS_pub *pub );
-    void SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
-
-
-    /*
-     *  Functions that have not yet been ported to SOS_FLOW structure...
-     */
-    
-    void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_len );
-    void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len );
-    void SOS_expand_data( SOS_pub *pub );
-    
-    SOS_val SOS_get_val( SOS_pub *pub, char *name );
-
-    SOS_sub* SOS_new_sub();
-  
-    void SOS_free_pub( SOS_pub *pub );
-    void SOS_free_sub( SOS_sub *sub );
-
-    void SOS_display_pub(SOS_pub *pub, FILE *output_to);
-    
-
-    void SOS_publish( SOS_pub *pub );
-    void SOS_publish_immediately( SOS_pub *pub );    /* Do we want this? */
-
-
-    void SOS_unannounce( SOS_pub *pub );
-
-    SOS_sub* SOS_subscribe( SOS_role target_role, int target_rank, char *pub_title, int refresh_ms );
-    void SOS_unsubscribe( SOS_sub *sub );
-
-
+    /* ..... [ empty stubs ] ..... */
+    void      SOS_free_pub( SOS_pub *pub );
+    void      SOS_free_sub( SOS_sub *sub );
+    void      SOS_unannounce( SOS_pub *pub );
+    SOS_sub*  SOS_new_sub();
+    SOS_sub*  SOS_subscribe( SOS_role target_role, int target_rank, char *pub_title, int refresh_ms );
+    void      SOS_unsubscribe( SOS_sub *sub );
 
 #ifdef __cplusplus
 }

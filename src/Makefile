@@ -98,7 +98,8 @@ PRE_UNINSTALL = :
 POST_UNINSTALL = :
 build_triplet = x86_64-unknown-linux-gnu
 host_triplet = x86_64-unknown-linux-gnu
-bin_PROGRAMS = demo_app$(EXEEXT) sosd$(EXEEXT) sos_cmd$(EXEEXT)
+bin_PROGRAMS = demo_app$(EXEEXT) sosd$(EXEEXT) sos_cmd$(EXEEXT) \
+	mpi_to_sos$(EXEEXT)
 subdir = src
 DIST_COMMON = $(srcdir)/Makefile.in $(srcdir)/Makefile.am \
 	$(top_srcdir)/depcomp $(pkginclude_HEADERS)
@@ -157,6 +158,12 @@ demo_app_LDADD = $(LDADD)
 demo_app_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
 	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(demo_app_CFLAGS) \
 	$(CFLAGS) $(demo_app_LDFLAGS) $(LDFLAGS) -o $@
+am_mpi_to_sos_OBJECTS = mpi_to_sos-mpi_to_sos.$(OBJEXT)
+mpi_to_sos_OBJECTS = $(am_mpi_to_sos_OBJECTS)
+mpi_to_sos_LDADD = $(LDADD)
+mpi_to_sos_LINK = $(LIBTOOL) $(AM_V_lt) --tag=CC $(AM_LIBTOOLFLAGS) \
+	$(LIBTOOLFLAGS) --mode=link $(CCLD) $(mpi_to_sos_CFLAGS) \
+	$(CFLAGS) $(mpi_to_sos_LDFLAGS) $(LDFLAGS) -o $@
 am_sos_cmd_OBJECTS = sos_cmd-sos_cmd.$(OBJEXT)
 sos_cmd_OBJECTS = $(am_sos_cmd_OBJECTS)
 sos_cmd_LDADD = $(LDADD)
@@ -204,10 +211,10 @@ AM_V_CCLD = $(am__v_CCLD_$(V))
 am__v_CCLD_ = $(am__v_CCLD_$(AM_DEFAULT_VERBOSITY))
 am__v_CCLD_0 = @echo "  CCLD    " $@;
 am__v_CCLD_1 = 
-SOURCES = $(libsos_la_SOURCES) $(demo_app_SOURCES) $(sos_cmd_SOURCES) \
-	$(sosd_SOURCES)
+SOURCES = $(libsos_la_SOURCES) $(demo_app_SOURCES) \
+	$(mpi_to_sos_SOURCES) $(sos_cmd_SOURCES) $(sosd_SOURCES)
 DIST_SOURCES = $(libsos_la_SOURCES) $(demo_app_SOURCES) \
-	$(sos_cmd_SOURCES) $(sosd_SOURCES)
+	$(mpi_to_sos_SOURCES) $(sos_cmd_SOURCES) $(sosd_SOURCES)
 am__can_run_installinfo = \
   case $$AM_UPDATE_INFO_DIR in \
     n|no|NO) false;; \
@@ -389,7 +396,7 @@ top_srcdir = ..
 #
 sosd_SOURCES = sosd.c qhashtbl.c sosd_db_sqlite.c
 sosd_CFLAGS = -g $(SQLITE3_CFLAGS)
-sosd_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS) $(SQLITE3_LDFLAGS)
+sosd_LDFLAGS = -L.libs -lsos -pthread -lsqlite3 $(APP_LD_FLAGS) $(SQLITE3_LDFLAGS)
 
 #
 # --> sos_cmd
@@ -407,6 +414,14 @@ demo_app_SOURCES = demo_app.c
 demo_app_CFLAGS = -g
 demo_app_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
 
+#
+# --> mpi_to_sos
+#    (example of use)
+#
+mpi_to_sos_SOURCES = mpi_to_sos.c
+mpi_to_sos_CFLAGS = -g -I/usr/lib/openmpi/include -I/usr/lib/openmpi/include/openmpi -pthread -L/usr//lib -L/usr/lib/openmpi/lib -lmpi -ldl -lhwloc
+mpi_to_sos_LDFLAGS = -L.libs -lsos -pthread $(APP_LD_FLAGS)
+
 # ---------- #
 pkginclude_HEADERS = sos.h    sos_debug.h    sos_error.h   sosd.h   sosd_db_sqlite.h
 
@@ -417,6 +432,14 @@ pkginclude_HEADERS = sos.h    sos_debug.h    sos_error.h   sosd.h   sosd_db_sqli
 lib_LTLIBRARIES = libsos.la
 libsos_la_SOURCES = sos.c qhashtbl.c
 libsos_la_CPPFLAGS = -I$(top_srcdir)/src -pthread
+
+#
+#
+#
+#
+demo_app_DEPENDENCIES = $(lib_LTLIBRARIES)
+sosd_DEPENDENCIES = $(lib_LTLIBRARIES)
+sos_cmd_DEPENDENCIES = $(lib_LTLIBRARIES)
 all: all-am
 
 .SUFFIXES:
@@ -543,6 +566,10 @@ demo_app$(EXEEXT): $(demo_app_OBJECTS) $(demo_app_DEPENDENCIES) $(EXTRA_demo_app
 	@rm -f demo_app$(EXEEXT)
 	$(AM_V_CCLD)$(demo_app_LINK) $(demo_app_OBJECTS) $(demo_app_LDADD) $(LIBS)
 
+mpi_to_sos$(EXEEXT): $(mpi_to_sos_OBJECTS) $(mpi_to_sos_DEPENDENCIES) $(EXTRA_mpi_to_sos_DEPENDENCIES) 
+	@rm -f mpi_to_sos$(EXEEXT)
+	$(AM_V_CCLD)$(mpi_to_sos_LINK) $(mpi_to_sos_OBJECTS) $(mpi_to_sos_LDADD) $(LIBS)
+
 sos_cmd$(EXEEXT): $(sos_cmd_OBJECTS) $(sos_cmd_DEPENDENCIES) $(EXTRA_sos_cmd_DEPENDENCIES) 
 	@rm -f sos_cmd$(EXEEXT)
 	$(AM_V_CCLD)$(sos_cmd_LINK) $(sos_cmd_OBJECTS) $(sos_cmd_LDADD) $(LIBS)
@@ -560,6 +587,7 @@ distclean-compile:
 include ./$(DEPDIR)/demo_app-demo_app.Po
 include ./$(DEPDIR)/libsos_la-qhashtbl.Plo
 include ./$(DEPDIR)/libsos_la-sos.Plo
+include ./$(DEPDIR)/mpi_to_sos-mpi_to_sos.Po
 include ./$(DEPDIR)/sos_cmd-sos_cmd.Po
 include ./$(DEPDIR)/sosd-qhashtbl.Po
 include ./$(DEPDIR)/sosd-sosd.Po
@@ -613,6 +641,20 @@ demo_app-demo_app.obj: demo_app.c
 #	$(AM_V_CC)source='demo_app.c' object='demo_app-demo_app.obj' libtool=no \
 #	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
 #	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(demo_app_CFLAGS) $(CFLAGS) -c -o demo_app-demo_app.obj `if test -f 'demo_app.c'; then $(CYGPATH_W) 'demo_app.c'; else $(CYGPATH_W) '$(srcdir)/demo_app.c'; fi`
+
+mpi_to_sos-mpi_to_sos.o: mpi_to_sos.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mpi_to_sos_CFLAGS) $(CFLAGS) -MT mpi_to_sos-mpi_to_sos.o -MD -MP -MF $(DEPDIR)/mpi_to_sos-mpi_to_sos.Tpo -c -o mpi_to_sos-mpi_to_sos.o `test -f 'mpi_to_sos.c' || echo '$(srcdir)/'`mpi_to_sos.c
+	$(AM_V_at)$(am__mv) $(DEPDIR)/mpi_to_sos-mpi_to_sos.Tpo $(DEPDIR)/mpi_to_sos-mpi_to_sos.Po
+#	$(AM_V_CC)source='mpi_to_sos.c' object='mpi_to_sos-mpi_to_sos.o' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mpi_to_sos_CFLAGS) $(CFLAGS) -c -o mpi_to_sos-mpi_to_sos.o `test -f 'mpi_to_sos.c' || echo '$(srcdir)/'`mpi_to_sos.c
+
+mpi_to_sos-mpi_to_sos.obj: mpi_to_sos.c
+	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mpi_to_sos_CFLAGS) $(CFLAGS) -MT mpi_to_sos-mpi_to_sos.obj -MD -MP -MF $(DEPDIR)/mpi_to_sos-mpi_to_sos.Tpo -c -o mpi_to_sos-mpi_to_sos.obj `if test -f 'mpi_to_sos.c'; then $(CYGPATH_W) 'mpi_to_sos.c'; else $(CYGPATH_W) '$(srcdir)/mpi_to_sos.c'; fi`
+	$(AM_V_at)$(am__mv) $(DEPDIR)/mpi_to_sos-mpi_to_sos.Tpo $(DEPDIR)/mpi_to_sos-mpi_to_sos.Po
+#	$(AM_V_CC)source='mpi_to_sos.c' object='mpi_to_sos-mpi_to_sos.obj' libtool=no \
+#	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) \
+#	$(AM_V_CC_no)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(mpi_to_sos_CFLAGS) $(CFLAGS) -c -o mpi_to_sos-mpi_to_sos.obj `if test -f 'mpi_to_sos.c'; then $(CYGPATH_W) 'mpi_to_sos.c'; else $(CYGPATH_W) '$(srcdir)/mpi_to_sos.c'; fi`
 
 sos_cmd-sos_cmd.o: sos_cmd.c
 	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(sos_cmd_CFLAGS) $(CFLAGS) -MT sos_cmd-sos_cmd.o -MD -MP -MF $(DEPDIR)/sos_cmd-sos_cmd.Tpo -c -o sos_cmd-sos_cmd.o `test -f 'sos_cmd.c' || echo '$(srcdir)/'`sos_cmd.c
@@ -909,14 +951,6 @@ uninstall-am: uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-am uninstall-binPROGRAMS uninstall-libLTLIBRARIES \
 	uninstall-pkgincludeHEADERS
 
-
-#
-#
-#
-#
-# demo_app_DEPENDENCIES       = $(lib_LTLIBRARIES)
-# sosd_DEPENDENCIES           = $(lib_LTLIBRARIES)
-# sos_cmd_DEPENDENCIES        = $(lib_LTLIBRARIES)
 #
 
 # ########## #

@@ -19,6 +19,7 @@ extern "C" {
 
 
 void SOS_db_init_database(void);
+void SOS_db_close_database();
 void SOS_db_create_tables(void);
 void SOS_db_insert_announcement( SOS_pub *pub );
 void SOS_db_update_values( SOS_pub *pub );

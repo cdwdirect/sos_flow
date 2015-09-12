@@ -20,7 +20,7 @@
 
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
 
-#define SOS_DEBUG      5
+#define SOS_DEBUG      99
 
 /* Should the daemon do any logging?  (yes/no)  */
 
@@ -35,7 +35,7 @@ FILE*   sos_daemon_log_fptr;
 
 /* Defined in sosd.c ... */
 
-#ifndef SOS_DEBUG
+#if (SOS_DEBUG < 1)
 
     /* Nullify the variadic debugging macros wherever they are in code: */
     #define dlog(level, ...)

@@ -20,6 +20,10 @@
 
 
 
+#define SOS_DB_PUB_TABLE_NAME  "tblPubs"
+#define SOS_DB_DATA_TABLE_NAME "tblData"
+
+
 sqlite3 *database;
 
 
@@ -72,32 +76,45 @@ void SOS_db_init_database() {
     return;
 }
 
+
+void SOS_db_close_database() {
+
+    SOSD.db_ready = 0;
+    sqlite3_close_v2(database);
+
+    return;
+}
+
+
 void SOS_db_insert_pub( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOS_db_insert_dirty");
     int i;
     sqlite3_stmt *stmt;
 
-    char *sql_pub = "INSERT INTO sos_pub ("
-        " guid,            "
-        " title,           "
-        " process_id,      "
-        " thread_id,       "
-        " comm_rank,       "
-        " node_id,         "
-        " prog_name,       "
-        " prog_ver,        "
-        " meta_channel,    "
-        " meta_nature,     "
-        " meta_layer,      "
-        " meta_pri_hint,   "
-        " meta_scope_hint, "
-        " meta_retain_hint,"
-        " pragma_msg       "
+    char *sql_pub = "INSERT INTO " SOS_DB_PUB_TABLE_NAME " ("   \
+        " guid,"                                                \
+        " title,"                                               \
+        " process_id,"                                          \
+        " thread_id,"                                           \
+        " comm_rank,"                                           \
+        " node_id,"                                             \
+        " prog_name,"                                           \
+        " prog_ver,"                                            \
+        " meta_channel,"                                        \
+        " meta_nature,"                                         \
+        " meta_layer,"                                          \
+        " meta_pri_hint,"                                       \
+        " meta_scope_hint,"                                     \
+        " meta_retain_hint,"                                    \
+        " pragma "                                              \
         ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
 
     dlog(5, "[%s]: Inserting pub(%ld)->data[] into database(%s).\n", whoami, pub->guid, SOSD.db_file);
     dlog(5, "[%s]:   ... preparing sql statement\n", whoami);
-    CALL_SQLITE (prepare_v2 (database, sql_pub, strlen(sql_pub) + 1, &stmt, NULL));
+
+    while (!SOSD.db_ready) { ; }
+
+    CALL_SQLITE (prepare(database, sql_pub, strlen(sql_pub) + 1, &stmt, NULL));
 
     /*
      *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
@@ -112,15 +129,18 @@ void SOS_db_insert_pub( SOS_pub *pub ) {
     char         *prog_name         = pub->prog_name;
     char         *prog_ver          = pub->prog_ver;
     int           meta_channel      = pub->meta.channel;
-    const char   *meta_nature       = SOS_nature_string [pub->meta.nature];
-    const char   *meta_layer        = SOS_layer_string  [pub->meta.layer];
-    const char   *meta_pri_hint     = SOS_pri_string    [pub->meta.pri_hint];
-    const char   *meta_scope_hint   = SOS_scope_string  [pub->meta.scope_hint];
-    const char   *meta_retain_hint  = SOS_retain_string [pub->meta.retain_hint];
+    const char   *meta_nature       = SOS_ENUM_STR(pub->meta.nature, SOS_NATURE);
+    const char   *meta_layer        = SOS_ENUM_STR(pub->meta.layer, SOS_LAYER);
+    const char   *meta_pri_hint     = SOS_ENUM_STR(pub->meta.pri_hint, SOS_PRI);
+    const char   *meta_scope_hint   = SOS_ENUM_STR(pub->meta.scope_hint, SOS_SCOPE);
+    const char   *meta_retain_hint  = SOS_ENUM_STR(pub->meta.retain_hint, SOS_RETAIN);
     char         *pragma            = pub->pragma_msg;
     int           pragma_len        = pub->pragma_len;
+    char          pragma_empty      = '\0';
 
     dlog(5, "[%s]:   ... binding values into the statement\n", whoami);
+    dlog(6, "[%s]:      ... pragma_len = %d\n", whoami, pragma_len);
+    dlog(6, "[%s]:      ... pragma     = \"%s\"\n", whoami, pragma);
 
     CALL_SQLITE (bind_int    (stmt, 1,  guid         ));
     CALL_SQLITE (bind_text   (stmt, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
@@ -136,7 +156,12 @@ void SOS_db_insert_pub( SOS_pub *pub ) {
     CALL_SQLITE (bind_text   (stmt, 12, meta_pri_hint,    1 + strlen(meta_layer), SQLITE_STATIC  ));
     CALL_SQLITE (bind_text   (stmt, 13, meta_scope_hint,  1 + strlen(meta_scope_hint), SQLITE_STATIC  ));
     CALL_SQLITE (bind_text   (stmt, 14, meta_retain_hint, 1 + strlen(meta_retain_hint), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 15, pragma,           pub->pragma_len, SQLITE_STATIC  ));
+    if (pragma_len > 0) {
+        /* Only bind the pragma is there actually is something to insert... */
+        CALL_SQLITE (bind_text   (stmt, 15, pragma,           pub->pragma_len, SQLITE_STATIC  ));
+    } else {
+        CALL_SQLITE (bind_text   (stmt, 15, &pragma_empty,    1, SQLITE_STATIC  ));
+    }
 
     dlog(5, "[%s]:   ... executing the query\n", whoami);
 
@@ -160,50 +185,53 @@ void SOS_db_insert_data( SOS_pub *pub ) {
     int i;
     sqlite3_stmt *stmt;
 
-    char *sql_data = "INSERT INTO sos_data ("
-        " pub_guid,        "
-        " guid,            "
-        " sem_hint,        "
-        " time_pack,       "
-        " time_send,       "
-        " time_recv,       "
-        " val_type,        "
-        " val              "
+    char *sql_data = "INSERT INTO " SOS_DB_DATA_TABLE_NAME " (" \
+        " pub_guid,"                                            \
+        " guid,"                                                \
+        " sem_hint,"                                            \
+        " time_pack,"                                           \
+        " time_send,"                                           \
+        " time_recv,"                                           \
+        " val_type,"                                            \
+        " val "                                                 \
         ") VALUES (?,?,?,?,?,?,?,?);";
 
     dlog(5, "[%s]: Inserting pub(%ld)->data[] into database(%s).\n", whoami, pub->guid, SOSD.db_file);
     dlog(6, "[%s]:   ... preparing sql statement: \n", whoami);
-    CALL_SQLITE (prepare_v2 (database, sql_data, strlen(sql_data) + 1, &stmt, NULL));
+
+    while (!SOSD.db_ready) { ; }
+
+    CALL_SQLITE (prepare(database, sql_data, strlen(sql_data) + 1, &stmt, NULL));
 
 
     for (i = 0; i < pub->elem_count; i++) {
         if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;
-
         /*
          *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
          */
-
         long          pub_guid          = pub->guid;
         long          guid              = pub->data[i]->guid;
-        const char   *sem_hint          = SOS_sem_string[pub->data[i]->sem_hint];
+        const char   *sem_hint          = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM );
         double        time_pack         = pub->data[i]->time.pack;
         double        time_send         = pub->data[i]->time.send;
         double        time_recv         = pub->data[i]->time.recv;
-        const char   *val_type          = SOS_val_type_string[pub->data[i]->type];
+        const char   *val_type          = SOS_ENUM_STR( pub->data[i]->type, SOS_VAL_TYPE );
         char         *val;
-
-        char    val_num_as_str[256];
-        memset( val_num_as_str, '\0', 256);
+        char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
+        memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
 
         switch (pub->data[i]->type) {
-        case SOS_VAL_TYPE_INT:    snprintf(val_num_as_str, 256, "%d",  pub->data[i]->val.i_val);
-        case SOS_VAL_TYPE_LONG:   snprintf(val_num_as_str, 256, "%ld", pub->data[i]->val.l_val);
-        case SOS_VAL_TYPE_DOUBLE: snprintf(val_num_as_str, 256, "%lf", pub->data[i]->val.d_val); 
-        case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val;
+        case SOS_VAL_TYPE_INT:    val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:   val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE: val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val; break;
         }
 
-        
         dlog(6, "[%s]:   ... binding values into the statement\n", whoami);
+        dlog(6, "[%s]:      ... sem_hint = \"%s\"\n", whoami, sem_hint);
+        dlog(6, "[%s]:      ... val_type = \"%s\"\n", whoami, val_type);
+        dlog(6, "[%s]:      ... val      = \"%s\"\n", whoami, val     );
+
         
         CALL_SQLITE (bind_int    (stmt, 1,  pub_guid     ));
         CALL_SQLITE (bind_int    (stmt, 2,  guid         ));
@@ -219,9 +247,10 @@ void SOS_db_insert_data( SOS_pub *pub ) {
         CALL_SQLITE_EXPECT (step (stmt), DONE);
 
         dlog(6, "[%s]:   ... success!  resetting the statement.\n", whoami);
-        
         CALL_SQLITE (reset (stmt));
         CALL_SQLITE (clear_bindings (stmt));
+
+        pub->data[i]->state = SOS_VAL_STATE_CLEAN;
     }
 
     CALL_SQLITE (finalize(stmt));
@@ -240,7 +269,7 @@ void SOS_db_create_tables(void) {
     char *err = NULL;
 
     const char *pub_table = ""
-        "CREATE TABLE IF NOT EXISTS sos_pub ( "
+        "CREATE TABLE IF NOT EXISTS " SOS_DB_PUB_TABLE_NAME " ( "
         " row_id            INTEGER PRIMARY KEY,   "
         " guid              INTEGER,     "
         " title             STRING,      "
@@ -256,9 +285,10 @@ void SOS_db_create_tables(void) {
         " meta_pri_hint     STRING,      "
         " meta_scope_hint   STRING,      "
         " meta_retain_hint  STRING,      "
-        " meta_pragma       STRING    ); ";
+        " pragma            STRING    ); ";
 
     const char *data_table = ""
+        "CREATE TABLE IF NOT EXISTS " SOS_DB_DATA_TABLE_NAME " ( "
         " row_id            INTEGER PRIMARY KEY,   "
         " pub_guid          INTEGER,     "
         " guid              INTEGER,     "
@@ -277,7 +307,7 @@ void SOS_db_create_tables(void) {
         sqlite3_close(database); exit(EXIT_FAILURE);
     }
 
-    rc = sqlite3_exec(database, pub_table, NULL, NULL, &err);
+    rc = sqlite3_exec(database, data_table, NULL, NULL, &err);
     if( err != NULL ){
         dlog(0, "[%s]: ERROR!  Can't create pub_table in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);

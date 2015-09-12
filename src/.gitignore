@@ -1,9 +1,11 @@
 sosd
 sosd.lock
 sosd.log
+sosd.db
 demo_app
 sos_cmd
 ./libs/*
+../output/*
 *~
 *.lo
 *.so
