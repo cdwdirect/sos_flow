@@ -1,2 +1,0 @@
-mpicc -o mpi_comm_speed mpi_comm_speed.c
-mpicc -o mpi_to_sos mpi_to_sos.c

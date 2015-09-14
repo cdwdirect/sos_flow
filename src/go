@@ -4,5 +4,5 @@ rm -rf output.txt
 export SOS_CMD_COUNT=512
 echo ""
 echo "SOS_CMD_COUNT = $SOS_CMD_COUNT"
-time ./sos_cmd > output.txt
+time ../bin/sos_cmd > output.txt
 echo "-------"

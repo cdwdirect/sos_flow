@@ -182,6 +182,18 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 }
 
 
+void   SOS_ring_put(void *item) {
+    /* TODO: { RING_PUT } */
+    return;
+}
+
+
+void*  SOS_ring_get(void) {
+    void *element;
+    /* TODO: { RING_GET } */
+    return element;
+}
+
 
 //SOS_FLOW - ready
 void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {

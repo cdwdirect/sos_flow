@@ -1,6 +1,6 @@
 ./stop
 ./start
 echo "   >>> Launching ./demo_app ..."
-./demo_app
+../bin/demo_app
 echo "   >>>   ... Done."
 ./showdb

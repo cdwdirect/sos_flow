@@ -1,0 +1,20 @@
+#!/bin/bash
+if [ "$1" == "clean" ]
+then
+   echo "Removing all binary objects."
+   cd ..
+   rm -rf ./bin
+   mkdir bin
+   cd bin
+   touch .keep
+   cd ..
+   cd src
+   echo "Wiped the ../bin folder and all binary contents.  Type './make' to rebuild."
+else
+    cd ..
+    cd bin
+    cmake -G "Unix Makefiles" --prefix=`pwd` ..
+    make
+    cd ..
+    cd src
+fi;

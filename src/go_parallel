@@ -12,7 +12,7 @@ echo ""
 
 for i in `seq 1 $SOS_PARALLEL_COUNT`;
 do
-    ./sos_cmd &> ./test_results/output$i.txt
+    ../bin/sos_cmd &> ./go_output/output$i.txt
 done
 
 
