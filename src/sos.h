@@ -325,17 +325,18 @@ typedef struct {
 } SOS_unique_set;
 
 typedef struct {
-    int             read_pos;
-    int             write_pos;
+    int             read_elem;
+    int             write_elem;
     int             elem_count;
+    int             elem_max;
     int             elem_size;
     void          **heap;
     pthread_mutex_t lock;
 } SOS_ring_queue;
 
 typedef struct {
-    SOS_ring_queue  send;
-    SOS_ring_queue  recv;
+    SOS_ring_queue *send;
+    SOS_ring_queue *recv;
 } SOS_ring_set;
 
 typedef struct {

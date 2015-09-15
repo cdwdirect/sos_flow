@@ -19,9 +19,8 @@
 #include "sosd_db_sqlite.h"
 
 
-
-#define SOS_DB_PUB_TABLE_NAME  "tblPubs"
-#define SOS_DB_DATA_TABLE_NAME "tblData"
+#define SOSD_DB_PUB_TABLE_NAME  "tblPubs"
+#define SOSD_DB_DATA_TABLE_NAME "tblData"
 
 
 sqlite3 *database;
@@ -44,8 +43,8 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 
 
 
-void SOS_db_init_database() {
-    SOS_SET_WHOAMI(whoami, "SOS_db_init_database");
+void SOSD_db_init_database() {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_init_database");
     int     retval;
     int     flags;
 
@@ -77,7 +76,7 @@ void SOS_db_init_database() {
 }
 
 
-void SOS_db_close_database() {
+void SOSD_db_close_database() {
 
     SOSD.db_ready = 0;
     sqlite3_close_v2(database);
@@ -86,12 +85,12 @@ void SOS_db_close_database() {
 }
 
 
-void SOS_db_insert_pub( SOS_pub *pub ) {
-    SOS_SET_WHOAMI(whoami, "SOS_db_insert_dirty");
+void SOSD_db_insert_pub( SOS_pub *pub ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_dirty");
     int i;
     sqlite3_stmt *stmt;
 
-    char *sql_pub = "INSERT INTO " SOS_DB_PUB_TABLE_NAME " ("   \
+    char *sql_pub = "INSERT INTO " SOSD_DB_PUB_TABLE_NAME " ("   \
         " guid,"                                                \
         " title,"                                               \
         " process_id,"                                          \
@@ -180,12 +179,12 @@ void SOS_db_insert_pub( SOS_pub *pub ) {
 
 
 
-void SOS_db_insert_data( SOS_pub *pub ) {
-    SOS_SET_WHOAMI(whoami, "SOS_db_insert_data");
+void SOSD_db_insert_data( SOS_pub *pub ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_data");
     int i;
     sqlite3_stmt *stmt;
 
-    char *sql_data = "INSERT INTO " SOS_DB_DATA_TABLE_NAME " (" \
+    char *sql_data = "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " (" \
         " pub_guid,"                                            \
         " guid,"                                                \
         " sem_hint,"                                            \
@@ -263,13 +262,13 @@ void SOS_db_insert_data( SOS_pub *pub ) {
 
 
 
-void SOS_db_create_tables(void) {
-    SOS_SET_WHOAMI(whoami, "SOS_db_create_tables");
+void SOSD_db_create_tables(void) {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_create_tables");
     int rc;
     char *err = NULL;
 
     const char *pub_table = ""
-        "CREATE TABLE IF NOT EXISTS " SOS_DB_PUB_TABLE_NAME " ( "
+        "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUB_TABLE_NAME " ( "
         " row_id            INTEGER PRIMARY KEY,   "
         " guid              INTEGER,     "
         " title             STRING,      "
@@ -288,7 +287,7 @@ void SOS_db_create_tables(void) {
         " pragma            STRING    ); ";
 
     const char *data_table = ""
-        "CREATE TABLE IF NOT EXISTS " SOS_DB_DATA_TABLE_NAME " ( "
+        "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "
         " row_id            INTEGER PRIMARY KEY,   "
         " pub_guid          INTEGER,     "
         " guid              INTEGER,     "
@@ -323,8 +322,8 @@ void SOS_db_create_tables(void) {
 
 
 /*
-void SOS_db_update_values( SOS_pub *pub ) {
-    SOS_SET_WHOAMI(whoami, "SOS_db_update_values");
+void SOSD_db_update_values( SOS_pub *pub ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_update_values");
     int end_index;
     int i;
     char sql[SOS_DEFAULT_STRING_LEN];
@@ -351,8 +350,8 @@ void SOS_db_update_values( SOS_pub *pub ) {
 }
 
 
-void SOS_db_print_max_value ( void ) {
-    SOS_SET_WHOAMI(whoami, "SOS_db_print_max_value");
+void SOSD_db_print_max_value ( void ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_print_max_value");
     //const char * query = "select pub_id, rank, tool_name, thread, key_type, key_name, numeric_value from sos_data where tool_name like 'TAU' and key_type like 'exclusive_TIME' order by numeric_value desc LIMIT 3;";
     const char * query = "select pub_id, rank, tool_name, thread, key_type, key_name, max(numeric_value) from sos_data where tool_name like 'TAU' and key_type like 'exclusive_TIME';";
     char *err = NULL;

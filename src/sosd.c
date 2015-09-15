@@ -17,6 +17,7 @@
 #include <syslog.h>
 #include <string.h>
 #include <pthread.h>
+#include <time.h>
 
 #include <sys/socket.h>
 #include <netdb.h>
@@ -30,14 +31,20 @@
 #include "qhashtbl.h"
 
 
-#define USAGE "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
+#define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
+
 #define DAEMON_NAME    "sosd"
 #define DEFAULT_DIR    "/tmp"
 #define LOCK_FILE      "sosd.lock"
 #define LOG_FILE       "sosd.log"
+#define FULL_RING_QUEUE_PCT  0.7
+#define WAKEUP_THREAD        SIGUSR1
+#define WAKEUP_THREAD_TIMER  SIGUSR2
 
-#define GET_TIME(now)  { struct timeval t; gettimeofday(&t, NULL); now = t.tv_sec + t.tv_usec/1000000.0; }
-
+#define SOSD_check_ring_saturation(__pub)                               \
+    if (((double) __pub->elem_count / (double) __pub->elem_max) > FULL_RING_QUEUE_PCT) { \
+        pthread_kill(*SOSD.pub_ring_t.handle, WAKEUP_THREAD);            \
+    }                                                                   \
 
 
 int main(int argc, char *argv[])  {
@@ -85,29 +92,33 @@ int main(int argc, char *argv[])  {
     if (DAEMON_LOG) { sos_daemon_log_fptr = fopen(LOG_FILE, "w"); }
 
     if (SOS_DEBUG > 0) printf("Calling daemon_init()...\n"); fflush(stdout);
-    SOS_daemon_init();
+    SOSD_init();
     if (SOS_DEBUG > 0) printf("Calling SOS_init...\n");  fflush(stdout);
     SOS_init( &argc, &argv, SOS.role );
     SOS_SET_WHOAMI(whoami, "main");
     dlog(0, "[%s]: Calling register_signal_handler()...\n", whoami);
     if (SOS_DEBUG) SOS_register_signal_handler();
-
-
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
-    SOS_daemon_setup_socket();
+    SOSD_setup_socket();
     dlog(0, "[%s]: Calling daemon_init_database()...\n", whoami);
-    SOS_daemon_init_database();
+    SOSD_init_database();
+    dlog(0, "[%s]: Creating ring queue to track 'to-do' list for pubs...\n", whoami);
+    SOSD.pub_ring = (SOS_ring_queue *) malloc( sizeof(SOS_ring_queue) );
+    SOS_ring_init(SOSD.pub_ring);
+    dlog(0, "[%s]: Launching thread to watch pub_ring queue...\n", whoami);
+    SOSD_init_pub_ring_monitor();
 
 
     /* Go! */
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
-    SOS_daemon_listen_loop();
+    SOSD_listen_loop();
   
 
-
     /* Done!  Cleanup and shut down. */
+    dlog(0, "[%s]: Joining SOSD.pub_ring_thread.\n", whoami);
+    pthread_join( *SOSD.pub_ring_t.handle, NULL);
     dlog(0, "[%s]: Closing the database.\n", whoami);
-    SOS_db_close_database();
+    SOSD_db_close_database();
     dlog(0, "[%s]: Shutting down SOS services.\n", whoami);
     pthread_mutex_destroy( &(SOSD.guid->lock) );
     SOS_finalize();
@@ -123,8 +134,41 @@ int main(int argc, char *argv[])  {
 } //end: main()
 
 
+
+
+void SOSD_init_pub_ring_monitor() {
+    SOS_SET_WHOAMI(whoami, "SOSD_init_pub_ring_monitor");
+    int retval;
+
+    /* Start the thread... */
+    SOSD.pub_ring_t.handle = (pthread_t *) malloc(sizeof(pthread_t));
+    SOSD.pub_ring_t.sig_set = (sigset_t *) malloc(sizeof(sigset_t));
+    sigemptyset(SOSD.pub_ring_t.sig_set);
+    sigaddset(SOSD.pub_ring_t.sig_set, SIGUSR1);
+    retval = pthread_create( SOSD.pub_ring_t.handle, NULL, (void *) SOSD_THREAD_pub_ring, NULL );
+    if (retval != 0) { dlog(0, "[%s]: ERROR! Could not start pub_ring monitoring thread!  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
+    /* Configure a timer to automatically awaken the thread on a heartbeat. */
+    SOSD.pub_ring_t.timer.sig_act.sa_flags       = SA_SIGINFO;
+    SOSD.pub_ring_t.timer.sig_act.sa_sigaction   = SOSD_THREAD_pub_ring_timer;
+    sigemptyset(&(SOSD.pub_ring_t.timer.sig_act.sa_mask));
+    sigaction(WAKEUP_THREAD_TIMER, &(SOSD.pub_ring_t.timer.sig_act), NULL);
+    SOSD.pub_ring_t.timer.sig_event.sigev_notify = SIGEV_SIGNAL;
+    SOSD.pub_ring_t.timer.sig_event.sigev_signo  = WAKEUP_THREAD_TIMER;
+    SOSD.pub_ring_t.timer.sig_event.sigev_value.sival_ptr = &(SOSD.pub_ring_t.timer.id);
+    timer_create(CLOCK_REALTIME, &(SOSD.pub_ring_t.timer.sig_event), &(SOSD.pub_ring_t.timer.id));
+    SOSD.pub_ring_t.timer.its.it_value.tv_sec     = 1;
+    SOSD.pub_ring_t.timer.its.it_value.tv_nsec    = 0;
+    SOSD.pub_ring_t.timer.its.it_interval.tv_sec  = SOSD.pub_ring_t.timer.its.it_value.tv_sec;
+    SOSD.pub_ring_t.timer.its.it_interval.tv_nsec = SOSD.pub_ring_t.timer.its.it_value.tv_nsec;
+    timer_settime(SOSD.pub_ring_t.timer.id, 0, &(SOSD.pub_ring_t.timer.its), NULL);
+
+    return;
+}
+
+
+
 /* -------------------------------------------------- */
-void SOS_daemon_listen_loop() {
+void SOSD_listen_loop() {
     SOS_SET_WHOAMI(whoami, "daemon_listen_loop");
     SOS_msg_header header;
     int      i, byte_count;
@@ -146,52 +190,76 @@ void SOS_daemon_listen_loop() {
 
         byte_count = recv(SOSD.net.client_socket_fd, (void *) buffer, SOSD.net.buffer_len, 0);
         if (byte_count < 1) continue;
-
         if (byte_count >= sizeof(SOS_msg_header)) {
             memcpy(&header, buffer, sizeof(SOS_msg_header));
         } else {
             dlog(0, "[%s]:   ... Received short (useless) message.\n", whoami);  continue;
         }
-        
         dlog(5, "[%s]: Received connection.\n", whoami);
         dlog(5, "[%s]:   ... byte_count = %d\n", whoami, byte_count);
         dlog(5, "[%s]:   ... msg_from = %ld\n", whoami, header.msg_from);
 
         switch (header.msg_type) {
         case SOS_MSG_TYPE_REGISTER: dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type);
-            SOS_daemon_handle_register(buffer, byte_count); break; 
-
+            SOSD_handle_register(buffer, byte_count); break; 
         case SOS_MSG_TYPE_ANNOUNCE: dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type);
-            SOS_daemon_handle_announce(buffer, byte_count); break;
-            
+            SOSD_handle_announce(buffer, byte_count); break;
         case SOS_MSG_TYPE_PUBLISH:  dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type);
-            SOS_daemon_handle_publish(buffer, byte_count); break;
-            
+            SOSD_handle_publish(buffer, byte_count); break;
         case SOS_MSG_TYPE_ECHO:     dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type);
-            SOS_daemon_handle_echo(buffer, byte_count); break;
-
+            SOSD_handle_echo(buffer, byte_count); break;
         case SOS_MSG_TYPE_SHUTDOWN: dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type);
-            SOS_daemon_handle_shutdown(buffer, byte_count); break;
-
+            SOSD_handle_shutdown(buffer, byte_count); break;
         default:                    dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)\n", whoami, header.msg_type); break;
-            SOS_daemon_handle_unknown(buffer, byte_count); break;
+            SOSD_handle_unknown(buffer, byte_count); break;
         }
-
         close( SOSD.net.client_socket_fd );
-        
     }
-
     free(buffer);
     dlog(1, "[%s]: Leaving the socket listening loop.\n", whoami);
 
     return;
 }
+
+/* -------------------------------------------------- */
+
+
+void* SOSD_THREAD_pub_ring(void *args) {
+    SOS_SET_WHOAMI(whoami, "SOSD_THREAD_watch_pub_ring");
+    int sig_recv;
+
+    while (SOSD.daemon_running) {
+        /* Wait to be woken up either manually or by the timer... */
+        sigwait(SOSD.pub_ring_t.sig_set, &sig_recv);
+
+        dlog(6, "[%s]: Checking ring...\n", whoami);
+    }
+    dlog(0, "[%s]: Leaving thread safely.\n", whoami);
+    return NULL;
+}
+
+
+static void SOSD_THREAD_pub_ring_timer(int sig, siginfo_t *sig_info, void *uc) {
+    SOS_SET_WHOAMI(whoami, "SOSD_THREAD_pub_ring_timer");
+    
+    if (sig_info->si_value.sival_ptr != SOSD.pub_ring_t.timer.id) {
+        dlog(0, "[%s]: Received a stray signal...\n", whoami);
+    } else {
+        dlog(6, "[%s]: Caught a signal(%d) from the timer.\n", whoami, sig);
+        pthread_kill(*SOSD.pub_ring_t.handle, WAKEUP_THREAD);
+    }
+    return;
+}
+
+
+
+
+
 /* -------------------------------------------------- */
 
 
 
-
-void SOS_daemon_handle_echo(char *msg, int msg_size) { 
+void SOSD_handle_echo(char *msg, int msg_size) { 
     SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
     SOS_msg_header header;
     int ptr = 0;
@@ -208,7 +276,7 @@ void SOS_daemon_handle_echo(char *msg, int msg_size) {
 
 
 
-void SOS_daemon_handle_register(char *msg, int msg_size) {
+void SOSD_handle_register(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_register");
     SOS_msg_header header;
     int  ptr  = 0;
@@ -240,7 +308,7 @@ void SOS_daemon_handle_register(char *msg, int msg_size) {
 
 
 
-void SOS_daemon_handle_announce(char *msg, int msg_size) {
+void SOSD_handle_announce(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
     int   ptr;
@@ -271,27 +339,27 @@ void SOS_daemon_handle_announce(char *msg, int msg_size) {
     memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", guid);
     /* Check the table for this pub ... */
-    dlog(5, "[%s]:    ... checking SOS.tbl for GUID(%s) --> ", whoami, guid_str);
-    pub = (SOS_pub *) SOSD.tbl->get(SOSD.tbl, guid_str);
+    dlog(5, "[%s]:    ... checking SOS.pub_table for GUID(%s) --> ", whoami, guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
     if (pub == NULL) {
         dlog(5, "NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
         pub = SOS_new_pub(guid_str);
-        SOSD.tbl->put(SOSD.tbl, guid_str, pub);
+        SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = guid;
     } else {
         dlog(5, "FOUND IT!\n");
     }
 
-    dlog(5, "[%s]: calling SOS_apply_announce() ...\n", whoami);
+    dlog(5, "[%s]: calling SOSD_apply_announce() ...\n", whoami);
 
 
-    SOS_apply_announce(pub, msg, msg_size);
+    SOSD_apply_announce(pub, msg, msg_size);
     dlog(5, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
 
     if (pub->announced != 99) {
         dlog(5, "[%s]: sending to the database...  (%s)\n", whoami, SOSD.db_file);
-        SOS_db_insert_pub(pub);
+        SOSD_db_insert_pub(pub);
         dlog(5, "[%s]:   ... done!\n", whoami);
         pub->announced = 99;
     }
@@ -329,7 +397,7 @@ void SOS_daemon_handle_announce(char *msg, int msg_size) {
 
 
 
-void SOS_daemon_handle_publish(char *msg, int msg_size)  {
+void SOSD_handle_publish(char *msg, int msg_size)  {
     SOS_SET_WHOAMI(whoami, "daemon_handle_publish");
     SOS_msg_header header;
     long  guid = 0;
@@ -349,24 +417,25 @@ void SOS_daemon_handle_publish(char *msg, int msg_size)  {
     if (guid < 1) { guid = SOS_next_id( SOSD.guid ); }
     sprintf(guid_str, "%ld", guid);
     /* Check the table for this pub ... */
-    dlog(5, "[%s]:   ... checking SOS.tbl for GUID(%s) --> ", whoami, guid_str);
-    pub = (SOS_pub *) SOSD.tbl->get(SOSD.tbl, guid_str);
+    dlog(5, "[%s]:   ... checking SOS.pub_table for GUID(%s) --> ", whoami, guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
     if (pub == NULL) {
         /* If it's not in the table, add it. */
         dlog(5, "not found, ADDING new pub to the table.\n");
         pub = SOS_new_pub(guid_str);
-        SOSD.tbl->put(SOSD.tbl, guid_str, pub);
+        SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = guid;
     } else {
         dlog(5, "FOUND it!\n");
     }
 
-    SOS_apply_publish( pub, msg, msg_size );
+    SOSD_apply_publish( pub, msg, msg_size );
 
-    dlog(5, "[%s]:   ... inserting values into the database.\n", whoami);
-    SOS_db_insert_data(pub);
-    dlog(5, "[%s]:   ... done.\n", whoami);
+    dlog(5, "[%s]:   ... inserting pub into the 'to-do' ring queue. (It'll auto-announce as needed.)\n", whoami);
+    SOS_ring_put(SOSD.pub_ring, (void *) (pub->guid));
+    SOSD_check_ring_saturation(SOSD.pub_ring);
 
+    dlog(5, "[%s]:   ... done.   (SOSD.pub_ring->elem_count == %d)\n", whoami, SOSD.pub_ring->elem_count);
 
     for (i = 0; i < pub->elem_count; i++) {
         switch (pub->data[i]->type) {
@@ -394,7 +463,7 @@ void SOS_daemon_handle_publish(char *msg, int msg_size)  {
 
 
 
-void SOS_daemon_handle_shutdown(char *msg, int msg_size) {
+void SOSD_handle_shutdown(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
     int ptr = 0;
@@ -418,7 +487,7 @@ void SOS_daemon_handle_shutdown(char *msg, int msg_size) {
 
 
 
-void SOS_daemon_handle_unknown(char *msg, int msg_size) {
+void SOSD_handle_unknown(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_unknown");
     SOS_msg_header header;
     int ptr = 0;
@@ -440,7 +509,7 @@ void SOS_daemon_handle_unknown(char *msg, int msg_size) {
 
 
 
-void SOS_daemon_setup_socket() {
+void SOSD_setup_socket() {
     SOS_SET_WHOAMI(whoami, "daemon_setup_socket");
     int i;
     int yes;
@@ -514,10 +583,10 @@ void SOS_daemon_setup_socket() {
  
 
 
-void SOS_daemon_init_database() {
+void SOSD_init_database() {
 
-    SOS_db_init_database();
-    SOS_db_create_tables();
+    SOSD_db_init_database();
+    SOSD_db_create_tables();
     SOSD.db_ready = 1;
 
     return;
@@ -525,7 +594,7 @@ void SOS_daemon_init_database() {
 
 
 
-void SOS_daemon_init() {
+void SOSD_init() {
     SOS_SET_WHOAMI(whoami, "daemon_init");
     pid_t pid, sid;
     int rc;
@@ -596,7 +665,7 @@ void SOS_daemon_init() {
     /* [hashtable]
      *    storage system for received pubs.  (will enque their key -> db)
      */
-    SOSD.tbl = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOSD.pub_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
 
     if (SOS_DEBUG > 0) printf("Daemon initialization is complete.\n"); fflush(stdout);
     SOSD.daemon_running = 1;
@@ -608,8 +677,8 @@ void SOS_daemon_init() {
 
 
 
-void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
-    SOS_SET_WHOAMI(whoami, "SOS_apply_announce");
+void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_apply_announce");
 
     SOS_val_type   val_type;
     SOS_msg_header header;
@@ -720,8 +789,8 @@ void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
 
 
 
-void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
-    SOS_SET_WHOAMI(whoami, "SOS_apply_publish");
+void SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_apply_publish");
 
     SOS_msg_header header;
     double recv_ts;

@@ -1,6 +1,9 @@
 #ifndef SOS_SOSD_H
 #define SOS_SOSD_H
 
+#include <pthread.h>
+#include <signal.h>
+#include <time.h>
 
 #include "qhashtbl.h"
 
@@ -20,8 +23,23 @@ typedef struct {
     struct addrinfo *result;
     struct sockaddr_storage   peer_addr;
     socklen_t   peer_addr_len;
-} SOS_daemon_net;
+} SOSD_net;
 
+typedef struct {
+    struct itimerspec  its;
+    long long          freq_nanosecs;
+    sigset_t           mask;
+    struct sigevent    sig_event;
+    struct sigaction   sig_act;
+    timer_t            id;
+    void              *call_func;
+} SOSD_sig_timer;
+
+typedef struct {
+    pthread_t      *handle;
+    sigset_t       *sig_set;
+    SOSD_sig_timer  timer;
+} SOSD_sig_thread;
 
 typedef struct {
     char   *work_dir;
@@ -30,17 +48,19 @@ typedef struct {
     int     daemon_running;
     char    daemon_pid_str[256];
     double  time_now;
-    qhashtbl_t     *tbl;
-    SOS_uid        *guid;
-    SOS_daemon_net  net;
-} SOS_daemon_runtime;
+    SOS_uid         *guid;
+    qhashtbl_t      *pub_table;
+    SOS_ring_queue  *pub_ring;
+    SOSD_sig_thread  pub_ring_t;
+    SOSD_net         net;
+} SOSD_runtime;
 
 
 /* ----------
  *
  *  Daemon root 'global' data structure:
  */
-SOS_daemon_runtime SOSD;
+SOSD_runtime SOSD;
 
 
 /* Required if included by C++ code. */
@@ -48,19 +68,23 @@ SOS_daemon_runtime SOSD;
 extern "C" {
 #endif
 
-    void SOS_daemon_init();
-    void SOS_daemon_setup_socket();
-    void SOS_daemon_init_database();
-    void SOS_daemon_listen_loop();
-    void SOS_daemon_handle_register(char *msg_data, int msg_size);
-    void SOS_daemon_handle_announce(char *msg_data, int msg_size);
-    void SOS_daemon_handle_publish(char *msg_data, int msg_size);
-    void SOS_daemon_handle_echo(char *msg_data, int msg_size);
-    void SOS_daemon_handle_shutdown(char *msg_data, int msg_size);
-    void SOS_daemon_handle_unknown(char *msg_data, int msg_size);
+    void  SOSD_init();
+    void  SOSD_setup_socket();
+    void  SOSD_init_database();
+    void  SOSD_init_pub_ring_monitor();
+    void* SOSD_THREAD_pub_ring(void *args);
+    static void SOSD_THREAD_pub_ring_timer(int sig, siginfo_t *sig_info, void *uc);
+
+    void  SOSD_listen_loop();
+    void  SOSD_handle_register(char *msg_data, int msg_size);
+    void  SOSD_handle_announce(char *msg_data, int msg_size);
+    void  SOSD_handle_publish(char *msg_data, int msg_size);
+    void  SOSD_handle_echo(char *msg_data, int msg_size);
+    void  SOSD_handle_shutdown(char *msg_data, int msg_size);
+    void  SOSD_handle_unknown(char *msg_data, int msg_size);
     
-    void SOS_apply_announce( SOS_pub *pub, char *msg, int msg_len );
-    void SOS_apply_publish( SOS_pub *pub, char *msg, int msg_len );
+    void  SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len );
+    void  SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len );
 
 
 #ifdef __cplusplus

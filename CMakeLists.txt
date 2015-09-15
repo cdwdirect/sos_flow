@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 2.6)
+cmake_minimum_required (VERSION 2.8)
 
 option(SILENCE_DEBUG "Disable DEBUG messages?" OFF)
 option(DAEMON_LOGGING "Should the sosd daemon produce a log file?" ON)
@@ -13,7 +13,8 @@ project(${PROJECT_NAME} C)
 message("Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package("Sqlite3" REQUIRED)
-find_packagE("MPI" REQUIRED)
+find_package("MPI" REQUIRED)
+find_package("Threads" REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/bin")
 
