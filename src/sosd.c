@@ -43,7 +43,7 @@
 
 #define SOSD_check_ring_saturation(__pub)                               \
     if (((double) __pub->elem_count / (double) __pub->elem_max) > FULL_RING_QUEUE_PCT) { \
-        pthread_kill(*SOSD.pub_ring_t.handle, WAKEUP_THREAD);            \
+        pthread_cond_signal(SOSD.pub_ring_ready);                       \
     }                                                                   \
 
 
@@ -96,6 +96,7 @@ int main(int argc, char *argv[])  {
     if (SOS_DEBUG > 0) printf("Calling SOS_init...\n");  fflush(stdout);
     SOS_init( &argc, &argv, SOS.role );
     SOS_SET_WHOAMI(whoami, "main");
+
     dlog(0, "[%s]: Calling register_signal_handler()...\n", whoami);
     if (SOS_DEBUG) SOS_register_signal_handler();
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
@@ -103,8 +104,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]: Calling daemon_init_database()...\n", whoami);
     SOSD_init_database();
     dlog(0, "[%s]: Creating ring queue to track 'to-do' list for pubs...\n", whoami);
-    SOSD.pub_ring = (SOS_ring_queue *) malloc( sizeof(SOS_ring_queue) );
-    SOS_ring_init(SOSD.pub_ring);
+    SOS_ring_init(&SOSD.pub_ring);
     dlog(0, "[%s]: Launching thread to watch pub_ring queue...\n", whoami);
     SOSD_init_pub_ring_monitor();
 
@@ -116,11 +116,11 @@ int main(int argc, char *argv[])  {
 
     /* Done!  Cleanup and shut down. */
     dlog(0, "[%s]: Joining SOSD.pub_ring_thread.\n", whoami);
-    pthread_join( *SOSD.pub_ring_t.handle, NULL);
+    pthread_join( *SOSD.pub_ring_t, NULL);
     dlog(0, "[%s]: Closing the database.\n", whoami);
     SOSD_db_close_database();
     dlog(0, "[%s]: Shutting down SOS services.\n", whoami);
-    pthread_mutex_destroy( &(SOSD.guid->lock) );
+    pthread_mutex_destroy(SOSD.guid->lock);
     SOS_finalize();
     dlog(0, "[%s]: Closing the socket.\n", whoami);
     shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
@@ -140,27 +140,16 @@ void SOSD_init_pub_ring_monitor() {
     SOS_SET_WHOAMI(whoami, "SOSD_init_pub_ring_monitor");
     int retval;
 
+    /* NOTE: The pub_ring itself should already be initialized. */
+    /* Initialize the condition variable */
+    SOSD.pub_ring_ready = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    retval = pthread_cond_init(SOSD.pub_ring_ready, NULL);
+    if (retval != 0) { dlog(0, "[%s]: ERROR! Could not initialize the pub_ring_ready condition variable!  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
+
     /* Start the thread... */
-    SOSD.pub_ring_t.handle = (pthread_t *) malloc(sizeof(pthread_t));
-    SOSD.pub_ring_t.sig_set = (sigset_t *) malloc(sizeof(sigset_t));
-    sigemptyset(SOSD.pub_ring_t.sig_set);
-    sigaddset(SOSD.pub_ring_t.sig_set, SIGUSR1);
-    retval = pthread_create( SOSD.pub_ring_t.handle, NULL, (void *) SOSD_THREAD_pub_ring, NULL );
+    SOSD.pub_ring_t = (pthread_t *) malloc(sizeof(pthread_t));
+    retval = pthread_create( SOSD.pub_ring_t, NULL, (void *) SOSD_THREAD_pub_ring, NULL );
     if (retval != 0) { dlog(0, "[%s]: ERROR! Could not start pub_ring monitoring thread!  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
-    /* Configure a timer to automatically awaken the thread on a heartbeat. */
-    SOSD.pub_ring_t.timer.sig_act.sa_flags       = SA_SIGINFO;
-    SOSD.pub_ring_t.timer.sig_act.sa_sigaction   = SOSD_THREAD_pub_ring_timer;
-    sigemptyset(&(SOSD.pub_ring_t.timer.sig_act.sa_mask));
-    sigaction(WAKEUP_THREAD_TIMER, &(SOSD.pub_ring_t.timer.sig_act), NULL);
-    SOSD.pub_ring_t.timer.sig_event.sigev_notify = SIGEV_SIGNAL;
-    SOSD.pub_ring_t.timer.sig_event.sigev_signo  = WAKEUP_THREAD_TIMER;
-    SOSD.pub_ring_t.timer.sig_event.sigev_value.sival_ptr = &(SOSD.pub_ring_t.timer.id);
-    timer_create(CLOCK_REALTIME, &(SOSD.pub_ring_t.timer.sig_event), &(SOSD.pub_ring_t.timer.id));
-    SOSD.pub_ring_t.timer.its.it_value.tv_sec     = 1;
-    SOSD.pub_ring_t.timer.its.it_value.tv_nsec    = 0;
-    SOSD.pub_ring_t.timer.its.it_interval.tv_sec  = SOSD.pub_ring_t.timer.its.it_value.tv_sec;
-    SOSD.pub_ring_t.timer.its.it_interval.tv_nsec = SOSD.pub_ring_t.timer.its.it_value.tv_nsec;
-    timer_settime(SOSD.pub_ring_t.timer.id, 0, &(SOSD.pub_ring_t.timer.its), NULL);
 
     return;
 }
@@ -186,7 +175,7 @@ void SOSD_listen_loop() {
         SOSD.net.peer_addr_len = sizeof(SOSD.net.peer_addr);
         SOSD.net.client_socket_fd = accept(SOSD.net.server_socket_fd, (struct sockaddr *) &SOSD.net.peer_addr, &SOSD.net.peer_addr_len);
         i = getnameinfo((struct sockaddr *) &SOSD.net.peer_addr, SOSD.net.peer_addr_len, SOSD.net.client_host, NI_MAXHOST, SOSD.net.client_port, NI_MAXSERV, NI_NUMERICSERV);
-        if (i != 0) { dlog(0, "[%s]: Error calling getnameinfo() on client connection.  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
+        if (i != 0) { dlog(0, "[%s]: Error calling getnameinfo() on client connection.  (%s)\n", whoami, strerror(errno)); break; }
 
         byte_count = recv(SOSD.net.client_socket_fd, (void *) buffer, SOSD.net.buffer_len, 0);
         if (byte_count < 1) continue;
@@ -226,30 +215,18 @@ void SOSD_listen_loop() {
 
 void* SOSD_THREAD_pub_ring(void *args) {
     SOS_SET_WHOAMI(whoami, "SOSD_THREAD_watch_pub_ring");
-    int sig_recv;
 
     while (SOSD.daemon_running) {
-        /* Wait to be woken up either manually or by the timer... */
-        sigwait(SOSD.pub_ring_t.sig_set, &sig_recv);
-
+        pthread_mutex_lock(SOSD.pub_ring->lock);
+        pthread_cond_wait(SOSD.pub_ring_ready, SOSD.pub_ring->lock);
         dlog(6, "[%s]: Checking ring...\n", whoami);
+        sleep(2);
     }
+    pthread_mutex_unlock(SOSD.pub_ring->lock);
     dlog(0, "[%s]: Leaving thread safely.\n", whoami);
-    return NULL;
+    pthread_exit(NULL);
 }
 
-
-static void SOSD_THREAD_pub_ring_timer(int sig, siginfo_t *sig_info, void *uc) {
-    SOS_SET_WHOAMI(whoami, "SOSD_THREAD_pub_ring_timer");
-    
-    if (sig_info->si_value.sival_ptr != SOSD.pub_ring_t.timer.id) {
-        dlog(0, "[%s]: Received a stray signal...\n", whoami);
-    } else {
-        dlog(6, "[%s]: Caught a signal(%d) from the timer.\n", whoami, sig);
-        pthread_kill(*SOSD.pub_ring_t.handle, WAKEUP_THREAD);
-    }
-    return;
-}
 
 
 
@@ -287,7 +264,7 @@ void SOSD_handle_register(char *msg, int msg_size) {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
     if (header.msg_from == 0) {
-        guid = SOS_next_id( SOSD.guid );
+        guid = SOS_uid_next( SOSD.guid );
     } else {
         guid = header.msg_from;
     }
@@ -335,7 +312,7 @@ void SOSD_handle_announce(char *msg, int msg_size) {
     guid = header.pub_guid;
 
     /* If this is a freshly announced pub, assign it a GUID. */
-    if (guid < 1) { guid = SOS_next_id( SOSD.guid ); }
+    if (guid < 1) { guid = SOS_uid_next( SOSD.guid ); }
     memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", guid);
     /* Check the table for this pub ... */
@@ -377,13 +354,13 @@ void SOSD_handle_announce(char *msg, int msg_size) {
 
     ptr = 0;
     for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->guid < 1) { guid = SOS_next_id( SOSD.guid ); pub->data[i]->guid = guid; } else { guid = pub->data[i]->guid; }
+        if (pub->data[i]->guid < 1) { guid = SOS_uid_next( SOSD.guid ); pub->data[i]->guid = guid; } else { guid = pub->data[i]->guid; }
         dlog(5, "[%s]:       >   pub(%s)->data[%d]->guid = %ld\n", whoami, guid_str, i, guid);
         memcpy((response + ptr), &guid, sizeof(long));
         ptr += sizeof(long);
     }
 
-    if (pub->guid < 1) { guid = SOS_next_id( SOSD.guid ); pub->guid = guid; } else { guid = pub->guid; }
+    if (pub->guid < 1) { guid = SOS_uid_next( SOSD.guid ); pub->guid = guid; } else { guid = pub->guid; }
     memcpy((response + ptr), &guid, sizeof(long));
 
     i = send( SOSD.net.client_socket_fd, (void *) response, response_len, 0);
@@ -414,7 +391,7 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
     guid = header.pub_guid;
 
     /* If this is a freshly announced pub, assign it a GUID. */
-    if (guid < 1) { guid = SOS_next_id( SOSD.guid ); }
+    if (guid < 1) { guid = SOS_uid_next( SOSD.guid ); }
     sprintf(guid_str, "%ld", guid);
     /* Check the table for this pub ... */
     dlog(5, "[%s]:   ... checking SOS.pub_table for GUID(%s) --> ", whoami, guid_str);
@@ -660,7 +637,7 @@ void SOSD_init() {
     memset(SOSD.guid, '\0', sizeof(SOS_uid));
     SOSD.guid->next = 1;
     SOSD.guid->last = SOS_DEFAULT_UID_MAX;
-    pthread_mutex_init( &(SOSD.guid->lock), NULL );
+    pthread_mutex_init(SOSD.guid->lock, NULL );
 
     /* [hashtable]
      *    storage system for received pubs.  (will enque their key -> db)
@@ -756,7 +733,7 @@ void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
 
         memcpy(&( new_guid              ), (msg + ptr), sizeof(long));  ptr += sizeof(long);
         if ( new_guid == 0 ) {
-                new_guid = SOS_next_id( SOSD.guid ); 
+                new_guid = SOS_uid_next( SOSD.guid ); 
         } else if ( new_guid != pub->data[i]->guid ) {
             /* Things have (somehow) shifted in the pub, so wipe the data and hope for a publish.
              * This really should not happen, but just in case... */

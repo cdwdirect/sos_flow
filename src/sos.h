@@ -313,9 +313,9 @@ typedef struct {
 } SOS_config;
 
 typedef struct {
-    long            next;
-    long            last;
-    pthread_mutex_t lock;
+    long             next;
+    long             last;
+    pthread_mutex_t *lock;
 } SOS_uid;
 
 typedef struct {
@@ -325,13 +325,13 @@ typedef struct {
 } SOS_unique_set;
 
 typedef struct {
-    int             read_elem;
-    int             write_elem;
-    int             elem_count;
-    int             elem_max;
-    int             elem_size;
-    void          **heap;
-    pthread_mutex_t lock;
+    int              read_elem;
+    int              write_elem;
+    int              elem_count;
+    int              elem_max;
+    int              elem_size;
+    void           **heap;
+    pthread_mutex_t *lock;
 } SOS_ring_queue;
 
 typedef struct {
@@ -346,15 +346,14 @@ typedef struct {
 } SOS_task_set;
 
 typedef struct {
-    SOS_config       config;
-    SOS_role         role;
-    SOS_status       status;
-    SOS_unique_set   uid;
-    SOS_ring_set     ring;
-    SOS_task_set     task;
-    SOS_socket_set   net;
-    pthread_mutex_t  global_lock;
-    long             my_guid;
+    SOS_config        config;
+    SOS_role          role;
+    SOS_status        status;
+    SOS_unique_set    uid;
+    SOS_ring_set      ring;
+    SOS_task_set      task;
+    SOS_socket_set    net;
+    long              my_guid;
 } SOS_runtime;
 
 /* ----------

@@ -26,22 +26,6 @@ typedef struct {
 } SOSD_net;
 
 typedef struct {
-    struct itimerspec  its;
-    long long          freq_nanosecs;
-    sigset_t           mask;
-    struct sigevent    sig_event;
-    struct sigaction   sig_act;
-    timer_t            id;
-    void              *call_func;
-} SOSD_sig_timer;
-
-typedef struct {
-    pthread_t      *handle;
-    sigset_t       *sig_set;
-    SOSD_sig_timer  timer;
-} SOSD_sig_thread;
-
-typedef struct {
     char   *work_dir;
     char   *db_file;
     int     db_ready;
@@ -51,7 +35,8 @@ typedef struct {
     SOS_uid         *guid;
     qhashtbl_t      *pub_table;
     SOS_ring_queue  *pub_ring;
-    SOSD_sig_thread  pub_ring_t;
+    pthread_t       *pub_ring_t;
+    pthread_cond_t  *pub_ring_ready;
     SOSD_net         net;
 } SOSD_runtime;
 

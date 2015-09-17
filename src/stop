@@ -2,6 +2,6 @@ if [ -z $1 ]; then echo "   >>> Stopping the sosd daemon..." ; fi;
 sosd_pid=$(cat sosd.lock)
 kill -15 $sosd_pid
 rm -f sosd.lock
-if [ -z $1 ]; then echo "   >>> Connecting to server to clear blocking recv()..." ; fi;
+if [ -z $1 ]; then echo "   >>> Connecting to server to clear blocking recv()...   (wait for the thread_join wake up, too)" ; fi;
 nc localhost 22505 < touchd
 if [ -z $1 ]; then echo "   >>>    ... done.  Server is closed down." ; fi;

@@ -28,11 +28,16 @@ void*  SOS_THREAD_read( void *arg );
 void*  SOS_THREAD_scan( void *arg );
 
 void   SOS_post_to_daemon( char *msg, char *reply );
-long   SOS_next_id( SOS_uid *uid );
 void   SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
+
 void   SOS_expand_data( SOS_pub *pub );
 
-void   SOS_ring_init(SOS_ring_queue *ring);
+void   SOS_uid_init( SOS_uid **uid );
+long   SOS_uid_next( SOS_uid *uid );
+void   SOS_uid_destroy( SOS_uid *uid );
+
+void   SOS_ring_init(SOS_ring_queue **ring);
+void   SOS_ring_destroy(SOS_ring_queue *ring);
 int    SOS_ring_put(SOS_ring_queue *ring, void *item);
 void*  SOS_ring_get(SOS_ring_queue *ring);
 void** SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning);
@@ -66,40 +71,27 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS.config.argv = *argv;
     SOS.config.process_id = (int) getpid();
     
-    dlog(1, "[%s]:   ... allocating uid sets\n", whoami);
-    SOS.uid.pub = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    SOS.uid.sub = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    SOS.uid.seq = (SOS_uid *) malloc( sizeof(SOS_uid) );
-    
-    dlog(1, "[%s]:   ... setting defaults for uid sets.\n", whoami);
-    SOS.uid.pub->next = SOS.uid.sub->next = SOS.uid.seq->next = 1;
-    SOS.uid.pub->last = SOS.uid.sub->last = SOS.uid.seq->last = SOS_DEFAULT_UID_MAX;
-
-    if (SOS_CONFIG_USE_MUTEXES) {
-        dlog(1, "[%s]:      ... initializing their mutexes.\n", whoami);
-        pthread_mutex_init( &(SOS.uid.pub->lock), NULL );
-        pthread_mutex_init( &(SOS.uid.sub->lock), NULL );
-        pthread_mutex_init( &(SOS.uid.seq->lock), NULL );
-    }
+    dlog(1, "[%s]:   ... configuring uid sets.\n", whoami);
+    SOS_uid_init(&SOS.uid.pub);
+    SOS_uid_init(&SOS.uid.sub);
+    SOS_uid_init(&SOS.uid.seq);
 
     dlog(1, "[%s]:   ... configuring data rings.\n", whoami);
-    SOS.ring.send = (SOS_ring_queue *) malloc(sizeof(SOS_ring_queue));
-    SOS.ring.recv = (SOS_ring_queue *) malloc(sizeof(SOS_ring_queue));
-    SOS_ring_init(SOS.ring.send);
-    SOS_ring_init(SOS.ring.recv);
+    SOS_ring_init(&SOS.ring.send);
+    SOS_ring_init(&SOS.ring.recv);
 
-    if (SOS_CONFIG_USE_THREAD_POOL) {
-        SOS.task.post = (pthread_t *) malloc(sizeof(pthread_t));
-        SOS.task.read = (pthread_t *) malloc(sizeof(pthread_t));
-        SOS.task.scan = (pthread_t *) malloc(sizeof(pthread_t));
-        dlog(1, "[%s]:   ... launching data migration threads.\n", whoami);
-        retval = pthread_create( SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
-        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.post thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-        retval = pthread_create( SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
-        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.read thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-        retval = pthread_create( SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
-        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.scan thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-    }
+    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+    SOS.task.post = (pthread_t *) malloc(sizeof(pthread_t));
+    SOS.task.read = (pthread_t *) malloc(sizeof(pthread_t));
+    SOS.task.scan = (pthread_t *) malloc(sizeof(pthread_t));
+    dlog(1, "[%s]:   ... launching data migration threads.\n", whoami);
+    retval = pthread_create( SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
+    if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.post thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+    retval = pthread_create( SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
+    if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.read thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+    retval = pthread_create( SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
+    if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.scan thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+    #endif
 
     if (SOS.role == SOS_ROLE_CLIENT || SOS.role == SOS_ROLE_CONTROL) {
         dlog(1, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
@@ -156,7 +148,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         dlog(1, "(%ld)\n", SOS.my_guid);
 
         close( server_socket_fd );
-        
+    
     } else {
         /*
          *
@@ -173,9 +165,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     return;
 }
 
-
-void SOS_ring_init(SOS_ring_queue *ring) {
+void SOS_ring_init(SOS_ring_queue **ring_var) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_init");
+    SOS_ring_queue *ring;
+
+    ring = *ring_var = (SOS_ring_queue *) malloc(sizeof(SOS_ring_queue));
 
     ring->read_elem  = ring->write_elem  = 0;
     ring->elem_count = 0;
@@ -183,12 +177,29 @@ void SOS_ring_init(SOS_ring_queue *ring) {
     ring->elem_size  = sizeof(void *);
     ring->heap       = (void **) malloc( ring->elem_max * ring->elem_size );
     memset( ring->heap, '\0', (ring->elem_max * ring->elem_size) );
-
+    
     dlog(1, "[%s]:      ... successfully initialized ring queue.\n", whoami);
-    if (SOS_CONFIG_USE_MUTEXES) {
-        dlog(1, "[%s]:      ... initializing their mutexes.\n", whoami);
-        pthread_mutex_init( &(ring->lock), NULL );
-    }
+    
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(1, "[%s]:      ... initializing mutex.\n", whoami);
+    ring->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(ring->lock, NULL);
+    #endif
+        
+    return;
+}
+
+void SOS_ring_destroy(SOS_ring_queue *ring) {
+    SOS_SET_WHOAMI(whoami, "SOS_ring_destroy");
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    free(ring->lock);
+    #endif
+
+    memset(ring->heap, '\0', (ring->elem_max * ring->elem_size));
+    free(ring->heap);
+    memset(ring, '\0', (sizeof(SOS_ring_queue)));
+    free(ring);
 
     return;
 }
@@ -196,7 +207,9 @@ void SOS_ring_init(SOS_ring_queue *ring) {
 
 int SOS_ring_put(SOS_ring_queue *ring, void *item) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_put");
-    if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_lock( &(ring->lock) ); }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(ring->lock);
+    #endif
 
     dlog(5, "[%s]: Attempting to add an item into the ring.\n", whoami);
 
@@ -205,16 +218,14 @@ int SOS_ring_put(SOS_ring_queue *ring, void *item) {
     if (ring->elem_count >= ring->elem_max) {
         /* The ring is full... */
         dlog(5, "[%s]: ERROR!  Attempting to insert a data element into a full ring!", whoami);
-        /* TODO: { RINGS } Force flush the ring queue now. */
-        //until then...   (in future, fall through to add code after force-flush)
-        if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_unlock( &(ring->lock)); }
+        #if (SOS_CONFIG_USE_MUTEXES > 0)
+        pthread_mutex_unlock(ring->lock);
+        #endif
         return(-1);
     }
 
     dlog(5, "[%s]:   ... this is item %d of %d.\n", whoami, ring->elem_count, ring->elem_max);
-
     memcpy((ring->heap + (ring->write_elem * ring->elem_size)), &item, ring->elem_size);
-
     dlog(5, "[%s]:   ... successfully inserted.  Advancing the pointers.\n", whoami);
 
     ring->write_elem = (ring->write_elem + 1) % ring->elem_max;
@@ -222,7 +233,9 @@ int SOS_ring_put(SOS_ring_queue *ring, void *item) {
 
     dlog(5, "[%s]:   ... done.\n", whoami);
 
-    if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_unlock( &(ring->lock) ); }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(ring->lock);
+    #endif
     return(0);
 }
 
@@ -230,10 +243,14 @@ int SOS_ring_put(SOS_ring_queue *ring, void *item) {
 void* SOS_ring_get(SOS_ring_queue *ring) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_get");
     void *element;
-    if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_lock( &(ring->lock)); }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(ring->lock);
+    #endif
 
     if (ring->elem_count == 0) {
-        if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_unlock( &(ring->lock)); }
+        #if (SOS_CONFIG_USE_MUTEXES > 0)
+        pthread_mutex_unlock(ring->lock);
+        #endif
         return NULL;
     }
 
@@ -241,7 +258,10 @@ void* SOS_ring_get(SOS_ring_queue *ring) {
     ring->read_elem = (ring->read_elem + 1) % ring->elem_max;
     ring->elem_count--;
 
-    if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_unlock( &(ring->lock)); }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(ring->lock);
+    #endif
+
     return element;
 }
 
@@ -253,7 +273,9 @@ void** SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
     int elem_list_bytes;
     int fragment_count;
 
-    if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_lock( &(ring->lock)); }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(ring->lock);
+    #endif
 
     elem_list_bytes = (ring->elem_count * ring->elem_size);
     elem_list = (void **) malloc(elem_list_bytes);
@@ -274,7 +296,10 @@ void** SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
     ring->elem_count = 0;
     ring->read_elem  = ring->write_elem;
     
-    if (SOS_CONFIG_USE_MUTEXES) { pthread_mutex_unlock( &(ring->lock)); }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(ring->lock);
+    #endif
+
     return elem_list;
 }
 
@@ -325,26 +350,21 @@ void SOS_finalize() {
     dlog(0, "[%s]: SOS.status = SOS_STATUS_SHUTDOWN\n", whoami);
     SOS.status = SOS_STATUS_SHUTDOWN;
 
-    if (SOS_CONFIG_USE_THREAD_POOL) {
-        dlog(0, "[%s]: Joining threads...\n", whoami);
-        pthread_join( *SOS.task.post, NULL );
-        pthread_join( *SOS.task.read, NULL );
-        pthread_join( *SOS.task.scan, NULL );
-    }
+    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+    dlog(0, "[%s]:   ... Joining threads...\n", whoami);
+    pthread_join( *SOS.task.post, NULL );
+    pthread_join( *SOS.task.read, NULL );
+    pthread_join( *SOS.task.scan, NULL );
+    #endif
 
-    if (SOS_CONFIG_USE_MUTEXES) {
-        dlog(0, "[%s]: Destroying mutexes...\n", whoami);
-        pthread_mutex_destroy( &SOS.ring.send->lock  );
-        pthread_mutex_destroy( &SOS.ring.recv->lock  );
-        pthread_mutex_destroy( &(SOS.uid.pub->lock) );
-        pthread_mutex_destroy( &(SOS.uid.sub->lock) );
-        pthread_mutex_destroy( &(SOS.uid.seq->lock) );
-        pthread_mutex_destroy( &SOS.global_lock     );
-    }
+    dlog(0, "[%s]:   ... Releasing uid objects...\n", whoami);
+    SOS_uid_destroy(SOS.uid.pub);
+    SOS_uid_destroy(SOS.uid.sub);
+    SOS_uid_destroy(SOS.uid.seq);
 
-    dlog(0, "[%s]: Freeing data ring heaps...\n", whoami);
-    free( SOS.ring.send->heap );
-    free( SOS.ring.recv->heap );
+    dlog(0, "[%s]:   ... Releasing ring queues...\n", whoami);
+    SOS_ring_destroy(SOS.ring.send);
+    SOS_ring_destroy(SOS.ring.recv);
 
     dlog(0, "[%s]: Done!\n", whoami);
     return;
@@ -401,9 +421,41 @@ void* SOS_THREAD_scan( void *args ) {
 
 
 
+void SOS_uid_init( SOS_uid **id_var ) {
+    SOS_SET_WHOAMI(whoami, "SOS_uid_init");
+    SOS_uid *id;
 
 
-long SOS_next_id( SOS_uid *id ) {
+    dlog(1, "[%s]:   ... allocating uid sets\n", whoami);
+    id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
+    id->next = 1;
+    id->last = SOS_DEFAULT_UID_MAX;
+    dlog(1, "[%s]:      ... default set for uid range (%ld -> %ld).\n", whoami, id->next, id->last);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(1, "[%s]:      ... initializing uid mutex.\n", whoami);
+    id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(id->lock, NULL );
+    #endif
+
+    return;
+}
+
+
+void SOS_uid_destroy( SOS_uid *id ) {
+    SOS_SET_WHOAMI(whoami, "SOS_uid_destroy");
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    free(id->lock);
+    #endif
+    memset(id, '\0', sizeof(SOS_uid));
+    free(id);
+
+    return;
+}
+
+
+long SOS_uid_next( SOS_uid *id ) {
     long next_serial;
 
     #if (SOS_CONFIG_USE_MUTEXES > 0)
