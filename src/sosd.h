@@ -7,37 +7,49 @@
 
 #include "qhashtbl.h"
 
+typedef struct {
+    char               *name;
+    SOS_ring_queue     *ring;
+    pthread_t          *extract_t;
+    pthread_cond_t     *extract_cond;
+    pthread_mutex_t    *extract_lock;
+    pthread_t          *commit_t;
+    pthread_cond_t     *commit_cond;
+    pthread_mutex_t    *commit_lock;
+    long               *commit_list;
+    int                 commit_count;
+    SOS_role            commit_target;
+} SOSD_pub_ring_mon;
 
 typedef struct {
-    int   server_socket_fd;
-    int   client_socket_fd;
-    int   port_number;
-    char *server_port;
-    int   buffer_len;
-    int   listen_backlog;
-    int   client_len;
-    struct addrinfo  server_hint;
-    struct addrinfo *server_addr;
-    char            *client_host;
-    char            *client_port;
-    struct addrinfo *result;
+    int                 server_socket_fd;
+    int                 client_socket_fd;
+    int                 port_number;
+    char               *server_port;
+    int                 buffer_len;
+    int                 listen_backlog;
+    int                 client_len;
+    struct addrinfo     server_hint;
+    struct addrinfo    *server_addr;
+    char               *client_host;
+    char               *client_port;
+    struct addrinfo    *result;
     struct sockaddr_storage   peer_addr;
-    socklen_t   peer_addr_len;
+    socklen_t           peer_addr_len;
 } SOSD_net;
 
 typedef struct {
-    char   *work_dir;
-    char   *db_file;
-    int     db_ready;
-    int     daemon_running;
-    char    daemon_pid_str[256];
-    double  time_now;
-    SOS_uid         *guid;
-    qhashtbl_t      *pub_table;
-    SOS_ring_queue  *pub_ring;
-    pthread_t       *pub_ring_t;
-    pthread_cond_t  *pub_ring_ready;
-    SOSD_net         net;
+    char               *work_dir;
+    char               *db_file;
+    int                 db_ready;
+    int                 daemon_running;
+    char                daemon_pid_str[256];
+    double              time_now;
+    SOS_uid            *guid;
+    qhashtbl_t         *pub_table;
+    SOSD_pub_ring_mon  *local_sync;
+    SOSD_pub_ring_mon  *cloud_sync;
+    SOSD_net            net;
 } SOSD_runtime;
 
 
@@ -56,9 +68,12 @@ extern "C" {
     void  SOSD_init();
     void  SOSD_setup_socket();
     void  SOSD_init_database();
+
     void  SOSD_init_pub_ring_monitor();
-    void* SOSD_THREAD_pub_ring(void *args);
-    static void SOSD_THREAD_pub_ring_timer(int sig, siginfo_t *sig_info, void *uc);
+    void* SOSD_THREAD_pub_ring_list_extractor(void *args);
+    void* SOSD_THREAD_pub_ring_storage_injector(void *args);
+    void  SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_role target_var);
+    void  SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon_var);
 
     void  SOSD_listen_loop();
     void  SOSD_handle_register(char *msg_data, int msg_size);

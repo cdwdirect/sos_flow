@@ -47,6 +47,11 @@ endif()
 add_executable("sos_cmd" "sos_cmd.c")
 target_link_libraries("sos_cmd" "sos")
 
+#TARGET ---> test_ring
+#            (command-line interface)
+add_executable("test_ring" "test_ring.c")
+target_link_libraries("test_ring" "sos")
+
 
 #TARGET ---> demo_app
 #            (demonstration / example)

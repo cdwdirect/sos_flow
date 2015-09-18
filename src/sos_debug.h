@@ -20,11 +20,11 @@
 
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
 
-#define SOS_DEBUG      99
+#define SOS_DEBUG           99
 
 /* Should the daemon do any logging?  (yes/no)  */
 
-#define DAEMON_LOG     1
+#define SOSD_DAEMON_LOG     99
 
 
 int     sos_daemon_lock_fptr;
@@ -46,7 +46,7 @@ FILE*   sos_daemon_log_fptr;
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
     if (SOS.role == SOS_ROLE_DAEMON) {                                  \
-        if ((SOS_DEBUG >= level) && DAEMON_LOG) {                       \
+        if (SOSD_DAEMON_LOG >= level) {                                 \
             fprintf(sos_daemon_log_fptr, __VA_ARGS__);                  \
             fflush(sos_daemon_log_fptr);                                \
         }                                                               \

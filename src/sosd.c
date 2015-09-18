@@ -33,25 +33,23 @@
 
 #define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
 
-#define DAEMON_NAME    "sosd"
-#define DEFAULT_DIR    "/tmp"
-#define LOCK_FILE      "sosd.lock"
-#define LOG_FILE       "sosd.log"
-#define FULL_RING_QUEUE_PCT  0.7
-#define WAKEUP_THREAD        SIGUSR1
-#define WAKEUP_THREAD_TIMER  SIGUSR2
+#define SOSD_DAEMON_NAME    "sosd"
+#define SOSD_DEFAULT_DIR    "/tmp"
+#define SOSD_LOCK_FILE      "sosd.lock"
+#define SOSD_LOG_FILE       "sosd.log"
+#define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
+#define SOSD_PUB_ANN_DIRTY           66
+#define SOSD_PUB_ANN_LOCAL           77
+#define SOSD_PUB_ANN_CLOUD           88
 
-#define SOSD_check_ring_saturation(__pub)                               \
-    if (((double) __pub->elem_count / (double) __pub->elem_max) > FULL_RING_QUEUE_PCT) { \
-        pthread_cond_signal(SOSD.pub_ring_ready);                       \
-    }                                                                   \
+#define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
 
 
 int main(int argc, char *argv[])  {
     int elem, next_elem;
     int retval;
 
-    SOSD.work_dir = (char *) &DEFAULT_DIR;
+    SOSD.work_dir = (char *) &SOSD_DEFAULT_DIR;
     SOSD.db_file  = (char *) malloc(SOS_DEFAULT_STRING_LEN);
     SOSD.db_ready = 0;
 
@@ -87,13 +85,13 @@ int main(int argc, char *argv[])  {
 
     /* System logging initialize */
     setlogmask(LOG_UPTO(LOG_ERR));
-    openlog(DAEMON_NAME, LOG_CONS | LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
-    syslog(LOG_INFO, "Starting daemon: %s", DAEMON_NAME);
-    if (DAEMON_LOG) { sos_daemon_log_fptr = fopen(LOG_FILE, "w"); }
+    openlog(SOSD_DAEMON_NAME, LOG_CONS | LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
+    syslog(LOG_INFO, "Starting daemon: %s", SOSD_DAEMON_NAME);
+    if (SOSD_DAEMON_LOG) { sos_daemon_log_fptr = fopen(SOSD_LOG_FILE, "w"); }
 
-    if (SOS_DEBUG > 0) printf("Calling daemon_init()...\n"); fflush(stdout);
+    if (SOS_DEBUG > 0) printf("[%s]: Calling daemon_init()...\n", SOSD_DAEMON_NAME); fflush(stdout);
     SOSD_init();
-    if (SOS_DEBUG > 0) printf("Calling SOS_init...\n");  fflush(stdout);
+    if (SOS_DEBUG > 0) printf("[%s]: Calling SOS_init...\n", SOSD_DAEMON_NAME);  fflush(stdout);
     SOS_init( &argc, &argv, SOS.role );
     SOS_SET_WHOAMI(whoami, "main");
 
@@ -103,11 +101,9 @@ int main(int argc, char *argv[])  {
     SOSD_setup_socket();
     dlog(0, "[%s]: Calling daemon_init_database()...\n", whoami);
     SOSD_init_database();
-    dlog(0, "[%s]: Creating ring queue to track 'to-do' list for pubs...\n", whoami);
-    SOS_ring_init(&SOSD.pub_ring);
-    dlog(0, "[%s]: Launching thread to watch pub_ring queue...\n", whoami);
-    SOSD_init_pub_ring_monitor();
-
+    dlog(0, "[%s]: Creating ring queue monitors to track 'to-do' list for pubs...\n", whoami);
+    SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS_ROLE_DAEMON);
+    SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS_ROLE_DB);
 
     /* Go! */
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
@@ -115,20 +111,28 @@ int main(int argc, char *argv[])  {
   
 
     /* Done!  Cleanup and shut down. */
-    dlog(0, "[%s]: Joining SOSD.pub_ring_thread.\n", whoami);
-    pthread_join( *SOSD.pub_ring_t, NULL);
+    dlog(0, "[%s]: Ending the pub_ring monitors:\n", whoami);
+    dlog(0, "[%s]:   ... waiting for the pub_ring monitor to iterate and exit.\n", whoami);
+    pthread_join( *(SOSD.local_sync->extract_t), NULL);
+    pthread_join( *(SOSD.local_sync->commit_t), NULL);
+    pthread_join( *(SOSD.cloud_sync->extract_t), NULL);
+    pthread_join( *(SOSD.cloud_sync->commit_t), NULL);
+    dlog(0, "[%s]:   ... destroying the ring monitors...\n", whoami);
+    SOSD_pub_ring_monitor_destroy(SOSD.local_sync);
+    SOSD_pub_ring_monitor_destroy(SOSD.cloud_sync);
+    dlog(0, "[%s]:   ... done.\n", whoami);
     dlog(0, "[%s]: Closing the database.\n", whoami);
     SOSD_db_close_database();
     dlog(0, "[%s]: Shutting down SOS services.\n", whoami);
-    pthread_mutex_destroy(SOSD.guid->lock);
+    SOS_uid_destroy( SOSD.guid );
     SOS_finalize();
     dlog(0, "[%s]: Closing the socket.\n", whoami);
     shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     dlog(0, "[%s]: Exiting daemon's main() gracefully.\n", whoami);
     closelog();
-    if (DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
+    if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
     close(sos_daemon_lock_fptr);
-    remove(LOCK_FILE);
+    remove(SOSD_LOCK_FILE);
     
     return(EXIT_SUCCESS);
 } //end: main()
@@ -136,20 +140,62 @@ int main(int argc, char *argv[])  {
 
 
 
-void SOSD_init_pub_ring_monitor() {
-    SOS_SET_WHOAMI(whoami, "SOSD_init_pub_ring_monitor");
+void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_role target_var) {
+    SOS_SET_WHOAMI(whoami, "SOSD_pub_ring_monitor_init");
+    SOSD_pub_ring_mon *mon;
     int retval;
 
-    /* NOTE: The pub_ring itself should already be initialized. */
-    /* Initialize the condition variable */
-    SOSD.pub_ring_ready = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-    retval = pthread_cond_init(SOSD.pub_ring_ready, NULL);
-    if (retval != 0) { dlog(0, "[%s]: ERROR! Could not initialize the pub_ring_ready condition variable!  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
+    mon = *mon_var = malloc(sizeof(SOSD_pub_ring_mon));
+    memset(mon, '\0', sizeof(SOSD_pub_ring_mon));
 
-    /* Start the thread... */
-    SOSD.pub_ring_t = (pthread_t *) malloc(sizeof(pthread_t));
-    retval = pthread_create( SOSD.pub_ring_t, NULL, (void *) SOSD_THREAD_pub_ring, NULL );
-    if (retval != 0) { dlog(0, "[%s]: ERROR! Could not start pub_ring monitoring thread!  (%s)\n", whoami, strerror(errno)); exit(EXIT_FAILURE); }
+    mon->name = name_var;
+    if (ring_var == NULL) {
+        SOS_ring_init(&mon->ring);
+    } else {
+        mon->ring = ring_var;
+    }
+    mon->extract_t     = (pthread_t *) malloc(sizeof(pthread_t));
+    mon->extract_cond  = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    mon->extract_lock  = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    mon->commit_t      = (pthread_t *) malloc(sizeof(pthread_t));
+    mon->commit_cond   = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    mon->commit_lock   = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    mon->commit_list   = NULL;
+    mon->commit_count  = 0;
+    mon->commit_target = target_var;
+
+    retval = pthread_cond_init(mon->extract_cond, NULL); 
+    if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_cond pthread_cond_t variable.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); } 
+    retval = pthread_cond_init(mon->commit_cond, NULL);
+    if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->commit_cond pthread_cond_t variable.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
+    retval = pthread_mutex_init(mon->extract_lock, NULL);
+    if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_lock mutex.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
+    retval = pthread_mutex_init(mon->commit_lock, NULL);
+    if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->commit_lock mutex.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
+    retval = pthread_create( mon->extract_t, NULL, (void *) SOSD_THREAD_pub_ring_list_extractor, mon );
+    if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_t thread.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
+    retval = pthread_create( mon->commit_t, NULL, (void *) SOSD_THREAD_pub_ring_storage_injector, mon );
+    if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->commit_t thread.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
+
+    return;
+}
+
+void SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon) {
+    SOS_SET_WHOAMI(whoami, "SOSD_pub_ring_monitor_destroy");
+
+    pthread_mutex_destroy( mon->extract_lock );
+    pthread_mutex_destroy( mon->commit_lock );
+    pthread_cond_destroy( mon->extract_cond );
+    pthread_cond_destroy( mon->commit_cond );
+
+    free(mon->extract_lock);
+    free(mon->extract_cond);
+    free(mon->extract_t);
+    free(mon->commit_lock);
+    free(mon->commit_cond);
+    free(mon->commit_t);
+    SOS_ring_destroy(mon->ring);
+    free(mon);
 
     return;
 }
@@ -213,23 +259,91 @@ void SOSD_listen_loop() {
 /* -------------------------------------------------- */
 
 
-void* SOSD_THREAD_pub_ring(void *args) {
-    SOS_SET_WHOAMI(whoami, "SOSD_THREAD_watch_pub_ring");
+void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
+    SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
+    char func_name[SOS_DEFAULT_STRING_LEN];
+    memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
+    sprintf(func_name, "SOSD_THREAD_pub_ring_extractor(%s)", my->name);
+    SOS_SET_WHOAMI(whoami, func_name);
 
+    struct timespec ts;
+    struct timeval  tp;
+    int wake_type;
+
+    pthread_mutex_lock(my->extract_lock);
     while (SOSD.daemon_running) {
-        pthread_mutex_lock(SOSD.pub_ring->lock);
-        pthread_cond_wait(SOSD.pub_ring_ready, SOSD.pub_ring->lock);
-        dlog(6, "[%s]: Checking ring...\n", whoami);
-        sleep(2);
+        gettimeofday(&tp, NULL); ts.tv_sec  = 2 + tp.tv_sec; ts.tv_nsec = 1000 * tp.tv_usec;
+        wake_type = pthread_cond_timedwait(my->extract_cond, my->extract_lock, &ts);
+        dlog(6, "[%s]: Checking ring...  (%d entries)\n", whoami, my->ring->elem_count);
+        if (wake_type == ETIMEDOUT) {
+            /* ...any special actions that need to happen if timed-out vs. called-explicitly */
+            if (my->ring->elem_count == 0) continue;
+        }
+        pthread_mutex_lock(my->commit_lock);  /* This will block until the current commit-list is cleared. */
+        my->commit_count = 0;
+        my->commit_list = SOS_ring_get_all(my->ring, &my->commit_count);
+        pthread_mutex_unlock(my->commit_lock);
+        pthread_cond_signal(my->commit_cond);
     }
-    pthread_mutex_unlock(SOSD.pub_ring->lock);
+    pthread_mutex_unlock(my->extract_lock);
     dlog(0, "[%s]: Leaving thread safely.\n", whoami);
     pthread_exit(NULL);
 }
 
 
+void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
+    SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
+    char func_name[SOS_DEFAULT_STRING_LEN];
+    memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
+    sprintf(func_name, "SOSD_THREAD_pub_ring_storage_injector(%s)", my->name);
+    SOS_SET_WHOAMI(whoami, func_name);
 
+    int       list_index;
+    char      guid_str[SOS_DEFAULT_STRING_LEN];
+    SOS_pub  *pub;
 
+    pthread_mutex_lock(my->commit_lock);
+    while (SOSD.daemon_running) {
+        pthread_cond_wait(my->commit_cond, my->commit_lock);
+
+        for (list_index = 0; list_index < my->commit_count; list_index++) {
+            memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+            sprintf(guid_str, "%ld", my->commit_list[list_index]);
+            dlog(6, "[%s]: Attempting to inject my->commit_list[%d] == pub(\"%s\")\n", whoami, list_index, guid_str);
+            dlog(6, "[%s]: Pulling up pub(%s) ...\n", whoami, guid_str);
+            pub = SOSD.pub_table->get(SOSD.pub_table, guid_str);
+            if (pub == NULL) { dlog(0, "[%s]: ERROR!  SOSD.pub_table->get(SOSD_pub_table, \"%s\") == NULL     (skipping to next entry)\n", whoami, guid_str); continue; }
+
+            /* TODO:{ STORAGE_INJECT } Make this more performant by grouping transactions. */
+
+            switch (my->commit_target) {
+            case SOS_ROLE_DAEMON:
+                if (pub->announced != SOSD_PUB_ANN_LOCAL) {
+                    SOSD_db_insert_pub(pub);
+                    pub->announced = SOSD_PUB_ANN_LOCAL;
+                }
+                SOSD_db_insert_data(pub);
+                SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
+                break;
+
+            case SOS_ROLE_DB:
+                if (pub->announced != SOSD_PUB_ANN_CLOUD) {
+                    dlog(1, "[%s]: DAEMON ---ANNOUNCE---> 'SOS CLOUD'      (to-do...)\n", whoami);
+                    pub->announced = SOSD_PUB_ANN_CLOUD;
+                }
+                dlog(1, "[%s]: DAEMON ----PUBLISH---> 'SOS CLOUD'      (to-do...)\n", whoami);
+                break;
+
+            default:
+                dlog(0, "[%s]: WARNING!  Attempting to a storage injection into an unsupported target!  (%d)\n", whoami, my->commit_target);
+            }
+        }
+        free(my->commit_list);
+    }
+    pthread_mutex_unlock(my->commit_lock);
+    dlog(0, "[%s]: Leaving thread safely.\n", whoami);
+    pthread_exit(NULL);
+}
 
 
 /* -------------------------------------------------- */
@@ -332,19 +446,12 @@ void SOSD_handle_announce(char *msg, int msg_size) {
 
 
     SOSD_apply_announce(pub, msg, msg_size);
-    dlog(5, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
+    pub->announced = SOSD_PUB_ANN_DIRTY;
 
-    if (pub->announced != 99) {
-        dlog(5, "[%s]: sending to the database...  (%s)\n", whoami, SOSD.db_file);
-        SOSD_db_insert_pub(pub);
-        dlog(5, "[%s]:   ... done!\n", whoami);
-        pub->announced = 99;
-    }
+    dlog(5, "[%s]:   ... pub(%ld)->elem_count = %d\n", whoami, pub->guid, pub->elem_count);
 
     /* Supply the calling system with any needed GUID's... */
-
     response_len = (1 + pub->elem_count) * sizeof(long);
-
     if (response_len > SOS_DEFAULT_BUFFER_LEN) {
         response = (char *) malloc( response_len );
         if (response == NULL) { dlog(0, "[%s]: ERROR!  Could not allocate memory for an announcement response!  (%s)\n", whoami, strerror(errno));  exit(1); }
@@ -373,7 +480,6 @@ void SOSD_handle_announce(char *msg, int msg_size) {
 }
 
 
-
 void SOSD_handle_publish(char *msg, int msg_size)  {
     SOS_SET_WHOAMI(whoami, "daemon_handle_publish");
     SOS_msg_header header;
@@ -398,7 +504,7 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
     if (pub == NULL) {
         /* If it's not in the table, add it. */
-        dlog(5, "not found, ADDING new pub to the table.\n");
+        dlog(5, "WHOAH!  NOT FOUND! (WEIRD!)  ADDING new pub to the table... (this is bogus, man)\n");
         pub = SOS_new_pub(guid_str);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = guid;
@@ -408,11 +514,15 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
 
     SOSD_apply_publish( pub, msg, msg_size );
 
-    dlog(5, "[%s]:   ... inserting pub into the 'to-do' ring queue. (It'll auto-announce as needed.)\n", whoami);
-    SOS_ring_put(SOSD.pub_ring, (void *) (pub->guid));
-    SOSD_check_ring_saturation(SOSD.pub_ring);
+    dlog(5, "[%s]:   ... inserting pub(%ld) into the 'to-do' ring queue. (It'll auto-announce as needed.)\n", whoami, pub->guid);
+    SOS_ring_put(SOSD.local_sync->ring, pub->guid);
 
-    dlog(5, "[%s]:   ... done.   (SOSD.pub_ring->elem_count == %d)\n", whoami, SOSD.pub_ring->elem_count);
+    if (SOSD_check_sync_saturation(SOSD.local_sync)) {
+        pthread_cond_signal(SOSD.local_sync->extract_cond);
+    }
+
+    dlog(5, "[%s]:   ... done.   (SOSD.pub_ring->elem_count == %d)\n", whoami, SOSD.local_sync->ring->elem_count);
+
 
     for (i = 0; i < pub->elem_count; i++) {
         switch (pub->data[i]->type) {
@@ -573,21 +683,23 @@ void SOSD_init_database() {
 
 void SOSD_init() {
     SOS_SET_WHOAMI(whoami, "daemon_init");
-    pid_t pid, sid;
+    pid_t pid, ppid, sid;
     int rc;
 
     /* [fork]
      *     split off from the parent process (& terminate parent)
      */
-    pid = fork();
+    ppid = getpid();
+    pid  = fork();
+
     if (pid < 0) {
-        fprintf(stderr, "Unable to start daemon (%s): Could not fork() off parent process.\n", DAEMON_NAME);
+        fprintf(stderr, "[%s]: Unable to start daemon (%s): Could not fork() off parent process.\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME);
         exit(EXIT_FAILURE);
     }
     if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
 
     sprintf(SOSD.daemon_pid_str, "%d", getpid());
-    if (SOS_DEBUG > 0) fprintf(stderr, "Starting daemon (%s) with PID = %s\n", DAEMON_NAME, SOSD.daemon_pid_str);
+    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Starting daemon (%s) with PID = %s\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME, SOSD.daemon_pid_str);
 
     /* [child session]
      *     create/occupy independent session from parent process
@@ -595,35 +707,38 @@ void SOSD_init() {
     umask(0);
     sid = setsid();
     if (sid < 0) {
-        fprintf(stderr, "Unable to start daemon (%s): Could not acquire a session id.\n", DAEMON_NAME); 
+        fprintf(stderr, "[%s]: Unable to start daemon (%s): Could not acquire a session id.\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME); 
         exit(EXIT_FAILURE);
     }
     if ((chdir(SOSD.work_dir)) < 0) {
-        fprintf(stderr, "Unable to start daemon (%s): Could not change to working directory: %s\n", \
-                DAEMON_NAME, SOSD.work_dir);
+        fprintf(stderr, "[%s]: Unable to start daemon (%s): Could not change to working directory: %s\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME, SOSD.work_dir);
         exit(EXIT_FAILURE);
     }
 
+    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Child session(%d) successfully split off from parent(%d).\n", SOSD_DAEMON_NAME, pid, ppid);
     /* [lock file]
      *     create and hold lock file to prevent multiple daemon spawn
      */
-    sos_daemon_lock_fptr = open(LOCK_FILE, O_RDWR | O_CREAT, 0640);
+    sos_daemon_lock_fptr = open(SOSD_LOCK_FILE, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) { 
-        fprintf(stderr, "\nUnable to start daemon (%s): Could not access lock file %s in directory %s\n", \
-                DAEMON_NAME, LOCK_FILE, SOSD.work_dir);
+        fprintf(stderr, "\n[%s]: Unable to start daemon (%s): Could not access lock file %s in directory %s\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME, SOSD_LOCK_FILE, SOSD.work_dir);
         exit(EXIT_FAILURE);
     }
     if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
-        fprintf(stderr, "\nUnable to start daemon (%s): An instance is already running.\n", DAEMON_NAME);
+        fprintf(stderr, "\n[%s]: Unable to start daemon (%s): AN INSTANCE IS ALREADY RUNNING!\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME);
         exit(EXIT_FAILURE);
     }
     rc = write(sos_daemon_lock_fptr, SOSD.daemon_pid_str, strlen(SOSD.daemon_pid_str));
+
+    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Lock file obtained.  (%s)\n", SOSD_DAEMON_NAME, SOSD_LOCK_FILE);
 
     /* [file handles]
      *     close unused IO handles
      */
 
     if (SOS_DEBUG == 0) {
+        fprintf(stderr, "[%s]: Closing traditional I/O for the daemon...\n", SOSD_DAEMON_NAME);
+        fflush(stderr);
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
@@ -632,16 +747,15 @@ void SOSD_init() {
     /* [guid's]
      *     configure the issuer of guids for this daemon
      */
-    /* TODO: { GUID SOSD INIT } Make this sub-divide for groups of nodes. */
-    SOSD.guid = (SOS_uid *) malloc(sizeof(SOS_uid));
-    memset(SOSD.guid, '\0', sizeof(SOS_uid));
-    SOSD.guid->next = 1;
-    SOSD.guid->last = SOS_DEFAULT_UID_MAX;
-    pthread_mutex_init(SOSD.guid->lock, NULL );
+    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Getting obtaining this instance's guid range...\n", SOSD_DAEMON_NAME);
+    SOS_uid_init(&SOSD.guid);
+    /* TODO: { GUID INIT } Get the numbers from (likely an MPI?) call... */
+    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]:   ... (%ld ---> %ld)\n", SOSD_DAEMON_NAME, SOSD.guid->next, SOSD.guid->last);
 
     /* [hashtable]
      *    storage system for received pubs.  (will enque their key -> db)
      */
+    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Setting up a hash table for pubs...\n", SOSD_DAEMON_NAME);
     SOSD.pub_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
 
     if (SOS_DEBUG > 0) printf("Daemon initialization is complete.\n"); fflush(stdout);

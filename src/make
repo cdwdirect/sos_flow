@@ -1,6 +1,7 @@
 #!/bin/bash
 if [ "$1" == "clean" ]
 then
+   rm -rf *~
    echo "Removing all binary objects."
    cd ..
    rm -rf ./bin

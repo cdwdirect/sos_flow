@@ -17,15 +17,11 @@
 extern "C" {
 #endif
 
-
-void SOS_db_init_database(void);
-void SOS_db_close_database();
-void SOS_db_create_tables(void);
-void SOS_db_insert_announcement( SOS_pub *pub );
-void SOS_db_update_values( SOS_pub *pub );
-void SOS_db_print_max_value(void);
-
-
+void SOSD_db_init_database(void);
+void SOSD_db_close_database();
+void SOSD_db_create_tables(void);
+void SOSD_db_insert_pub( SOS_pub *pub );
+void SOSD_db_insert_data( SOS_pub *pub);
 
 #define CALL_SQLITE(f) {						\
     int i;								\

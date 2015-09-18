@@ -3,6 +3,7 @@ if [ -z $1 ]; then echo "   >>> Clearing the log file."; fi;
 rm -f ./sosd.log
 if [ -z $1 ]; then echo "   >>> Clearing the database."; fi;
 rm -f ./sosd.db
+rm -rf ./sosd.db.lock
 if [ -z $1 ]; then echo "   >>> Launching the sosd daemon...   (port:$SOS_CMD_PORT)" ; fi;
 ../bin/sosd --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)
 if [ -z $1 ]; then ps `cat sosd.lock` ; fi;

@@ -3,4 +3,4 @@
 echo "   >>> Launching ./demo_app ..."
 ../bin/demo_app
 echo "   >>>   ... Done."
-./showdb
+#./showdb

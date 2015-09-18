@@ -33,7 +33,7 @@
  */
 
 #define SOS_CONFIG_USE_THREAD_POOL     0
-#define SOS_CONFIG_USE_MUTEXES         0
+#define SOS_CONFIG_USE_MUTEXES         1
 #define SOS_CONFIG_USE_VMPI            1
 #define SOS_CONFIG_USE_SOCKETS         1
 
@@ -45,7 +45,7 @@
         switch (SOS.role) {                                             \
         case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
         case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
-        case SOS_ROLE_LEADER    : sprintf(__SOS_var_name, "leader(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%ld).%s",      SOS.my_guid, __SOS_str_func ); break; \
         case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%ld).%s", SOS.my_guid, __SOS_str_func ); break; \
         default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
         }                                                               \
@@ -67,7 +67,7 @@
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_CLIENT)                       \
     ROLE(SOS_ROLE_DAEMON)                       \
-    ROLE(SOS_ROLE_LEADER)                       \
+    ROLE(SOS_ROLE_DB)                           \
     ROLE(SOS_ROLE_CONTROL)                      \
     ROLE(SOS_ROLE___MAX)                        \
     
@@ -223,68 +223,68 @@ static const char *SOS_MOOD_string[] =         { FOREACH_MOOD(GENERATE_STRING)  
  */
 
 typedef union {
-    int           i_val;        /* default: (null)                */
-    long          l_val;        /* default: (null)                */
-    double        d_val;        /* default: (null)                */
-    char         *c_val;        /* default: (null)                */
+    int                 i_val;        /* default: (null)                */
+    long                l_val;        /* default: (null)                */
+    double              d_val;        /* default: (null)                */
+    char               *c_val;        /* default: (null)                */
 } SOS_val;
 
 typedef struct {
-    double        pack;         /* default: 0.0                   */
-    double        send;         /* default: 0.0                   */
-    double        recv;         /* default: 0.0                   */
+    double              pack;         /* default: 0.0                   */
+    double              send;         /* default: 0.0                   */
+    double              recv;         /* default: 0.0                   */
 } SOS_time;
 
 typedef struct {
-    int           channel;      /* default: 0                     */
-    SOS_nature    nature;       /* default: --------- manual      */
-    SOS_layer     layer;        /* default: SOS_LAYER_APP         */
-    SOS_pri       pri_hint;     /* default: SOS_PRI_DEFAULT       */
-    SOS_scope     scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
-    SOS_retain    retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
-    char          __MEMCPY_END; /* .............................. */
+    int                 channel;      /* default: 0                     */
+    SOS_nature          nature;       /* default: --------- manual      */
+    SOS_layer           layer;        /* default: SOS_LAYER_APP         */
+    SOS_pri             pri_hint;     /* default: SOS_PRI_DEFAULT       */
+    SOS_scope           scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
+    SOS_retain          retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
+    char                __MEMCPY_END; /* .............................. */
 } SOS_meta;
 
 typedef struct {
-    long           guid;         /* default: (auto)                */
-    SOS_val_type   type;         /* default: --------- manual      */
-    int            val_len;      /* default: (auto) [on assign]    */
-    SOS_val        val;          /* default: --------- manual      */
-    SOS_val_state  state;        /* default: SOS_VAL_STATE_EMPTY   */
-    SOS_sem        sem_hint;     /* default: --------- manual      */
-    SOS_time       time;         /* default: (complex)             */
-    char           __MEMCPY_END; /* .............................. */
-    char          *name;         /* default: --------- manual      */
+    long                guid;         /* default: (auto)                */
+    SOS_val_type        type;         /* default: --------- manual      */
+    int                 val_len;      /* default: (auto) [on assign]    */
+    SOS_val             val;          /* default: --------- manual      */
+    SOS_val_state       state;        /* default: SOS_VAL_STATE_EMPTY   */
+    SOS_sem             sem_hint;     /* default: --------- manual      */
+    SOS_time            time;         /* default: (complex)             */
+    char                __MEMCPY_END; /* .............................. */
+    char               *name;         /* default: --------- manual      */
 } SOS_data;
 
 typedef struct {
-    long          guid;         /* default: (auto, on announce)   */
-    int           process_id;   /* default: -1                    */
-    int           thread_id;    /* default: -1                    */
-    int           comm_rank;    /* default: -1                    */
-    SOS_meta      meta;         /* default: (complex)             */
-    int           announced;    /* default: 0                     */
-    int           elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
-    int           elem_count;   /* default: 0                     */
-    int           pragma_len;   /* default: -1                    */
-    char          __MEMCPY_END; /* .............................. */
-    char         *pragma_msg;   /* default: (null)                */
-    char         *node_id;      /* default: SOS.config.node_id    */
-    char         *prog_name;    /* default: argv[0] / manual      */
-    char         *prog_ver;     /* default: (null)                */
-    char         *title;        /* default: (null)                */
-    SOS_data    **data;
+    long                guid;         /* default: (auto, on announce)   */
+    int                 process_id;   /* default: -1                    */
+    int                 thread_id;    /* default: -1                    */
+    int                 comm_rank;    /* default: -1                    */
+    SOS_meta            meta;         /* default: (complex)             */
+    int                 announced;    /* default: 0                     */
+    int                 elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
+    int                 elem_count;   /* default: 0                     */
+    int                 pragma_len;   /* default: -1                    */
+    char                __MEMCPY_END; /* .............................. */
+    char               *pragma_msg;   /* default: (null)                */
+    char               *node_id;      /* default: SOS.config.node_id    */
+    char               *prog_name;    /* default: argv[0] / manual      */
+    char               *prog_ver;     /* default: (null)                */
+    char               *title;        /* default: (null)                */
+    SOS_data          **data;
 } SOS_pub;
 
 typedef struct {
-    int           suid;
-    int           active;
-    int           refresh_delay;
-    SOS_role      source_role;
-    int           source_rank;
-    char          __MEMCPY_END; /* .............................. */
-    SOS_pub      *pub;
-    pthread_t     thread_handle;
+    int                 suid;
+    int                 active;
+    int                 refresh_delay;
+    SOS_role            source_role;
+    int                 source_rank;
+    char                __MEMCPY_END; /* .............................. */
+    SOS_pub            *pub;
+    pthread_t           thread_handle;
 } SOS_sub;
 
 typedef struct {
@@ -299,61 +299,61 @@ typedef struct {
 } SOS_socket_set;
 
 typedef struct {                              /* no pointers, headers get used raw */
-    SOS_msg_type   msg_type;
-    long           msg_from;
-    long           pub_guid;
+    SOS_msg_type        msg_type;
+    long                msg_from;
+    long                pub_guid;
 } SOS_msg_header;
 
 typedef struct {
-    int               argc;
-    char            **argv;
-    char             *node_id;
-    int               process_id;
-    int               thread_id;
+    int                 argc;
+    char              **argv;
+    char               *node_id;
+    int                 process_id;
+    int                 thread_id;
 } SOS_config;
 
 typedef struct {
-    long             next;
-    long             last;
-    pthread_mutex_t *lock;
+    long                next;
+    long                last;
+    pthread_mutex_t    *lock;
 } SOS_uid;
 
 typedef struct {
-    SOS_uid       *pub;
-    SOS_uid       *sub;
-    SOS_uid       *seq;
+    SOS_uid            *pub;
+    SOS_uid            *sub;
+    SOS_uid            *seq;
 } SOS_unique_set;
 
 typedef struct {
-    int              read_elem;
-    int              write_elem;
-    int              elem_count;
-    int              elem_max;
-    int              elem_size;
-    void           **heap;
-    pthread_mutex_t *lock;
+    int                 read_elem;
+    int                 write_elem;
+    int                 elem_count;
+    int                 elem_max;
+    int                 elem_size;
+    long               *heap;
+    pthread_mutex_t    *lock;
 } SOS_ring_queue;
 
 typedef struct {
-    SOS_ring_queue *send;
-    SOS_ring_queue *recv;
+    SOS_ring_queue     *send;
+    SOS_ring_queue     *recv;
 } SOS_ring_set;
 
 typedef struct {
-    pthread_t    *post;    /* POST pending msgs to the daemon */
-    pthread_t    *read;    /* READ char* msgs, organize into data structures. */
-    pthread_t    *scan;    /* SCAN for dirty data, queue msg for daemon. */
+    pthread_t          *post;    /* POST pending msgs to the daemon */
+    pthread_t          *read;    /* READ char* msgs, organize into data structures. */
+    pthread_t          *scan;    /* SCAN for dirty data, queue msg for daemon. */
 } SOS_task_set;
 
 typedef struct {
-    SOS_config        config;
-    SOS_role          role;
-    SOS_status        status;
-    SOS_unique_set    uid;
-    SOS_ring_set      ring;
-    SOS_task_set      task;
-    SOS_socket_set    net;
-    long              my_guid;
+    SOS_config         config;
+    SOS_role           role;
+    SOS_status         status;
+    SOS_unique_set     uid;
+    SOS_ring_set       ring;
+    SOS_task_set       task;
+    SOS_socket_set     net;
+    long               my_guid;
 } SOS_runtime;
 
 /* ----------
@@ -387,8 +387,15 @@ extern "C" {
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
     SOS_val   SOS_get_val( SOS_pub *pub, char *name );
     void      SOS_strip_str(char *str);
+    void      SOS_ring_init(SOS_ring_queue **ring);
+    void      SOS_ring_destroy(SOS_ring_queue *ring);
+    int       SOS_ring_put(SOS_ring_queue *ring, long item);
+    long      SOS_ring_get(SOS_ring_queue *ring);
+    long*     SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning);
 
-    /* NOTE: See sos.c for additional "private" functions. */
+
+    /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
+
 
 
 
