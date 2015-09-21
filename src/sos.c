@@ -20,19 +20,17 @@
 
 #include "sos.h"
 #include "sos_debug.h"
-
+#include "pack_buffer.h"
 
 /* Private functions (not in the header file) */
 void*  SOS_THREAD_post( void *arg );
 void*  SOS_THREAD_read( void *arg );
 void*  SOS_THREAD_scan( void *arg );
 
-void   SOS_post_to_daemon( char *msg, char *reply );
 void   SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
-
 void   SOS_expand_data( SOS_pub *pub );
 
-void   SOS_uid_init( SOS_uid **uid );
+void   SOS_uid_init( SOS_uid **uid, long from, long to );
 long   SOS_uid_next( SOS_uid *uid );
 void   SOS_uid_destroy( SOS_uid *uid );
 
@@ -46,13 +44,12 @@ char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
 /* [util]                                   */
 /* **************************************** */
 
-
-
-
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS_msg_header header;
-    char buffer[SOS_DEFAULT_BUFFER_LEN];
+    char buffer[SOS_DEFAULT_ACK_LEN];
     int i, n, retval, server_socket_fd;
+    long guid_pool_from;
+    long guid_pool_to;
 
     SOS.role = role;
     SOS.status = SOS_STATUS_INIT;
@@ -64,11 +61,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS.config.argc = *argc;
     SOS.config.argv = *argv;
     SOS.config.process_id = (int) getpid();
-    
-    dlog(1, "[%s]:   ... configuring uid sets.\n", whoami);
-    SOS_uid_init(&SOS.uid.pub);
-    SOS_uid_init(&SOS.uid.sub);
-    SOS_uid_init(&SOS.uid.seq);
 
     dlog(1, "[%s]:   ... configuring data rings.\n", whoami);
     SOS_ring_init(&SOS.ring.send);
@@ -88,12 +80,12 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     #endif
 
     if (SOS.role == SOS_ROLE_CLIENT) {
-        dlog(1, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
         /*
          *
-         *  NETWORK CONFIGURATION: CLIENT / CONTROL
+         *  CLIENT / CONTROL
          *
          */
+        dlog(1, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
 
         SOS.net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
         SOS.net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
@@ -124,25 +116,33 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         if (server_socket_fd == 0) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
         dlog(1, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
+        header.msg_size = sizeof(SOS_msg_header);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = 0;
-        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
+        header.pub_guid = 0;
+        memset(buffer, '\0', SOS_DEFAULT_ACK_LEN);
         memcpy(buffer, &header, sizeof(SOS_msg_header));
         
         retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), 0, 0, 0 );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
         dlog(1, "[%s]:   ... listening for the server to reply...\n", whoami);
-        memset(buffer, '\0', SOS_DEFAULT_BUFFER_LEN);
-        retval = recv( server_socket_fd, (void *) buffer, (SOS_DEFAULT_BUFFER_LEN - 1), 0);
-        
+        memset(buffer, '\0', SOS_DEFAULT_ACK_LEN);
+        retval = recv( server_socket_fd, (void *) buffer, SOS_DEFAULT_ACK_LEN, 0);
+
         dlog(6, "[%s]:   ... server responded with %d bytes.\n", whoami, retval);
-        dlog(1, "[%s]:   ... determining my guid   ", whoami);
-        memcpy(&SOS.my_guid, buffer, sizeof(long));
+        memcpy(&guid_pool_from, buffer, sizeof(long));
+        memcpy(&guid_pool_to, (buffer + sizeof(long)), sizeof(long));
+        dlog(1, "[%s]:   ... received guid range from %ld to %ld.\n", whoami, guid_pool_from, guid_pool_to);
+        dlog(1, "[%s]:   ... configuring uid sets.\n", whoami);
+        SOS_uid_init(&SOS.uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
+        SOS_uid_init(&SOS.uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* DAEMON doesn't use this, it's for CLIENTS. */
+
+        SOS.my_guid = SOS_uid_next( SOS.uid.my_guid_pool );
         dlog(1, "(%ld)\n", SOS.my_guid);
 
         close( server_socket_fd );
-    
+
     } else {
         /*
          *
@@ -151,7 +151,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          */
 
         dlog(0, "[%s]:   ... skipping socket setup (becase we're the daemon).\n", whoami);
-        /* TODO:{ INIT } EVPATH setup code goes here. */
+        /* TODO:{ INIT } EVPATH / MPI-coordinated setup code goes here. */
 
     }
 
@@ -292,8 +292,12 @@ long* SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
 void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
     SOS_SET_WHOAMI(whoami, "SOS_send_to_daemon");
 
+    SOS_msg_header header;
     int server_socket_fd;
     int retval;
+
+    /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
+    /* TODO: { SEND_TO_DAEMON } Verify that the header.msg_size = msg_len */
 
     retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
     if ( retval < 0 ) { dlog(0, "[%s]: ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
@@ -310,9 +314,10 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
     
     if (server_socket_fd == 0) {
         dlog(0, "[%s]: Error attempting to connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
-        exit(1);  /* TODO:{ COMM }  Make this a loop that tries X times to connect, doesn't crash app. */
+        exit(1);  /* TODO:{ SEND_TO_DAEMON }  Make this a loop that tries X times to connect, doesn't crash app. */
     }
 
+    /* TODO: { SEND_TO_DAEMON } Make this a loop that ensures all data was sent. */
     retval = send(server_socket_fd, msg, msg_len, 0 );
     if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
 
@@ -342,9 +347,8 @@ void SOS_finalize() {
     #endif
 
     dlog(0, "[%s]:   ... Releasing uid objects...\n", whoami);
-    SOS_uid_destroy(SOS.uid.pub);
-    SOS_uid_destroy(SOS.uid.sub);
-    SOS_uid_destroy(SOS.uid.seq);
+    SOS_uid_destroy(SOS.uid.local_serial);
+    SOS_uid_destroy(SOS.uid.my_guid_pool);
 
     dlog(0, "[%s]:   ... Releasing ring queues...\n", whoami);
     SOS_ring_destroy(SOS.ring.send);
@@ -405,15 +409,14 @@ void* SOS_THREAD_scan( void *args ) {
 
 
 
-void SOS_uid_init( SOS_uid **id_var ) {
+void SOS_uid_init( SOS_uid **id_var, long set_from, long set_to ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_init");
     SOS_uid *id;
 
-
     dlog(1, "[%s]:   ... allocating uid sets\n", whoami);
     id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
-    id->next = 1;
-    id->last = SOS_DEFAULT_UID_MAX;
+    id->next = (set_from > 0) ? set_from : 1;
+    id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
     dlog(1, "[%s]:      ... default set for uid range (%ld -> %ld).\n", whoami, id->next, id->last);
 
     #if (SOS_CONFIG_USE_MUTEXES > 0)
@@ -440,6 +443,7 @@ void SOS_uid_destroy( SOS_uid *id ) {
 
 
 long SOS_uid_next( SOS_uid *id ) {
+    SOS_SET_WHOAMI(whoami, "SOS_uid_next");
     long next_serial;
 
     #if (SOS_CONFIG_USE_MUTEXES > 0)
@@ -448,7 +452,34 @@ long SOS_uid_next( SOS_uid *id ) {
 
     next_serial = id->next++;
 
-    /* TODO: { NEXT_ID } Have a proper failure state if we are out of ID's... */
+    if (id->next > id->last) {
+    /* The assumption here is that we're dealing with a GUID, as the other
+     * 'local' uid ranges are so large as to effectively guarantee this case
+     * will not occur for them.
+     */
+
+        if (SOS.role == SOS_ROLE_DAEMON) {
+            /* NOTE: There is no recourse if a DAEMON runs out of GUIDs.
+             *       That should *never* happen.
+             */
+            dlog(0, "[%s]: ERROR!  This sosd instance has run out of GUIDs!  Terminating.\n", whoami);
+            exit(EXIT_FAILURE);
+        } else {
+            /* Acquire a fresh block of GUIDs from the DAEMON... */
+            SOS_msg_header msg;
+            char buffer[SOS_DEFAULT_ACK_LEN];
+            
+            dlog(1, "[%s]: The last guid has been used from SOS.uid.my_guid_pool!  Requesting a new block...\n", whoami);
+            msg.msg_size = sizeof(SOS_msg_header);
+            msg.msg_from = SOS.my_guid;
+            msg.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
+            msg.pub_guid = 0;
+            SOS_send_to_daemon((char *) &msg, sizeof(SOS_msg_header), buffer, SOS_DEFAULT_ACK_LEN);
+            memcpy(&id->next, buffer, sizeof(long));
+            memcpy(&id->last, (buffer + sizeof(long)), sizeof(long));
+            dlog(1, "[%s]:   ... recieved a new guid block from %ld to %ld.\n", whoami, id->next, id->last);
+        }
+    }
 
     #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_unlock( id->lock );
@@ -547,10 +578,10 @@ void SOS_strip_str( char *str ) {
 }
 
 
-
-
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_WHOAMI(whoami, "SOS_pack");
+
+    /* TODO:{ PACK } Add hashtable lookup to improve search time in linear array. */
 
     //counter variables
     int i, n;
@@ -810,6 +841,8 @@ void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
 SOS_val SOS_get_val(SOS_pub *pub, char *name) {
     int i;
 
+    /* TODO:{ GET_VAL } Add hashtable lookup to improve search time in linear array. */
+
     for(i = 0; i < pub->elem_count; i++) {
         if (strcmp(name, pub->data[i]->name) == 0) return pub->data[i]->val;
     }
@@ -991,6 +1024,7 @@ void SOS_announce( SOS_pub *pub ) {
      *   Fill the buffer with the description of the pub ...
      */
     ptr = 0;
+    header.msg_size = buffer_len;
     header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
     header.msg_from = SOS.my_guid;
     header.pub_guid = pub->guid;
@@ -1197,6 +1231,7 @@ void SOS_publish( SOS_pub *pub ) {
         buffer_alloc = 1;
     }
 
+    header.msg_size = buffer_len;
     header.msg_type = SOS_MSG_TYPE_PUBLISH;
     header.msg_from = SOS.my_guid;
     header.pub_guid = pub->guid;

@@ -77,14 +77,18 @@ extern "C" {
 
     void  SOSD_listen_loop();
     void  SOSD_handle_register(char *msg_data, int msg_size);
+    void  SOSD_handle_guid_block(char *msg_data, int msg_size);
     void  SOSD_handle_announce(char *msg_data, int msg_size);
     void  SOSD_handle_publish(char *msg_data, int msg_size);
     void  SOSD_handle_echo(char *msg_data, int msg_size);
     void  SOSD_handle_shutdown(char *msg_data, int msg_size);
     void  SOSD_handle_unknown(char *msg_data, int msg_size);
-    
+
+    void  SOSD_claim_guid_block( SOS_uid *uid, int size, long *pool_from, long *pool_to );
     void  SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len );
     void  SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len );
+
+    extern void SOS_uid_init( SOS_uid **uid, long from, long to);
 
 
 #ifdef __cplusplus

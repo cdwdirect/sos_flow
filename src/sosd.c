@@ -29,6 +29,7 @@
 #include "sosd.h"
 #include "sosd_db_sqlite.h"
 #include "qhashtbl.h"
+#include "pack_buffer.h"
 
 
 #define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
@@ -224,12 +225,23 @@ void SOSD_listen_loop() {
         if (i != 0) { dlog(0, "[%s]: Error calling getnameinfo() on client connection.  (%s)\n", whoami, strerror(errno)); break; }
 
         byte_count = recv(SOSD.net.client_socket_fd, (void *) buffer, SOSD.net.buffer_len, 0);
-        if (byte_count < 1) continue;
+        if (byte_count < 1) {
+            dlog(1, "[%s]:   ... recv() call returned an errror.  (%s)\n", whoami, strerror(errno));
+            continue;
+        }
+
         if (byte_count >= sizeof(SOS_msg_header)) {
             memcpy(&header, buffer, sizeof(SOS_msg_header));
+            dlog(6, "[%s]:   ... Received %d of %d bytes in this message.\n", whoami, byte_count, header.msg_size);
         } else {
             dlog(0, "[%s]:   ... Received short (useless) message.\n", whoami);  continue;
         }
+
+        while (byte_count < header.msg_size) {
+            byte_count += recv(SOSD.net.client_socket_fd, (void *) (buffer + byte_count), SOSD.net.buffer_len, 0);
+            dlog(6, "[%s]:      ... %d of %d ...\n", whoami, byte_count, header.msg_size);
+        }
+
         dlog(5, "[%s]: Received connection.\n", whoami);
         dlog(5, "[%s]:   ... byte_count = %d\n", whoami, byte_count);
         dlog(5, "[%s]:   ... msg_from = %ld\n", whoami, header.msg_from);
@@ -237,6 +249,8 @@ void SOSD_listen_loop() {
         switch (header.msg_type) {
         case SOS_MSG_TYPE_REGISTER: dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type);
             SOSD_handle_register(buffer, byte_count); break; 
+        case SOS_MSG_TYPE_GUID_BLOCK: dlog(5, "[%s]:   ... msg_type = GUID_BLOCK (%d)\n", whoami, header.msg_type);
+            SOSD_handle_guid_block(buffer, byte_count); break;
         case SOS_MSG_TYPE_ANNOUNCE: dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type);
             SOSD_handle_announce(buffer, byte_count); break;
         case SOS_MSG_TYPE_PUBLISH:  dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type);
@@ -370,25 +384,37 @@ void SOSD_handle_echo(char *msg, int msg_size) {
 void SOSD_handle_register(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_register");
     SOS_msg_header header;
-    int  ptr  = 0;
-    int  i    = 0;
-    long guid = 0;
+    int  ptr             = 0;
+    int  i               = 0;
+    int  reply_len       = 0;
+    long guid_block_from = 0;
+    long guid_block_to   = 0;
 
     memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
+    char response[SOS_DEFAULT_ACK_LEN];
+    memset(response, '\0', SOS_DEFAULT_ACK_LEN);
+    reply_len = 0;
+
     if (header.msg_from == 0) {
-        guid = SOS_uid_next( SOSD.guid );
+        /* A new client is registering with the daemon.
+         * Supply them a block of GUIDs ...
+         */
+        SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_block_from, &guid_block_to);
+        memcpy(response, &guid_block_from, sizeof(long));
+        memcpy((response + sizeof(long)), &guid_block_to, sizeof(long));
+        reply_len = 2 * sizeof(long);
+
     } else {
-        guid = header.msg_from;
+        /* An existing client (such as sos_cmd) is coming back online,
+         * don't give them any GUIDs.
+         */
+        sprintf(response, "ACK");
+        reply_len = 4;
     }
 
-    char response[SOS_DEFAULT_BUFFER_LEN];
-    memset(response, '\0', SOS_DEFAULT_BUFFER_LEN);
-
-    memcpy(response, &guid, sizeof(long));
-    i = send( SOSD.net.client_socket_fd, (void *) response, sizeof(long), 0 );
-
+    i = send( SOSD.net.client_socket_fd, (void *) response, reply_len, 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
@@ -397,6 +423,37 @@ void SOSD_handle_register(char *msg, int msg_size) {
     return;
 }
 
+
+void SOSD_handle_guid_block(char *msg, int msg_size) {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_register");
+    SOS_msg_header header;
+    long block_from   = 0;
+    long block_to     = 0;
+    int reply_len;
+    int ptr;
+    int i;
+
+    ptr = 0;
+    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
+
+    char response[SOS_DEFAULT_ACK_LEN];
+    memset(response, '\0', SOS_DEFAULT_ACK_LEN);
+    reply_len = 0;
+
+    SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
+    memcpy(response, &block_from, sizeof(long));
+    memcpy((response + sizeof(long)), &block_to, sizeof(long));
+    reply_len = 2 * sizeof(long);
+
+    i = send( SOSD.net.client_socket_fd, (void *) response, reply_len, 0 );
+    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+    else {
+        dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
+    }
+
+    return;
+}
 
 
 void SOSD_handle_announce(char *msg, int msg_size) {
@@ -748,7 +805,7 @@ void SOSD_init() {
      *     configure the issuer of guids for this daemon
      */
     if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Getting obtaining this instance's guid range...\n", SOSD_DAEMON_NAME);
-    SOS_uid_init(&SOSD.guid);
+    SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
     /* TODO: { GUID INIT } Get the numbers from (likely an MPI?) call... */
     if (SOS_DEBUG > 0) fprintf(stderr, "[%s]:   ... (%ld ---> %ld)\n", SOSD_DAEMON_NAME, SOSD.guid->next, SOSD.guid->last);
 
@@ -763,8 +820,33 @@ void SOSD_init() {
     return;
 }
 
+void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to) {
+    SOS_SET_WHOAMI(whoami, "SOSD_guid_claim_range");
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock( id->lock );
+    #endif
 
 
+    if ((id->next + size) > id->last) {
+        /* This is basically a failure case if any more GUIDs are requested. */
+        *pool_from = id->next;
+        *pool_to   = id->last;
+        id->next   = id->last + 1;
+    } else {
+        *pool_from = id->next;
+        *pool_to   = id->next + size;
+        id->next   = id->next + size + 1;
+    }
+
+
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock( id->lock );
+    #endif
+
+    return;
+}
 
 
 

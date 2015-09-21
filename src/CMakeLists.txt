@@ -15,8 +15,8 @@ endif()
 
 #TARGET ---> sos
 #            (library)
-add_library("sos" SHARED "sos.c")
-add_library("sos-static" STATIC "sos.c")
+add_library("sos" SHARED "sos.c" "pack_buffer.c")
+add_library("sos-static" STATIC "sos.c" "pack_buffer.c")
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sos" PROPERTY COMPILE_OPTIONS "-pthread")
   target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
@@ -31,7 +31,7 @@ endif()
 
 #TARGET ---> sosd
 #            (daemon)
-add_executable("sosd" "sosd.c" "sosd_db_sqlite.c" "qhashtbl.c")
+add_executable("sosd" "sosd.c" "sosd_db_sqlite.c" "qhashtbl.c" "pack_buffer.c")
 target_link_libraries("sosd" "sos" "sqlite3" "rt")
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sosd" PROPERTY COMPILE_OPTIONS "-pthread")
@@ -48,7 +48,7 @@ add_executable("sos_cmd" "sos_cmd.c")
 target_link_libraries("sos_cmd" "sos")
 
 #TARGET ---> test_ring
-#            (command-line interface)
+#            (debugging code)
 add_executable("test_ring" "test_ring.c")
 target_link_libraries("test_ring" "sos")
 

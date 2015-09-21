@@ -6,6 +6,7 @@ demo_app
 sos_cmd
 ./libs/*
 ../output/*
+../bin/*
 *~
 *.lo
 *.so

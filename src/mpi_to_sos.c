@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/time.h>
@@ -8,6 +9,9 @@
 #include "sos_debug.h"
 
 #define GET_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
+
+#define UNIQUE_VALUES     5
+#define PACK_PUB_LOOPS    10
 
 int size;
 int rank;
@@ -51,16 +55,20 @@ double avg_MISSING;
 void run_test(int x);
 
 int main(int argc, char **argv) {
-    SOS_TIME(ts_TOTAL_start);
 
     char pub_title[SOS_DEFAULT_STRING_LEN];
+    char val_name[UNIQUE_VALUES][SOS_DEFAULT_STRING_LEN];
     double timenow;
-    int i;
+    int i, n;
 
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
+    for (i = 0; i < UNIQUE_VALUES; i++) {
+        memset(val_name[i], '\0', SOS_DEFAULT_STRING_LEN);
+        sprintf(val_name[i], "rank(%d).name(%ld)", rank, random());
+    }
 
     if (argc > 1 && ( strcmp(argv[1], "SHOW_HEADER" ) == 0)) {
         if (!rank) { printf("\"AGGREGATE\", \"MPI_SIZE\", \"SOS_init\", \"SOS_pack\", \"SOS_announce\", \"SOS_publish\", \"TOTAL_in_app\", \"NON_SOS_in_app\"\n"); }
@@ -78,8 +86,10 @@ int main(int argc, char **argv) {
 
     MPI_Barrier(MPI_COMM_WORLD);
 
-    SOS_TIME(ts_start);
     SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
+    SOS_TIME(ts_TOTAL_start);
+    SOS_TIME(ts_start);
+
     SOS_SET_WHOAMI(whoami, "main");
     SOS_TIME(ts_finish);
     tspan_SOS_init = ts_finish - ts_start;
@@ -105,6 +115,10 @@ int main(int argc, char **argv) {
     SOS_TIME(ts_finish);
     tspan_SOS_packing = ts_finish - ts_start;
 
+    for (i = 0; i < UNIQUE_VALUES; i++) {
+        SOS_pack( pub, val_name[i], SOS_VAL_TYPE_LONG, (SOS_val) random());
+    }
+
     dlog(0, "[%s]: Announcing the pub...\n", whoami);
 
     SOS_TIME(ts_start);
@@ -118,6 +132,13 @@ int main(int argc, char **argv) {
     SOS_publish(pub);
     SOS_TIME(ts_finish);
     tspan_SOS_publish = ts_finish - ts_start;
+
+    for (n = 0; n < PACK_PUB_LOOPS; n++) {
+        for (i = 0; i < UNIQUE_VALUES; i++) {
+            SOS_pack( pub, val_name[i], SOS_VAL_TYPE_LONG, (SOS_val) random() );
+        }
+        SOS_publish( pub );
+    }
 
     dlog(0, "[%s]: Done.\n", whoami);
     SOS_finalize();

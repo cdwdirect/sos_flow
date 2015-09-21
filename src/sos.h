@@ -20,10 +20,8 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <limits.h>
-
 #include <sys/socket.h>
 #include <netdb.h>
-
 
 /* SOS Configuration Switches... */
 
@@ -55,10 +53,12 @@
 #define SOS_DEFAULT_SERVER_PORT    22505
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
 #define SOS_DEFAULT_BUFFER_LEN     1048576
+#define SOS_DEFAULT_ACK_LEN        128
 #define SOS_DEFAULT_RING_SIZE      1024
 #define SOS_DEFAULT_TABLE_SIZE     128
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_UID_MAX        LONG_MAX
+#define SOS_DEFAULT_GUID_BLOCK     512
 #define SOS_DEFAULT_ELEM_COUNT     64
 
 /* ************************************ */
@@ -79,6 +79,7 @@
     
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
+    MSG_TYPE(SOS_MSG_TYPE_GUID_BLOCK)           \
     MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \
     MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
     MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
@@ -299,6 +300,7 @@ typedef struct {
 } SOS_socket_set;
 
 typedef struct {                              /* no pointers, headers get used raw */
+    int                 msg_size;
     SOS_msg_type        msg_type;
     long                msg_from;
     long                pub_guid;
@@ -319,9 +321,8 @@ typedef struct {
 } SOS_uid;
 
 typedef struct {
-    SOS_uid            *pub;
-    SOS_uid            *sub;
-    SOS_uid            *seq;
+    SOS_uid            *local_serial;
+    SOS_uid            *my_guid_pool;
 } SOS_unique_set;
 
 typedef struct {

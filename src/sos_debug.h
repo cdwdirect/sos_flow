@@ -20,11 +20,11 @@
 
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
 
-#define SOS_DEBUG           99
+#define SOS_DEBUG           88
 
 /* Should the daemon do any logging?  (yes/no)  */
 
-#define SOSD_DAEMON_LOG     99
+#define SOSD_DAEMON_LOG    88
 
 
 int     sos_daemon_lock_fptr;
