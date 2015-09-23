@@ -45,6 +45,9 @@ int main(int argc, char *argv[]) {
     pub = SOS_new_pub("demo");
     pub2 = SOS_new_pub("demo2");
 
+    dlog(0, "[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
+    dlog(0, "[%s]:   ... pub2->guid = %ld\n", whoami, pub2->guid);
+
     dlog(6, "[%s]: Manually configuring some pub metadata...\n", whoami);
     pub->prog_ver         = str_prog_ver;
     pub->meta.channel     = 1;
@@ -82,6 +85,8 @@ int main(int argc, char *argv[]) {
     dlog(0, "[%s]: Re-packing the last value...\n", whoami);
     var_double = 99.9;
     SOS_repack(pub, i, (SOS_val) var_double);
+
+    var_double = 77.7;
 
     i = SOS_pack(pub2, "example_int", SOS_VAL_TYPE_INT,    (SOS_val) var_int         );
     i = SOS_pack(pub2, "example_str", SOS_VAL_TYPE_STRING, (SOS_val) var_string      );

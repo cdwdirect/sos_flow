@@ -1,0 +1,20 @@
+if [ -z $1 ]; then echo "   >>> BATCH MODE!" ; fi;
+if [ -z $1 ]; then echo "   >>> Stopping the sosd daemons..." ; fi;
+sosd_0_pid=$(cat sosd.0.lock)
+sosd_1_pid=$(cat sosd.1.lock)
+sosd_2_pid=$(cat sosd.2.lock)
+sosd_3_pid=$(cat sosd.3.lock)
+kill -15 $sosd_0_pid
+kill -15 $sosd_1_pid
+kill -15 $sosd_2_pid
+kill -15 $sosd_3_pid
+rm -f sosd.0.lock
+rm -f sosd.1.lock
+rm -f sosd.2.lock
+rm -f sosd.3.lock
+if [ -z $1 ]; then echo "   >>> Connecting to servers to clear blocking recv()...   (wait for the thread_join wake up, too)" ; fi;
+nc localhost 22500 < touchd
+nc localhost 22501 < touchd
+nc localhost 22502 < touchd
+nc localhost 22503 < touchd
+if [ -z $1 ]; then echo "   >>>    ... done.  Servers are closed down." ; fi;

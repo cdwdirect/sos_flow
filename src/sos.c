@@ -139,7 +139,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS_uid_init(&SOS.uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* DAEMON doesn't use this, it's for CLIENTS. */
 
         SOS.my_guid = SOS_uid_next( SOS.uid.my_guid_pool );
-        dlog(1, "(%ld)\n", SOS.my_guid);
+        dlog(1, "[%s]:   ... SOS.my_guid == %ld\n", whoami, SOS.my_guid);
 
         close( server_socket_fd );
 
@@ -500,7 +500,12 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     new_pub = malloc(sizeof(SOS_pub));
     memset(new_pub, '\0', sizeof(SOS_pub));
 
-    new_pub->guid         = 0;
+    if (SOS.role == SOS_ROLE_DAEMON) {
+        new_pub->guid = -1;
+    } else {
+        new_pub->guid = SOS_uid_next( SOS.uid.my_guid_pool );
+    }
+
     new_pub->node_id      = SOS.config.node_id;
     new_pub->process_id   = SOS.config.process_id;
     new_pub->thread_id    = 0;
@@ -714,9 +719,10 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         dlog(6, "[%s]: (%s) data copied in successfully.\n", whoami, name);
 
-        pub->data[i]->name = new_name;
-        pub->data[i]->type = pack_type;
-        pub->data[i]->state = SOS_VAL_STATE_DIRTY;
+        pub->data[i]->name   = new_name;
+        pub->data[i]->type   = pack_type;
+        pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
+        pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
         switch (pack_type) {
@@ -769,9 +775,10 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         dlog(6, "[%s]: ALMOST DONE....\n", whoami);
 
-        pub->data[i]->name = new_name;
-        pub->data[i]->type = pack_type;
-        pub->data[i]->state = SOS_VAL_STATE_DIRTY;
+        pub->data[i]->name   = new_name;
+        pub->data[i]->type   = pack_type;
+        pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
+        pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
         switch (pack_type) {
@@ -927,7 +934,7 @@ void SOS_announce( SOS_pub *pub ) {
     char  buffer_alloc;
     int   buffer_len;
     char *reply;
-    char  reply_stack[SOS_DEFAULT_BUFFER_LEN];
+    char  reply_stack[SOS_DEFAULT_ACK_LEN];
     char  reply_alloc;
     int   reply_len;
     int   ptr;
@@ -940,6 +947,7 @@ void SOS_announce( SOS_pub *pub ) {
     int   len_value_name;
 
     dlog(6, "[%s]: Preparing an announcement message...\n",    whoami);
+    dlog(6, "[%s]:   ... pub->guid       = %ld\n", whoami, pub->guid);
     dlog(6, "[%s]:   ... pub->title      = %s\n", whoami, pub->title);
     dlog(6, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
     dlog(6, "[%s]:   ... pub->elem_max   = %d\n", whoami, pub->elem_max);
@@ -947,11 +955,13 @@ void SOS_announce( SOS_pub *pub ) {
 
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
-    buffer = buffer_stack;  buffer_alloc = 0;
+    buffer = buffer_stack;
+    buffer_alloc = 0;
     buffer_len   = 0;
 
-    memset(reply_stack,  '\0', SOS_DEFAULT_BUFFER_LEN);
-    reply  = reply_stack;   reply_alloc  = 0;
+    memset(reply_stack,  '\0', SOS_DEFAULT_ACK_LEN);
+    reply  = reply_stack;
+    reply_alloc  = 0;
     reply_len    = 0;
 
     
@@ -970,45 +980,45 @@ void SOS_announce( SOS_pub *pub ) {
     if (pub->title     != NULL) { len_title      = 1 + strlen(pub->title);     } else { len_title      = 0; }
 
     dlog(6, "[strings] + ");
-    
+
     buffer_len = 0;
     /* Reserve space for the MESSAGE header ... */
     buffer_len += sizeof(SOS_msg_header);
     /* Make space for the PUB HEADER ... */
-    buffer_len += sizeof(int);                     // [ pub->node_id          ].len()
-    buffer_len += len_node_id;                     // [ pub->node_id          ].string()
-    buffer_len += sizeof(int);                     // [ pub->process_id       ]
-    buffer_len += sizeof(int);                     // [ pub->thread_id        ]
-    buffer_len += sizeof(int);                     // [ pub->comm_rank        ]
-    buffer_len += sizeof(int);                     // [ pub->prog_name        ].len()
-    buffer_len += len_prog_name;                   // [ pub->prog_name        ].string()
-    buffer_len += sizeof(int);                     // [ pub->prog_ver         ].len()
-    buffer_len += len_prog_ver;                    // [ pub->prog_ver         ].string()
-    buffer_len += sizeof(int);                     // [ pub->pragma_len       ]
-    buffer_len += pub->pragma_len;                 // [ pub->pragma_msg       ].string()    (can be any byte sequence, really)
-    buffer_len += sizeof(int);                     // [ pub->title            ].len()
-    buffer_len += len_title;                       // [ pub->title            ].string()
-    buffer_len += sizeof(int);                     // [ pub->elem_count       ]
+    buffer_len += sizeof(int);                             // [ pub->node_id          ].len()
+    buffer_len += len_node_id;                             // [ pub->node_id          ].string()
+    buffer_len += sizeof(int);                             // [ pub->process_id       ]
+    buffer_len += sizeof(int);                             // [ pub->thread_id        ]
+    buffer_len += sizeof(int);                             // [ pub->comm_rank        ]
+    buffer_len += sizeof(int);                             // [ pub->prog_name        ].len()
+    buffer_len += len_prog_name;                           // [ pub->prog_name        ].string()
+    buffer_len += sizeof(int);                             // [ pub->prog_ver         ].len()
+    buffer_len += len_prog_ver;                            // [ pub->prog_ver         ].string()
+    buffer_len += sizeof(int);                             // [ pub->pragma_len       ]
+    buffer_len += pub->pragma_len;                         // [ pub->pragma_msg       ].string()    (can be any byte sequence, really)
+    buffer_len += sizeof(int);                             // [ pub->title            ].len()
+    buffer_len += len_title;                               // [ pub->title            ].string()
+    buffer_len += sizeof(int);                             // [ pub->elem_count       ]
 
     dlog(6, "[pub_header] + ");
     
     /* Make space for the METADATA ... */
-    buffer_len += sizeof(int);                       // [ pub->meta.channel     ]
-    buffer_len += sizeof(int);                       // [ pub->meta.layer       ]
-    buffer_len += sizeof(int);                       // [ pub->meta.nature      ]
-    buffer_len += sizeof(int);                       // [ pub->meta.pri_hint    ]
-    buffer_len += sizeof(int);                       // [ pub->meta.scope_hint  ]
-    buffer_len += sizeof(int);                       // [ pub->meta.retain_hint ]
+    buffer_len += sizeof(int);                             // [ pub->meta.channel     ]
+    buffer_len += sizeof(int);                             // [ pub->meta.layer       ]
+    buffer_len += sizeof(int);                             // [ pub->meta.nature      ]
+    buffer_len += sizeof(int);                             // [ pub->meta.pri_hint    ]
+    buffer_len += sizeof(int);                             // [ pub->meta.scope_hint  ]
+    buffer_len += sizeof(int);                             // [ pub->meta.retain_hint ]
 
     dlog(6, "[pub_meta] + ");
 
     /* Make space for the DATA deinitions ... */
     for (i = 0; i < pub->elem_count; i++) {
         len_value_name = 1 + strlen(pub->data[i]->name);
-        buffer_len += sizeof(long);                      // [ pub->data[i]->guid      ]          (to cover re-announces...)
-        buffer_len += sizeof(int);                       // [ pub->data[i]->name      ].len()
-        buffer_len += len_value_name;                    // [ pub->data[i]->name      ].string()
-        buffer_len += sizeof(int);                       // [ pub->data[i]->type      ]
+        buffer_len += sizeof(long);                        // [ pub->data[i]->guid    ]          (to cover re-announces...)
+        buffer_len += sizeof(int);                         // [ pub->data[i]->name    ].len()
+        buffer_len += len_value_name;                      // [ pub->data[i]->name    ].string()
+        buffer_len += sizeof(int);                         // [ pub->data[i]->type    ]
     }
     dlog(6, "[data_defs] = %d bytes\n", buffer_len);
 
@@ -1112,17 +1122,9 @@ void SOS_announce( SOS_pub *pub ) {
     }
 
     dlog(6, "[pub_data(%d)]\n", ptr);
-    
     dlog(6, "[%s]:   ... allocating space for a reply message.\n", whoami);
 
-    /*
-     *  The daemon will reply with a list of GUIDs for all announced values,
-     *  followed by a GUID for the pub itself.
-     */
-
-    reply_len = 0;
-    reply_len += (sizeof(long) + (pub->elem_count * sizeof(long)));
-
+    reply_len = 4;
     if (reply_len > SOS_DEFAULT_BUFFER_LEN) {
         reply = (char *) malloc(reply_len);
         if (reply == NULL) { dlog(0, "[%s]: FAILURE!! Could not allocate memory for the reply.  char *reply == NULL; /* after malloc()! */", whoami); exit(1); }
@@ -1133,15 +1135,6 @@ void SOS_announce( SOS_pub *pub ) {
     dlog(6, "[%s]:   ... sending the message!\n", whoami);
  
     SOS_send_to_daemon(buffer, buffer_len, reply, reply_len);
-
-    ptr = 0;
-    dlog(6, "[%s]:   ... applying the guid values supplied by the daemon:\n", whoami);
-    for (i = 0; i < pub->elem_count; i++) {
-        memcpy(&(pub->data[i]->guid), (reply + ptr), sizeof(long));
-        ptr += sizeof(long);
-        dlog(6, "[%s]:       ... pub->data[%d]->guid = %ld\n", whoami, i, pub->data[i]->guid);
-    }
-    memcpy(&pub->guid, (reply + ptr), sizeof(long));
 
     dlog(6, "[%s]:   ... done.\n", whoami);
     pub->announced = 1;
@@ -1162,7 +1155,7 @@ void SOS_publish( SOS_pub *pub ) {
     char    buffer_alloc;
     int     buffer_len;
     char   *reply;
-    char    reply_stack[SOS_DEFAULT_BUFFER_LEN];
+    char    reply_stack[SOS_DEFAULT_ACK_LEN];
     char    reply_alloc;
     int     reply_len;
     int     ptr;
@@ -1181,7 +1174,7 @@ void SOS_publish( SOS_pub *pub ) {
     reply  = reply_stack;   reply_alloc  = 0;
     reply_len    = 0;
     
-    if (pub->announced == 0 || pub->guid < 1) { SOS_announce( pub ); }
+    if (pub->announced == 0) { SOS_announce( pub ); }
     SOS_TIME( pack_send_ts );
 
     dlog(6, "[%s]: Reserving buffer space for publication: ", whoami); 
@@ -1242,7 +1235,6 @@ void SOS_publish( SOS_pub *pub ) {
     memcpy((buffer + ptr), &(dirty_elem_count     ), sizeof(int));    ptr += sizeof(int);
     for (i = 0; i < pub->elem_count; i++) {
         if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;
-
         val     = pub->data[i]->val;
         val_len = pub->data[i]->val_len;
         pub->data[i]->time.send = pack_send_ts;
