@@ -1,5 +1,5 @@
-#ifndef SOS_SOSD_H
-#define SOS_SOSD_H
+#ifndef SOSD_H
+#define SOSD_H
 
 #include <pthread.h>
 #include <signal.h>
@@ -63,6 +63,14 @@ SOSD_runtime SOSD;
 /* Required if included by C++ code. */
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#ifdef SOSD_CLOUD_SYNC
+    /* All cloud_sync modules must have the following signatures: */
+    extern int SOSD_cloud_init(int *argc, char ***argv);
+    extern int SOSD_cloud_send(char *msg, int msg_len);
+    extern int SOSD_cloud_finalize();
+    /* TODO:{ CLOUD_SYNC } Add signature for queries / callbacks.  This is more advanced, so ... do last. */
 #endif
 
     void  SOSD_init();

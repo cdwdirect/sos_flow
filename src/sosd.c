@@ -18,19 +18,26 @@
 #include <string.h>
 #include <pthread.h>
 #include <time.h>
-
 #include <sys/socket.h>
 #include <netdb.h>
+
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
+#include "sosd_cloud_mpi.h"
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+#include "sosd_cloud_evpath.h"
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_STUBS
+#include "sosd_cloud_stubs.h"
+#endif
 
 #include "sos.h"
 #include "sos_debug.h"
 #include "sos_error.h"
-
 #include "sosd.h"
 #include "sosd_db_sqlite.h"
 #include "qhashtbl.h"
 #include "pack_buffer.h"
-
 
 #define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
 

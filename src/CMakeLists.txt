@@ -4,12 +4,12 @@ include_directories("${MPI_INCLUDE_PATH}")
 link_directories("${sos_flow_SOURCE_DIR}/src")
 
 
-if(SILENCE_DEBUG)
+if(SOS_SILENCE_DEBUG)
   add_definitions("-DSOS_DEBUG=0")
 endif()
 
-if(DAEMON_LOGGING)
-  add_definitions("-DSOS_DAEMON_LOGGING=1")
+if(SOSD_DAEMON_LOGGING)
+  add_definitions("-DSOSD_DAEMON_LOGGING=1")
 endif()
 
 
@@ -31,8 +31,64 @@ endif()
 
 #TARGET ---> sosd
 #            (daemon)
-add_executable("sosd" "sosd.c" "sosd_db_sqlite.c" "qhashtbl.c" "pack_buffer.c")
-target_link_libraries("sosd" "sos" "sqlite3" "rt")
+if(SOSD_CLOUD_SYNC)
+  if(SOSD_CLOUD_SYNC_WITH_MPI)
+    message(STATUS "CLOUD_SYNC:")
+    message(STATUS "CLOUD_SYNC:  Building the daemon using SOSD_CLOUD_SYNC_WITH_MPI enabled...")
+    message(STATUS "CLOUD_SYNC:")
+    add_executable("sosd"
+      "sosd.c"
+      "sosd_cloud_mpi.c"
+      "sosd_db_sqlite.c"
+      "sos_error.c"
+      "qhashtbl.c"
+      "pack_buffer.c"  )
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_MPI")
+    target_link_libraries("sosd" "sos" "sqlite3" "rt" "${MPI_LIBRARIES}")
+    if(MPI_COMPILE_FLAGS)
+      set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+    endif()
+    if(MPI_LINK_FLAGS)
+      set_target_properties("sosd" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+    endif()
+  elseif(SOSD_CLOUD_SYNC_WITH_EVPATH)
+    message(AUTHOR_WARNING "CLOUD_SYNC:")
+    message(AUTHOR_WARNING "CLOUD_SYNC:  SOSD_CLOUD_SYNC_WITH_EVPATH was requested... this is NOT SUPPORTED at present!")
+    message(AUTHOR_WARNING "CLOUD_SYNC:     ... data will not migrate off-node.")  
+    message(AUTHOR_WARNING "CLOUD_SYNC:")
+    add_executable("sosd"
+      "sosd.c"
+      "sosd_cloud_evpath.c"
+      "sosd_db_sqlite.c"
+      "sos_error.c"
+      "qhashtbl.c"
+      "pack_buffer.c"  )
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_EVPATH")
+    target_link_libraries("sosd" "sos" "sqlite3" "rt")
+  else()
+    message(FATAL_ERROR "You have specified that cloud_sync is activated, but not specified a supported method.")  
+  endif()
+else()
+  message(STATUS "CLOUD_SYNC:")
+  message(STATUS "CLOUD_SYNC:  Building the daemon with NO SUPPORT for cloud_sync operations.")
+  message(STATUS "CLOUD_SYNC:  Nothing will be sent off-node.  Functions are stubbed out, but not called.")
+  message(STATUS "CLOUD_SYNC:")
+  add_executable("sosd"
+    "sosd.c"
+    "sosd_cloud_stubs.c"
+    "sosd_db_sqlite.c"
+    "sos_error.c"
+    "qhashtbl.c"
+    "pack_buffer.c")
+  set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
+  set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_STUBS")
+  target_link_libraries("sosd" "sos" "sqlite3" "rt")
+endif()
+
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sosd" PROPERTY COMPILE_OPTIONS "-pthread")
   target_compile_options(TARGET "sosd" PROPERTY COMPILE_OPTIONS "-pthread")
