@@ -68,9 +68,6 @@ int main(int argc, char *argv[]) {
     pub2->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     pub2->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
-
-
-
     dlog(0, "[%s]: Packing a couple values...\n", whoami);
     i = SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    (SOS_val) var_int         );
     i = SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, (SOS_val) var_string      );

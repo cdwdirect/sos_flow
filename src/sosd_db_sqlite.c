@@ -51,7 +51,12 @@ void SOSD_db_init_database() {
     dlog(1, "[%s]: Opening database...\n", whoami);
     
     flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-    snprintf(SOSD.db_file, SOS_DEFAULT_STRING_LEN, "%s/sosd.db", SOSD.work_dir);
+
+    #ifdef SOSD_CLOUD_SYNC
+    snprintf(SOSD.db_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.work_dir, SOSD.daemon_name, SOS.config.comm_rank);
+    #else
+    snprintf(SOSD.db_file, SOS_DEFAULT_STRING_LEN, "%s/%s.db", SOSD.work_dir, SOSD.daemon_name);
+    #endif
 
     /*
      *   In unix-none mode, the database is accessible from multiple processes

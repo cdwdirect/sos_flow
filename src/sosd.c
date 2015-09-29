@@ -5,6 +5,8 @@
  *
  */
 
+
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -14,7 +16,6 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
-#include <syslog.h>
 #include <string.h>
 #include <pthread.h>
 #include <time.h>
@@ -41,33 +42,23 @@
 
 #define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
 
-#define SOSD_DAEMON_NAME    "sosd"
-#define SOSD_DEFAULT_DIR    "/tmp"
-#define SOSD_LOCK_FILE      "sosd.lock"
-#define SOSD_LOG_FILE       "sosd.log"
-#define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
-#define SOSD_PUB_ANN_DIRTY           66
-#define SOSD_PUB_ANN_LOCAL           77
-#define SOSD_PUB_ANN_CLOUD           88
-
-#define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
-
-
 int main(int argc, char *argv[])  {
     int elem, next_elem;
     int retval;
 
-    SOSD.work_dir = (char *) &SOSD_DEFAULT_DIR;
-    SOSD.db_file  = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+    SOSD.work_dir    = (char *) &SOSD_DEFAULT_DIR;
+    SOSD.daemon_name = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+    SOSD.lock_file   = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+    SOSD.log_file    = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+    SOSD.db_file     = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+
+    memset(SOSD.daemon_name, '\0', SOS_DEFAULT_STRING_LEN);
+    memset(SOSD.lock_file, '\0', SOS_DEFAULT_STRING_LEN);
+    memset(SOSD.log_file, '\0', SOS_DEFAULT_STRING_LEN);
+    memset(SOSD.db_file, '\0', SOS_DEFAULT_STRING_LEN);
     SOSD.db_ready = 0;
 
     SOS.role = SOS_ROLE_DAEMON;
-
-    /*
-     *  TODO:{ CHAD, INIT } Consider adding a --interactive mode that doesn't
-     *  run as a daemon, displays statistics in real-time, and allows commands.
-     */
-
 
     /* Process command-line arguments */
     if ( argc < 7 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -91,18 +82,15 @@ int main(int argc, char *argv[])  {
 
     memset(&SOSD.daemon_pid_str, '\0', 256);
 
-    /* System logging initialize */
-    setlogmask(LOG_UPTO(LOG_ERR));
-    openlog(SOSD_DAEMON_NAME, LOG_CONS | LOG_NDELAY | LOG_PERROR | LOG_PID, LOG_DAEMON);
-    syslog(LOG_INFO, "Starting daemon: %s", SOSD_DAEMON_NAME);
-    if (SOSD_DAEMON_LOG) { sos_daemon_log_fptr = fopen(SOSD_LOG_FILE, "w"); }
+    #ifdef SOSD_CLOUD_SYNC
+    SOSD_cloud_init( &argc, &argv );
+    #endif
 
-    if (SOS_DEBUG > 0) printf("[%s]: Calling daemon_init()...\n", SOSD_DAEMON_NAME); fflush(stdout);
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[daemon.%d.main]: Calling SOSD_init()...\n", SOS.config.comm_rank); fflush(stdout); }
     SOSD_init();
-    if (SOS_DEBUG > 0) printf("[%s]: Calling SOS_init...\n", SOSD_DAEMON_NAME);  fflush(stdout);
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[daemon.%d.main]: Calling SOS_init...\n", SOS.config.comm_rank);  fflush(stdout); }
     SOS_init( &argc, &argv, SOS.role );
     SOS_SET_WHOAMI(whoami, "main");
-
     dlog(0, "[%s]: Calling register_signal_handler()...\n", whoami);
     if (SOS_DEBUG) SOS_register_signal_handler();
     dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
@@ -133,19 +121,26 @@ int main(int argc, char *argv[])  {
     SOSD_db_close_database();
     dlog(0, "[%s]: Shutting down SOS services.\n", whoami);
     SOS_uid_destroy( SOSD.guid );
+    #ifdef SOSD_CLOUD_SYNC
+    SOSD_cloud_finalize();
+    #endif
     SOS_finalize();
     dlog(0, "[%s]: Closing the socket.\n", whoami);
     shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     dlog(0, "[%s]: Exiting daemon's main() gracefully.\n", whoami);
-    closelog();
+
     if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
+
     close(sos_daemon_lock_fptr);
-    remove(SOSD_LOCK_FILE);
+    remove(SOSD.lock_file);
+
+    free(SOSD.daemon_name);
+    free(SOSD.lock_file);
+    free(SOSD.log_file);
+    free(SOSD.db_file);
     
     return(EXIT_SUCCESS);
 } //end: main()
-
-
 
 
 void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_role target_var) {
@@ -293,12 +288,12 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
 
     pthread_mutex_lock(my->extract_lock);
     while (SOSD.daemon_running) {
-        gettimeofday(&tp, NULL); ts.tv_sec  = 2 + tp.tv_sec; ts.tv_nsec = 1000 * tp.tv_usec;
+        gettimeofday(&tp, NULL); ts.tv_sec  = 0 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
         wake_type = pthread_cond_timedwait(my->extract_cond, my->extract_lock, &ts);
-        dlog(6, "[%s]: Checking ring...  (%d entries)\n", whoami, my->ring->elem_count);
         if (wake_type == ETIMEDOUT) {
             /* ...any special actions that need to happen if timed-out vs. called-explicitly */
             if (my->ring->elem_count == 0) continue;
+            dlog(6, "[%s]: Checking ring...  (%d entries)\n", whoami, my->ring->elem_count);
         }
         pthread_mutex_lock(my->commit_lock);  /* This will block until the current commit-list is cleared. */
         my->commit_count = 0;
@@ -322,6 +317,10 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     int       list_index;
     char      guid_str[SOS_DEFAULT_STRING_LEN];
     SOS_pub  *pub;
+
+    char     *buffer;
+    char      buffer_static[SOS_DEFAULT_BUFFER_LEN];
+    int       buffer_len;
 
     pthread_mutex_lock(my->commit_lock);
     while (SOSD.daemon_running) {
@@ -350,13 +349,34 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             case SOS_ROLE_DB:
                 if (pub->announced != SOSD_PUB_ANN_CLOUD) {
                     dlog(1, "[%s]: DAEMON ---ANNOUNCE---> 'SOS CLOUD'      (to-do...)\n", whoami);
+                    /* Announce to the database... */
+                    buffer = buffer_static;
+                    buffer_len = SOS_DEFAULT_BUFFER_LEN;
+                    memset(buffer, '\0', buffer_len);
+                    SOS_announce_to_string( pub, &buffer, &buffer_len );
+                    SOSD_cloud_send( buffer, buffer_len );
                     pub->announced = SOSD_PUB_ANN_CLOUD;
+                    if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
+                        /* The serialization function had to dynamically allocate storage. */
+                        free(buffer);
+                        buffer = buffer_static;
+                    }
                 }
                 dlog(1, "[%s]: DAEMON ----PUBLISH---> 'SOS CLOUD'      (to-do...)\n", whoami);
+                buffer     = buffer_static;
+                buffer_len = SOS_DEFAULT_BUFFER_LEN;
+                memset(buffer, '\0', buffer_len);
+                SOS_publish_to_string( pub, &buffer, &buffer_len );
+                SOSD_cloud_send( buffer, buffer_len );
+                if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
+                    /* The serialization function had to dynamically allocates storage. */
+                    free(buffer);
+                    buffer = buffer_static;
+                }
                 break;
 
             default:
-                dlog(0, "[%s]: WARNING!  Attempting to a storage injection into an unsupported target!  (%d)\n", whoami, my->commit_target);
+                dlog(0, "[%s]: WARNING!  Attempting a storage injection into an unsupported target!  (%d)\n", whoami, my->commit_target);
             }
         }
         free(my->commit_list);
@@ -721,63 +741,113 @@ void SOSD_init_database() {
 
 
 void SOSD_init() {
-    SOS_SET_WHOAMI(whoami, "daemon_init");
+    SOS_SET_WHOAMI(whoami, "SOSD_init");
     pid_t pid, ppid, sid;
     int rc;
 
-    /* [fork]
-     *     split off from the parent process (& terminate parent)
+    /* [daemon name]
+     *     assign a name appropriate for whether it is participating in a cloud or not
      */
-    ppid = getpid();
-    pid  = fork();
+    snprintf(SOSD.daemon_name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME);
 
-    if (pid < 0) {
-        fprintf(stderr, "[%s]: Unable to start daemon (%s): Could not fork() off parent process.\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME);
-        exit(EXIT_FAILURE);
-    }
-    if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
 
-    sprintf(SOSD.daemon_pid_str, "%d", getpid());
-    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Starting daemon (%s) with PID = %s\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME, SOSD.daemon_pid_str);
-
-    /* [child session]
-     *     create/occupy independent session from parent process
-     */
-    umask(0);
-    sid = setsid();
-    if (sid < 0) {
-        fprintf(stderr, "[%s]: Unable to start daemon (%s): Could not acquire a session id.\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME); 
-        exit(EXIT_FAILURE);
-    }
-    if ((chdir(SOSD.work_dir)) < 0) {
-        fprintf(stderr, "[%s]: Unable to start daemon (%s): Could not change to working directory: %s\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME, SOSD.work_dir);
-        exit(EXIT_FAILURE);
-    }
-
-    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Child session(%d) successfully split off from parent(%d).\n", SOSD_DAEMON_NAME, pid, ppid);
     /* [lock file]
      *     create and hold lock file to prevent multiple daemon spawn
      */
-    sos_daemon_lock_fptr = open(SOSD_LOCK_FILE, O_RDWR | O_CREAT, 0640);
+    #ifdef SOSD_CLOUD_SYNC
+    snprintf(SOSD.lock_file, SOS_DEFAULT_STRING_LEN, "%s.%d.lock", SOSD.daemon_name, SOS.config.comm_rank);
+    #else
+    snprintf(SOSD.lock_file, SOS_DEFAULT_STRING_LEN, "%s.lock", SOSD.daemon_name);
+    #endif
+    sos_daemon_lock_fptr = open(SOSD.lock_file, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) { 
-        fprintf(stderr, "\n[%s]: Unable to start daemon (%s): Could not access lock file %s in directory %s\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME, SOSD_LOCK_FILE, SOSD.work_dir);
+        fprintf(stderr, "\n[%s]: ERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n", whoami, SOSD.daemon_name, SOSD.lock_file, SOSD.work_dir);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
     if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
-        fprintf(stderr, "\n[%s]: Unable to start daemon (%s): AN INSTANCE IS ALREADY RUNNING!\n", SOSD_DAEMON_NAME, SOSD_DAEMON_NAME);
+        fprintf(stderr, "\n[%s]: ERROR!  Unable to start daemon (%s): AN INSTANCE IS ALREADY RUNNING!\n", whoami, SOSD.daemon_name);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
+
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Lock file obtained.  (%s)\n", whoami, SOSD.lock_file); fflush(stdout); }
+
+
+    /* [log file]
+     *      system logging initialize
+     */
+    #ifdef SOSD_CLOUD_SYNC
+    snprintf(SOSD.log_file, SOS_DEFAULT_STRING_LEN, "%s.%d.log", SOSD.daemon_name, SOS.config.comm_rank);
+    #else
+    snprintf(SOSD.log_file, SOS_DEFAULT_STRING_LEN, "%s.log", SOSD.daemon_name);
+    #endif
+    if (SOSD_DAEMON_LOG > 0) {
+        if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Opening log file: %s\n", whoami, SOSD.log_file); fflush(stdout); }
+        sos_daemon_log_fptr = fopen(SOSD.log_file, "w");
+        if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... done.\n", SOSD.daemon_name); fflush(stdout); }
+    }
+
+
+    if (!SOSD_ECHO_TO_STDOUT) {
+        dlog(1, "[%s]: Logging output up to this point has been suppressed, but all initialization has gone well.\n", whoami);
+        dlog(1, "[%s]: Log file is now open.  Proceeding...\n", whoami);
+        dlog(1, "[%s]: SOSD_init():\n", whoami);
+    }
+
+    /* [mode]
+     *      interactive or detached/daemon
+     */
+    #if (SOSD_DAEMON_MODE > 0)
+    {
+    dlog(1, "[%s]:   ...mode: DETACHED DAEMON (fork/umask/sedsid)\n", whoami);
+        /* [fork]
+         *     split off from the parent process (& terminate parent)
+         */
+        ppid = getpid();
+        pid  = fork();
+        
+        if (pid < 0) {
+            dlog(0, "[%s]: ERROR! Unable to start daemon (%s): Could not fork() off parent process.\n", whoami, SOSD.daemon_name);
+            exit(EXIT_FAILURE);
+        }
+        if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
+        
+        /* [child session]
+         *     create/occupy independent session from parent process
+         */
+        umask(0);
+        sid = setsid();
+        if (sid < 0) {
+            dlog(0, "[%s]: ERROR!  Unable to start daemon (%s): Could not acquire a session id.\n", whoami, SOSD_DAEMON_NAME); 
+            exit(EXIT_FAILURE);
+        }
+        if ((chdir(SOSD.work_dir)) < 0) {
+            dlog(0, "[%s]: ERROR!  Unable to start daemon (%s): Could not change to working directory: %s\n", whoami, SOSD_DAEMON_NAME, SOSD.work_dir);
+            exit(EXIT_FAILURE);
+        }
+        
+        dlog(1, "[%s]:   ... session(%d) successfully split off from parent(%d).\n", whoami, getpid(), ppid);
+    }
+    #else
+    {
+        dlog(1, "[%s]:   ... mode: ATTACHED INTERACTIVE\n", whoami);
+    }
+    #endif
+
+    sprintf(SOSD.daemon_pid_str, "%d", getpid());
+    dlog(1, "[%s]:   ... pid: %s\n", whoami, SOSD.daemon_pid_str);
+
+    /* Now we can write our PID out to the lock file safely... */
     rc = write(sos_daemon_lock_fptr, SOSD.daemon_pid_str, strlen(SOSD.daemon_pid_str));
 
-    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Lock file obtained.  (%s)\n", SOSD_DAEMON_NAME, SOSD_LOCK_FILE);
 
     /* [file handles]
      *     close unused IO handles
      */
 
     if (SOS_DEBUG == 0) {
-        fprintf(stderr, "[%s]: Closing traditional I/O for the daemon...\n", SOSD_DAEMON_NAME);
-        fflush(stderr);
+        dlog(1, "[%s]: Closing traditional I/O for the daemon...\n", whoami);
         close(STDIN_FILENO);
         close(STDOUT_FILENO);
         close(STDERR_FILENO);
@@ -786,18 +856,23 @@ void SOSD_init() {
     /* [guid's]
      *     configure the issuer of guids for this daemon
      */
-    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Getting obtaining this instance's guid range...\n", SOSD_DAEMON_NAME);
-    SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
-    /* TODO: { GUID INIT } Get the numbers from (likely an MPI?) call... */
-    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]:   ... (%ld ---> %ld)\n", SOSD_DAEMON_NAME, SOSD.guid->next, SOSD.guid->last);
+    dlog(1, "[%s]: Obtaining this instance's guid range...\n", whoami);
+    #ifdef SOSD_CLOUD_SYNC
+        long guid_block_size = (long) ((long double) SOS_DEFAULT_UID_MAX / (long double) SOS.config.comm_size);
+        long guid_my_first   = (long) SOS.config.comm_rank * guid_block_size;
+        SOS_uid_init(&SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
+    #else
+        SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
+    #endif
+    dlog(1, "[%s]:   ... (%ld ---> %ld)\n", whoami, SOSD.guid->next, SOSD.guid->last);
 
     /* [hashtable]
      *    storage system for received pubs.  (will enque their key -> db)
      */
-    if (SOS_DEBUG > 0) fprintf(stderr, "[%s]: Setting up a hash table for pubs...\n", SOSD_DAEMON_NAME);
+    dlog(1, "[%s]: Setting up a hash table for pubs...\n", whoami);
     SOSD.pub_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
 
-    if (SOS_DEBUG > 0) printf("Daemon initialization is complete.\n"); fflush(stdout);
+    dlog(1, "[%s]: Daemon initialization is complete.\n", whoami);
     SOSD.daemon_running = 1;
     return;
 }
@@ -829,8 +904,6 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to
 
     return;
 }
-
-
 
 void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_announce");

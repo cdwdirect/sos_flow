@@ -1,0 +1,27 @@
+#!/bin/bash
+if [ -z $1 ]; then echo "   >>> BATCH MODE!"; fi;
+if [ -z $1 ]; then echo "   >>> Starting the sosd daemons..."; fi;
+if [ -z $1 ]; then echo "   >>> Clearing the log files."; fi;
+rm -f ./sosd.0.log
+rm -f ./sosd.1.log
+rm -f ./sosd.2.log
+rm -f ./sosd.3.log
+if [ -z $1 ]; then echo "   >>> Clearing the databases."; fi;
+rm -f ./sosd.0.db
+rm -f ./sosd.1.db
+rm -f ./sosd.2.db
+rm -f ./sosd.3.db
+rm -rf ./sosd.0.db.lock
+rm -rf ./sosd.1.db.lock
+rm -rf ./sosd.2.db.lock
+rm -rf ./sosd.3.db.lock
+if [ -z $1 ]; then echo "   >>> Launching the sosd daemons..."; fi;
+daemon0="-np 1 ../bin/sosd --port 22500 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
+daemon1="-np 1 ../bin/sosd --port 22501 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
+daemon2="-np 1 ../bin/sosd --port 22502 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
+daemon3="-np 1 ../bin/sosd --port 22503 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
+echo ${daemon0}
+echo ${daemon1}
+echo ${daemon2}
+echo ${daemon3}
+mpirun ${daemon0} : ${daemon1} : ${daemon2} : ${daemon3}

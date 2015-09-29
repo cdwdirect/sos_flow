@@ -42,7 +42,7 @@
         memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
         switch (SOS.role) {                                             \
         case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
-        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func ); break; \
         case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%ld).%s",      SOS.my_guid, __SOS_str_func ); break; \
         case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%ld).%s", SOS.my_guid, __SOS_str_func ); break; \
         default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
@@ -310,6 +310,9 @@ typedef struct {
     int                 argc;
     char              **argv;
     char               *node_id;
+    int                 comm_rank;
+    int                 comm_size;
+    int                 comm_support;
     int                 process_id;
     int                 thread_id;
 } SOS_config;
@@ -383,6 +386,8 @@ extern "C" {
     void      SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
     void      SOS_announce( SOS_pub *pub );
     void      SOS_publish( SOS_pub *pub );
+    void      SOS_announce_to_string( SOS_pub *pub, char **buffer, int *buffer_len );
+    void      SOS_publish_to_string( SOS_pub *pub, char **buffer, int *buffer_len );
     void      SOS_finalize();
     /* ----- [ utilities ] ----- */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);

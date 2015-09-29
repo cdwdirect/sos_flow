@@ -3,6 +3,9 @@
 
 #include <stdio.h>
 
+#include "sos.h"
+#include "sosd.h"
+
 /*
  * sos_debug.h
  *
@@ -20,17 +23,16 @@
 
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
 
-#define SOS_DEBUG           88
+#define SOS_DEBUG                 0
+#define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Should the daemon do any logging?  (yes/no)  */
 
-#define SOSD_DAEMON_LOG    88
-
+#define SOSD_DAEMON_LOG           99
+#define SOSD_ECHO_TO_STDOUT       0
 
 int     sos_daemon_lock_fptr;
-FILE*   sos_daemon_log_fptr;
-
-
+FILE   *sos_daemon_log_fptr;
 
 
 /* Defined in sosd.c ... */
@@ -47,11 +49,25 @@ FILE*   sos_daemon_log_fptr;
     #define dlog(level, ...);                                           \
     if (SOS.role == SOS_ROLE_DAEMON) {                                  \
         if (SOSD_DAEMON_LOG >= level) {                                 \
+            if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
+                fprintf(sos_daemon_log_fptr, "(%s:%d).",                \
+                        __FILE__, __LINE__ );                           \
+            }                                                           \
             fprintf(sos_daemon_log_fptr, __VA_ARGS__);                  \
             fflush(sos_daemon_log_fptr);                                \
+            if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {       \
+                if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
+                    printf("(%s:%d).", __FILE__, __LINE__ );            \
+                }                                                       \
+                printf(__VA_ARGS__);                                    \
+                fflush(stdout);                                         \
+            }                                                           \
         }                                                               \
     } else {                                                            \
         if (SOS_DEBUG >= level && SOS.role != SOS_ROLE_DAEMON) {        \
+            if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
+                printf("(%s:%d).", __FILE__, __LINE__ );                \
+            }                                                           \
             printf(__VA_ARGS__);                                        \
             if (stdout) fflush(stdout);                                 \
         }                                                               \

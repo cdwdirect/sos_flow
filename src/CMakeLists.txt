@@ -12,6 +12,18 @@ if(SOSD_DAEMON_LOGGING)
   add_definitions("-DSOSD_DAEMON_LOGGING=1")
 endif()
 
+if(SOSD_DAEMON_DETACH)
+  message(STATUS ">>> DAEMON_DETACH:")
+  message(STATUS ">>> DAEMON_DETACH:  Daemon is set to DETACH and run in the background...")
+  message(STATUS ">>> DAEMON_DETACH:")
+  add_definitions("-DSOSD_DAEMON_MODE=1")
+else()
+  message(STATUS ">>> DAEMON_DETACH:")
+  message(STATUS ">>> DAEMON_DETACH:  Daemon is set to run INTERACTIVELY...")
+  message(STATUS ">>> DAEMON_DETACH:")
+  add_definitions("-DSOSD_DAEMON_MODE=0")
+endif()
+
 
 #TARGET ---> sos
 #            (library)
@@ -32,10 +44,11 @@ endif()
 #TARGET ---> sosd
 #            (daemon)
 if(SOSD_CLOUD_SYNC)
+  add_definitions("-DSOSD_CLOUD_SYNC")
   if(SOSD_CLOUD_SYNC_WITH_MPI)
-    message(STATUS "CLOUD_SYNC:")
-    message(STATUS "CLOUD_SYNC:  Building the daemon using SOSD_CLOUD_SYNC_WITH_MPI enabled...")
-    message(STATUS "CLOUD_SYNC:")
+    message(STATUS ">>> CLOUD_SYNC:")
+    message(STATUS ">>> CLOUD_SYNC:  Building the daemon using SOSD_CLOUD_SYNC_WITH_MPI enabled...")
+    message(STATUS ">>> CLOUD_SYNC:")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_mpi.c"
@@ -54,10 +67,10 @@ if(SOSD_CLOUD_SYNC)
       set_target_properties("sosd" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
     endif()
   elseif(SOSD_CLOUD_SYNC_WITH_EVPATH)
-    message(AUTHOR_WARNING "CLOUD_SYNC:")
-    message(AUTHOR_WARNING "CLOUD_SYNC:  SOSD_CLOUD_SYNC_WITH_EVPATH was requested... this is NOT SUPPORTED at present!")
-    message(AUTHOR_WARNING "CLOUD_SYNC:     ... data will not migrate off-node.")  
-    message(AUTHOR_WARNING "CLOUD_SYNC:")
+    message(AUTHOR_WARNING ">>> CLOUD_SYNC:")
+    message(AUTHOR_WARNING ">>> CLOUD_SYNC:  SOSD_CLOUD_SYNC_WITH_EVPATH was requested... this is NOT SUPPORTED at present!")
+    message(AUTHOR_WARNING ">>> CLOUD_SYNC:     ... data will not migrate off-node.")  
+    message(AUTHOR_WARNING ">>> CLOUD_SYNC:")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_evpath.c"
@@ -73,10 +86,10 @@ if(SOSD_CLOUD_SYNC)
     message(FATAL_ERROR "You have specified that cloud_sync is activated, but not specified a supported method.")  
   endif()
 else()
-  message(STATUS "CLOUD_SYNC:")
-  message(STATUS "CLOUD_SYNC:  Building the daemon with NO SUPPORT for cloud_sync operations.")
-  message(STATUS "CLOUD_SYNC:  Nothing will be sent off-node.  Functions are stubbed out, but not called.")
-  message(STATUS "CLOUD_SYNC:")
+  message(STATUS ">>> CLOUD_SYNC:")
+  message(STATUS ">>> CLOUD_SYNC:  Building the daemon with NO SUPPORT for cloud_sync operations.")
+  message(STATUS ">>> CLOUD_SYNC:  Nothing will be sent off-node.  Functions are stubbed out, but not called.")
+  message(STATUS ">>> CLOUD_SYNC:")
   add_executable("sosd"
     "sosd.c"
     "sosd_cloud_stubs.c"

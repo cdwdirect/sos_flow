@@ -925,6 +925,18 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
 /* **************************************** */
 
 
+
+void SOS_announce_to_string( SOS_pub *pub, char **buffer, int *buffer_len ) {
+    return;
+}
+
+
+void SOS_publish_to_string( SOS_pub *pub, char **buffer, int *buffer_len ) {
+    return;
+}
+
+
+
 void SOS_announce( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOS_announce");
 

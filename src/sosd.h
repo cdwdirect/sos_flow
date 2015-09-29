@@ -7,6 +7,27 @@
 
 #include "qhashtbl.h"
 
+
+/*********************/
+/* [mode]
+ *    1 = Fork into a new ID/SESSION...
+ *    0 = Run interactively, as launched. (Good for certain MPI+MPMD setups)
+ *
+#define SOSD_DAEMON_MODE             0
+ *********************/
+
+#define SOSD_DAEMON_NAME             "sosd"
+#define SOSD_DEFAULT_DIR             "/tmp"
+#define SOSD_DEFAULT_LOCK_FILE       "sosd.lock"
+#define SOSD_DEFAULT_LOG_FILE        "sosd.log"
+#define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
+#define SOSD_PUB_ANN_DIRTY           66
+#define SOSD_PUB_ANN_LOCAL           77
+#define SOSD_PUB_ANN_CLOUD           88
+
+#define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
+
+
 typedef struct {
     char               *name;
     SOS_ring_queue     *ring;
@@ -40,8 +61,11 @@ typedef struct {
 
 typedef struct {
     char               *work_dir;
+    char               *lock_file;
+    char               *log_file;
     char               *db_file;
     int                 db_ready;
+    char               *daemon_name;
     int                 daemon_running;
     char                daemon_pid_str[256];
     double              time_now;
@@ -51,7 +75,6 @@ typedef struct {
     SOSD_pub_ring_mon  *cloud_sync;
     SOSD_net            net;
 } SOSD_runtime;
-
 
 /* ----------
  *
