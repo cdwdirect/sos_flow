@@ -22,8 +22,74 @@
 #define SOSD_DB_PUB_TABLE_NAME  "tblPubs"
 #define SOSD_DB_DATA_TABLE_NAME "tblData"
 
+sqlite3      *database;
+sqlite3_stmt *stmt_insert_pub;
+sqlite3_stmt *stmt_insert_data;
 
-sqlite3 *database;
+char *sql_create_table_pub = ""                                         \
+    "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUB_TABLE_NAME " ( "          \
+    " row_id "          " INTEGER PRIMARY KEY, "                        \
+    " guid "            " INTEGER, "                                    \
+    " title "           " STRING, "                                     \
+    " process_id "      " INTEGER, "                                    \
+    " thread_id "       " INTEGER, "                                    \
+    " comm_rank "       " INTEGER, "                                    \
+    " node_id "         " STRING, "                                     \
+    " prog_name "       " STRING, "                                     \
+    " prog_ver "        " STRING, "                                     \
+    " meta_channel "    " INTEGER, "                                    \
+    " meta_nature "     " STRING, "                                     \
+    " meta_layer "      " STRING, "                                     \
+    " meta_pri_hint "   " STRING, "                                     \
+    " meta_scope_hint " " STRING, "                                     \
+    " meta_retain_hint "" STRING, "                                     \
+    " pragma "          " STRING); ";
+
+char *sql_create_table_data = ""                                        \
+    "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "         \
+    " row_id "          " INTEGER PRIMARY KEY, "                        \
+    " pub_guid "        " INTEGER, "                                    \
+    " guid "            " INTEGER, "                                    \
+    " val "             " STRING, "                                     \
+    " val_type "        " STRING, "                                     \
+    " sem_hint "        " STRING, "                                     \
+    " time_pack "       " DOUBLE, "                                     \
+    " time_send "       " DOUBLE, "                                     \
+    " time_recv "       " DOUBLE); ";
+
+char *sql_insert_pub = ""                                               \
+    "INSERT INTO " SOSD_DB_PUB_TABLE_NAME " ("                          \
+    " guid,"                                                            \
+    " title,"                                                           \
+    " process_id,"                                                      \
+    " thread_id,"                                                       \
+    " comm_rank,"                                                       \
+    " node_id,"                                                         \
+    " prog_name,"                                                       \
+    " prog_ver,"                                                        \
+    " meta_channel,"                                                    \
+    " meta_nature,"                                                     \
+    " meta_layer,"                                                      \
+    " meta_pri_hint,"                                                   \
+    " meta_scope_hint,"                                                 \
+    " meta_retain_hint,"                                                \
+    " pragma "                                                          \
+    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+
+const char *sql_insert_data = ""                                        \
+    "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " ("                         \
+    " pub_guid,"                                                        \
+    " guid,"                                                            \
+    " sem_hint,"                                                        \
+    " time_pack,"                                                       \
+    " time_send,"                                                       \
+    " time_recv,"                                                       \
+    " val_type,"                                                        \
+    " val "                                                             \
+    ") VALUES (?,?,?,?,?,?,?,?);";
+
+char *sql_cmd_begin_transaction    = "BEGIN DEFERRED TRANSACTION;";
+char *sql_cmd_commit_transaction   = "COMMIT TRANSACTION;";
 
 
 
@@ -42,20 +108,29 @@ static int callback(void *NotUsed, int argc, char **argv, char **azColName){
 }
 
 
-
 void SOSD_db_init_database() {
     SOS_SET_WHOAMI(whoami, "SOSD_db_init_database");
     int     retval;
     int     flags;
 
     dlog(1, "[%s]: Opening database...\n", whoami);
-    
+
+    SOSD.db.ready = 0;
+    SOSD.db.file  = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+    memset(SOSD.db.file, '\0', SOS_DEFAULT_STRING_LEN);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    SOSD.db.lock  = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init( SOSD.db.lock, NULL );
+    pthread_mutex_lock( SOSD.db.lock );
+    #endif
+
     flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
     #ifdef SOSD_CLOUD_SYNC
-    snprintf(SOSD.db_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.work_dir, SOSD.daemon_name, SOS.config.comm_rank);
+    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS.config.comm_rank);
     #else
-    snprintf(SOSD.db_file, SOS_DEFAULT_STRING_LEN, "%s/%s.db", SOSD.work_dir, SOSD.daemon_name);
+    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
     /*
@@ -68,57 +143,106 @@ void SOSD_db_init_database() {
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db_file, &database, flags, "unix-dotfile");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
     if( retval ){
-        dlog(0, "[%s]: ERROR!  Can't open database: %s   (%s)\n", whoami, SOSD.db_file, sqlite3_errmsg(database));
+        dlog(0, "[%s]: ERROR!  Can't open database: %s   (%s)\n", whoami, SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
         exit(EXIT_FAILURE);
     } else {
         dlog(1, "[%s]: Successfully opened database.\n", whoami);
     }
 
+    SOSD_db_create_tables();
+
+    dlog(2, "[%s]: Preparing transactions...\n", whoami);
+    dlog(2, "[%s]:   ... \"%50s\"...\n", whoami, sql_insert_pub);
+    retval = sqlite3_prepare_v2(database, sql_insert_pub, strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
+    if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+    dlog(2, "[%s]:   ... \"%50s\"...\n", whoami, sql_insert_data);
+    retval = sqlite3_prepare_v2(database, sql_insert_data, strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
+    if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+
+    SOSD.db.ready = 1;
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(SOSD.db.lock);
+    #endif
+
+    dlog(2, "[%s]:   ... done.\n", whoami);
+
     return;
 }
 
 
 void SOSD_db_close_database() {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_close_database");
 
-    SOSD.db_ready = 0;
+    dlog(2, "[%s]: Closing database.   (%s)\n", whoami, SOSD.db.file);
+    #if (SOS_CONFIG_USE_MUTEXES)
+    pthread_mutex_lock( SOSD.db.lock );
+    #endif
+    dlog(2, "[%s]:   ... finalizing statements.\n", whoami);
+    SOSD.db.ready = 0;
+    CALL_SQLITE (finalize(stmt_insert_pub));
+    CALL_SQLITE (finalize(stmt_insert_data));
+    dlog(2, "[%s]:   ... closing database file.\n", whoami);
     sqlite3_close_v2(database);
+    dlog(2, "[%s]:   ... destroying the mutex.\n", whoami);
+    #if (SOS_CONFIG_USE_MUTEXES)
+    pthread_mutex_unlock(SOSD.db.lock);
+    pthread_mutex_destroy(SOSD.db.lock);
+    #endif
+    free(SOSD.db.lock);
+    free(SOSD.db.file);
+    dlog(2, "[%s]:   ... done.\n", whoami);
+
+    return;
+}
+
+
+void SOSD_db_transaction_begin() {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_transaction_begin");
+    int   rc;
+    char *err = NULL;
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(SOSD.db.lock);
+    #endif
+
+    dlog(6, "[%s]:  > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n", whoami);
+    dlog(6, "[%s]: >>>>>>>>>> >> >> >> BEGIN TRANSACTION >> >> >> >>>>>>>>>>\n", whoami);
+    dlog(6, "[%s]:  > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n", whoami);
+    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+    if (rc) { dlog(2, "[%s]: ##### ERROR ##### : (%d)\n", whoami, rc); }
+
+    return;
+}
+
+
+void SOSD_db_transaction_commit() {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_transaction_commit");
+    int   rc;
+    char *err = NULL;
+
+    dlog(6, "[%s]:  < < < < < < < < < < < < < < < < < < < < < < < < < < < <  \n", whoami);
+    dlog(6, "[%s]: <<<<<<<<<< << << << COMMIT TRANSACTION << << << <<<<<<<<<<\n", whoami);
+    dlog(6, "[%s]:  < < < < < < < < < < < < < < < < < < < < < < < < < < < <  \n", whoami);
+    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+    if (rc) { dlog(2, "[%s]: ##### ERROR ##### : (%d)\n", whoami, rc); }
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(SOSD.db.lock);
+    #endif
 
     return;
 }
 
 
 void SOSD_db_insert_pub( SOS_pub *pub ) {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_dirty");
+    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_pub");
     int i;
-    sqlite3_stmt *stmt;
 
-    char *sql_pub = "INSERT INTO " SOSD_DB_PUB_TABLE_NAME " ("   \
-        " guid,"                                                \
-        " title,"                                               \
-        " process_id,"                                          \
-        " thread_id,"                                           \
-        " comm_rank,"                                           \
-        " node_id,"                                             \
-        " prog_name,"                                           \
-        " prog_ver,"                                            \
-        " meta_channel,"                                        \
-        " meta_nature,"                                         \
-        " meta_layer,"                                          \
-        " meta_pri_hint,"                                       \
-        " meta_scope_hint,"                                     \
-        " meta_retain_hint,"                                    \
-        " pragma "                                              \
-        ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
-
-    dlog(5, "[%s]: Inserting pub(%ld)->data[] into database(%s).\n", whoami, pub->guid, SOSD.db_file);
-    dlog(5, "[%s]:   ... preparing sql statement\n", whoami);
-
-    while (!SOSD.db_ready) { ; }
-
-    CALL_SQLITE (prepare(database, sql_pub, strlen(sql_pub) + 1, &stmt, NULL));
+    dlog(5, "[%s]: Inserting pub(%ld)->data into database(%s).\n", whoami, pub->guid, SOSD.db.file);
 
     /*
      *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
@@ -140,42 +264,41 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     const char   *meta_retain_hint  = SOS_ENUM_STR(pub->meta.retain_hint, SOS_RETAIN);
     char         *pragma            = pub->pragma_msg;
     int           pragma_len        = pub->pragma_len;
-    char          pragma_empty      = '\0';
+    char          pragma_empty[2];    memset(pragma_empty, '\0', 2);
 
     dlog(5, "[%s]:   ... binding values into the statement\n", whoami);
     dlog(6, "[%s]:      ... pragma_len = %d\n", whoami, pragma_len);
     dlog(6, "[%s]:      ... pragma     = \"%s\"\n", whoami, pragma);
 
-    CALL_SQLITE (bind_int    (stmt, 1,  guid         ));
-    CALL_SQLITE (bind_text   (stmt, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_int    (stmt, 3,  process_id   ));
-    CALL_SQLITE (bind_int    (stmt, 4,  thread_id    ));
-    CALL_SQLITE (bind_int    (stmt, 5,  comm_rank    ));
-    CALL_SQLITE (bind_text   (stmt, 6,  node_id,          1 + strlen(node_id), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 7,  prog_name,        1 + strlen(prog_name), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 8,  prog_ver,         1 + strlen(prog_ver), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_int    (stmt, 9,  meta_channel ));
-    CALL_SQLITE (bind_text   (stmt, 10, meta_nature,      1 + strlen(meta_nature), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 11, meta_layer,       1 + strlen(meta_layer), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 12, meta_pri_hint,    1 + strlen(meta_layer), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 13, meta_scope_hint,  1 + strlen(meta_scope_hint), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt, 14, meta_retain_hint, 1 + strlen(meta_retain_hint), SQLITE_STATIC  ));
-    if (pragma_len > 0) {
-        /* Only bind the pragma is there actually is something to insert... */
-        CALL_SQLITE (bind_text   (stmt, 15, pragma,           pub->pragma_len, SQLITE_STATIC  ));
+    CALL_SQLITE (bind_int    (stmt_insert_pub, 1,  guid         ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_int    (stmt_insert_pub, 3,  process_id   ));
+    CALL_SQLITE (bind_int    (stmt_insert_pub, 4,  thread_id    ));
+    CALL_SQLITE (bind_int    (stmt_insert_pub, 5,  comm_rank    ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id,          1 + strlen(node_id), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name,        1 + strlen(prog_name), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver,         1 + strlen(prog_ver), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_int    (stmt_insert_pub, 9,  meta_channel ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 10, meta_nature,      1 + strlen(meta_nature), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 11, meta_layer,       1 + strlen(meta_layer), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 12, meta_pri_hint,    1 + strlen(meta_layer), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 13, meta_scope_hint,  1 + strlen(meta_scope_hint), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 14, meta_retain_hint, 1 + strlen(meta_retain_hint), SQLITE_STATIC  ));
+    if (pragma_len > 1) {
+        /* Only bind the pragma if there actually is something to insert... */
+        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, pragma,           pub->pragma_len, SQLITE_STATIC  ));
     } else {
-        CALL_SQLITE (bind_text   (stmt, 15, &pragma_empty,    1, SQLITE_STATIC  ));
+        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, pragma_empty,    2, SQLITE_STATIC  ));
     }
 
     dlog(5, "[%s]:   ... executing the query\n", whoami);
 
-    CALL_SQLITE_EXPECT (step (stmt), DONE);  /* Execute the query. */
+    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  /* Execute the query. */
 
     dlog(5, "[%s]:   ... success!  resetting the statement.\n", whoami);
 
-    CALL_SQLITE (reset (stmt));
-    CALL_SQLITE (clear_bindings (stmt));
-    CALL_SQLITE (finalize(stmt));
+    CALL_SQLITE (reset (stmt_insert_pub));
+    CALL_SQLITE (clear_bindings (stmt_insert_pub));
 
     dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
     return;
@@ -183,30 +306,11 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
 
 
 
-
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOSD_db_insert_data");
     int i;
-    sqlite3_stmt *stmt;
 
-    char *sql_data = "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " (" \
-        " pub_guid,"                                            \
-        " guid,"                                                \
-        " sem_hint,"                                            \
-        " time_pack,"                                           \
-        " time_send,"                                           \
-        " time_recv,"                                           \
-        " val_type,"                                            \
-        " val "                                                 \
-        ") VALUES (?,?,?,?,?,?,?,?);";
-
-    dlog(5, "[%s]: Inserting pub(%ld)->data[] into database(%s).\n", whoami, pub->guid, SOSD.db_file);
-    dlog(6, "[%s]:   ... preparing sql statement: \n", whoami);
-
-    while (!SOSD.db_ready) { ; }
-
-    CALL_SQLITE (prepare(database, sql_data, strlen(sql_data) + 1, &stmt, NULL));
-
+    dlog(5, "[%s]: Inserting pub(%ld)->data into database(%s).\n", whoami, pub->guid, SOSD.db.file);
 
     for (i = 0; i < pub->elem_count; i++) {
         if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;
@@ -235,29 +339,27 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         dlog(6, "[%s]:      ... sem_hint = \"%s\"\n", whoami, sem_hint);
         dlog(6, "[%s]:      ... val_type = \"%s\"\n", whoami, val_type);
         dlog(6, "[%s]:      ... val      = \"%s\"\n", whoami, val     );
-
-        
-        CALL_SQLITE (bind_int    (stmt, 1,  pub_guid     ));
-        CALL_SQLITE (bind_int    (stmt, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt, 3,  sem_hint,         1 + strlen(sem_hint), SQLITE_STATIC  ));
-        CALL_SQLITE (bind_double (stmt, 4,  time_pack    ));
-        CALL_SQLITE (bind_double (stmt, 5,  time_send    ));
-        CALL_SQLITE (bind_double (stmt, 6,  time_recv    ));
-        CALL_SQLITE (bind_text   (stmt, 7,  val_type,         1 + strlen(val_type), SQLITE_STATIC  ));
-        CALL_SQLITE (bind_text   (stmt, 8,  val,              1 + strlen(val), SQLITE_STATIC  ));
+     
+        CALL_SQLITE (bind_int    (stmt_insert_data, 1,  pub_guid     ));
+        CALL_SQLITE (bind_int    (stmt_insert_data, 2,  guid         ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  sem_hint,         1 + strlen(sem_hint), SQLITE_STATIC  ));
+        CALL_SQLITE (bind_double (stmt_insert_data, 4,  time_pack    ));
+        CALL_SQLITE (bind_double (stmt_insert_data, 5,  time_send    ));
+        CALL_SQLITE (bind_double (stmt_insert_data, 6,  time_recv    ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 7,  val_type,         1 + strlen(val_type), SQLITE_STATIC  ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 8,  val,              1 + strlen(val), SQLITE_STATIC  ));
         
         dlog(5, "[%s]:   ... executing insert query   pub->data[%d].(%s)\n", whoami, i, pub->data[i]->name);
 
-        CALL_SQLITE_EXPECT (step (stmt), DONE);
+        CALL_SQLITE_EXPECT (step (stmt_insert_data), DONE);
 
         dlog(6, "[%s]:   ... success!  resetting the statement.\n", whoami);
-        CALL_SQLITE (reset (stmt));
-        CALL_SQLITE (clear_bindings (stmt));
+        CALL_SQLITE (reset(stmt_insert_data));
+        CALL_SQLITE (clear_bindings (stmt_insert_data));
 
         pub->data[i]->state = SOS_VAL_STATE_CLEAN;
     }
 
-    CALL_SQLITE (finalize(stmt));
     
     dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
     
@@ -272,46 +374,15 @@ void SOSD_db_create_tables(void) {
     int rc;
     char *err = NULL;
 
-    const char *pub_table = ""
-        "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUB_TABLE_NAME " ( "
-        " row_id            INTEGER PRIMARY KEY,   "
-        " guid              INTEGER,     "
-        " title             STRING,      "
-        " process_id        INTEGER,     "
-        " thread_id         INTEGER,     "
-        " comm_rank         INTEGER,     "
-        " node_id           STRING,      "
-        " prog_name         STRING,      "
-        " prog_ver          STRING,      "
-        " meta_channel      INTEGER,     "
-        " meta_nature       STRING,      "
-        " meta_layer        STRING,      "
-        " meta_pri_hint     STRING,      "
-        " meta_scope_hint   STRING,      "
-        " meta_retain_hint  STRING,      "
-        " pragma            STRING    ); ";
-
-    const char *data_table = ""
-        "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "
-        " row_id            INTEGER PRIMARY KEY,   "
-        " pub_guid          INTEGER,     "
-        " guid              INTEGER,     "
-        " val               STRING,      "
-        " val_type          STRING,      "
-        " sem_hint          STRING,      "
-        " time_pack         DOUBLE,      "
-        " time_send         DOUBLE,      "
-        " time_recv         DOUBLE    ); ";
-
     dlog(1, "[%s]: Creating tables in the database...\n", whoami);
 
-    rc = sqlite3_exec(database, pub_table, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_create_table_pub, NULL, NULL, &err);
     if( err != NULL ){
         dlog(0, "[%s]: ERROR!  Can't create pub_table in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     }
 
-    rc = sqlite3_exec(database, data_table, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_create_table_data, NULL, NULL, &err);
     if( err != NULL ){
         dlog(0, "[%s]: ERROR!  Can't create pub_table in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);
@@ -320,6 +391,8 @@ void SOSD_db_create_tables(void) {
     dlog(1, "[%s]:   ... Done creating tables!\n", whoami);
     return;
 }
+
+
 
 
 

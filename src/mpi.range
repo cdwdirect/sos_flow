@@ -1,11 +1,9 @@
 #!/bin/bash
-echo "  Usage: ./testmpi <from_size> <to_size> <step_amt> [SILENCE_SCRIPTS]"
+echo "  Usage: ./mpi.range <from_size> <to_size> <step_amt> [SILENCE_SCRIPTS]"
 echo "                        \$1          \$2       \$3              \$4"
 echo ""
 echo "Running from $1 to $2 in increments of $3 ..."
 echo ""
-./stop $4
-./start $4
 if [ -z $4 ]; then echo "   >>> Launching $1 instances of ./mpi_to_sos ..." ; fi;
 mpirun -np 1 ../bin/mpi_to_sos SHOW_HEADER
 for ((s=$1; s<=$2; s+=$3)); do

@@ -2,10 +2,10 @@ cmake_minimum_required (VERSION 2.8)
 
 option(SOS_SILENCE_DEBUG            "Disable DEBUG messages?" OFF)
 option(SOSD_DAEMON_LOGGING          "Should the sosd daemon produce a log file?" ON)
-option(SOSD_DAEMON_DETACH           "Have the daemon fork, detach, and get its own session?" ON)
+option(SOSD_DAEMON_DETACH           "Have the daemon fork, detach, and get its own session?  (Consider disabling for MPI)" OFF)
 
-option(SOSD_CLOUD_SYNC              "Activate cloud_sync operations for the daemon, if possible.  (Pick one and only one method.)" OFF)
-option(SOSD_CLOUD_SYNC_WITH_MPI     "Use MPI communications to discover and synchronize data between daemons?" OFF)
+option(SOSD_CLOUD_SYNC              "Activate cloud_sync operations for the daemon, if possible.  (Pick one and only one method.)" ON)
+option(SOSD_CLOUD_SYNC_WITH_MPI     "Use MPI communications to discover and synchronize data between daemons?" ON)
 option(SOSD_CLOUD_SYNC_WITH_EVPATH  "Use MPI communications to discover and synchronize data between daemons?" OFF)
 
 if(SOSD_CLOUD_SYNC_WITH_MPI AND SOSD_CLOUD_SYNC_WITH_EVPATH)

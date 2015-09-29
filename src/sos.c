@@ -489,7 +489,7 @@ long SOS_uid_next( SOS_uid *id ) {
 }
 
 
-SOS_pub* SOS_new_pub(char *title) { return SOS_new_pub_sized(title, SOS_DEFAULT_ELEM_COUNT); }
+SOS_pub* SOS_new_pub(char *title) { return SOS_new_pub_sized(title, SOS_DEFAULT_ELEM_MAX); }
 SOS_pub* SOS_new_post(char *title){ return SOS_new_pub_sized(title, 1); }
 SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     SOS_SET_WHOAMI(whoami, "SOS_new_pub_sized");
@@ -556,14 +556,14 @@ void SOS_expand_data( SOS_pub *pub ) {
     int n;
     SOS_data **expanded_data;
 
-    expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_COUNT) * sizeof(SOS_data *));
+    expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
     memcpy(expanded_data, pub->data, (pub->elem_max * sizeof(SOS_data *)));
-    for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_COUNT); n++) {
+    for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_MAX); n++) {
         expanded_data[n] = malloc(sizeof(SOS_data));
         memset(expanded_data[n], '\0', sizeof(SOS_data)); }
     free(pub->data);
     pub->data = expanded_data;
-    pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_COUNT);
+    pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
 
     return;
 }

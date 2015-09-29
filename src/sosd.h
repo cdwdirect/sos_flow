@@ -63,24 +63,32 @@ typedef struct {
     char               *work_dir;
     char               *lock_file;
     char               *log_file;
-    char               *db_file;
-    int                 db_ready;
-    char               *daemon_name;
-    int                 daemon_running;
-    char                daemon_pid_str[256];
-    double              time_now;
+    char               *name;
+    int                 running;
+    char                pid_str[256];
+} SOSD_runtime;
+
+typedef struct {
+    char               *file;
+    int                 ready;
+    pthread_mutex_t    *lock;
+} SOSD_db;
+
+typedef struct {
+    SOSD_runtime        daemon;
+    SOSD_db             db;
+    SOSD_net            net;
     SOS_uid            *guid;
-    qhashtbl_t         *pub_table;
     SOSD_pub_ring_mon  *local_sync;
     SOSD_pub_ring_mon  *cloud_sync;
-    SOSD_net            net;
-} SOSD_runtime;
+    qhashtbl_t         *pub_table;
+} SOSD_global;
 
 /* ----------
  *
  *  Daemon root 'global' data structure:
  */
-SOSD_runtime SOSD;
+SOSD_global SOSD;
 
 
 /* Required if included by C++ code. */
@@ -98,7 +106,6 @@ extern "C" {
 
     void  SOSD_init();
     void  SOSD_setup_socket();
-    void  SOSD_init_database();
 
     void  SOSD_init_pub_ring_monitor();
     void* SOSD_THREAD_pub_ring_list_extractor(void *args);

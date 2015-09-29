@@ -59,7 +59,7 @@
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_UID_MAX        LONG_MAX
 #define SOS_DEFAULT_GUID_BLOCK     512
-#define SOS_DEFAULT_ELEM_COUNT     64
+#define SOS_DEFAULT_ELEM_MAX       64
 
 /* ************************************ */
 

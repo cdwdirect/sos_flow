@@ -10,8 +10,8 @@
 
 #define GET_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 
-#define UNIQUE_VALUES     5
-#define PACK_PUB_LOOPS    10
+#define UNIQUE_VALUES     40
+#define PACK_PUB_LOOPS    100
 
 int size;
 int rank;

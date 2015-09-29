@@ -28,7 +28,7 @@
 
 /* Should the daemon do any logging?  (yes/no)  */
 
-#define SOSD_DAEMON_LOG           99
+#define SOSD_DAEMON_LOG           0
 #define SOSD_ECHO_TO_STDOUT       0
 
 int     sos_daemon_lock_fptr;
@@ -43,12 +43,11 @@ FILE   *sos_daemon_log_fptr;
     #define dlog(level, ...)
 
 #else
-/* Set the behavior of the debugging macros: */
-
+    /* Set the behavior of the debugging macros: */
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
     if (SOS.role == SOS_ROLE_DAEMON) {                                  \
-        if (SOSD_DAEMON_LOG >= level) {                                 \
+                                      if (SOSD_DAEMON_LOG > level) {    \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 fprintf(sos_daemon_log_fptr, "(%s:%d).",                \
                         __FILE__, __LINE__ );                           \
@@ -64,7 +63,7 @@ FILE   *sos_daemon_log_fptr;
             }                                                           \
         }                                                               \
     } else {                                                            \
-        if (SOS_DEBUG >= level && SOS.role != SOS_ROLE_DAEMON) {        \
+        if (SOS_DEBUG > level && SOS.role != SOS_ROLE_DAEMON) {         \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 printf("(%s:%d).", __FILE__, __LINE__ );                \
             }                                                           \
