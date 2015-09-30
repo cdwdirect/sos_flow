@@ -30,10 +30,8 @@
  *
  */
 
-#define SOS_CONFIG_USE_THREAD_POOL     0
+#define SOS_CONFIG_USE_THREAD_POOL     1
 #define SOS_CONFIG_USE_MUTEXES         1
-#define SOS_CONFIG_USE_VMPI            1
-#define SOS_CONFIG_USE_SOCKETS         1
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
