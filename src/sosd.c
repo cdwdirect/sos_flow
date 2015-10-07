@@ -206,7 +206,7 @@ void SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon) {
 void SOSD_listen_loop() {
     SOS_SET_WHOAMI(whoami, "daemon_listen_loop");
     SOS_msg_header header;
-    int      i, byte_count;
+    int      i, byte_count, recv_len;
 
     char    *buffer;
     buffer = (char *) malloc(sizeof(char) * SOSD.net.buffer_len);
@@ -223,22 +223,36 @@ void SOSD_listen_loop() {
         i = getnameinfo((struct sockaddr *) &SOSD.net.peer_addr, SOSD.net.peer_addr_len, SOSD.net.client_host, NI_MAXHOST, SOSD.net.client_port, NI_MAXSERV, NI_NUMERICSERV);
         if (i != 0) { dlog(0, "[%s]: Error calling getnameinfo() on client connection.  (%s)\n", whoami, strerror(errno)); break; }
 
-        byte_count = recv(SOSD.net.client_socket_fd, (void *) buffer, SOSD.net.buffer_len, 0);
-        if (byte_count < 1) {
+        recv_len = recv(SOSD.net.client_socket_fd, (void *) buffer, SOSD.net.buffer_len, 0);
+        if (recv_len < 1) {
             dlog(1, "[%s]:   ... recv() call returned an errror.  (%s)\n", whoami, strerror(errno));
             continue;
         }
 
+        byte_count += recv_len;
+
         if (byte_count >= sizeof(SOS_msg_header)) {
-            memcpy(&header, buffer, sizeof(SOS_msg_header));
+
+            SOS_buffer_unpack(buffer, "llqq",
+                              &header.msg_size,
+                              &header.msg_type,
+                              &header.msg_from,
+                              &header.pub_guid);
+
             dlog(6, "[%s]:   ... Received %d of %d bytes in this message.\n", whoami, byte_count, header.msg_size);
         } else {
             dlog(0, "[%s]:   ... Received short (useless) message.\n", whoami);  continue;
         }
 
         while (byte_count < header.msg_size) {
-            byte_count += recv(SOSD.net.client_socket_fd, (void *) (buffer + byte_count), SOSD.net.buffer_len, 0);
-            dlog(6, "[%s]:      ... %d of %d ...\n", whoami, byte_count, header.msg_size);
+            recv_len += recv(SOSD.net.client_socket_fd, (void *) (buffer + byte_count), SOSD.net.buffer_len, 0);
+            if (recv_len < 1) {
+                dlog(6, "[%s]:      ... ERROR!  Remote side closed their connection.\n", whoami);
+                continue;
+            } else {
+                dlog(6, "[%s]:      ... %d of %d ...\n", whoami, byte_count, header.msg_size);
+                byte_count += recv_len;
+            }
         }
 
         dlog(5, "[%s]: Received connection.\n", whoami);
@@ -246,21 +260,26 @@ void SOSD_listen_loop() {
         dlog(5, "[%s]:   ... msg_from = %ld\n", whoami, header.msg_from);
 
         switch (header.msg_type) {
-        case SOS_MSG_TYPE_REGISTER: dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type);
-            SOSD_handle_register(buffer, byte_count); break; 
-        case SOS_MSG_TYPE_GUID_BLOCK: dlog(5, "[%s]:   ... msg_type = GUID_BLOCK (%d)\n", whoami, header.msg_type);
-            SOSD_handle_guid_block(buffer, byte_count); break;
-        case SOS_MSG_TYPE_ANNOUNCE: dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type);
-            SOSD_handle_announce(buffer, byte_count); break;
-        case SOS_MSG_TYPE_PUBLISH:  dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type);
-            SOSD_handle_publish(buffer, byte_count); break;
-        case SOS_MSG_TYPE_ECHO:     dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type);
-            SOSD_handle_echo(buffer, byte_count); break;
-        case SOS_MSG_TYPE_SHUTDOWN: dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type);
-            SOSD_handle_shutdown(buffer, byte_count); break;
-        default:                    dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)\n", whoami, header.msg_type); break;
-            SOSD_handle_unknown(buffer, byte_count); break;
+        case SOS_MSG_TYPE_REGISTER:   dlog(5, "[%s]:   ... msg_type = REGISTER (%d)\n", whoami, header.msg_type); break;
+        case SOS_MSG_TYPE_GUID_BLOCK: dlog(5, "[%s]:   ... msg_type = GUID_BLOCK (%d)\n", whoami, header.msg_type); break;
+        case SOS_MSG_TYPE_ANNOUNCE:   dlog(5, "[%s]:   ... msg_type = ANNOUNCE (%d)\n", whoami, header.msg_type); break;
+        case SOS_MSG_TYPE_PUBLISH:    dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type); break;
+        case SOS_MSG_TYPE_ECHO:       dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type); break;
+        case SOS_MSG_TYPE_SHUTDOWN:   dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type); break;
+        default:                      dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)\n", whoami, header.msg_type); break;
         }
+
+        switch (header.msg_type) {
+        case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register(buffer, byte_count); break; 
+        case SOS_MSG_TYPE_GUID_BLOCK: SOSD_handle_guid_block(buffer, byte_count); break;
+        case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce(buffer, byte_count); break;
+        case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish(buffer, byte_count); break;
+        case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo(buffer, byte_count); break;
+        case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown(buffer, byte_count); break;
+        default:                      SOSD_handle_unknown(buffer, byte_count); break;
+        }
+
+
         close( SOSD.net.client_socket_fd );
     }
     free(buffer);
@@ -400,13 +419,18 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
 void SOSD_handle_echo(char *msg, int msg_size) { 
     SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
     SOS_msg_header header;
-    int ptr = 0;
-    int i   = 0;
+    int ptr        = 0;
+    int i          = 0;
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ECHO\n", whoami);
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
-    i = send(SOSD.net.client_socket_fd, (void *) (msg + ptr), (msg_size - sizeof(SOS_msg_header)), 0);
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                                    &header.msg_size,
+                                    &header.msg_type,
+                                    &header.msg_from,
+                                    &header.pub_guid);
+
+    i = send(SOSD.net.client_socket_fd, (void *) (msg + ptr), (msg_size - ptr), 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         
     return;
@@ -423,7 +447,12 @@ void SOSD_handle_register(char *msg, int msg_size) {
     long guid_block_from = 0;
     long guid_block_to   = 0;
 
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
+
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
     char response[SOS_DEFAULT_ACK_LEN];
@@ -467,7 +496,13 @@ void SOSD_handle_guid_block(char *msg, int msg_size) {
     int i;
 
     ptr = 0;
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
+
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
 
     char response[SOS_DEFAULT_ACK_LEN];
@@ -511,24 +546,30 @@ void SOSD_handle_announce(char *msg, int msg_size) {
     ptr = 0;
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n", whoami);
 
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
+
     memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
-    dlog(5, "[%s]:    ... checking SOS.pub_table for GUID(%s) --> ", whoami, guid_str);
+    dlog(5, "[%s]:   ... checking SOS.pub_table for GUID(%s):\n", whoami, guid_str);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
     if (pub == NULL) {
-        dlog(5, "NOPE!  Adding new pub to the table.\n");
+        dlog(5, "[%s]:      ... NOPE!  Adding new pub to the table.\n", whoami);
         /* If it's not in the table, add it. */
         pub = SOS_new_pub(guid_str);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = header.pub_guid;
     } else {
-        dlog(5, "FOUND IT!\n");
+        dlog(5, "[%s]:      ... FOUND IT!\n", whoami);
     }
+    dlog(5, "[%s]:      ... SOSD.pub_table.size() = %d\n", whoami, SOSD.pub_table->size(SOSD.pub_table));
 
-    dlog(5, "[%s]: calling SOSD_apply_announce() ...\n", whoami);
+    dlog(5, "[%s]: Calling SOSD_apply_announce() ...\n", whoami);
 
     SOSD_apply_announce(pub, msg, msg_size);
     pub->announced = SOSD_PUB_ANN_DIRTY;
@@ -568,24 +609,32 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
     char     response[SOS_DEFAULT_ACK_LEN];
     int      response_len;
 
-    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
 
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
+
+    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
+
     /* Check the table for this pub ... */
-    dlog(5, "[%s]:   ... checking SOS.pub_table for GUID(%s) --> ", whoami, guid_str);
+    dlog(5, "[%s]:   ... checking SOS.pub_table for GUID(%s):\n", whoami, guid_str);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
+
     if (pub == NULL) {
         /* If it's not in the table, add it. */
-        dlog(1, "WHOAH!  PUBLISHING INTO A PUB NOT FOUND! (WEIRD!)  ADDING new pub to the table... (this is bogus, man)\n");
+        dlog(1, "[%s]:      ... WHOAH!  PUBLISHING INTO A PUB NOT FOUND! (WEIRD!)  ADDING new pub to the table... (this is bogus, man)\n", whoami);
         pub = SOS_new_pub(guid_str);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = header.pub_guid;
     } else {
-        dlog(5, "FOUND it!\n");
+        dlog(5, "[%s]:      ... FOUND it!\n", whoami);
     }
+    dlog(5, "[%s]:      ... SOSD.pub_table.size() = %d\n", whoami, SOSD.pub_table->size(SOSD.pub_table));
+
 
     SOSD_apply_publish( pub, msg, msg_size );
 
@@ -622,7 +671,12 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
     int i   = 0;
 
     dlog(1, "[%s]: header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n", whoami);
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
 
     char response[SOS_DEFAULT_BUFFER_LEN];
     memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
@@ -646,7 +700,12 @@ void SOSD_handle_unknown(char *msg, int msg_size) {
     int i   = 0;
 
     dlog(1, "[%s]: header.msg_type = UNKNOWN\n", whoami);
-    memcpy(&header, (msg + ptr), sizeof(SOS_msg_header));  ptr += sizeof(SOS_msg_header);
+
+    ptr += SOS_buffer_unpack(msg, "llqq",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
 
     char response[SOS_DEFAULT_BUFFER_LEN];
     memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
@@ -900,178 +959,22 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to
 
 
 
-
-
-void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
+void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_announce");
 
-    SOS_val_type   val_type;
-    SOS_msg_header header;
-    int            i;
-    int            new_elem_count;
-    long           new_guid;
-    int            str_len;
-    int            val_id;
-    int            val_name_len;
-    char          *val_name;
-    int            ptr;
-    int            first_announce;
-
-    if (pub->elem_count < 1) {
-        first_announce = 1;
-        dlog(6, "[%s]: Applying a first announce to this publication, as the receiving end's pub handle is empty.\n", whoami);
-    } else {
-        first_announce = 0;
-        dlog(6, "[%s]: Applying a re-announce.\n", whoami);
-    }
-    dlog(6, "[%s]:   ... pub->elem_count=%d   pub->elem_max=%d   msg_size=%d\n", whoami, pub->elem_count, pub->elem_max, msg_size);
-
-    if (!first_announce) {
-        /* Free all existing strings, they will be overwritten... */
-        free(pub->node_id);
-        free(pub->prog_name);
-        free(pub->prog_ver);
-        if (pub->pragma_len > 0) free(pub->pragma_msg);
-        free(pub->title);
-        for (i = 0; i < pub->elem_count; i++) {
-            free( pub->data[i]->name );
-        }
-    }
-
-    dlog(6, "[%s]:   ... extracting values from the message: ", whoami);
-    ptr = 0;
-    /* Extract the MESSAGE header ... */
-    memcpy(&( header ), (msg + ptr), sizeof(SOS_msg_header));     ptr += sizeof(SOS_msg_header);
-    dlog(6, "[msg_header(%d)] ", ptr);
-
-    /* Process the PUB HEADER ... */
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, "{ pub_id(%d), ", str_len);
-    pub->node_id =       strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( pub->process_id    ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    memcpy(&( pub->thread_id     ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    memcpy(&( pub->comm_rank     ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " prog_name(%d), ", str_len);
-    pub->prog_name =     strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " prog_ver(%d), ", str_len);
-    pub->prog_ver =      strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( pub->pragma_len    ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " pragma_len(%d), ", pub->pragma_len);
-    pub->pragma_msg = (char *) malloc(sizeof(char) * ( 1 + pub->pragma_len));
-    memset(&( pub->pragma_msg    ), '\0', (1 + pub->pragma_len));
-    memcpy(&( pub->pragma_msg    ), (msg + ptr), pub->pragma_len );   ptr += pub->pragma_len;
-    memcpy(&( str_len            ), (msg + ptr), sizeof(int));    ptr += sizeof(int);     //dlog(6, " title(%d) }\n", str_len);
-    pub->title =         strndup(   (msg + ptr), str_len );       ptr += str_len;
-    memcpy(&( new_elem_count     ), (msg + ptr), sizeof(int));    ptr += sizeof(int);
-
-    while ( pub->elem_max < new_elem_count ) SOS_expand_data( pub );
-    pub->elem_count = new_elem_count;
-    dlog(6, "[pub_head(%d)] ", ptr);
-
-    /* Process the PUB METADATA ... */
-    memcpy(&( pub->meta.channel     ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.layer       ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.nature      ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.pri_hint    ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.scope_hint  ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    memcpy(&( pub->meta.retain_hint ), (msg + ptr), sizeof(int)); ptr += sizeof(int);
-    dlog(6, "[pub_meta(%d)] ", ptr);
-
-    /* Process the PUB DATA ELEMENTS ... */
-    for (i = 0; i < new_elem_count; i++) {
-        if (ptr >= msg_size) break;
-
-        memcpy(&( pub->data[i]->guid              ), (msg + ptr), sizeof(long));  ptr += sizeof(long);
-        pub->data[i]->guid = new_guid;
-        if (!first_announce) free( pub->data[i]->name );
-        memcpy(&( str_len               ), (msg + ptr), sizeof(int));  ptr += sizeof(int);
-        pub->data[i]->name =    strndup(   (msg + ptr), str_len);      ptr += str_len;
-        memcpy(&( pub->data[i]->type    ), (msg + ptr), sizeof(int));  ptr += sizeof(int);
-
-        pub->data[i]->state = SOS_VAL_STATE_EMPTY;  /* All Announcements set data to empty, until a pub comes in. */
-    }
-    dlog(6, "[pub_data(%d)]\n", ptr);
-    dlog(6, "[%s]:   ... new_elem_count = %d.\n", whoami, new_elem_count);
-
-    i = new_elem_count;
-    while ( i < pub->elem_max ) { pub->data[i]->state = SOS_VAL_STATE_EMPTY; i++; }
-
-    dlog(6, "[%s]:   ... done.\n", whoami);
+    dlog(6, "[%s]: Calling SOS_announce_from_buffer()...\n", whoami);
+    SOS_announce_from_buffer(pub, msg, msg_len);
 
     return;
-
 }
-
 
 
 void SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_publish");
 
-    SOS_msg_header header;
-    double recv_ts;
-    int    dirty_elem_count;
-    int    ptr;
-    int    i;
-    /* For loading data values: */
-    int    index;
-    double pack_ts;
-    double send_ts;
-    int    val_len;
-    
-    SOS_TIME( recv_ts );
-    dlog(6, "[%s]: Applying updated values to pub{%s} ...\n", whoami, pub->title);
-
-    ptr = 0;
-    memcpy(&header,    (msg + ptr), sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    memcpy(&dirty_elem_count, (msg + ptr), sizeof(int));     ptr += sizeof(int);
-
-    dlog(6, "[%s]:   ... pub->guid = %ld     dirty_elem_count = %d\n", whoami, header.pub_guid, dirty_elem_count);
-
-    for (i = 0; i < dirty_elem_count; i++) {
-        memcpy(&index,        (msg + ptr), sizeof(int));     ptr += sizeof(int);
-        memcpy(&pack_ts,      (msg + ptr), sizeof(double));  ptr += sizeof(double);
-        memcpy(&send_ts,      (msg + ptr), sizeof(double));  ptr += sizeof(double);
-        memcpy(&val_len,      (msg + ptr), sizeof(int));     ptr += sizeof(int);
-
-        if (index >= pub->elem_count) {
-            dlog(1, "[%s]:   ...\n", whoami);
-            dlog(1, "[%s]:   ... ERROR!  Attempting to apply published data into an index larger than\n", whoami);
-            dlog(1, "[%s]:   ...         the announced publication handle's highest element index.\n", whoami);
-            dlog(1, "[%s]:   ...\n", whoami);
-            dlog(1, "[%s]:   ...    pub{%s}->elem_count == %d;  (incoming) index == %d;\n", whoami, pub->title, pub->elem_count, index);
-            dlog(1, "[%s]:   ...\n", whoami);
-            dlog(1, "[%s]:   ...  (Discarding this element update and skipping ahead.)\n", whoami);
-            dlog(1, "[%s]:   ... ----------\n", whoami);
-            ptr += val_len;
-            continue;
-        }
-
-        dlog(6, "[%s]:   ... Value received for: data[%d]->name(\"%s\") = ", whoami, index, pub->data[index]->name);
-
-        pub->data[index]->time.pack = pack_ts;
-        pub->data[index]->time.send = send_ts;
-        pub->data[index]->time.recv = recv_ts;
-        pub->data[index]->state     = SOS_VAL_STATE_DIRTY;
-
-        switch (pub->data[index]->type) {
-        case SOS_VAL_TYPE_INT :    memcpy(&(pub->data[index]->val.i_val), (msg + ptr), val_len); ptr += val_len; dlog(6, "%d\n",  pub->data[index]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG :   memcpy(&(pub->data[index]->val.l_val), (msg + ptr), val_len); ptr += val_len; dlog(6, "%ld\n", pub->data[index]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE : memcpy(&(pub->data[index]->val.d_val), (msg + ptr), val_len); ptr += val_len; dlog(6, "%lf\n", pub->data[index]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING :
-            if (pub->data[index]->val.c_val != NULL) { 
-                free(pub->data[index]->val.c_val);
-            }
-            pub->data[index]->val.c_val = (char *) malloc((1 + val_len) * sizeof(char));
-            memset(pub->data[index]->val.c_val, '\0', (1 + val_len));
-            memcpy(pub->data[index]->val.c_val, (msg + ptr), val_len); ptr += (val_len);
-            dlog(6, "\"%s\"   (val_len == %d)\n", pub->data[index]->val.c_val, val_len); break;
-        }
-    }
-
-    dlog(6, "[%s]:   ... Done.\n", whoami);
+    dlog(6, "[%s]: Calling SOS_publish_from_buffer()...\n", whoami);
+    SOS_publish_from_buffer(pub, msg, msg_len);
 
     return;
 }
-
-
-
-
 

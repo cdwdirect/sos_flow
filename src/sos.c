@@ -62,6 +62,10 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS.config.argv = *argv;
     SOS.config.process_id = (int) getpid();
 
+    SOS.config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
+    gethostname( SOS.config.node_id, SOS_DEFAULT_STRING_LEN );
+    dlog(1, "[%s]:   ... node_id: %s\n", whoami, SOS.config.node_id );
+
     dlog(1, "[%s]:   ... configuring data rings.\n", whoami);
     SOS_ring_init(&SOS.ring.send);
     SOS_ring_init(&SOS.ring.recv);
@@ -116,12 +120,19 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         if (server_socket_fd == 0) { dlog(0, "[%s]: ERROR!  Could not connect to the server.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
 
         dlog(1, "[%s]:   ... registering this instance with SOS.   (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port);
+
         header.msg_size = sizeof(SOS_msg_header);
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = 0;
         header.pub_guid = 0;
+
         memset(buffer, '\0', SOS_DEFAULT_ACK_LEN);
-        memcpy(buffer, &header, sizeof(SOS_msg_header));
+
+        SOS_buffer_pack(buffer, "llqq", 
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
         
         retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), 0, 0, 0 );
         if (retval < 0) { dlog(0, "[%s]: ERROR!  Could not write to server socket!  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port); exit(1); }
@@ -287,16 +298,13 @@ long* SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
     return elem_list;
 }
 
-
-
-void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
+void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_max ) {
     SOS_SET_WHOAMI(whoami, "SOS_send_to_daemon");
 
     SOS_msg_header header;
     int server_socket_fd;
     int retval;
 
-    
 
     /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
     /* TODO: { SEND_TO_DAEMON } Verify that the header.msg_size = msg_len */
@@ -323,7 +331,7 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
     retval = send(server_socket_fd, msg, msg_len, 0 );
     if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
 
-    retval = recv(server_socket_fd, reply, reply_len, 0);
+    retval = recv(server_socket_fd, reply, reply_max, 0);
     if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
     else { dlog(6, "[%s]: Server sent a (%d) byte reply.\n", whoami, retval); }
 
@@ -499,6 +507,8 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     SOS_pub   *new_pub;
     int        i;
 
+    dlog(6, "[%s]: Allocating and initializing a new pub handle....\n", whoami);
+
     new_pub = malloc(sizeof(SOS_pub));
     memset(new_pub, '\0', sizeof(SOS_pub));
 
@@ -507,6 +517,8 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     } else {
         new_pub->guid = SOS_uid_next( SOS.uid.my_guid_pool );
     }
+
+    dlog(6, "[%s]:   ... setting default values, allocating space for strings.\n", whoami);
 
     new_pub->node_id      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->process_id   = 0;
@@ -529,6 +541,8 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     new_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
+    dlog(6, "[%s]:   ... zero-ing out the strings.\n", whoami);
+
     memset(new_pub->node_id,    '\0', SOS_DEFAULT_STRING_LEN);
     memset(new_pub->prog_name,  '\0', SOS_DEFAULT_STRING_LEN);
     memset(new_pub->prog_ver,   '\0', SOS_DEFAULT_STRING_LEN);
@@ -536,13 +550,16 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
 
     /* Set some defaults for the SOS_ROLE_CLIENT's */
     if (SOS.role == SOS_ROLE_CLIENT) {
+        dlog(6, "[%s]:   ... setting defaults specific to SOS_ROLE_CLIENT.\n", whoami);
         strncpy(new_pub->node_id, SOS.config.node_id, SOS_DEFAULT_STRING_LEN);
         new_pub->process_id = SOS.config.process_id;
         strncpy(new_pub->prog_name, SOS.config.argv[0], SOS_DEFAULT_STRING_LEN);
     }
 
+    dlog(6, "[%s]:   ... allocating space for data elements.\n", whoami);
     new_pub->data                = malloc(sizeof(SOS_data *) * new_size);
 
+    dlog(6, "[%s]:   ... setting defaults for each data element.\n", whoami);
     for (i = 0; i < new_size; i++) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
@@ -558,6 +575,7 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
             new_pub->data[i]->time.send = 0.0;
             new_pub->data[i]->time.recv = 0.0;
     }
+    dlog(6, "[%s]:   ... done.\n", whoami);
 
     return new_pub;
 }
@@ -1007,14 +1025,17 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
 
 void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
     SOS_msg_header header;
-    char *buffer;
-    char *ptr;
-    int   buffer_len;
-    int   elem;
+    char   *buffer;
+    char   *ptr;
+    int     buffer_len;
+    int     elem;
+    double  send_time;
 
     buffer = *buf_ptr;
     buffer_len = 0;
     ptr = buffer;
+
+    SOS_TIME( send_time );
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_PUBLISH;
@@ -1030,6 +1051,11 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
 
     /* Pack in the data elements. */
     for (elem = 0; elem < pub->elem_count; elem++) {
+        if ( pub->data[elem]->state != SOS_VAL_STATE_DIRTY) { continue; }
+        
+        pub->data[elem]->state = SOS_VAL_STATE_CLEAN;
+        pub->data[elem]->time.send = send_time;
+
         buffer_len += SOS_buffer_pack(ptr, "lggl",
             elem,
             pub->data[elem]->time.pack,
@@ -1064,6 +1090,13 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     int   buffer_pos;
     int   elem;
 
+    dlog(6, "[%s]: Applying an ANNOUNCE from a buffer...\n", whoami);
+
+    ptr        = buf_ptr;
+    buffer     = buf_ptr;
+    buffer_pos = 0;
+
+    dlog(6, "[%s]:   ... unpacking the header.\n", whoami);
     /* Unpack the header */
     buffer_pos += SOS_buffer_unpack(ptr, "llqq",
         &header.msg_size,
@@ -1074,6 +1107,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
 
     pub->guid = header.pub_guid;
 
+    dlog(6, "[%s]:   ... unpacking the pub definition.\n", whoami);
     /* Unpack the pub definition: */
     buffer_pos += SOS_buffer_unpack(ptr, "slllsslsslllllll",
         &pub->node_id,
@@ -1095,9 +1129,13 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     ptr = (buffer + buffer_pos);
 
     /* Ensure there is room in this pub to handle incoming data definitions. */
-    while(pub->elem_max < elem) SOS_expand_data(pub);
+    while(pub->elem_max < elem) {
+        dlog(6, "[%s]:   ... doubling pub->elem_max from %d to handle %d elements...\n", whoami, pub->elem_max, elem);
+        SOS_expand_data(pub);
+    }
     pub->elem_count = elem;
 
+    dlog(6, "[%s]:   ... unpacking the data definitions.\n", whoami);
     /* Unpack the data definitions: */
     elem = 0;
     while (buffer_pos < header.msg_size) {
@@ -1108,6 +1146,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         ptr = (buffer + buffer_pos);
         elem++;
     }
+    dlog(6, "[%s]:   ... done.\n", whoami);
 
     return;
 }
@@ -1120,9 +1159,11 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     int   buffer_pos;
     int   elem;
 
-    buffer = buf_ptr;
+    ptr        = buf_ptr;
+    buffer     = buf_ptr;
     buffer_pos = 0;
-    ptr = buffer;
+
+    dlog(7, "[%s]: Unpacking the values from the buffer...\n", whoami);
 
     /* Unpack the header */
     buffer_pos += SOS_buffer_unpack(ptr, "llqq",
@@ -1132,254 +1173,86 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         &header.pub_guid);
     ptr = (buffer + buffer_pos);
 
+    dlog(7, "[%s]:   ... header.msg_size = %d\n", whoami, header.msg_size);
+    dlog(7, "[%s]:   ... header.msg_type = %d\n", whoami, header.msg_type);
+    dlog(7, "[%s]:   ... header.msg_from = %ld\n", whoami, header.msg_from);
+    dlog(7, "[%s]:   ... header.pub_guid = %ld\n", whoami, header.pub_guid);
+    dlog(7, "[%s]:   ... values:\n", whoami);
+
+
     /* Unpack in the data elements. */
     while (buffer_pos < header.msg_size) {
         buffer_pos += SOS_buffer_unpack(ptr, "l", &elem);
         ptr = (buffer + buffer_pos);
+        dlog(7, "[%s]:      ... elem = %d   (%s)\n", whoami, elem, pub->data[elem]->name);
+
         buffer_pos += SOS_buffer_unpack(ptr, "ggl",
             &pub->data[elem]->time.pack,
             &pub->data[elem]->time.send,
             &pub->data[elem]->val_len);
         ptr = (buffer + buffer_pos);
 
+        dlog(7, "[%s]:      ... time.pack = %lf\n", whoami, pub->data[elem]->time.pack);
+        dlog(7, "[%s]:      ... time.send = %lf\n", whoami, pub->data[elem]->time.pack);
+        dlog(7, "[%s]:      ... val_len = %d\n", whoami, pub->data[elem]->val_len);
+
         switch (pub->data[elem]->type) {
-        case SOS_VAL_TYPE_INT:     buffer_pos += SOS_buffer_unpack(ptr, "l", pub->data[elem]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:    buffer_pos += SOS_buffer_unpack(ptr, "q", pub->data[elem]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE:  buffer_pos += SOS_buffer_unpack(ptr, "g", pub->data[elem]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING:  buffer_pos += SOS_buffer_unpack(ptr, "s", pub->data[elem]->val.c_val); break;
+        case SOS_VAL_TYPE_INT:
+            buffer_pos += SOS_buffer_unpack(ptr, "l", &pub->data[elem]->val.i_val);
+            dlog(7, "[%s]:      ... val = %d\n", whoami, pub->data[elem]->val.i_val);
+            break;
+        case SOS_VAL_TYPE_LONG:
+            buffer_pos += SOS_buffer_unpack(ptr, "q", &pub->data[elem]->val.l_val);
+            dlog(7, "[%s]:      ... elem = %ld\n", whoami, pub->data[elem]->val.l_val);
+            break;
+        case SOS_VAL_TYPE_DOUBLE:
+            buffer_pos += SOS_buffer_unpack(ptr, "g", &pub->data[elem]->val.d_val);
+            dlog(7, "[%s]:      ... elem = %lf\n", whoami, pub->data[elem]->val.d_val);
+            break;
+        case SOS_VAL_TYPE_STRING:
+            buffer_pos += SOS_buffer_unpack(ptr, "s", &pub->data[elem]->val.c_val);
+            dlog(7, "[%s]:      ... elem = %s\n", whoami, pub->data[elem]->val.c_val);
+            break;
         }
         ptr = (buffer + buffer_pos);
+        dlog(7, "[%s]:      ... -----\n", whoami);
     }
+
+    dlog(7, "[%s]:   ... done.\n", whoami);
 
     return;
 }
 
 
-
-
-
-
-
-
-
-
-
 void SOS_announce( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOS_announce");
 
-    SOS_msg_header header;
     char *buffer;
     char  buffer_stack[SOS_DEFAULT_BUFFER_LEN];
-    char  buffer_alloc;
     int   buffer_len;
     char *reply;
     char  reply_stack[SOS_DEFAULT_ACK_LEN];
-    char  reply_alloc;
-    int   reply_len;
-    int   ptr;
-    int   i;
-    //Used for inserting the string length into the buffer as an int...
-    int   len_node_id;
-    int   len_prog_name;
-    int   len_prog_ver;
-    int   len_title;
-    int   len_value_name;
+    int   reply_max;
 
     dlog(6, "[%s]: Preparing an announcement message...\n",    whoami);
     dlog(6, "[%s]:   ... pub->guid       = %ld\n", whoami, pub->guid);
     dlog(6, "[%s]:   ... pub->title      = %s\n", whoami, pub->title);
     dlog(6, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
     dlog(6, "[%s]:   ... pub->elem_max   = %d\n", whoami, pub->elem_max);
-    dlog(6, "[%s]:   ... determine the size of the message: ", whoami);
-
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
-    buffer = buffer_stack;
-    buffer_alloc = 0;
-    buffer_len   = 0;
-
-    memset(reply_stack,  '\0', SOS_DEFAULT_ACK_LEN);
-    reply  = reply_stack;
-    reply_alloc  = 0;
-    reply_len    = 0;
-
-    
-    /*
-     *   Determine how much space we'll need to describe this pub handle...
-     */
-    len_node_id    = 0;
-    len_prog_name  = 0;
-    len_prog_ver   = 0;
-    len_title      = 0;
-    len_value_name = 0;
-
-    if (pub->node_id   != NULL) { len_node_id    = 1 + strlen(pub->node_id);   } else { len_node_id    = 0; }
-    if (pub->prog_name != NULL) { len_prog_name  = 1 + strlen(pub->prog_name); } else { len_prog_name  = 0; }
-    if (pub->prog_ver  != NULL) { len_prog_ver   = 1 + strlen(pub->prog_ver);  } else { len_prog_ver   = 0; }
-    if (pub->title     != NULL) { len_title      = 1 + strlen(pub->title);     } else { len_title      = 0; }
-
-    dlog(6, "[strings] + ");
-
+    buffer     = buffer_stack;
     buffer_len = 0;
-    /* Reserve space for the MESSAGE header ... */
-    buffer_len += sizeof(SOS_msg_header);
-    /* Make space for the PUB HEADER ... */
-    buffer_len += sizeof(int);                             // [ pub->node_id          ].len()
-    buffer_len += len_node_id;                             // [ pub->node_id          ].string()
-    buffer_len += sizeof(int);                             // [ pub->process_id       ]
-    buffer_len += sizeof(int);                             // [ pub->thread_id        ]
-    buffer_len += sizeof(int);                             // [ pub->comm_rank        ]
-    buffer_len += sizeof(int);                             // [ pub->prog_name        ].len()
-    buffer_len += len_prog_name;                           // [ pub->prog_name        ].string()
-    buffer_len += sizeof(int);                             // [ pub->prog_ver         ].len()
-    buffer_len += len_prog_ver;                            // [ pub->prog_ver         ].string()
-    buffer_len += sizeof(int);                             // [ pub->pragma_len       ]
-    buffer_len += pub->pragma_len;                         // [ pub->pragma_msg       ].string()    (can be any byte sequence, really)
-    buffer_len += sizeof(int);                             // [ pub->title            ].len()
-    buffer_len += len_title;                               // [ pub->title            ].string()
-    buffer_len += sizeof(int);                             // [ pub->elem_count       ]
+    memset(reply_stack,  '\0', SOS_DEFAULT_ACK_LEN);
+    reply      = reply_stack;
+    reply_max  = SOS_DEFAULT_ACK_LEN;
 
-    dlog(6, "[pub_header] + ");
-    
-    /* Make space for the METADATA ... */
-    buffer_len += sizeof(int);                             // [ pub->meta.channel     ]
-    buffer_len += sizeof(int);                             // [ pub->meta.layer       ]
-    buffer_len += sizeof(int);                             // [ pub->meta.nature      ]
-    buffer_len += sizeof(int);                             // [ pub->meta.pri_hint    ]
-    buffer_len += sizeof(int);                             // [ pub->meta.scope_hint  ]
-    buffer_len += sizeof(int);                             // [ pub->meta.retain_hint ]
-
-    dlog(6, "[pub_meta] + ");
-
-    /* Make space for the DATA deinitions ... */
-    for (i = 0; i < pub->elem_count; i++) {
-        len_value_name = 1 + strlen(pub->data[i]->name);
-        buffer_len += sizeof(long);                        // [ pub->data[i]->guid    ]          (to cover re-announces...)
-        buffer_len += sizeof(int);                         // [ pub->data[i]->name    ].len()
-        buffer_len += len_value_name;                      // [ pub->data[i]->name    ].string()
-        buffer_len += sizeof(int);                         // [ pub->data[i]->type    ]
-    }
-    dlog(6, "[data_defs] = %d bytes\n", buffer_len);
-
-    if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
-        dlog(6, "[%s]:   ... allocating sufficient buffer space.\n", whoami);
-        buffer = (char *) malloc(buffer_len);
-        if (buffer == NULL) { dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami); exit(1); }
-        memset(buffer, '\0', buffer_len);
-        buffer_alloc = 1;
-    }
-
-    /*
-     *   Fill the buffer with the description of the pub ...
-     */
-    ptr = 0;
-    header.msg_size = buffer_len;
-    header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
-    header.msg_from = SOS.my_guid;
-    header.pub_guid = pub->guid;
-
-    dlog(6, "[%s]:   ... filling the buffer with the correct values: ", whoami);
-
-    /* Populate the MESSAGE header ... */
-    memcpy((buffer + ptr), &( header       ), sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    dlog(6, "[msg_header(%d)] ", ptr);
-    
-    /* Fill in the PUB HEADER ... */
-    if (len_node_id < 1) {
-        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
-    } else {
-        memcpy((buffer + ptr), &( len_node_id        ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( pub->node_id       ),  len_node_id);      ptr += len_node_id;
-    }
-    
-    memcpy((buffer + ptr), &( pub->process_id    ),      sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->thread_id     ),      sizeof(int));      ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->comm_rank     ),      sizeof(int));      ptr += sizeof(int);
-
-    if (len_prog_name < 2) {
-        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
-    } else {
-        memcpy((buffer + ptr), &( len_prog_name      ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( pub->prog_name     ),  len_prog_name);    ptr += len_prog_name;
-    }
-
-    if (len_prog_ver < 2) {
-        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
-    } else {
-        memcpy((buffer + ptr), &( len_prog_ver       ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( pub->prog_ver      ),  len_prog_ver);     ptr += len_prog_ver;
-    }
-
-    if (pub->pragma_len < 1) {    /* (len < 1) because this might not be a string, we don't calculate with 1 + strlen()... */
-        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
-    } else {
-        memcpy((buffer + ptr), &( pub->pragma_len    ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( pub->pragma_msg    ),  pub->pragma_len);  ptr += pub->pragma_len;
-    }       
-
-    if (len_title < 2) {
-        memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
-    } else {
-        memcpy((buffer + ptr), &( len_title          ),  sizeof(int));      ptr += sizeof(int);
-        memcpy((buffer + ptr),  ( pub->title         ),  len_title);        ptr += len_title;
-    }
-    
-    memcpy((buffer + ptr), &( pub->elem_count    ),      sizeof(int));      ptr += sizeof(int);
-
-    dlog(6, "[pub_header(%d)] ", ptr);
-
-    /* Fill in the PUB METADATA ... */
-    memcpy((buffer + ptr), &( pub->meta.channel     ),  sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->meta.layer       ),  sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->meta.nature      ),  sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->meta.pri_hint    ),  sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->meta.scope_hint  ),  sizeof(int));   ptr += sizeof(int);
-    memcpy((buffer + ptr), &( pub->meta.retain_hint ),  sizeof(int));   ptr += sizeof(int);
-
-    dlog(6, "[pub_meta(%d)] ", ptr);
-
-    /* Fill in the DATA deinitions ... */
-    for (i = 0; i < pub->elem_count; i++) {
-        len_value_name = 1 + strlen( pub->data[i]->name );
-
-        memcpy((buffer + ptr), &( pub->data[i]->guid ),  sizeof(long));    ptr += sizeof(long);
-
-        if (len_value_name < 2) {
-            memcpy((buffer + ptr), &( SOS_NULL_STR_LEN   ),  sizeof(int));      ptr += sizeof(int);
-            memcpy((buffer + ptr),  ( SOS_NULL_STR       ),  SOS_NULL_STR_LEN); ptr += SOS_NULL_STR_LEN;
-        } else {
-            memcpy((buffer + ptr), &( len_value_name     ),  sizeof(int));     ptr += sizeof(int);
-            memcpy((buffer + ptr),  ( pub->data[i]->name ),  len_value_name);  ptr += len_value_name;
-        }
-        
-        memcpy((buffer + ptr), &( pub->data[i]->type ),  sizeof(int));     ptr += sizeof(int);
-    }
-
-    dlog(6, "[pub_data(%d)]\n", ptr);
-    dlog(6, "[%s]:   ... allocating space for a reply message.\n", whoami);
-
-    reply_len = 4;
-    if (reply_len > SOS_DEFAULT_BUFFER_LEN) {
-        reply = (char *) malloc(reply_len);
-        if (reply == NULL) { dlog(0, "[%s]: FAILURE!! Could not allocate memory for the reply.  char *reply == NULL; /* after malloc()! */", whoami); exit(1); }
-        memset(reply, '\0', reply_len);
-        reply_alloc = 1;
-    }
-
-    dlog(6, "[%s]:   ... sending the message!\n", whoami);
- 
-    SOS_send_to_daemon(buffer, buffer_len, reply, reply_len);
-
+    dlog(6, "[%s]:   ... placing the announce message in a buffer.\n", whoami);
+    SOS_announce_to_buffer(pub, &buffer, &buffer_len);
+    dlog(6, "[%s]:   ... sending the buffer to the daemon.\n", whoami);
+    SOS_send_to_daemon(buffer, buffer_len, reply, reply_max);
     dlog(6, "[%s]:   ... done.\n", whoami);
     pub->announced = 1;
-
-    if (buffer_alloc) free(buffer);
-    if (reply_alloc) free(reply);
 
     return;
 }
@@ -1388,121 +1261,37 @@ void SOS_announce( SOS_pub *pub ) {
 void SOS_publish( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOS_publish");
 
-    SOS_msg_header header;
     char   *buffer;
     char    buffer_stack[SOS_DEFAULT_BUFFER_LEN];
-    char    buffer_alloc;
     int     buffer_len;
     char   *reply;
     char    reply_stack[SOS_DEFAULT_ACK_LEN];
-    char    reply_alloc;
-    int     reply_len;
-    int     ptr;
-    int     i;
-    int     dirty_elem_count;
-    double  pack_send_ts;
-    //Used for inserting the string length into the buffer as an int...
-    int     val_len;
-    SOS_val val;
+    int     reply_max;
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
-    buffer = buffer_stack;  buffer_alloc = 0;
-    buffer_len   = 0;
-
-    memset(reply_stack,  '\0', SOS_DEFAULT_BUFFER_LEN);
-    reply  = reply_stack;   reply_alloc  = 0;
-    reply_len    = 0;
-    
-    if (pub->announced == 0) { SOS_announce( pub ); }
-    SOS_TIME( pack_send_ts );
-
-    dlog(6, "[%s]: Reserving buffer space for publication: ", whoami); 
-
-    /* Determine the required buffer length for all dirty values. */
-    /* Reserve space for the MESSAGE HEADER  */
+    buffer     = buffer_stack;
     buffer_len = 0;
-    buffer_len += sizeof(SOS_msg_header); dlog(6, "[message_head(%d)] ", buffer_len);
-
-    /* Reserve space for the PUB IDENTIFICATION */
-    buffer_len += sizeof(int);            dlog(6, "[dirty_elem_count(%d) ]", buffer_len);
-
-    /* Reserve space for PUB DATA (that is dirty) */
-    dirty_elem_count = 0;
-    for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;
-        dirty_elem_count++;
-        buffer_len += sizeof(int);                   // [ i                        ]
-        buffer_len += sizeof(double);                // [ pub->data[i]->time->pack ]
-        buffer_len += sizeof(double);                // [ pub->data[i]->time->send ]
-        buffer_len += sizeof(int);                   // [ pub->data[i]->val        ].length
-        buffer_len += pub->data[i]->val_len;         // [ pub->data[i]->len        ].value
-        if (pub->data[i]->val_len == 0) {
-            dlog(6, "[%s]:   ... ERROR!  pub->data[%d]->val_len == 0   A problem with SOS_pack() most likely.\n", whoami, i);
-            switch (pub->data[i]->type) {
-            case SOS_VAL_TYPE_INT:    val_len = sizeof(int);    break;
-            case SOS_VAL_TYPE_LONG:   val_len = sizeof(long);   break;
-            case SOS_VAL_TYPE_DOUBLE: val_len = sizeof(double); break;
-            case SOS_VAL_TYPE_STRING: val_len = 1 + strlen(pub->data[i]->val.c_val); break;
-            }
-            dlog(6, "[%s]:               Inferring the length from the data type: %d\n", whoami, val_len);
-            pub->data[i]->val_len = val_len;
-            buffer_len += val_len;
-        }
-    }
-    dlog(6, "[pub_data(%d)]\n", buffer_len);
-
-    /* If there is nothing to do, go ahead and bail. */
-    if (dirty_elem_count == 0) { dlog(6, "[%s]:   ... There are no dirty values, leaving the function.\n", whoami); return; }
-
-    /* Determine if we need to dynamically allocate a larger than default buffer... */
-    if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
-        dlog(6, "[%s]:   ... allocating sufficient buffer space.\n", whoami);
-        buffer = (char *) malloc(buffer_len);
-        if (buffer == NULL) { dlog(0, "[%s]: FAILURE!! Could not allocate memory.  char *buffer == NULL; /* after malloc()! */", whoami); exit(1); }
-        memset(buffer, '\0', buffer_len);
-        buffer_alloc = 1;
+    memset(reply_stack,  '\0', SOS_DEFAULT_ACK_LEN);
+    reply     = reply_stack;
+    reply_max = SOS_DEFAULT_ACK_LEN;
+    
+    if (pub->announced == 0) {
+        dlog(6, "[%s]: AUTO-ANNOUNCING this pub...\n", whoami);
+        SOS_announce( pub );
     }
 
-    header.msg_size = buffer_len;
-    header.msg_type = SOS_MSG_TYPE_PUBLISH;
-    header.msg_from = SOS.my_guid;
-    header.pub_guid = pub->guid;
+    dlog(6, "[%s]: Preparing an announcement message...\n",    whoami);
+    dlog(6, "[%s]:   ... pub->guid       = %ld\n", whoami, pub->guid);
+    dlog(6, "[%s]:   ... pub->title      = %s\n", whoami, pub->title);
+    dlog(6, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
+    dlog(6, "[%s]:   ... pub->elem_max   = %d\n", whoami, pub->elem_max);
 
-    /* Fill the buffer with the dirty values. */
-    ptr = 0;
-    memcpy((buffer + ptr), &(header       ), sizeof(SOS_msg_header)); ptr += sizeof(SOS_msg_header);
-    memcpy((buffer + ptr), &(dirty_elem_count     ), sizeof(int));    ptr += sizeof(int);
-    for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;
-        val     = pub->data[i]->val;
-        val_len = pub->data[i]->val_len;
-        pub->data[i]->time.send = pack_send_ts;
+    dlog(6, "[%s]:   ... placing the publish message in a buffer.\n", whoami);
+    SOS_publish_to_buffer(pub, &buffer, &buffer_len);
+    dlog(6, "[%s]:   ... sending the buffer to the daemon.\n", whoami);
+    SOS_send_to_daemon(buffer, buffer_len, reply, reply_max);
+    dlog(6, "[%s]:   ... done.\n", whoami);
 
-        if (val_len == 0) { dlog(6, "[%s]:   ... ERROR!  pub->data[%d]->val_len IS STILL == 0!  Weird because we just set it...\n", whoami, i); }
-
-        memcpy((buffer + ptr), &(i                       ), sizeof(int));        ptr += sizeof(int);
-        memcpy((buffer + ptr), &(pub->data[i]->time.pack ), sizeof(double));     ptr += sizeof(double);
-        memcpy((buffer + ptr), &(pack_send_ts            ), sizeof(double));     ptr += sizeof(double);
-        memcpy((buffer + ptr), &(val_len                 ), sizeof(int));        ptr += sizeof(int);
-        switch (pub->data[i]->type) {
-        case SOS_VAL_TYPE_INT     : memcpy((buffer + ptr), &val.i_val, val_len); ptr += val_len; break;
-        case SOS_VAL_TYPE_LONG    : memcpy((buffer + ptr), &val.l_val, val_len); ptr += val_len; break;
-        case SOS_VAL_TYPE_DOUBLE  : memcpy((buffer + ptr), &val.d_val, val_len); ptr += val_len; break;
-        case SOS_VAL_TYPE_STRING  : memcpy((buffer + ptr), val.c_val, val_len); ptr += val_len; break; }
-
-        if (SOS.role == SOS_ROLE_CLIENT) pub->data[i]->state = SOS_VAL_STATE_CLEAN;
-
-    }
-
-    /* Transmit this message to the daemon. */
-    SOS_send_to_daemon(buffer, buffer_len, reply, SOS_DEFAULT_BUFFER_LEN);
-           
-    /* TODO: { PUBLISH } Check for a confirmation in the reply... */
-    dlog(6, "[%s]: Server response = \"%s\"\n", whoami, reply);
-
-    if (buffer_alloc) free(buffer);
-
-    dlog(6, "[%s]: Done with publish.\n", whoami);
     return;
 }
 

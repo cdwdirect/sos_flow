@@ -24,7 +24,7 @@
 /* The debug logging sensitivity level.  5+ is VERY verbose. */
 
 #define SOS_DEBUG                 99
-#define SOS_DEBUG_SHOW_LOCATION   0
+#define SOS_DEBUG_SHOW_LOCATION   1
 
 /* Should the daemon do any logging?  (yes/no)  */
 
@@ -49,14 +49,14 @@ FILE   *sos_daemon_log_fptr;
     if (SOS.role == SOS_ROLE_DAEMON) {                                  \
                                       if (SOSD_DAEMON_LOG > level) {    \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
-                fprintf(sos_daemon_log_fptr, "(%s:%d).",                \
+                fprintf(sos_daemon_log_fptr, "(%s:%d)",                 \
                         __FILE__, __LINE__ );                           \
             }                                                           \
             fprintf(sos_daemon_log_fptr, __VA_ARGS__);                  \
             fflush(sos_daemon_log_fptr);                                \
             if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {       \
                 if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
-                    printf("(%s:%d).", __FILE__, __LINE__ );            \
+                    printf("(%s:%d)", __FILE__, __LINE__ );             \
                 }                                                       \
                 printf(__VA_ARGS__);                                    \
                 fflush(stdout);                                         \
@@ -65,7 +65,7 @@ FILE   *sos_daemon_log_fptr;
     } else {                                                            \
         if (SOS_DEBUG > level && SOS.role != SOS_ROLE_DAEMON) {         \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
-                printf("(%s:%d).", __FILE__, __LINE__ );                \
+                printf("(%s:%d)", __FILE__, __LINE__ );                 \
             }                                                           \
             printf(__VA_ARGS__);                                        \
             if (stdout) fflush(stdout);                                 \
