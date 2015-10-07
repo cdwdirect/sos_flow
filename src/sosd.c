@@ -356,7 +356,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                     buffer = buffer_static;
                     buffer_len = SOS_DEFAULT_BUFFER_LEN;
                     memset(buffer, '\0', buffer_len);
-                    SOS_announce_to_string( pub, &buffer, &buffer_len );
+                    SOS_announce_to_buffer( pub, &buffer, &buffer_len );
                     SOSD_cloud_send( buffer, buffer_len );
                     pub->announced = SOSD_PUB_ANN_CLOUD;
                     if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
@@ -369,10 +369,11 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 buffer     = buffer_static;
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
-                SOS_publish_to_string( pub, &buffer, &buffer_len );
+                SOS_publish_to_buffer( pub, &buffer, &buffer_len );
                 SOSD_cloud_send( buffer, buffer_len );
                 if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
                     /* The serialization function had to dynamically allocates storage. */
+                    /* NOTE: This is not currently happening, but this is a harmless function. */
                     free(buffer);
                     buffer = buffer_static;
                 }
@@ -896,6 +897,10 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to
 
     return;
 }
+
+
+
+
 
 void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_size ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_announce");

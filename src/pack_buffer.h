@@ -25,4 +25,4 @@ unsigned long int      SOS_buffer_unpacku32(unsigned char *buf);
 long long int          SOS_buffer_unpacki64(unsigned char *buf);
 unsigned long long int SOS_buffer_unpacku64(unsigned char *buf);
 unsigned int           SOS_buffer_pack(unsigned char *buf, char *format, ...);
-void                   SOS_buffer_unpack(unsigned char *buf, char *format, ...);
+unsigned int           SOS_buffer_unpack(unsigned char *buf, char *format, ...);

@@ -384,8 +384,8 @@ extern "C" {
     void      SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
     void      SOS_announce( SOS_pub *pub );
     void      SOS_publish( SOS_pub *pub );
-    void      SOS_announce_to_string( SOS_pub *pub, char **buffer, int *buffer_len );
-    void      SOS_publish_to_string( SOS_pub *pub, char **buffer, int *buffer_len );
+    void      SOS_announce_to_buffer( SOS_pub *pub, char **buffer, int *buffer_len );
+    void      SOS_publish_to_buffer( SOS_pub *pub, char **buffer, int *buffer_len );
     void      SOS_finalize();
     /* ----- [ utilities ] ----- */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);

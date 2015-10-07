@@ -296,6 +296,8 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_len ) {
     int server_socket_fd;
     int retval;
 
+    
+
     /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
     /* TODO: { SEND_TO_DAEMON } Verify that the header.msg_size = msg_len */
 
@@ -506,21 +508,20 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
         new_pub->guid = SOS_uid_next( SOS.uid.my_guid_pool );
     }
 
-    new_pub->node_id      = SOS.config.node_id;
-    new_pub->process_id   = SOS.config.process_id;
+    new_pub->node_id      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
+    new_pub->process_id   = 0;
     new_pub->thread_id    = 0;
     new_pub->comm_rank    = 0;
-    new_pub->prog_name    = SOS.config.argv[0];
-    new_pub->prog_ver     = SOS_NULL_STR;
+    new_pub->prog_name    = (char *) malloc( SOS_DEFAULT_STRING_LEN );
+    new_pub->prog_ver     = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->pragma_len   = 0;
-    new_pub->pragma_msg   = SOS_NULL_STR;
+    new_pub->pragma_msg   = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->title = (char *) malloc(strlen(title) + 1);
         memset(new_pub->title, '\0', (strlen(title) + 1));
         strcpy(new_pub->title, title);
     new_pub->announced           = 0;
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
-
     new_pub->meta.channel     = 0;
     new_pub->meta.layer       = SOS_LAYER_APP;
     new_pub->meta.nature      = SOS_NATURE_SOS;
@@ -528,13 +529,26 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
     new_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
+    memset(new_pub->node_id,    '\0', SOS_DEFAULT_STRING_LEN);
+    memset(new_pub->prog_name,  '\0', SOS_DEFAULT_STRING_LEN);
+    memset(new_pub->prog_ver,   '\0', SOS_DEFAULT_STRING_LEN);
+    memset(new_pub->pragma_msg, '\0', SOS_DEFAULT_STRING_LEN);
+
+    /* Set some defaults for the SOS_ROLE_CLIENT's */
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        strncpy(new_pub->node_id, SOS.config.node_id, SOS_DEFAULT_STRING_LEN);
+        new_pub->process_id = SOS.config.process_id;
+        strncpy(new_pub->prog_name, SOS.config.argv[0], SOS_DEFAULT_STRING_LEN);
+    }
+
     new_pub->data                = malloc(sizeof(SOS_data *) * new_size);
 
     for (i = 0; i < new_size; i++) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
             new_pub->data[i]->guid      = 0;
-            new_pub->data[i]->name      = SOS_NULL_STR;
+            new_pub->data[i]->name      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
+            memset(new_pub->data[i]->name, '\0', SOS_DEFAULT_STRING_LEN);
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
@@ -925,15 +939,228 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
 /* **************************************** */
 
 
+/* WARNING: For simplicity's sake and for performance, this routine does not
+ *          perform any buffer size safety checks.
+ */
+void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
+    SOS_msg_header header;
+    char *buffer;
+    char *ptr;
+    int   buffer_len;
+    int   elem;
 
-void SOS_announce_to_string( SOS_pub *pub, char **buffer, int *buffer_len ) {
+    buffer = *buf_ptr;
+    buffer_len = 0;
+    ptr = buffer;
+
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
+    header.msg_from = SOS.my_guid;
+    header.pub_guid = pub->guid;
+    /* Pack the header, (we'll re-pack the header.msg_size at the end) */
+    buffer_len += SOS_buffer_pack(ptr, "llqq",
+        header.msg_size,
+        header.msg_type,
+        header.msg_from,
+        header.pub_guid);
+    ptr = (buffer + buffer_len);
+
+    /* Pack the pub definition: */
+    buffer_len += SOS_buffer_pack(ptr, "slllsslsslllllll",
+        pub->node_id,
+        pub->process_id,
+        pub->thread_id,
+        pub->comm_rank,
+        pub->prog_name,
+        pub->prog_ver,
+        pub->pragma_len,
+        pub->pragma_msg,
+        pub->title,
+        pub->elem_count,
+        pub->meta.channel,
+        pub->meta.layer,
+        pub->meta.nature,
+        pub->meta.pri_hint,
+        pub->meta.scope_hint,
+        pub->meta.retain_hint);
+    ptr = (buffer + buffer_len);
+
+
+    /* Pack the data definitions: */
+    for (elem = 0; elem < pub->elem_count; elem++) {
+        buffer_len += SOS_buffer_pack(ptr, "qsl",
+            pub->data[elem]->guid,
+            pub->data[elem]->name,
+            pub->data[elem]->type);
+        ptr = (buffer + buffer_len);
+    }
+
+    /* Re-pack the message size now that we know it. */
+    header.msg_size = buffer_len;
+    SOS_buffer_pack(buffer, "l", header.msg_size);
+
+    *buf_len = buffer_len;
+
     return;
 }
 
 
-void SOS_publish_to_string( SOS_pub *pub, char **buffer, int *buffer_len ) {
+void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
+    SOS_msg_header header;
+    char *buffer;
+    char *ptr;
+    int   buffer_len;
+    int   elem;
+
+    buffer = *buf_ptr;
+    buffer_len = 0;
+    ptr = buffer;
+
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_PUBLISH;
+    header.msg_from = SOS.my_guid;
+    header.pub_guid = pub->guid;
+    /* Pack the header, (we'll re-pack the header.msg_size at the end) */
+    buffer_len += SOS_buffer_pack(ptr, "llqq",
+        header.msg_size,
+        header.msg_type,
+        header.msg_from,
+        header.pub_guid);
+    ptr = (buffer + buffer_len);
+
+    /* Pack in the data elements. */
+    for (elem = 0; elem < pub->elem_count; elem++) {
+        buffer_len += SOS_buffer_pack(ptr, "lggl",
+            elem,
+            pub->data[elem]->time.pack,
+            pub->data[elem]->time.send,
+            pub->data[elem]->val_len);
+        ptr = (buffer + buffer_len);
+
+        switch (pub->data[elem]->type) {
+        case SOS_VAL_TYPE_INT:     buffer_len += SOS_buffer_pack(ptr, "l", pub->data[elem]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:    buffer_len += SOS_buffer_pack(ptr, "q", pub->data[elem]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE:  buffer_len += SOS_buffer_pack(ptr, "g", pub->data[elem]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING:  buffer_len += SOS_buffer_pack(ptr, "s", pub->data[elem]->val.c_val); break;
+        }
+        ptr = (buffer + buffer_len);
+    }
+
+    /* Re-pack the message size now that we know what it is. */
+    header.msg_size = buffer_len;
+    SOS_buffer_pack(buffer, "l", header.msg_size);
+
+    *buf_len = buffer_len;
+
     return;
 }
+
+
+void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
+    SOS_SET_WHOAMI(whoami, "SOS_announce_from_buffer");
+    SOS_msg_header header;
+    char *buffer;
+    char *ptr;
+    int   buffer_pos;
+    int   elem;
+
+    /* Unpack the header */
+    buffer_pos += SOS_buffer_unpack(ptr, "llqq",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+    ptr = (buffer + buffer_pos);
+
+    pub->guid = header.pub_guid;
+
+    /* Unpack the pub definition: */
+    buffer_pos += SOS_buffer_unpack(ptr, "slllsslsslllllll",
+        &pub->node_id,
+        &pub->process_id,
+        &pub->thread_id,
+        &pub->comm_rank,
+        &pub->prog_name,
+        &pub->prog_ver,
+        &pub->pragma_len,
+        &pub->pragma_msg,
+        &pub->title,
+        &elem,
+        &pub->meta.channel,
+        &pub->meta.layer,
+        &pub->meta.nature,
+        &pub->meta.pri_hint,
+        &pub->meta.scope_hint,
+        &pub->meta.retain_hint);
+    ptr = (buffer + buffer_pos);
+
+    /* Ensure there is room in this pub to handle incoming data definitions. */
+    while(pub->elem_max < elem) SOS_expand_data(pub);
+    pub->elem_count = elem;
+
+    /* Unpack the data definitions: */
+    elem = 0;
+    while (buffer_pos < header.msg_size) {
+        buffer_pos += SOS_buffer_unpack(ptr, "qsl",
+            &pub->data[elem]->guid,
+            &pub->data[elem]->name,
+            &pub->data[elem]->type);
+        ptr = (buffer + buffer_pos);
+        elem++;
+    }
+
+    return;
+}
+
+void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
+    SOS_SET_WHOAMI(whoami, "SOS_publish_from_buffer");
+    SOS_msg_header header;
+    char *buffer;
+    char *ptr;
+    int   buffer_pos;
+    int   elem;
+
+    buffer = buf_ptr;
+    buffer_pos = 0;
+    ptr = buffer;
+
+    /* Unpack the header */
+    buffer_pos += SOS_buffer_unpack(ptr, "llqq",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+    ptr = (buffer + buffer_pos);
+
+    /* Unpack in the data elements. */
+    while (buffer_pos < header.msg_size) {
+        buffer_pos += SOS_buffer_unpack(ptr, "l", &elem);
+        ptr = (buffer + buffer_pos);
+        buffer_pos += SOS_buffer_unpack(ptr, "ggl",
+            &pub->data[elem]->time.pack,
+            &pub->data[elem]->time.send,
+            &pub->data[elem]->val_len);
+        ptr = (buffer + buffer_pos);
+
+        switch (pub->data[elem]->type) {
+        case SOS_VAL_TYPE_INT:     buffer_pos += SOS_buffer_unpack(ptr, "l", pub->data[elem]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:    buffer_pos += SOS_buffer_unpack(ptr, "q", pub->data[elem]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE:  buffer_pos += SOS_buffer_unpack(ptr, "g", pub->data[elem]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING:  buffer_pos += SOS_buffer_unpack(ptr, "s", pub->data[elem]->val.c_val); break;
+        }
+        ptr = (buffer + buffer_pos);
+    }
+
+    return;
+}
+
+
+
+
+
+
+
+
 
 
 

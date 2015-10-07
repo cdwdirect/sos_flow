@@ -84,10 +84,12 @@ long double SOS_buffer_unpack754(unsigned long long int i, unsigned bits, unsign
 	return result;
 }
 
+
+
 /*
 ** packi16() -- store a 16-bit int into a char buffer (like htons())
 */ 
-void packi16(unsigned char *buf, unsigned int i)
+void SOS_buffer_packi16(unsigned char *buf, unsigned int i)
 {
 	*buf++ = i>>8; *buf++ = i;
 }
@@ -95,7 +97,7 @@ void packi16(unsigned char *buf, unsigned int i)
 /*
 ** packi32() -- store a 32-bit int into a char buffer (like htonl())
 */ 
-void packi32(unsigned char *buf, unsigned long int i)
+void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
 {
 	*buf++ = i>>24; *buf++ = i>>16;
 	*buf++ = i>>8;  *buf++ = i;
@@ -104,7 +106,7 @@ void packi32(unsigned char *buf, unsigned long int i)
 /*
 ** packi64() -- store a 64-bit int into a char buffer (like htonl())
 */ 
-void packi64(unsigned char *buf, unsigned long long int i)
+void SOS_buffer_packi64(unsigned char *buf, unsigned long long int i)
 {
 	*buf++ = i>>56; *buf++ = i>>48;
 	*buf++ = i>>40; *buf++ = i>>32;
@@ -115,7 +117,7 @@ void packi64(unsigned char *buf, unsigned long long int i)
 /*
 ** unpacki16() -- unpack a 16-bit int from a char buffer (like ntohs())
 */ 
-int unpacki16(unsigned char *buf)
+int SOS_buffer_unpacki16(unsigned char *buf)
 {
 	unsigned int i2 = ((unsigned int)buf[0]<<8) | buf[1];
 	int i;
@@ -130,7 +132,7 @@ int unpacki16(unsigned char *buf)
 /*
 ** unpacku16() -- unpack a 16-bit unsigned from a char buffer (like ntohs())
 */ 
-unsigned int unpacku16(unsigned char *buf)
+unsigned int SOS_buffer_unpacku16(unsigned char *buf)
 {
 	return ((unsigned int)buf[0]<<8) | buf[1];
 }
@@ -138,7 +140,7 @@ unsigned int unpacku16(unsigned char *buf)
 /*
 ** unpacki32() -- unpack a 32-bit int from a char buffer (like ntohl())
 */ 
-long int unpacki32(unsigned char *buf)
+long int SOS_buffer_unpacki32(unsigned char *buf)
 {
 	unsigned long int i2 = ((unsigned long int)buf[0]<<24) |
 	                       ((unsigned long int)buf[1]<<16) |
@@ -156,7 +158,7 @@ long int unpacki32(unsigned char *buf)
 /*
 ** unpacku32() -- unpack a 32-bit unsigned from a char buffer (like ntohl())
 */ 
-unsigned long int unpacku32(unsigned char *buf)
+unsigned long int SOS_buffer_unpacku32(unsigned char *buf)
 {
 	return ((unsigned long int)buf[0]<<24) |
 	       ((unsigned long int)buf[1]<<16) |
@@ -167,7 +169,7 @@ unsigned long int unpacku32(unsigned char *buf)
 /*
 ** unpacki64() -- unpack a 64-bit int from a char buffer (like ntohl())
 */ 
-long long int unpacki64(unsigned char *buf)
+long long int SOS_buffer_unpacki64(unsigned char *buf)
 {
 	unsigned long long int i2 = ((unsigned long long int)buf[0]<<56) |
 	                            ((unsigned long long int)buf[1]<<48) |
@@ -189,7 +191,7 @@ long long int unpacki64(unsigned char *buf)
 /*
 ** unpacku64() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
 */ 
-unsigned long long int unpacku64(unsigned char *buf)
+unsigned long long int SOS_buffer_unpacku64(unsigned char *buf)
 {
 	return ((unsigned long long int)buf[0]<<56) |
 	       ((unsigned long long int)buf[1]<<48) |
@@ -213,9 +215,9 @@ unsigned long long int unpacku64(unsigned char *buf)
 **      - |                               s
 **
 **  (16-bit unsigned length is automatically prepended to strings)
-*/ 
+*/
 
-unsigned int pack(unsigned char *buf, char *format, ...)
+unsigned int SOS_buffer_pack(unsigned char *buf, char *format, ...)
 {
 	va_list ap;
 
@@ -260,42 +262,42 @@ unsigned int pack(unsigned char *buf, char *format, ...)
 		case 'h': // 16-bit
 			size += 2;
 			h = va_arg(ap, int);
-			packi16(buf, h);
+			SOS_buffer_packi16(buf, h);
 			buf += 2;
 			break;
 
 		case 'H': // 16-bit unsigned
 			size += 2;
 			H = va_arg(ap, unsigned int);
-			packi16(buf, H);
+			SOS_buffer_packi16(buf, H);
 			buf += 2;
 			break;
 
 		case 'l': // 32-bit
 			size += 4;
 			l = va_arg(ap, long int);
-			packi32(buf, l);
+			SOS_buffer_packi32(buf, l);
 			buf += 4;
 			break;
 
 		case 'L': // 32-bit unsigned
 			size += 4;
 			L = va_arg(ap, unsigned long int);
-			packi32(buf, L);
+			SOS_buffer_packi32(buf, L);
 			buf += 4;
 			break;
 
 		case 'q': // 64-bit
 			size += 8;
 			q = va_arg(ap, long long int);
-			packi64(buf, q);
+			SOS_buffer_packi64(buf, q);
 			buf += 8;
 			break;
 
 		case 'Q': // 64-bit unsigned
 			size += 8;
 			Q = va_arg(ap, unsigned long long int);
-			packi64(buf, Q);
+			SOS_buffer_packi64(buf, Q);
 			buf += 8;
 			break;
 
@@ -303,7 +305,7 @@ unsigned int pack(unsigned char *buf, char *format, ...)
 			size += 2;
 			f = (float)va_arg(ap, double); // promoted
 			fhold = SOS_buffer_pack754_16(f); // convert to IEEE 754
-			packi16(buf, fhold);
+			SOS_buffer_packi16(buf, fhold);
 			buf += 2;
 			break;
 
@@ -311,7 +313,7 @@ unsigned int pack(unsigned char *buf, char *format, ...)
 			size += 4;
 			d = va_arg(ap, double);
 			fhold = SOS_buffer_pack754_32(d); // convert to IEEE 754
-			packi32(buf, fhold);
+			SOS_buffer_packi32(buf, fhold);
 			buf += 4;
 			break;
 
@@ -319,7 +321,7 @@ unsigned int pack(unsigned char *buf, char *format, ...)
 			size += 8;
 			g = va_arg(ap, long double);
 			fhold = SOS_buffer_pack754_64(g); // convert to IEEE 754
-			packi64(buf, fhold);
+			SOS_buffer_packi64(buf, fhold);
 			buf += 8;
 			break;
 
@@ -327,7 +329,7 @@ unsigned int pack(unsigned char *buf, char *format, ...)
 			s = va_arg(ap, char*);
 			len = strlen(s);
 			size += len + 2;
-			packi16(buf, len);
+			SOS_buffer_packi16(buf, len);
 			buf += 2;
 			memcpy(buf, s, len);
 			buf += len;
@@ -353,8 +355,12 @@ unsigned int pack(unsigned char *buf, char *format, ...)
 **
 **  (string is extracted based on its stored length, but 's' can be
 **  prepended with a max length)
+**
+**  This function returns the number of bytes in the buffer that were read by
+**  following the instructions in the format string.
+**
 */
-void unpack(unsigned char *buf, char *format, ...)
+unsigned int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
 {
 	va_list ap;
 
@@ -378,6 +384,11 @@ void unpack(unsigned char *buf, char *format, ...)
 	char *s;
 	unsigned int len, maxstrlen=0, count;
 
+        unsigned char *original_buf_ptr;
+        unsigned int size = 0;
+
+        original_buf_ptr = buf;
+
 	va_start(ap, format);
 
 	for(; *format != '\0'; format++) {
@@ -396,64 +407,64 @@ void unpack(unsigned char *buf, char *format, ...)
 
 		case 'h': // 16-bit
 			h = va_arg(ap, int*);
-			*h = unpacki16(buf);
+			*h = SOS_buffer_unpacki16(buf);
 			buf += 2;
 			break;
 
 		case 'H': // 16-bit unsigned
 			H = va_arg(ap, unsigned int*);
-			*H = unpacku16(buf);
+			*H = SOS_buffer_unpacku16(buf);
 			buf += 2;
 			break;
 
 		case 'l': // 32-bit
 			l = va_arg(ap, long int*);
-			*l = unpacki32(buf);
+			*l = SOS_buffer_unpacki32(buf);
 			buf += 4;
 			break;
 
 		case 'L': // 32-bit unsigned
 			L = va_arg(ap, unsigned long int*);
-			*L = unpacku32(buf);
+			*L = SOS_buffer_unpacku32(buf);
 			buf += 4;
 			break;
 
 		case 'q': // 64-bit
 			q = va_arg(ap, long long int*);
-			*q = unpacki64(buf);
+			*q = SOS_buffer_unpacki64(buf);
 			buf += 8;
 			break;
 
 		case 'Q': // 64-bit unsigned
 			Q = va_arg(ap, unsigned long long int*);
-			*Q = unpacku64(buf);
+			*Q = SOS_buffer_unpacku64(buf);
 			buf += 8;
 			break;
 
 		case 'f': // float
 			f = va_arg(ap, float*);
-			fhold = unpacku16(buf);
+			fhold = SOS_buffer_unpacku16(buf);
 			*f = SOS_buffer_unpack754_16(fhold);
 			buf += 2;
 			break;
 
 		case 'd': // float-32
 			d = va_arg(ap, double*);
-			fhold = unpacku32(buf);
+			fhold = SOS_buffer_unpacku32(buf);
 			*d = SOS_buffer_unpack754_32(fhold);
 			buf += 4;
 			break;
 
 		case 'g': // float-64
 			g = va_arg(ap, long double*);
-			fhold = unpacku64(buf);
+			fhold = SOS_buffer_unpacku64(buf);
 			*g = SOS_buffer_unpack754_64(fhold);
 			buf += 8;
 			break;
 
 		case 's': // string
 			s = va_arg(ap, char*);
-			len = unpacku16(buf);
+			len = SOS_buffer_unpacku16(buf);
 			buf += 2;
 			if (maxstrlen > 0 && len > maxstrlen) count = maxstrlen - 1;
 			else count = len;
@@ -472,6 +483,10 @@ void unpack(unsigned char *buf, char *format, ...)
 	}
 
 	va_end(ap);
+
+        size = (buf - original_buf_ptr);
+
+        return size;
 }
 
 
