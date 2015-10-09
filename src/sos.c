@@ -961,6 +961,7 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
  *          perform any buffer size safety checks.
  */
 void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
+    SOS_SET_WHOAMI(whoami, "SOS_announce_to_buffer");
     SOS_msg_header header;
     char *buffer;
     char *ptr;
@@ -1003,14 +1004,16 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
         pub->meta.retain_hint);
     ptr = (buffer + buffer_len);
 
-
     /* Pack the data definitions: */
     for (elem = 0; elem < pub->elem_count; elem++) {
         buffer_len += SOS_buffer_pack(ptr, "qsl",
-            pub->data[elem]->guid,
-            pub->data[elem]->name,
-            pub->data[elem]->type);
+                                      pub->data[elem]->guid,
+                                      pub->data[elem]->name,
+                                      pub->data[elem]->type);
         ptr = (buffer + buffer_len);
+        dlog(6, "[%s]:   ... pub->data[%d]->guid = %ld\n", whoami, elem, pub->data[elem]->guid);
+        dlog(6, "[%s]:   ... pub->data[%d]->name = %s\n", whoami, elem, pub->data[elem]->name);
+        dlog(6, "[%s]:   ... pub->data[%d]->type = %d\n", whoami, elem, pub->data[elem]->type);
     }
 
     /* Re-pack the message size now that we know it. */
@@ -1110,15 +1113,15 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     dlog(6, "[%s]:   ... unpacking the pub definition.\n", whoami);
     /* Unpack the pub definition: */
     buffer_pos += SOS_buffer_unpack(ptr, "slllsslsslllllll",
-        &pub->node_id,
+         pub->node_id,
         &pub->process_id,
         &pub->thread_id,
         &pub->comm_rank,
-        &pub->prog_name,
-        &pub->prog_ver,
+         pub->prog_name,
+         pub->prog_ver,
         &pub->pragma_len,
-        &pub->pragma_msg,
-        &pub->title,
+         pub->pragma_msg,
+         pub->title,
         &elem,
         &pub->meta.channel,
         &pub->meta.layer,
@@ -1127,6 +1130,23 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         &pub->meta.scope_hint,
         &pub->meta.retain_hint);
     ptr = (buffer + buffer_pos);
+
+    dlog(6, "[%s]: pub->node_id = \"%s\"\n", whoami, pub->node_id);
+    dlog(6, "[%s]: pub->process_id = %d\n", whoami, pub->process_id);
+    dlog(6, "[%s]: pub->thread_id = %d\n", whoami, pub->thread_id);
+    dlog(6, "[%s]: pub->comm_rank = %d\n", whoami, pub->comm_rank);
+    dlog(6, "[%s]: pub->prog_name = \"%s\"\n", whoami, pub->prog_name);
+    dlog(6, "[%s]: pub->prog_ver = \"%s\"\n", whoami, pub->prog_ver);
+    dlog(6, "[%s]: pub->pragma_len = %d\n", whoami, pub->pragma_len);
+    dlog(6, "[%s]: pub->pragma_msg = \"%s\"\n", whoami, pub->pragma_msg);
+    dlog(6, "[%s]: pub->title = \"%s\"\n", whoami, pub->title);
+    dlog(6, "[%s]: pub->elem_count = %d\n", whoami, elem);
+    dlog(6, "[%s]: pub->meta.channel = %d\n", whoami, pub->meta.channel);
+    dlog(6, "[%s]: pub->meta.layer = %d\n", whoami, pub->meta.layer);
+    dlog(6, "[%s]: pub->meta.nature = %d\n", whoami, pub->meta.nature);
+    dlog(6, "[%s]: pub->meta.pri_hint = %d\n", whoami, pub->meta.pri_hint);
+    dlog(6, "[%s]: pub->meta.scope_hint = %d\n", whoami, pub->meta.scope_hint);
+    dlog(6, "[%s]: pub->meta.retain_hint = %d\n", whoami, pub->meta.retain_hint);
 
     /* Ensure there is room in this pub to handle incoming data definitions. */
     while(pub->elem_max < elem) {
@@ -1138,13 +1158,15 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     dlog(6, "[%s]:   ... unpacking the data definitions.\n", whoami);
     /* Unpack the data definitions: */
     elem = 0;
-    while (buffer_pos < header.msg_size) {
+    for (elem = 0; elem < pub->elem_count; elem++) {
         buffer_pos += SOS_buffer_unpack(ptr, "qsl",
-            &pub->data[elem]->guid,
-            &pub->data[elem]->name,
-            &pub->data[elem]->type);
+                                        &pub->data[elem]->guid,
+                                        pub->data[elem]->name,
+                                        &pub->data[elem]->type);
         ptr = (buffer + buffer_pos);
-        elem++;
+        dlog(6, "[%s]:   ... pub->data[%d]->guid = %ld\n", whoami, elem, pub->data[elem]->guid);
+        dlog(6, "[%s]:   ... pub->data[%d]->name = %s\n", whoami, elem, pub->data[elem]->name);
+        dlog(6, "[%s]:   ... pub->data[%d]->type = %d\n", whoami, elem, pub->data[elem]->type);
     }
     dlog(6, "[%s]:   ... done.\n", whoami);
 
@@ -1210,7 +1232,7 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
             dlog(7, "[%s]:      ... elem = %lf\n", whoami, pub->data[elem]->val.d_val);
             break;
         case SOS_VAL_TYPE_STRING:
-            buffer_pos += SOS_buffer_unpack(ptr, "s", &pub->data[elem]->val.c_val);
+            buffer_pos += SOS_buffer_unpack(ptr, "s", pub->data[elem]->val.c_val);
             dlog(7, "[%s]:      ... elem = %s\n", whoami, pub->data[elem]->val.c_val);
             break;
         }

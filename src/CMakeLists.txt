@@ -120,6 +120,10 @@ target_link_libraries("sos_cmd" "sos")
 #            (debugging code)
 add_executable("test_ring" "test_ring.c")
 target_link_libraries("test_ring" "sos")
+#TARGET ---> test_pack
+#            (demonstration / example)
+add_executable("test_pack" "test_pack.c")
+target_link_libraries("test_pack" "sos")
 
 
 #TARGET ---> demo_app

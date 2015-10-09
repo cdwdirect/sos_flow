@@ -297,7 +297,7 @@ typedef struct {
     int                 buffer_len;
 } SOS_socket_set;
 
-typedef struct {                              /* no pointers, headers get used raw */
+typedef struct {                              /* no pointers, headers might get used raw */
     int                 msg_size;
     SOS_msg_type        msg_type;
     long                msg_from;
