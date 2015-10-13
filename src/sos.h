@@ -239,20 +239,19 @@ typedef struct {
     SOS_pri             pri_hint;     /* default: SOS_PRI_DEFAULT       */
     SOS_scope           scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
     SOS_retain          retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
-    char                __MEMCPY_END; /* .............................. */
 } SOS_meta;
 
 typedef struct {
     long                guid;         /* default: (auto)                */
     SOS_val_type        type;         /* default: --------- manual      */
-    int                 val_len;      /* default: (auto) [on assign]    */
     SOS_val             val;          /* default: --------- manual      */
+    int                 val_len;      /* default: (auto) [on assign]    */
     SOS_val_state       state;        /* default: SOS_VAL_STATE_EMPTY   */
     SOS_sem             sem_hint;     /* default: --------- manual      */
     SOS_time            time;         /* default: (complex)             */
-    char                __MEMCPY_END; /* .............................. */
     char               *name;         /* default: --------- manual      */
 } SOS_data;
+
 
 typedef struct {
     long                guid;         /* default: (auto, on announce)   */
@@ -261,10 +260,10 @@ typedef struct {
     int                 comm_rank;    /* default: -1                    */
     SOS_meta            meta;         /* default: (complex)             */
     int                 announced;    /* default: 0                     */
+    long                frame;        /* default: 0                     */
     int                 elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
     int                 elem_count;   /* default: 0                     */
     int                 pragma_len;   /* default: -1                    */
-    char                __MEMCPY_END; /* .............................. */
     char               *pragma_msg;   /* default: (null)                */
     char               *node_id;      /* default: SOS.config.node_id    */
     char               *prog_name;    /* default: argv[0] / manual      */
@@ -279,7 +278,6 @@ typedef struct {
     int                 refresh_delay;
     SOS_role            source_role;
     int                 source_rank;
-    char                __MEMCPY_END; /* .............................. */
     SOS_pub            *pub;
     pthread_t           thread_handle;
 } SOS_sub;
@@ -346,14 +344,14 @@ typedef struct {
 } SOS_task_set;
 
 typedef struct {
-    SOS_config         config;
-    SOS_role           role;
-    SOS_status         status;
-    SOS_unique_set     uid;
-    SOS_ring_set       ring;
-    SOS_task_set       task;
-    SOS_socket_set     net;
-    long               my_guid;
+    SOS_config          config;
+    SOS_role            role;
+    SOS_status          status;
+    SOS_unique_set      uid;
+    SOS_ring_set        ring;
+    SOS_task_set        task;
+    SOS_socket_set      net;
+    long                my_guid;
 } SOS_runtime;
 
 /* ----------

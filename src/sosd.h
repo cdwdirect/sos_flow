@@ -27,7 +27,20 @@
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
 
+/*
+typedef struct {
+    long                guid;
+    SOS_val             val;
+    long                frame;
+    SOS_time            time;
+    SOS_val_queue      *next;
+} SOS_val_snap;
 
+typedef struct {
+    qhashtbl_t         *head;
+    pthread_mutex_t    *lock;
+} SOS_val_snap_queue;
+*/
 typedef struct {
     char               *name;
     SOS_ring_queue     *ring;
@@ -40,6 +53,7 @@ typedef struct {
     long               *commit_list;
     int                 commit_count;
     SOS_role            commit_target;
+    /*    SOS_val_snap_queue  val_queue; */
 } SOSD_pub_ring_mon;
 
 typedef struct {
