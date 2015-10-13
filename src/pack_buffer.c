@@ -30,10 +30,10 @@
 ** pack754() -- pack a floating point number into IEEE-754 format
 */ 
 
-unsigned long long int SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits) {
-    long double fnorm;
+unsigned long SOS_buffer_pack754(double f, int bits, int expbits) {
+    double fnorm;
     int shift;
-    long long sign, exp, significand;
+    long sign, exp, significand;
     unsigned significandbits = bits - expbits - 1; // -1 for sign bit
     
     if (f == 0.0) return 0; // get this special case out of the way
@@ -49,7 +49,7 @@ unsigned long long int SOS_buffer_pack754(long double f, unsigned bits, unsigned
     fnorm = fnorm - 1.0;
     
     // calculate the binary form (non-float) of the significand data
-    significand = fnorm * ((1LL<<significandbits) + 0.5f);
+    significand = fnorm * ((1L<<significandbits) + 0.5f);
     
     // get the biased exponent
     exp = shift + ((1<<(expbits-1)) - 1); // shift + bias
@@ -61,7 +61,7 @@ unsigned long long int SOS_buffer_pack754(long double f, unsigned bits, unsigned
 /*
 ** SOS_buffer_unpack754() -- unpack a floating point number from IEEE-754 format
 */ 
-long double SOS_buffer_unpack754(unsigned long long int i, unsigned bits, unsigned expbits) {
+double SOS_buffer_unpack754(unsigned long i, unsigned bits, unsigned expbits) {
     long double result;
     long long shift;
     unsigned bias;
@@ -70,13 +70,13 @@ long double SOS_buffer_unpack754(unsigned long long int i, unsigned bits, unsign
     if (i == 0) return 0.0;
 
     // pull the significand
-    result = (i&((1LL<<significandbits)-1)); // mask
-    result /= (1LL<<significandbits); // convert back to float
+    result = (i&((1L<<significandbits)-1)); // mask
+    result /= (1L<<significandbits); // convert back to float
     result += 1.0f; // add the one back on
 
     // deal with the exponent
     bias = (1<<(expbits-1)) - 1;
-    shift = ((i>>significandbits)&((1LL<<expbits)-1)) - bias;
+    shift = ((i>>significandbits)&((1L<<expbits)-1)) - bias;
     while(shift > 0) { result *= 2.0; shift--; }
     while(shift < 0) { result /= 2.0; shift++; }
 
@@ -87,18 +87,9 @@ long double SOS_buffer_unpack754(unsigned long long int i, unsigned bits, unsign
 }
 
 
-
-/*
-** packi16() -- store a 16-bit int into a char buffer (like htons())
-*/ 
-void SOS_buffer_packi16(unsigned char *buf, unsigned int i)
-{
-    *buf++ = i>>8; *buf++ = i;
-}
-
 /*
 ** packi32() -- store a 32-bit int into a char buffer (like htonl())
-*/ 
+*/
 void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
 {
     *buf++ = i>>24; *buf++ = i>>16;
@@ -117,38 +108,15 @@ void SOS_buffer_packi64(unsigned char *buf, unsigned long long int i)
 }
 
 /*
-** unpacki16() -- unpack a 16-bit int from a char buffer (like ntohs())
-*/ 
-int SOS_buffer_unpacki16(unsigned char *buf)
-{
-    unsigned int i2 = ((unsigned int)buf[0]<<8) | buf[1];
-    int i;
-
-    // change unsigned numbers to signed
-    if (i2 <= 0x7fffu) { i = i2; }
-    else { i = -1 - (unsigned int)(0xffffu - i2); }
-
-    return i;
-}
-
-/*
-** unpacku16() -- unpack a 16-bit unsigned from a char buffer (like ntohs())
-*/ 
-unsigned int SOS_buffer_unpacku16(unsigned char *buf)
-{
-    return ((unsigned int)buf[0]<<8) | buf[1];
-}
-
-/*
 ** unpacki32() -- unpack a 32-bit int from a char buffer (like ntohl())
 */ 
-long int SOS_buffer_unpacki32(unsigned char *buf)
+int SOS_buffer_unpacki32(unsigned char *buf)
 {
-    unsigned long int i2 = ((unsigned long int)buf[0]<<24) |
-        ((unsigned long int)buf[1]<<16) |
-        ((unsigned long int)buf[2]<<8)  |
+    unsigned int i2 = ((unsigned int)buf[0]<<24) |
+        ((unsigned int)buf[1]<<16) |
+        ((unsigned int)buf[2]<<8)  |
         buf[3];
-    long int i;
+    int i;
 
     // change unsigned numbers to signed
     if (i2 <= 0x7fffffffu) { i = i2; }
@@ -158,42 +126,32 @@ long int SOS_buffer_unpacki32(unsigned char *buf)
 }
 
 /*
-** unpacku32() -- unpack a 32-bit unsigned from a char buffer (like ntohl())
-*/ 
-unsigned long int SOS_buffer_unpacku32(unsigned char *buf)
-{
-    return ((unsigned long int)buf[0]<<24) |
-        ((unsigned long int)buf[1]<<16) |
-        ((unsigned long int)buf[2]<<8)  |
-        buf[3];
-}
-
-/*
 ** unpacki64() -- unpack a 64-bit int from a char buffer (like ntohl())
 */ 
-long long int SOS_buffer_unpacki64(unsigned char *buf)
+long SOS_buffer_unpacki64(unsigned char *buf)
 {
-    unsigned long long int i2 = ((unsigned long long int)buf[0]<<56) |
-        ((unsigned long long int)buf[1]<<48) |
-        ((unsigned long long int)buf[2]<<40) |
-        ((unsigned long long int)buf[3]<<32) |
-        ((unsigned long long int)buf[4]<<24) |
-        ((unsigned long long int)buf[5]<<16) |
-        ((unsigned long long int)buf[6]<<8)  |
+    unsigned long i2 = ((unsigned long)buf[0]<<56) |
+        ((unsigned long)buf[1]<<48) |
+        ((unsigned long)buf[2]<<40) |
+        ((unsigned long)buf[3]<<32) |
+        ((unsigned long)buf[4]<<24) |
+        ((unsigned long)buf[5]<<16) |
+        ((unsigned long)buf[6]<<8)  |
         buf[7];
-    long long int i;
+    long i;
 
     // change unsigned numbers to signed
     if (i2 <= 0x7fffffffffffffffu) { i = i2; }
-    else { i = -1 -(long long int)(0xffffffffffffffffu - i2); }
+    else { i = -1 - (long)(0xffffffffffffffffu - i2); }
 
     return i;
 }
 
+
 /*
 ** unpacku64() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
 */ 
-unsigned long long int SOS_buffer_unpacku64(unsigned char *buf)
+unsigned long SOS_buffer_unpacku64(unsigned char *buf)
 {
     return ((unsigned long long int)buf[0]<<56) |
         ((unsigned long long int)buf[1]<<48) |
@@ -205,318 +163,149 @@ unsigned long long int SOS_buffer_unpacku64(unsigned char *buf)
         buf[7];
 }
 
+
+
+
+
 /*
 ** pack() -- store data dictated by the format string in the buffer
 **
-**   bits |signed   unsigned   float   string
-**   -----+----------------------------------
-**      8 |   c        C         
-**     16 |   h        H         f
-**     32 |   l        L         d
-**     64 |   q        Q         g
-**      - |                               s
-**
-**  (16-bit unsigned length is automatically prepended to strings)
 */
 
-unsigned int SOS_buffer_pack(unsigned char *buf, char *format, ...)
+int SOS_buffer_pack(unsigned char *buf, char *format, ...)
 {
     SOS_SET_WHOAMI(whoami, "SOS_buffer_pack");
 
     va_list ap;
 
-    signed char c;              // 8-bit
-    unsigned char C;
-
-    int h;                      // 16-bit
-    unsigned int H;
-
-    long int l;                 // 32-bit
-    unsigned long int L;
-
-    long long int q;            // 64-bit
-    unsigned long long int Q;
-
-    float f;                    // floats
-    double d;
-    long double g;
+    int   i;           // 32-bit
+    long  l;           // 64-bit
+    float d;           // double
     unsigned long long int fhold;
 
-    char *s;                    // strings
-    unsigned int len;
+    char *s;           // strings
+    int len;
 
-    unsigned int size = 0;
+    int packed_bytes;  // how many bytes have been packed...
 
     dlog(7, "[%s]: Packing the following format string: \"%s\"\n", whoami, format);
+
+    packed_bytes = 0;
 
     va_start(ap, format);
 
     for(; *format != '\0'; format++) {
         switch(*format) {
-        case 'c': // 8-bit
-            dlog(7, "[%s]:   ... packing c: 8-bit\n", whoami);
-            c = (signed char)va_arg(ap, int); // promoted
-            *buf++ = c;
-            size += 1;
-            break;
-
-        case 'C': // 8-bit unsigned
-            dlog(7, "[%s]:   ... packing C: 8-bit unsigned\n", whoami);
-            C = (unsigned char)va_arg(ap, unsigned int); // promoted
-            *buf++ = C;
-            size += 1;
-            break;
-
-        case 'h': // 16-bit
-            dlog(7, "[%s]:   ... packing h: 16-bit\n", whoami);
-            h = va_arg(ap, int);
-            SOS_buffer_packi16(buf, h);
-            buf += 2;
-            size += 2;
-            break;
-
-        case 'H': // 16-bit unsigned
-            dlog(7, "[%s]:   ... packing H: 16-bit unsigned\n", whoami);
-            H = va_arg(ap, unsigned int);
-            SOS_buffer_packi16(buf, H);
-            buf += 2;
-            size += 2;
-            break;
-
-        case 'l': // 32-bit
-            dlog(7, "[%s]:   ... packing l: 32-bit\n", whoami);
-            l = va_arg(ap, long int);
-            SOS_buffer_packi32(buf, l);
+        case 'i': // 32-bit
+            i = va_arg(ap, int);
+            dlog(7, "[%s]:   ... packing i @ %d:   %d   [32-bit]\n", whoami, packed_bytes, (int) i);
+            SOS_buffer_packi32(buf, i);
             buf += 4;
-            size += 4;
+            packed_bytes += 4;
             break;
 
-        case 'L': // 32-bit unsigned
-            dlog(7, "[%s]:   ... packing L: 32-bit unsigned\n", whoami);
-            L = va_arg(ap, unsigned long int);
-            SOS_buffer_packi32(buf, L);
-            buf += 4;
-            size += 4;
-            break;
-
-        case 'q': // 64-bit
-            dlog(7, "[%s]:   ... packing q: 64-bit\n", whoami);
-            q = va_arg(ap, long long int);
-            SOS_buffer_packi64(buf, q);
+        case 'l': // 64-bit
+            l = va_arg(ap, long);
+            dlog(7, "[%s]:   ... packing l @ %d:   %ld   [64-bit]\n", whoami, packed_bytes, (long) l);
+            SOS_buffer_packi64(buf, l);
             buf += 8;
-            size += 8;
+            packed_bytes += 8;
             break;
 
-        case 'Q': // 64-bit unsigned
-            dlog(7, "[%s]:   ... packing Q: 64-bit unsigned\n", whoami);
-            Q = va_arg(ap, unsigned long long int);
-            SOS_buffer_packi64(buf, Q);
-            buf += 8;
-            size += 8;
-            break;
-
-        case 'f': // float-16
-            dlog(7, "[%s]:   ... packing f: 16-bit float\n", whoami);
-            f = (float)va_arg(ap, double); // promoted
-            fhold = SOS_buffer_pack754_16(f); // convert to IEEE 754
-            SOS_buffer_packi16(buf, fhold);
-            buf += 2;
-            size += 2;
-            break;
-
-        case 'd': // float-32
-            dlog(7, "[%s]:   ... packing d: 32-bit float\n", whoami);
+        case 'd': // float-64
             d = va_arg(ap, double);
-            fhold = SOS_buffer_pack754_32(d); // convert to IEEE 754
-            SOS_buffer_packi32(buf, fhold);
-            buf += 4;
-            size += 4;
-            break;
-
-        case 'g': // float-64
-            dlog(7, "[%s]:   ... packing g: 64-bit float\n", whoami);
-            g = va_arg(ap, long double);
-            fhold = SOS_buffer_pack754_64(g); // convert to IEEE 754
+            dlog(7, "[%s]:   ... packing d @ %d:   %lf   [64-bit float]\n", whoami, packed_bytes, (double) d);
+            fhold = SOS_buffer_pack754_64(d); // convert to IEEE 754
             SOS_buffer_packi64(buf, fhold);
             buf += 8;
-            size += 8;
+            packed_bytes += 8;
             break;
 
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
-            dlog(7, "[%s]:   ... packing s: string (%d bytes)\n", whoami, len);
-            SOS_buffer_packi16(buf, len);
-            buf += 2;
-            size += 2;
+            dlog(7, "[%s]:   ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);
+            SOS_buffer_packi32(buf, len);
+            buf += 4;
+            packed_bytes += 4;
             memcpy(buf, s, len);
             buf += len;
-            size += len;
+            packed_bytes += len;
             break;
         }
     }
 
     va_end(ap);
-    dlog(7, "[%s]:   ... done.  total size = %d\n", whoami, size);
+    dlog(7, "[%s]:   ... done.  total packed_bytes = %d\n", whoami, packed_bytes);
 
-    return size;
+    return packed_bytes;
 }
 
 /*
 ** unpack() -- unpack data dictated by the format string into the buffer
 **
-**   bits |signed   unsigned   float   string
-**   -----+----------------------------------
-**      8 |   c        C         
-**     16 |   h        H         f
-**     32 |   l        L         d
-**     64 |   q        Q         g
-**      - |                               s
-**
-**  (string is extracted based on its stored length, but 's' can be
-**  prepended with a max length)
-**
 **  This function returns the number of bytes in the buffer that were read by
 **  following the instructions in the format string.
 **
 */
-unsigned int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
+int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
 {
     SOS_SET_WHOAMI(whoami, "SOS_buffer_unpack");
 
     va_list ap;
 
-    signed char *c;              // 8-bit
-    unsigned char *C;
-
-    int *h;                      // 16-bit
-    unsigned int *H;
-
-    long int *l;                 // 32-bit
-    unsigned long int *L;
-
-    long long int *q;            // 64-bit
-    unsigned long long int *Q;
-
-    float *f;                    // floats
-    double *d;
-    long double *g;
+    int    *i;       // 32-bit
+    long   *l;       // 64-bit
+    double *d;       // double (64-bit)
     unsigned long long int fhold;
 
     char *s;
     unsigned int len, maxstrlen=0, count;
 
-    unsigned int size = 0;
+    int packed_bytes;
 
     dlog(7, "[%s]: Unpacking the following format string: \"%s\"\n", whoami, format);
+
+    packed_bytes = 0;
 
     va_start(ap, format);
 
     for(; *format != '\0'; format++) {
         switch(*format) {
-        case 'c': // 8-bit
-            dlog(7, "[%s]:   ... unpacking c: 8-bit\n", whoami);
-            c = va_arg(ap, signed char*);
-            if (*buf <= 0x7f) { *c = *buf;} // re-sign
-            else { *c = -1 - (unsigned char)(0xffu - *buf); }
-            buf++;
-            size++;
-            break;
-
-        case 'C': // 8-bit unsigned
-            dlog(7, "[%s]:   ... unpacking C: 8-bit unsigned\n", whoami);
-            C = va_arg(ap, unsigned char*);
-            *C = *buf++;
-            size++;
-            break;
-
-        case 'h': // 16-bit
-            dlog(7, "[%s]:   ... unpacking h: 16-bit\n", whoami);
-            h = va_arg(ap, int*);
-            *h = SOS_buffer_unpacki16(buf);
-            buf += 2;
-            size += 2;
-            break;
-
-        case 'H': // 16-bit unsigned
-            dlog(7, "[%s]:   ... unpacking H: 16-bit unsigned\n", whoami);
-            H = va_arg(ap, unsigned int*);
-            *H = SOS_buffer_unpacku16(buf);
-            buf += 2;
-            size += 2;
-            break;
-
-        case 'l': // 32-bit
-            dlog(7, "[%s]:   ... unpacking l: 32-bit\n", whoami);
-            l = va_arg(ap, long int*);
-            *l = SOS_buffer_unpacki32(buf);
+        case 'i': // 32-bit
+            i = va_arg(ap, int*);
+            *i = SOS_buffer_unpacki32(buf);
+            dlog(7, "[%s]:   ... unpacked i @ %d:   %d   [32-bit]\n", whoami, packed_bytes, *i);
             buf += 4;
-            size += 4;
+            packed_bytes += 4;
             break;
-
-        case 'L': // 32-bit unsigned
-            dlog(7, "[%s]:   ... unpacking L: 32-bit unsigned\n", whoami);
-            L = va_arg(ap, unsigned long int*);
-            *L = SOS_buffer_unpacku32(buf);
-            buf += 4;
-            size += 4;
-            break;
-
-        case 'q': // 64-bit
-            dlog(7, "[%s]:   ... unpacking q: 64-bit\n", whoami);
-            q = va_arg(ap, long long int*);
-            *q = SOS_buffer_unpacki64(buf);
+        case 'l': // 64-bit
+            l = va_arg(ap, long*);
+            *l = SOS_buffer_unpacki64(buf);
+            dlog(7, "[%s]:   ... unpacked l @ %d:   %ld   [64-bit]\n", whoami, packed_bytes, *l);
             buf += 8;
-            size += 8;
+            packed_bytes += 8;
             break;
-
-        case 'Q': // 64-bit unsigned
-            dlog(7, "[%s]:   ... unpacking Q: 64-bit unsigned\n", whoami);
-            Q = va_arg(ap, unsigned long long int*);
-            *Q = SOS_buffer_unpacku64(buf);
-            buf += 8;
-            size += 8;
-            break;
-
-        case 'f': // float
-            dlog(7, "[%s]:   ... unpacking f: 16-bit float\n", whoami);
-            f = va_arg(ap, float*);
-            fhold = SOS_buffer_unpacku16(buf);
-            *f = SOS_buffer_unpack754_16(fhold);
-            buf += 2;
-            size += 2;
-            break;
-
-        case 'd': // float-32
-            dlog(7, "[%s]:   ... unpacking d: 32-bit float\n", whoami);
+        case 'd': // float-64
             d = va_arg(ap, double*);
-            fhold = SOS_buffer_unpacku32(buf);
-            *d = SOS_buffer_unpack754_32(fhold);
-            buf += 4;
-            size += 4;
-            break;
-
-        case 'g': // float-64
-            dlog(7, "[%s]:   ... unpacking g: 64-bit float\n", whoami);
-            g = va_arg(ap, long double*);
             fhold = SOS_buffer_unpacku64(buf);
-            *g = SOS_buffer_unpack754_64(fhold);
+            *d = SOS_buffer_unpack754_64(fhold);
+            dlog(7, "[%s]:   ... unpacked d @ %d:   %lf   [64-bit double]\n", whoami, packed_bytes, *d);
             buf += 8;
-            size += 8;
+            packed_bytes += 8;
             break;
-
         case 's': // string
             s = va_arg(ap, char*);
-            len = SOS_buffer_unpacku16(buf);
-            dlog(7, "[%s]:   ... unpacking s: string (%d bytes)\n", whoami, len);
-            buf += 2;
-            size += 2;
+            len = SOS_buffer_unpacki32(buf);
+            buf += 4;
+            packed_bytes += 4;
             if (maxstrlen > 0 && len > maxstrlen) count = maxstrlen - 1;
             else count = len;
             memcpy(s, buf, count);
             s[count] = '\0';
+            dlog(7, "[%s]:   ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);
             buf += len;
-            size += len;
+            packed_bytes += len;
             break;
 
         default:
@@ -529,10 +318,10 @@ unsigned int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
     }
 
     va_end(ap);
-    dlog(7, "[%s]:   ... done.  total bytes = %d\n", whoami, size);
+    dlog(7, "[%s]:   ... done.  total bytes = %d\n", whoami, packed_bytes);
     
 
-    return size;
+    return packed_bytes;
 }
 
 

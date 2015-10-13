@@ -14,7 +14,7 @@ then
 else
     cd ..
     cd bin
-    cmake -G "Unix Makefiles" --prefix=`pwd` ..
+    cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" --prefix=`pwd` ..
     make
     cd ..
     cd src

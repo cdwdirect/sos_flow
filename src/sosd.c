@@ -233,7 +233,7 @@ void SOSD_listen_loop() {
 
         if (byte_count >= sizeof(SOS_msg_header)) {
 
-            SOS_buffer_unpack(buffer, "llqq",
+            SOS_buffer_unpack(buffer, "iill",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
@@ -424,7 +424,7 @@ void SOSD_handle_echo(char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ECHO\n", whoami);
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    ptr += SOS_buffer_unpack(msg, "iill",
                                     &header.msg_size,
                                     &header.msg_type,
                                     &header.msg_from,
@@ -447,7 +447,7 @@ void SOSD_handle_register(char *msg, int msg_size) {
     long guid_block_from = 0;
     long guid_block_to   = 0;
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    ptr += SOS_buffer_unpack(msg, "iill",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -497,7 +497,7 @@ void SOSD_handle_guid_block(char *msg, int msg_size) {
 
     ptr = 0;
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    ptr += SOS_buffer_unpack(msg, "iill",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -527,7 +527,8 @@ void SOSD_handle_guid_block(char *msg, int msg_size) {
 void SOSD_handle_announce(char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
-    int   ptr;
+    char  *ptr;
+    int   buffer_pos;
     int   i;
     char *response;
     int   response_len;
@@ -537,16 +538,20 @@ void SOSD_handle_announce(char *msg, int msg_size) {
     SOS_pub *pub;
     char     guid_str[SOS_DEFAULT_STRING_LEN];
 
+    ptr = msg;
+    buffer_pos = 0;
+
     response = response_stack;
     response_alloc = 0;
     response_len = 0;
+
 
     /* Process the message into a pub handle... */
 
     ptr = 0;
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n", whoami);
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    buffer_pos += SOS_buffer_unpack(msg, "iill",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -611,7 +616,7 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    ptr += SOS_buffer_unpack(msg, "iill",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -672,7 +677,7 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
 
     dlog(1, "[%s]: header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n", whoami);
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    ptr += SOS_buffer_unpack(msg, "iill",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -701,7 +706,7 @@ void SOSD_handle_unknown(char *msg, int msg_size) {
 
     dlog(1, "[%s]: header.msg_type = UNKNOWN\n", whoami);
 
-    ptr += SOS_buffer_unpack(msg, "llqq",
+    ptr += SOS_buffer_unpack(msg, "iill",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,

@@ -214,19 +214,17 @@ static const char *SOS_MOOD_string[] =         { FOREACH_MOOD(GENERATE_STRING)  
  */
 
 
-/* NOTE: You can cut down on system calls by doing a single copy call
- *       to take care of all the static content (add all new pointers
- *       below the __MEMCPY_END entry).
- *           Example:
- *                     memcpy(&dest, &src, (&(src->__MEMCPY_END) - &src));
- */
-
 typedef union {
     int                 i_val;        /* default: (null)                */
     long                l_val;        /* default: (null)                */
     double              d_val;        /* default: (null)                */
     char               *c_val;        /* default: (null)                */
 } SOS_val;
+
+typedef struct {
+    char                data[SOS_DEFAULT_BUFFER_LEN];
+    int                 char_count;
+} SOS_buffer;
 
 typedef struct {
     double              pack;         /* default: 0.0                   */

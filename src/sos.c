@@ -128,7 +128,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
 
         memset(buffer, '\0', SOS_DEFAULT_ACK_LEN);
 
-        SOS_buffer_pack(buffer, "llqq", 
+        SOS_buffer_pack(buffer, "iill", 
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -162,7 +162,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          */
 
         dlog(0, "[%s]:   ... skipping socket setup (becase we're the daemon).\n", whoami);
-        /* TODO:{ INIT } EVPATH / MPI-coordinated setup code goes here. */
 
     }
 
@@ -977,7 +976,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
     header.msg_from = SOS.my_guid;
     header.pub_guid = pub->guid;
     /* Pack the header, (we'll re-pack the header.msg_size at the end) */
-    buffer_len += SOS_buffer_pack(ptr, "llqq",
+    buffer_len += SOS_buffer_pack(ptr, "iill",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -985,7 +984,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
     ptr = (buffer + buffer_len);
 
     /* Pack the pub definition: */
-    buffer_len += SOS_buffer_pack(ptr, "slllsslsslllllll",
+    buffer_len += SOS_buffer_pack(ptr, "siiississiiiiiii",
         pub->node_id,
         pub->process_id,
         pub->thread_id,
@@ -1006,19 +1005,19 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
 
     /* Pack the data definitions: */
     for (elem = 0; elem < pub->elem_count; elem++) {
-        buffer_len += SOS_buffer_pack(ptr, "qsl",
-                                      pub->data[elem]->guid,
-                                      pub->data[elem]->name,
-                                      pub->data[elem]->type);
-        ptr = (buffer + buffer_len);
+        buffer_len += SOS_buffer_pack(ptr, "l", (long) pub->data[elem]->guid); ptr = (buffer + buffer_len);
         dlog(6, "[%s]:   ... pub->data[%d]->guid = %ld\n", whoami, elem, pub->data[elem]->guid);
+
+        buffer_len += SOS_buffer_pack(ptr, "s", (char *) pub->data[elem]->name); ptr = (buffer + buffer_len);
         dlog(6, "[%s]:   ... pub->data[%d]->name = %s\n", whoami, elem, pub->data[elem]->name);
+
+        buffer_len += SOS_buffer_pack(ptr, "i", (int) pub->data[elem]->type); ptr = (buffer + buffer_len);
         dlog(6, "[%s]:   ... pub->data[%d]->type = %d\n", whoami, elem, pub->data[elem]->type);
     }
 
     /* Re-pack the message size now that we know it. */
     header.msg_size = buffer_len;
-    SOS_buffer_pack(buffer, "l", header.msg_size);
+    SOS_buffer_pack(buffer, "i", header.msg_size);
 
     *buf_len = buffer_len;
 
@@ -1045,7 +1044,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
     header.msg_from = SOS.my_guid;
     header.pub_guid = pub->guid;
     /* Pack the header, (we'll re-pack the header.msg_size at the end) */
-    buffer_len += SOS_buffer_pack(ptr, "llqq",
+    buffer_len += SOS_buffer_pack(ptr, "iill",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -1059,7 +1058,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
         pub->data[elem]->state = SOS_VAL_STATE_CLEAN;
         pub->data[elem]->time.send = send_time;
 
-        buffer_len += SOS_buffer_pack(ptr, "lggl",
+        buffer_len += SOS_buffer_pack(ptr, "iddi",
             elem,
             pub->data[elem]->time.pack,
             pub->data[elem]->time.send,
@@ -1067,9 +1066,9 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
         ptr = (buffer + buffer_len);
 
         switch (pub->data[elem]->type) {
-        case SOS_VAL_TYPE_INT:     buffer_len += SOS_buffer_pack(ptr, "l", pub->data[elem]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:    buffer_len += SOS_buffer_pack(ptr, "q", pub->data[elem]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE:  buffer_len += SOS_buffer_pack(ptr, "g", pub->data[elem]->val.d_val); break;
+        case SOS_VAL_TYPE_INT:     buffer_len += SOS_buffer_pack(ptr, "i", pub->data[elem]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:    buffer_len += SOS_buffer_pack(ptr, "l", pub->data[elem]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE:  buffer_len += SOS_buffer_pack(ptr, "d", pub->data[elem]->val.d_val); break;
         case SOS_VAL_TYPE_STRING:  buffer_len += SOS_buffer_pack(ptr, "s", pub->data[elem]->val.c_val); break;
         }
         ptr = (buffer + buffer_len);
@@ -1077,7 +1076,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
 
     /* Re-pack the message size now that we know what it is. */
     header.msg_size = buffer_len;
-    SOS_buffer_pack(buffer, "l", header.msg_size);
+    SOS_buffer_pack(buffer, "i", header.msg_size);
 
     *buf_len = buffer_len;
 
@@ -1093,26 +1092,37 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     int   buffer_pos;
     int   elem;
 
+    int   hello_kitty;
+
     dlog(6, "[%s]: Applying an ANNOUNCE from a buffer...\n", whoami);
 
     ptr        = buf_ptr;
     buffer     = buf_ptr;
+    hello_kitty = 0;
     buffer_pos = 0;
+
 
     dlog(6, "[%s]:   ... unpacking the header.\n", whoami);
     /* Unpack the header */
-    buffer_pos += SOS_buffer_unpack(ptr, "llqq",
+    hello_kitty = SOS_buffer_unpack(ptr, "iill",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
         &header.pub_guid);
+    buffer_pos += hello_kitty;   hello_kitty = 0;
+    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<<\n", whoami, buffer_pos, hello_kitty);    
+
     ptr = (buffer + buffer_pos);
+
+    dlog(6, "[%s]:   ::: ptr = %ld :::\n", whoami, (long int) ptr);
 
     pub->guid = header.pub_guid;
 
     dlog(6, "[%s]:   ... unpacking the pub definition.\n", whoami);
     /* Unpack the pub definition: */
-    buffer_pos += SOS_buffer_unpack(ptr, "slllsslsslllllll",
+
+    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<< BEFORE SOS_buffer_unpack()\n", whoami, buffer_pos, hello_kitty);
+    hello_kitty = SOS_buffer_unpack(ptr, "siiississiiiiiii",
          pub->node_id,
         &pub->process_id,
         &pub->thread_id,
@@ -1129,7 +1139,17 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         &pub->meta.pri_hint,
         &pub->meta.scope_hint,
         &pub->meta.retain_hint);
+
+
+    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<< AFTER SOS_buffer_unpack()\n", whoami, buffer_pos, hello_kitty);
+    buffer_pos += hello_kitty;  hello_kitty = 0;
+    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<< AFTER += and kitty-reset\n", whoami, buffer_pos, hello_kitty);
+
     ptr = (buffer + buffer_pos);
+
+    dlog(6, "[%s]:   ::: buffer_pos = %ld :::\n", whoami, (long int) buffer_pos);    
+
+    dlog(6, "[%s]:   ::: ptr = %ld :::\n", whoami, (long int) ptr);
 
     dlog(6, "[%s]: pub->node_id = \"%s\"\n", whoami, pub->node_id);
     dlog(6, "[%s]: pub->process_id = %d\n", whoami, pub->process_id);
@@ -1159,11 +1179,23 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
-        buffer_pos += SOS_buffer_unpack(ptr, "qsl",
+        dlog(6, "[%s]:   ::: ptr = %ld ::: before...\n", whoami, (long int) ptr);
+        hello_kitty = SOS_buffer_unpack(ptr, "lsi",
                                         &pub->data[elem]->guid,
                                         pub->data[elem]->name,
                                         &pub->data[elem]->type);
+        buffer_pos += hello_kitty;  hello_kitty = 0;
+
+        /* For strings, we can't store them directly in the struct, so we need to initialize some space for them. */
+        if ( pub->data[elem]->type == SOS_VAL_TYPE_STRING ) {
+            if (!pub->data[elem]->val.c_val) {  /* In cases of re-announce we don't want a memory leak... */
+                pub->data[elem]->val.c_val = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+                memset(pub->data[elem]->val.c_val, '\0', SOS_DEFAULT_STRING_LEN);
+            }
+        }
+
         ptr = (buffer + buffer_pos);
+        dlog(6, "[%s]:   ::: ptr = %ld ::: ...after\n", whoami, (long int) ptr);
         dlog(6, "[%s]:   ... pub->data[%d]->guid = %ld\n", whoami, elem, pub->data[elem]->guid);
         dlog(6, "[%s]:   ... pub->data[%d]->name = %s\n", whoami, elem, pub->data[elem]->name);
         dlog(6, "[%s]:   ... pub->data[%d]->type = %d\n", whoami, elem, pub->data[elem]->type);
@@ -1188,7 +1220,7 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     dlog(7, "[%s]: Unpacking the values from the buffer...\n", whoami);
 
     /* Unpack the header */
-    buffer_pos += SOS_buffer_unpack(ptr, "llqq",
+    buffer_pos += SOS_buffer_unpack(ptr, "iill",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
@@ -1204,11 +1236,11 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
 
     /* Unpack in the data elements. */
     while (buffer_pos < header.msg_size) {
-        buffer_pos += SOS_buffer_unpack(ptr, "l", &elem);
+        buffer_pos += SOS_buffer_unpack(ptr, "i", &elem);
         ptr = (buffer + buffer_pos);
         dlog(7, "[%s]:      ... elem = %d   (%s)\n", whoami, elem, pub->data[elem]->name);
 
-        buffer_pos += SOS_buffer_unpack(ptr, "ggl",
+        buffer_pos += SOS_buffer_unpack(ptr, "ddi",
             &pub->data[elem]->time.pack,
             &pub->data[elem]->time.send,
             &pub->data[elem]->val_len);
@@ -1220,18 +1252,23 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
 
         switch (pub->data[elem]->type) {
         case SOS_VAL_TYPE_INT:
-            buffer_pos += SOS_buffer_unpack(ptr, "l", &pub->data[elem]->val.i_val);
+            buffer_pos += SOS_buffer_unpack(ptr, "i", &pub->data[elem]->val.i_val);
             dlog(7, "[%s]:      ... val = %d\n", whoami, pub->data[elem]->val.i_val);
             break;
         case SOS_VAL_TYPE_LONG:
-            buffer_pos += SOS_buffer_unpack(ptr, "q", &pub->data[elem]->val.l_val);
+            buffer_pos += SOS_buffer_unpack(ptr, "l", &pub->data[elem]->val.l_val);
             dlog(7, "[%s]:      ... elem = %ld\n", whoami, pub->data[elem]->val.l_val);
             break;
         case SOS_VAL_TYPE_DOUBLE:
-            buffer_pos += SOS_buffer_unpack(ptr, "g", &pub->data[elem]->val.d_val);
+            buffer_pos += SOS_buffer_unpack(ptr, "d", &pub->data[elem]->val.d_val);
             dlog(7, "[%s]:      ... elem = %lf\n", whoami, pub->data[elem]->val.d_val);
             break;
         case SOS_VAL_TYPE_STRING:
+            if (pub->data[elem]->val_len > SOS_DEFAULT_STRING_LEN) {
+                free( pub->data[elem]->val.c_val );
+                pub->data[elem]->val.c_val = (char *) malloc(1 + pub->data[elem]->val_len);
+                memset(pub->data[elem]->val.c_val, '\0', (1 + pub->data[elem]->val_len));
+            }
             buffer_pos += SOS_buffer_unpack(ptr, "s", pub->data[elem]->val.c_val);
             dlog(7, "[%s]:      ... elem = %s\n", whoami, pub->data[elem]->val.c_val);
             break;
