@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
 
 
     SOS_TIME(ts_start);
-    pub = SOS_new_pub("demo");
+    pub = SOS_pub_create("demo");
     dlog(6, "[%s]: Manually configuring some pub metadata...\n", whoami);
     pub->prog_ver         = str_prog_ver;
     pub->meta.channel     = 1;

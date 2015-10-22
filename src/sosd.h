@@ -27,20 +27,14 @@
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
 
-/*
-typedef struct {
-    long                guid;
-    SOS_val             val;
-    long                frame;
-    SOS_time            time;
-    SOS_val_queue      *next;
-} SOS_val_snap;
+/* NOTE: The val_snap objects are used primarily by the DAEMON, but
+ * there may come a time when the client does it's buffering to
+ * allow local queueing of many packs for integration into a
+ * multipart socket publish.  For now, that would be an overcomplication
+ * since calls to the on-node socket are so blazingly fast...
+ */
 
-typedef struct {
-    qhashtbl_t         *head;
-    pthread_mutex_t    *lock;
-} SOS_val_snap_queue;
-*/
+
 typedef struct {
     char               *name;
     SOS_ring_queue     *ring;
@@ -52,8 +46,9 @@ typedef struct {
     pthread_mutex_t    *commit_lock;
     long               *commit_list;
     int                 commit_count;
-    SOS_role            commit_target;
-    /*    SOS_val_snap_queue  val_queue; */
+    SOS_target          commit_target;
+    SOS_val_snap_queue *val_intake;
+    SOS_val_snap_queue *val_outlet;
 } SOSD_pub_ring_mon;
 
 typedef struct {
@@ -124,7 +119,12 @@ extern "C" {
     void  SOSD_init_pub_ring_monitor();
     void* SOSD_THREAD_pub_ring_list_extractor(void *args);
     void* SOSD_THREAD_pub_ring_storage_injector(void *args);
-    void  SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_role target_var);
+    void  SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
+                                     char *name_var,
+                                     SOS_ring_queue *ring_var,
+                                     SOS_val_snap_queue *source_vals,
+                                     SOS_val_snap_queue *target_vals,
+                                     SOS_target target);
     void  SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon_var);
 
     void  SOSD_listen_loop();

@@ -17,8 +17,8 @@ int main(int argc, char **argv) {
     SOS_pub *pub1;
     SOS_pub *pub2;
 
-    pub1 = SOS_new_pub("ex1");
-    pub2 = SOS_new_pub("ex2");
+    pub1 = SOS_pub_create("ex1");
+    pub2 = SOS_pub_create("ex2");
 
     char    *var_string   = "Hello, world!";
     int      var_int      = 10;
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     dlog(0, "[%s]:   ... buffer_len = %d\n", whoami, buffer_len);
     dlog(0, "[%s]: Publishing FROM buffer to pub2...\n", whoami);
 
-    SOS_publish_from_buffer(pub2, buffer);
+    SOS_publish_from_buffer(pub2, buffer, NULL);
 
     for (elem = 0; elem < pub2->elem_count; elem++) {
         switch(pub2->data[elem]->type) {

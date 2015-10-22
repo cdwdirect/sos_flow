@@ -21,6 +21,7 @@
 #include "sos.h"
 #include "sos_debug.h"
 #include "pack_buffer.h"
+#include "qhashtbl.h"
 
 /* Private functions (not in the header file) */
 void*  SOS_THREAD_post( void *arg );
@@ -82,6 +83,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     retval = pthread_create( SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
     if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.scan thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
     #endif
+
+    /* The CLIENT doesn't do pack-granularity queueing (yet)... */
+    SOS.task.val_intake = NULL;
+    SOS.task.val_outlet = NULL;
+
 
     if (SOS.role == SOS_ROLE_CLIENT) {
         /*
@@ -162,7 +168,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
          */
 
         dlog(0, "[%s]:   ... skipping socket setup (becase we're the daemon).\n", whoami);
-
     }
 
     dlog(1, "[%s]:   ... done with SOS_init().\n", whoami);
@@ -304,9 +309,7 @@ void SOS_send_to_daemon( char *msg, int msg_len, char *reply, int reply_max ) {
     int server_socket_fd;
     int retval;
 
-
     /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
-    /* TODO: { SEND_TO_DAEMON } Verify that the header.msg_size = msg_len */
 
     retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
     if ( retval < 0 ) { dlog(0, "[%s]: ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
@@ -378,7 +381,7 @@ void* SOS_THREAD_post( void *args ) {
          * ...
          *
          */
-        sleep(1);
+        usleep(250000);
     }
     return NULL;
 }
@@ -394,7 +397,7 @@ void* SOS_THREAD_read( void *args ) {
          * ...
          *
          */
-        sleep(1);
+        usleep(250000);
     }    
     return NULL;
 }
@@ -411,7 +414,7 @@ void* SOS_THREAD_scan( void *args ) {
          * ...
          *
          */
-        sleep(1);
+        sleep(250000);
     }
     return NULL;
 }
@@ -498,10 +501,10 @@ long SOS_uid_next( SOS_uid *id ) {
 }
 
 
-SOS_pub* SOS_new_pub(char *title) { return SOS_new_pub_sized(title, SOS_DEFAULT_ELEM_MAX); }
-SOS_pub* SOS_new_post(char *title){ return SOS_new_pub_sized(title, 1); }
-SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
-    SOS_SET_WHOAMI(whoami, "SOS_new_pub_sized");
+SOS_pub* SOS_pub_create(char *title) { return SOS_pub_create_sized(title, SOS_DEFAULT_ELEM_MAX); }
+SOS_pub* SOS_new_post(char *title){ return SOS_pub_create_sized(title, 1); }
+SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
+    SOS_SET_WHOAMI(whoami, "SOS_pub_create_sized");
 
     SOS_pub   *new_pub;
     int        i;
@@ -569,10 +572,17 @@ SOS_pub* SOS_new_pub_sized(char *title, int new_size) {
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
             new_pub->data[i]->state     = SOS_VAL_STATE_EMPTY;
-            new_pub->data[i]->sem_hint  = 0;
             new_pub->data[i]->time.pack = 0.0;
             new_pub->data[i]->time.send = 0.0;
             new_pub->data[i]->time.recv = 0.0;
+
+            new_pub->data[i]->meta.freq     = SOS_VAL_FREQ_DEFAULT;
+            new_pub->data[i]->meta.class    = SOS_VAL_CLASS_DATA;
+            new_pub->data[i]->meta.semantic = SOS_VAL_SEMANTIC_DEFAULT;
+            new_pub->data[i]->meta.pattern  = SOS_VAL_PATTERN_DEFAULT;
+            new_pub->data[i]->meta.compare  = SOS_VAL_COMPARE_SELF;
+            new_pub->data[i]->meta.mood     = SOS_MOOD_GOOD;
+
     }
     dlog(6, "[%s]:   ... done.\n", whoami);
 
@@ -614,10 +624,34 @@ void SOS_strip_str( char *str ) {
 }
 
 
+int SOS_define_value( SOS_pub *pub, const char *name, SOS_val_type val_type, SOS_val_meta val_meta) {
+    SOS_SET_WHOAMI(whoami, "SOS_define_val");
+
+    SOS_val empty;
+    int val_pos;
+
+    memset(&empty, '\0', sizeof(SOS_val));
+
+    switch (val_type) {
+    case SOS_VAL_TYPE_INT:    empty.i_val = 0;    break;
+    case SOS_VAL_TYPE_LONG:   empty.l_val = 0;    break;
+    case SOS_VAL_TYPE_DOUBLE: empty.d_val = 0.0;  break;
+    case SOS_VAL_TYPE_STRING: empty.c_val = NULL; break;
+    default: dlog(0, "[%s]: ERROR!  Attempted to define an invalid value type (%d).\n", whoami, val_type); exit(EXIT_FAILURE); break;
+    }
+
+    val_pos = SOS_pack(pub, name, val_type, empty);
+    pub->data[val_pos]->meta = val_meta;
+
+    return val_pos;
+}
+
+
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_WHOAMI(whoami, "SOS_pack");
 
-    /* TODO:{ PACK } Add hashtable lookup to improve search time in linear array. */
+    /* TODO:{ PACK } This is due for a re-write, eventually.
+     *               Add hashtable lookup to improve search time in linear array. */
 
     //counter variables
     int i, n;
@@ -628,13 +662,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
     char *new_name;
 
 
-    switch (pack_type) {
-    case SOS_VAL_TYPE_INT    : dlog(6, "[%s]: (%s) pack_val.i_val = \"%d\"\n",  whoami, name, pack_val.i_val); break;
-    case SOS_VAL_TYPE_LONG   : dlog(6, "[%s]: (%s) pack_val.l_val = \"%ld\"\n", whoami, name, pack_val.l_val); break;
-    case SOS_VAL_TYPE_DOUBLE : dlog(6, "[%s]: (%s) pack_val.d_val = \"%lF\"\n", whoami, name, pack_val.d_val); break;
-    case SOS_VAL_TYPE_STRING : dlog(6, "[%s]: (%s) pack_val.c_val = \"%s\"\n",  whoami, name, pack_val.c_val); break;
-    }
-    
+
     //try to find the name in the existing pub schema:
     for (i = 0; i < pub->elem_count; i++) {
         if (strcmp(pub->data[i]->name, name) == 0) {
@@ -896,7 +924,7 @@ SOS_sub* SOS_new_sub() {
     new_sub = malloc(sizeof(SOS_sub));
     memset(new_sub, '\0', sizeof(SOS_sub));
     new_sub->active = 1;
-    new_sub->pub = SOS_new_pub("---empty---");
+    new_sub->pub = SOS_pub_create("---empty---");
 
     return new_sub;
 }
@@ -956,6 +984,132 @@ void SOS_display_pub(SOS_pub *pub, FILE *output_to) {
 /* **************************************** */
 
 
+
+void SOS_val_snap_queue_init(SOS_val_snap_queue **queue_var) {
+    SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_init");
+    SOS_val_snap_queue *queue;
+
+    *queue_var = (SOS_val_snap_queue *) malloc(sizeof(SOS_val_snap_queue));
+    queue = *queue_var;
+
+    dlog(5, "[%s]: Initializing a val_snap_queue:\n", whoami);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(5, "[%s]:   ... initializing queue->lock\n", whoami);
+    queue->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(queue->lock, NULL);
+    #endif
+
+    dlog(5, "[%s]:   ... initializing queue->from (hash table)\n", whoami);
+    queue->from = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+
+    dlog(5, "[%s]:   ... done.\n", whoami);
+
+    return;
+}
+
+
+
+void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
+    SOS_SET_WHOAMI(whoami, "SOS_val_snap_enqueue");
+    char pub_id_str[SOS_DEFAULT_STRING_LEN];
+    SOS_val_snap *new_snap;
+    SOS_val val_copy;
+
+    dlog(2, "[%s]: Creating and enqueue'ing a snapshot of \"%s\":\n", whoami, pub->data[elem]->name);
+
+    if (queue == NULL) { return; }
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(2, "[%s]:   ... obtaining queue->lock\n", whoami);
+    pthread_mutex_lock(queue->lock);
+    #endif
+
+    dlog(2, "[%s]:   ... initializing snapshot\n", whoami);
+    new_snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
+    memset(new_snap, '\0', sizeof(SOS_val_snap));
+
+    memset(pub_id_str, '\0', SOS_DEFAULT_STRING_LEN);
+    sprintf(pub_id_str, "%ld", pub->guid);
+
+    val_copy = pub->data[elem]->val;
+    if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
+        dlog(2, "[%s]:   ... allocating memory for a string (pub->data[%d]->val_len == %d)\n", whoami, elem, pub->data[elem]->val_len);
+        val_copy.c_val = (char *) malloc (1 + pub->data[elem]->val_len);
+        memset(val_copy.c_val, '\0', (1 + pub->data[elem]->val_len));
+        memcpy(val_copy.c_val, pub->data[elem]->val.c_val, pub->data[elem]->val_len);
+    }
+
+    dlog(2, "[%s]:   ... assigning values to snapshot\n", whoami);
+
+    new_snap->elem  = elem;
+    new_snap->guid  = pub->data[elem]->guid;
+    new_snap->val   = val_copy;
+    new_snap->time  = pub->data[elem]->time;
+    new_snap->frame = pub->frame;
+    new_snap->next  = (void *) queue->from->get(queue->from, pub_id_str);
+    queue->from->remove(queue->from, pub_id_str);
+
+    dlog(2, "[%s]:      &(%ld) new_snap->elem  = %d\n", whoami, (long) new_snap, new_snap->elem);
+    dlog(2, "[%s]:      &(%ld) new_snap->guid  = %ld\n", whoami, (long) new_snap, new_snap->guid);
+    switch(pub->data[elem]->type) {
+    case SOS_VAL_TYPE_INT:     dlog(2, "[%s]:      &(%ld) new_snap->val   = %d (int)\n",     whoami, (long) new_snap, new_snap->val.i_val); break;
+    case SOS_VAL_TYPE_LONG:    dlog(2, "[%s]:      &(%ld) new_snap->val   = %ld (long)\n",   whoami, (long) new_snap, new_snap->val.l_val); break;
+    case SOS_VAL_TYPE_DOUBLE:  dlog(2, "[%s]:      &(%ld) new_snap->val   = %lf (double)\n", whoami, (long) new_snap, new_snap->val.d_val); break;
+    case SOS_VAL_TYPE_STRING:  dlog(2, "[%s]:      &(%ld) new_snap->val   = %s (string)\n",  whoami, (long) new_snap, new_snap->val.c_val); break;
+    }
+    dlog(2, "[%s]:      &(%ld) new_snap->frame = %ld\n", whoami, (long) new_snap, new_snap->frame);
+    dlog(2, "[%s]:      &(%ld) new_snap->next  = %ld\n", whoami, (long) new_snap, (long) new_snap->next);
+    dlog(2, "[%s]:   ... making this the new head of the val_snap queue\n", whoami);
+
+    /* We're hashing into per-pub val_snap stacks... (say that 5 times fast) */
+    queue->from->put(queue->from, pub_id_str, (void *) new_snap);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(2, "[%s]:   ... releasing queue->lock\n", whoami);
+    pthread_mutex_unlock(queue->lock);
+    #endif
+
+    dlog(2, "[%s]:   ... done.\n", whoami);
+
+    return;
+}
+
+
+void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, char **buffer, int *buffer_len) {
+    SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_to_buffer");
+
+    return;
+}
+
+
+
+void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, char *buffer) {
+    SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_from_buffer");
+
+    return;
+}
+
+
+
+void SOS_val_snap_queue_destroy(SOS_val_snap_queue *queue) {
+    SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_destroy");
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_destroy(queue->lock);
+    free(queue->lock);
+    #endif
+
+    queue->from->free(queue->from);
+    free(queue);
+
+    return;
+}
+
+
+
+
+
+
 /* WARNING: For simplicity's sake and for performance, this routine does not
  *          perform any buffer size safety checks.
  */
@@ -1005,14 +1159,17 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
 
     /* Pack the data definitions: */
     for (elem = 0; elem < pub->elem_count; elem++) {
-        buffer_len += SOS_buffer_pack(ptr, "l", (long) pub->data[elem]->guid); ptr = (buffer + buffer_len);
-        dlog(6, "[%s]:   ... pub->data[%d]->guid = %ld\n", whoami, elem, pub->data[elem]->guid);
-
-        buffer_len += SOS_buffer_pack(ptr, "s", (char *) pub->data[elem]->name); ptr = (buffer + buffer_len);
-        dlog(6, "[%s]:   ... pub->data[%d]->name = %s\n", whoami, elem, pub->data[elem]->name);
-
-        buffer_len += SOS_buffer_pack(ptr, "i", (int) pub->data[elem]->type); ptr = (buffer + buffer_len);
-        dlog(6, "[%s]:   ... pub->data[%d]->type = %d\n", whoami, elem, pub->data[elem]->type);
+        buffer_len += SOS_buffer_pack(ptr, "lsiiiiiii",
+            pub->data[elem]->guid,
+            pub->data[elem]->name,
+            pub->data[elem]->type,
+            pub->data[elem]->meta.freq,
+            pub->data[elem]->meta.semantic,
+            pub->data[elem]->meta.class,
+            pub->data[elem]->meta.pattern,
+            pub->data[elem]->meta.compare,
+            pub->data[elem]->meta.mood );
+        ptr = (buffer + buffer_len);
     }
 
     /* Re-pack the message size now that we know it. */
@@ -1026,9 +1183,11 @@ void SOS_announce_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
 
 
 void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
+    SOS_SET_WHOAMI(whoami, "SOS_publish_to_buffer");
     SOS_msg_header header;
     char   *buffer;
     char   *ptr;
+    long    this_frame;
     int     buffer_len;
     int     elem;
     double  send_time;
@@ -1038,6 +1197,12 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
     ptr = buffer;
 
     SOS_TIME( send_time );
+
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        /* Only CLIENT updates the frame when sending, in case this is re-used
+         * internally / on the backplane by the DB or DAEMON. */
+        this_frame = pub->frame++;
+    }
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_PUBLISH;
@@ -1049,6 +1214,10 @@ void SOS_publish_to_buffer( SOS_pub *pub, char **buf_ptr, int *buf_len ) {
         header.msg_type,
         header.msg_from,
         header.pub_guid);
+    ptr = (buffer + buffer_len);
+
+    /* Pack in the frame of these elements: */
+    buffer_len += SOS_buffer_pack(ptr, "l", this_frame);
     ptr = (buffer + buffer_len);
 
     /* Pack in the data elements. */
@@ -1092,26 +1261,19 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     int   buffer_pos;
     int   elem;
 
-    int   hello_kitty;
-
     dlog(6, "[%s]: Applying an ANNOUNCE from a buffer...\n", whoami);
 
     ptr        = buf_ptr;
     buffer     = buf_ptr;
-    hello_kitty = 0;
     buffer_pos = 0;
-
 
     dlog(6, "[%s]:   ... unpacking the header.\n", whoami);
     /* Unpack the header */
-    hello_kitty = SOS_buffer_unpack(ptr, "iill",
+    buffer_pos += SOS_buffer_unpack(ptr, "iill",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
         &header.pub_guid);
-    buffer_pos += hello_kitty;   hello_kitty = 0;
-    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<<\n", whoami, buffer_pos, hello_kitty);    
-
     ptr = (buffer + buffer_pos);
 
     dlog(6, "[%s]:   ::: ptr = %ld :::\n", whoami, (long int) ptr);
@@ -1121,8 +1283,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     dlog(6, "[%s]:   ... unpacking the pub definition.\n", whoami);
     /* Unpack the pub definition: */
 
-    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<< BEFORE SOS_buffer_unpack()\n", whoami, buffer_pos, hello_kitty);
-    hello_kitty = SOS_buffer_unpack(ptr, "siiississiiiiiii",
+    buffer_pos += SOS_buffer_unpack(ptr, "siiississiiiiiii",
          pub->node_id,
         &pub->process_id,
         &pub->thread_id,
@@ -1140,16 +1301,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         &pub->meta.scope_hint,
         &pub->meta.retain_hint);
 
-
-    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<< AFTER SOS_buffer_unpack()\n", whoami, buffer_pos, hello_kitty);
-    buffer_pos += hello_kitty;  hello_kitty = 0;
-    dlog(6, "[%s]:   >>> buffer_pos = %d , hello_kitty = %d <<< AFTER += and kitty-reset\n", whoami, buffer_pos, hello_kitty);
-
     ptr = (buffer + buffer_pos);
-
-    dlog(6, "[%s]:   ::: buffer_pos = %ld :::\n", whoami, (long int) buffer_pos);    
-
-    dlog(6, "[%s]:   ::: ptr = %ld :::\n", whoami, (long int) ptr);
 
     dlog(6, "[%s]: pub->node_id = \"%s\"\n", whoami, pub->node_id);
     dlog(6, "[%s]: pub->process_id = %d\n", whoami, pub->process_id);
@@ -1179,12 +1331,16 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
-        dlog(6, "[%s]:   ::: ptr = %ld ::: before...\n", whoami, (long int) ptr);
-        hello_kitty = SOS_buffer_unpack(ptr, "lsi",
-                                        &pub->data[elem]->guid,
-                                        pub->data[elem]->name,
-                                        &pub->data[elem]->type);
-        buffer_pos += hello_kitty;  hello_kitty = 0;
+        buffer_pos += SOS_buffer_unpack(ptr, "lsiiiiiii",
+            &pub->data[elem]->guid,
+            pub->data[elem]->name,
+            &pub->data[elem]->type,
+            &pub->data[elem]->meta.freq,
+            &pub->data[elem]->meta.semantic,
+            &pub->data[elem]->meta.class,
+            &pub->data[elem]->meta.pattern,
+            &pub->data[elem]->meta.compare,
+            &pub->data[elem]->meta.mood );
 
         /* For strings, we can't store them directly in the struct, so we need to initialize some space for them. */
         if ( pub->data[elem]->type == SOS_VAL_TYPE_STRING ) {
@@ -1195,7 +1351,6 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         }
 
         ptr = (buffer + buffer_pos);
-        dlog(6, "[%s]:   ::: ptr = %ld ::: ...after\n", whoami, (long int) ptr);
         dlog(6, "[%s]:   ... pub->data[%d]->guid = %ld\n", whoami, elem, pub->data[elem]->guid);
         dlog(6, "[%s]:   ... pub->data[%d]->name = %s\n", whoami, elem, pub->data[elem]->name);
         dlog(6, "[%s]:   ... pub->data[%d]->type = %d\n", whoami, elem, pub->data[elem]->type);
@@ -1205,11 +1360,12 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     return;
 }
 
-void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
+ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr, SOS_val_snap_queue *opt_queue ) {
     SOS_SET_WHOAMI(whoami, "SOS_publish_from_buffer");
     SOS_msg_header header;
     char *buffer;
     char *ptr;
+    long  this_frame;
     int   buffer_pos;
     int   elem;
 
@@ -1234,11 +1390,17 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
     dlog(7, "[%s]:   ... values:\n", whoami);
 
 
+    /* Unpack the frame: */
+    buffer_pos += SOS_buffer_unpack(ptr, "l", &this_frame);
+    ptr = (buffer + buffer_pos);
+
+    pub->frame = this_frame;
+
     /* Unpack in the data elements. */
     while (buffer_pos < header.msg_size) {
+
         buffer_pos += SOS_buffer_unpack(ptr, "i", &elem);
         ptr = (buffer + buffer_pos);
-        dlog(7, "[%s]:      ... elem = %d   (%s)\n", whoami, elem, pub->data[elem]->name);
 
         buffer_pos += SOS_buffer_unpack(ptr, "ddi",
             &pub->data[elem]->time.pack,
@@ -1246,23 +1408,10 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
             &pub->data[elem]->val_len);
         ptr = (buffer + buffer_pos);
 
-        dlog(7, "[%s]:      ... time.pack = %lf\n", whoami, pub->data[elem]->time.pack);
-        dlog(7, "[%s]:      ... time.send = %lf\n", whoami, pub->data[elem]->time.pack);
-        dlog(7, "[%s]:      ... val_len = %d\n", whoami, pub->data[elem]->val_len);
-
         switch (pub->data[elem]->type) {
-        case SOS_VAL_TYPE_INT:
-            buffer_pos += SOS_buffer_unpack(ptr, "i", &pub->data[elem]->val.i_val);
-            dlog(7, "[%s]:      ... val = %d\n", whoami, pub->data[elem]->val.i_val);
-            break;
-        case SOS_VAL_TYPE_LONG:
-            buffer_pos += SOS_buffer_unpack(ptr, "l", &pub->data[elem]->val.l_val);
-            dlog(7, "[%s]:      ... elem = %ld\n", whoami, pub->data[elem]->val.l_val);
-            break;
-        case SOS_VAL_TYPE_DOUBLE:
-            buffer_pos += SOS_buffer_unpack(ptr, "d", &pub->data[elem]->val.d_val);
-            dlog(7, "[%s]:      ... elem = %lf\n", whoami, pub->data[elem]->val.d_val);
-            break;
+        case SOS_VAL_TYPE_INT:    buffer_pos += SOS_buffer_unpack(ptr, "i", &pub->data[elem]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:   buffer_pos += SOS_buffer_unpack(ptr, "l", &pub->data[elem]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE: buffer_pos += SOS_buffer_unpack(ptr, "d", &pub->data[elem]->val.d_val); break;
         case SOS_VAL_TYPE_STRING:
             if (pub->data[elem]->val_len > SOS_DEFAULT_STRING_LEN) {
                 free( pub->data[elem]->val.c_val );
@@ -1270,11 +1419,18 @@ void SOS_publish_from_buffer( SOS_pub *pub, char *buf_ptr ) {
                 memset(pub->data[elem]->val.c_val, '\0', (1 + pub->data[elem]->val_len));
             }
             buffer_pos += SOS_buffer_unpack(ptr, "s", pub->data[elem]->val.c_val);
-            dlog(7, "[%s]:      ... elem = %s\n", whoami, pub->data[elem]->val.c_val);
             break;
         }
         ptr = (buffer + buffer_pos);
-        dlog(7, "[%s]:      ... -----\n", whoami);
+
+        /* Enqueue this value for writing out to local_sync and node_sync:
+         * NOTE: Flushing *this* queue is triggered by the sync thread
+         *       encounting this pub handle in the to-do queue. */
+        if (opt_queue != NULL) {
+            dlog(2, "[%s]: Enqueing a val_snap for \"%s\"\n", whoami, pub->data[elem]->name);
+            SOS_val_snap_enqueue(opt_queue, pub, elem);
+        }
+
     }
 
     dlog(7, "[%s]:   ... done.\n", whoami);
@@ -1361,13 +1517,6 @@ void SOS_unannounce( SOS_pub *pub ) {
 
     return;
 }
-
-
-
-
-/* **************************************** */
-/* [sub]                                    */
-/* **************************************** */
 
 
 SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, int refresh_delay ) {

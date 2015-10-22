@@ -27,8 +27,8 @@ endif()
 
 #TARGET ---> sos
 #            (library)
-add_library("sos" SHARED "sos.c" "pack_buffer.c")
-add_library("sos-static" STATIC "sos.c" "pack_buffer.c")
+add_library("sos" SHARED "sos.c" "pack_buffer.c" "qhashtbl.c")
+add_library("sos-static" STATIC "sos.c" "pack_buffer.c" "qhashtbl.c")
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sos" PROPERTY COMPILE_OPTIONS "-pthread")
   target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")

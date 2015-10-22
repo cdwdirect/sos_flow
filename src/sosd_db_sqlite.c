@@ -53,10 +53,15 @@ char *sql_create_table_data = ""                                        \
     " pub_guid "        " INTEGER, "                                    \
     " guid "            " INTEGER, "                                    \
     " val_type "        " STRING, "                                     \
-    " sem_hint "        " STRING); ";
+    " meta_freq "       " STRING, "                                     \
+    " meta_semantic "   " STRING, "                                     \
+    " meta_class "      " STRING, "                                     \
+    " meta_pattern "    " STRING, "                                     \
+    " meta_compare "    " STRING, "                                     \
+    " meta_mood "       " STRING); ";
 
 char *sql_create_table_vals = ""                                        \
-    "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "         \
+    "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " guid "            " INTEGER, "                                    \
     " val "             " STRING, "                                     \
@@ -90,11 +95,16 @@ const char *sql_insert_data = ""                                        \
     " pub_guid,"                                                        \
     " guid,"                                                            \
     " val_type,"                                                        \
-    " sem_hint "                                                        \
-    ") VALUES (?,?,?,?); ";
+    " meta_freq,"                                                       \
+    " meta_semantic,"                                                   \
+    " meta_class,"                                                      \
+    " meta_pattern,"                                                    \
+    " meta_compare,"                                                    \
+    " meta_mood "                                                       \
+    ") VALUES (?,?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_val = ""                                         \
-    "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " ("                         \
+    "INSERT INTO " SOSD_DB_VALS_TABLE_NAME " ("                         \
     " guid,"                                                            \
     " val, "                                                            \
     " frame, "                                                          \
@@ -155,12 +165,15 @@ void SOSD_db_init_database() {
     SOSD_db_create_tables();
 
     dlog(2, "[%s]: Preparing transactions...\n", whoami);
+
     dlog(2, "[%s]:   ... \"%s\"\n", whoami, sql_insert_pub);
     retval = sqlite3_prepare_v2(database, sql_insert_pub, strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
     if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+
     dlog(2, "[%s]:   ... \"%s\"\n", whoami, sql_insert_data);
     retval = sqlite3_prepare_v2(database, sql_insert_data, strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
     if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+
     dlog(2, "[%s]:   ... \"%s\"\n", whoami, sql_insert_val);
     retval = sqlite3_prepare_v2(database, sql_insert_val, strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
     if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
@@ -308,24 +321,129 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     return;
 }
 
-void SOSD_db_insert_vals( SOS_pub *pub ) {
+void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_queue *re_queue ) {
+    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_vals");
+    char pub_guid_str[SOS_DEFAULT_STRING_LEN];
+    SOS_val_snap *snap;
+    SOS_val_snap *next_snap;
 
-    double        time_pack         = pub->data[i]->time.pack;
-    double        time_send         = pub->data[i]->time.send;
-    double        time_recv         = pub->data[i]->time.recv;
-    char         *val;
-    char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
-    memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
+    dlog(2, "[%s]: Attempting to inject val_snap queue for pub->title = \"%s\":\n", whoami, pub->title);
+    memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+    sprintf(pub_guid_str, "%ld", pub->guid);
+
+    dlog(2, "[%s]:   ... getting locks for queues\n", whoami);
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    if (re_queue != NULL) {
+        dlog(2, "[%s]:      ... re_queue->lock\n", whoami);
+        pthread_mutex_lock( re_queue->lock );
+    }
+    dlog(2, "[%s]:      ... queue->lock\n", whoami);
+    pthread_mutex_lock( queue->lock );
+    #endif
+
+    dlog(2, "[%s]:   ... grabbing LIFO snap_queue head\n", whoami);
+    /* Grab the linked-list (LIFO queue) */
+    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
+
+    dlog(2, "[%s]:   ... clearing the snap queue\n", whoami);
+    /* Clear the queue and unlock it so new additions can inject. */
+    queue->from->remove(queue->from, pub_guid_str);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(2, "[%s]:   ... releasing queue->lock\n", whoami);
+    pthread_mutex_unlock( queue->lock );
+    #endif
+
+    dlog(2, "[%s]:   ... processing snaps extracted from the queue\n", whoami);
 
 
-        CALL_SQLITE (bind_double (stmt_insert_data, 4,  time_pack    ));
-        CALL_SQLITE (bind_double (stmt_insert_data, 5,  time_send    ));
-        CALL_SQLITE (bind_double (stmt_insert_data, 6,  time_recv    ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 8,  val,              1 + strlen(val), SQLITE_STATIC  ));
+    int           elem;
+    char         *val, *val_alloc;
+    long          guid;
+    double        time_pack;
+    double        time_send;
+    double        time_recv;
+    long          frame;
+    
+    val_alloc = (char *) malloc(SOS_DEFAULT_STRING_LEN);
 
+    while (snap != NULL) {
+
+        elem              = snap->elem;
+        guid              = snap->guid;
+        time_pack         = snap->time.pack;
+        time_send         = snap->time.send;
+        time_recv         = snap->time.recv;
+        frame             = snap->frame;
+
+        if (pub->data[snap->elem]->type != SOS_VAL_TYPE_STRING) {
+            val = val_alloc;
+            memset(val, '\0', SOS_DEFAULT_STRING_LEN);
+        }
+
+        switch (pub->data[snap->elem]->type) {
+        case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap->val.d_val); break;
+        case SOS_VAL_TYPE_STRING: val = snap->val.c_val; break;
+        }
+
+        dlog(5, "[%s]:      ... binding values\n", whoami);
+
+        CALL_SQLITE (bind_int    (stmt_insert_val, 1,  guid         ));
+        CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val,              1 + strlen(val), SQLITE_STATIC  ));
+        CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
+        CALL_SQLITE (bind_double (stmt_insert_val, 4,  time_pack    ));
+        CALL_SQLITE (bind_double (stmt_insert_val, 5,  time_send    ));
+        CALL_SQLITE (bind_double (stmt_insert_val, 6,  time_recv    ));
+
+        dlog(5, "[%s]:      ... executing the query\n", whoami);
+
+        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  /* Execute the query. */
+        
+        dlog(5, "[%s]:      ... success!  resetting the statement.\n", whoami);
+        
+        CALL_SQLITE (reset (stmt_insert_val));
+        CALL_SQLITE (clear_bindings (stmt_insert_val));
+
+        dlog(5, "[%s]:      ... grabbing the next snap\n", whoami);
+
+        next_snap = (SOS_val_snap *) snap->next;
+        if (re_queue != NULL) {
+
+            dlog(5, "[%s]:      ... re_queue this val_snap in the val_outlet\n", whoami);
+            snap->next = (void *) re_queue->from->get(re_queue->from, pub_guid_str);
+            re_queue->from->put(re_queue->from, pub_guid_str, (void *) snap);
+        } else {
+            /* You're not re-queueing them...
+             *   ... you'll need to free() them yourself. */
+            /* Let's go ahead and do it, there are no easily
+             * identifiable cases where they need to get used
+             * again when there is no re-queueing. (node_sync's
+             * ring monitor doesn't call this function, so we don't
+             * need to keep them around for transmission.) */
+            dlog(5, "[%s]:      ... freeing this val_snap b/c there is no re_queue\n", whoami);
+            if (pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) { free(snap->val.c_val); }
+            free(snap);
+        }
+
+        snap = next_snap;
+    }
+
+    free(val_alloc);
+
+    dlog(2, "[%s]:      ... done.\n", whoami);
+    dlog(2, "[%s]:   ... releasing re_queue->lock\n", whoami);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    if (re_queue != NULL) { pthread_mutex_unlock( re_queue->lock ); }
+    #endif
+    
+    dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
 
     return;
 }
+
 
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOSD_db_insert_data");
@@ -334,14 +452,22 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     dlog(5, "[%s]: Inserting pub(%ld)->data into database(%s).\n", whoami, pub->guid, SOSD.db.file);
 
     for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->state != SOS_VAL_STATE_DIRTY) continue;
         /*
          *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
          */
         long          pub_guid          = pub->guid;
         long          guid              = pub->data[i]->guid;
+        char         *val;
         const char   *val_type          = SOS_ENUM_STR( pub->data[i]->type, SOS_VAL_TYPE );
-        const char   *sem_hint          = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM );
+        const char   *meta_freq         = SOS_ENUM_STR( pub->data[i]->meta.freq, SOS_VAL_FREQ );
+        const char   *meta_semantic     = SOS_ENUM_STR( pub->data[i]->meta.semantic, SOS_VAL_SEMANTIC );
+        const char   *meta_class        = SOS_ENUM_STR( pub->data[i]->meta.class, SOS_VAL_CLASS );
+        const char   *meta_pattern      = SOS_ENUM_STR( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
+        const char   *meta_compare      = SOS_ENUM_STR( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
+        const char   *meta_mood         = SOS_ENUM_STR( pub->data[i]->meta.mood, SOS_MOOD );
+
+        char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
+        memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
 
         switch (pub->data[i]->type) {
         case SOS_VAL_TYPE_INT:    val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val); break;
@@ -352,9 +478,14 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
 
         CALL_SQLITE (bind_int    (stmt_insert_data, 1,  pub_guid     ));
         CALL_SQLITE (bind_int    (stmt_insert_data, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  val_type,         1 + strlen(val_type), SQLITE_STATIC  ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 4,  sem_hint,         1 + strlen(sem_hint), SQLITE_STATIC  ));
-        
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  val_type,         1 + strlen(val_type), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 4,  meta_freq,        1 + strlen(meta_freq), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 5,  meta_semantic,    1 + strlen(meta_semantic), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 6,  meta_class,       1 + strlen(meta_class), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 7,  meta_pattern,     1 + strlen(meta_pattern), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 8,  meta_compare,     1 + strlen(meta_compare), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 9,  meta_mood,        1 + strlen(meta_mood), SQLITE_STATIC     ))
+
         dlog(5, "[%s]:   ... executing insert query   pub->data[%d].(%s)\n", whoami, i, pub->data[i]->name);
 
         CALL_SQLITE_EXPECT (step (stmt_insert_data), DONE);
@@ -363,7 +494,6 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         CALL_SQLITE (reset(stmt_insert_data));
         CALL_SQLITE (clear_bindings (stmt_insert_data));
 
-        pub->data[i]->state = SOS_VAL_STATE_CLEAN;
     }
 
     
@@ -384,7 +514,7 @@ void SOSD_db_create_tables(void) {
 
     rc = sqlite3_exec(database, sql_create_table_pubs, NULL, NULL, &err);
     if( err != NULL ){
-        dlog(0, "[%s]: ERROR!  Can't create pub_table in the database!  (%s)\n", whoami, err);
+        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME " in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
         dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_PUBS_TABLE_NAME);
@@ -392,7 +522,7 @@ void SOSD_db_create_tables(void) {
 
     rc = sqlite3_exec(database, sql_create_table_data, NULL, NULL, &err);
     if( err != NULL ){
-        dlog(0, "[%s]: ERROR!  Can't create pub_table in the database!  (%s)\n", whoami, err);
+        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME " in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
         dlog(0, "[%s]:   ... Created %s\n", whoami, SOSD_DB_DATA_TABLE_NAME);
@@ -400,7 +530,7 @@ void SOSD_db_create_tables(void) {
 
     rc = sqlite3_exec(database, sql_create_table_vals, NULL, NULL, &err);
     if( err != NULL ){
-        dlog(0, "[%s]: ERROR!  Can't create pub_table in the database!  (%s)\n", whoami, err);
+        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME " in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
         dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_VALS_TABLE_NAME);

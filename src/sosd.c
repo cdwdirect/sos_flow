@@ -94,9 +94,13 @@ int main(int argc, char *argv[])  {
     SOSD_setup_socket();
     dlog(0, "[%s]: Calling daemon_init_database()...\n", whoami);
     SOSD_db_init_database();
+    dlog(0, "[%s]: Creating the val_snap queues.\n", whoami);
+    SOS_val_snap_queue_init(&SOS.task.val_intake);
+    SOS_val_snap_queue_init(&SOS.task.val_outlet);
     dlog(0, "[%s]: Creating ring queue monitors to track 'to-do' list for pubs...\n", whoami);
-    SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS_ROLE_DAEMON);
-    SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS_ROLE_DB);
+    SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, SOS.task.val_outlet, SOS_TARGET_LOCAL_SYNC);
+    SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS.task.val_outlet, NULL, SOS_TARGET_NODE_SYNC);
+
 
     /* Go! */
     dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
@@ -113,6 +117,9 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]:   ... destroying the ring monitors...\n", whoami);
     SOSD_pub_ring_monitor_destroy(SOSD.local_sync);
     SOSD_pub_ring_monitor_destroy(SOSD.cloud_sync);
+    dlog(0, "[%s]:   ... destroying the val_snap queues...\n", whoami);
+    SOS_val_snap_queue_destroy(SOS.task.val_intake);
+    SOS_val_snap_queue_destroy(SOS.task.val_outlet);
     dlog(0, "[%s]:   ... done.\n", whoami);
     dlog(0, "[%s]: Closing the database.\n", whoami);
     SOSD_db_close_database();
@@ -140,7 +147,19 @@ int main(int argc, char *argv[])  {
 } //end: main()
 
 
-void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_role target_var) {
+
+
+void  SOSD_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
+    SOS_SET_WHOAMI(whoami, "SOSD_val_snap_enqueue");
+
+    SOS_val_snap *snap;
+    
+
+    return;
+}
+
+
+void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_val_snap_queue *val_source, SOS_val_snap_queue *val_target, SOS_target target) {
     SOS_SET_WHOAMI(whoami, "SOSD_pub_ring_monitor_init");
     SOSD_pub_ring_mon *mon;
     int retval;
@@ -162,7 +181,9 @@ void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS
     mon->commit_lock   = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     mon->commit_list   = NULL;
     mon->commit_count  = 0;
-    mon->commit_target = target_var;
+    mon->commit_target = target;
+    mon->val_intake    = val_source;
+    mon->val_outlet    = val_target;
 
     retval = pthread_cond_init(mon->extract_cond, NULL); 
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_cond pthread_cond_t variable.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); } 
@@ -348,7 +369,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     while (SOSD.daemon.running) {
         pthread_cond_wait(my->commit_cond, my->commit_lock);
 
-        if (my->commit_target == SOS_ROLE_DAEMON) SOSD_db_transaction_begin();
+        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) SOSD_db_transaction_begin();
 
         for (list_index = 0; list_index < my->commit_count; list_index++) {
             memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
@@ -359,16 +380,18 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             if (pub == NULL) { dlog(0, "[%s]: ERROR!  SOSD.pub_table->get(SOSD_pub_table, \"%s\") == NULL     (skipping to next entry)\n", whoami, guid_str); continue; }
 
             switch (my->commit_target) {
-            case SOS_ROLE_DAEMON:
+
+            case SOS_TARGET_LOCAL_SYNC:
                 if (pub->announced != SOSD_PUB_ANN_LOCAL) {
                     SOSD_db_insert_pub(pub);
+                    SOSD_db_insert_data(pub);
                     pub->announced = SOSD_PUB_ANN_LOCAL;
                 }
-                SOSD_db_insert_data(pub);
+                SOSD_db_insert_vals(pub, my->val_intake, my->val_outlet);
                 SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
                 break;
 
-            case SOS_ROLE_DB:
+            case SOS_TARGET_NODE_SYNC:
                 if (pub->announced != SOSD_PUB_ANN_CLOUD) {
                     dlog(1, "[%s]: DAEMON ---ANNOUNCE---> 'SOS CLOUD'      (to-do...)\n", whoami);
                     /* Announce to the database... */
@@ -376,26 +399,34 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                     buffer_len = SOS_DEFAULT_BUFFER_LEN;
                     memset(buffer, '\0', buffer_len);
                     SOS_announce_to_buffer( pub, &buffer, &buffer_len );
+                    #if (SOSD_CLOUD_SYNC > 0)
                     SOSD_cloud_send( buffer, buffer_len );
+                    #endif
                     pub->announced = SOSD_PUB_ANN_CLOUD;
-                    if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
-                        /* The serialization function had to dynamically allocate storage. */
-                        free(buffer);
-                        buffer = buffer_static;
-                    }
                 }
                 dlog(1, "[%s]: DAEMON ----PUBLISH---> 'SOS CLOUD'      (to-do...)\n", whoami);
                 buffer     = buffer_static;
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
+
+                /*
+                 *   This has turned into flushing the values, after the pub has been announced.
+                 *   We don't want to do SOS_publish_to_buffer(), we want to use a new function that
+                 *   packs the queued val_snap's into a buffer.
+                 *
+                 *   Current state of the pub at any given moment is actually irrelevant for
+                 *   node_sync at this point (now that we've ensured the pub is announced).
+                 *
                 SOS_publish_to_buffer( pub, &buffer, &buffer_len );
                 SOSD_cloud_send( buffer, buffer_len );
-                if (buffer_len > SOS_DEFAULT_BUFFER_LEN) {
-                    /* The serialization function had to dynamically allocates storage. */
-                    /* NOTE: This is not currently happening, but this is a harmless function. */
-                    free(buffer);
-                    buffer = buffer_static;
-                }
+                 *
+                 */
+
+                SOS_val_snap_queue_to_buffer(my->val_intake, &buffer, &buffer_len);
+                #if (SOSD_CLOUD_SYNC > 0)
+                SOSD_cloud_send(buffer, buffer_len);
+                #endif
+
                 break;
 
             default:
@@ -403,7 +434,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             }
 
         }
-        if (my->commit_target == SOS_ROLE_DAEMON) SOSD_db_transaction_commit();
+        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) SOSD_db_transaction_commit();
         free(my->commit_list);
     }
     pthread_mutex_unlock(my->commit_lock);
@@ -566,7 +597,7 @@ void SOSD_handle_announce(char *msg, int msg_size) {
     if (pub == NULL) {
         dlog(5, "[%s]:      ... NOPE!  Adding new pub to the table.\n", whoami);
         /* If it's not in the table, add it. */
-        pub = SOS_new_pub(guid_str);
+        pub = SOS_pub_create(guid_str);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = header.pub_guid;
     } else {
@@ -632,7 +663,7 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
     if (pub == NULL) {
         /* If it's not in the table, add it. */
         dlog(1, "[%s]:      ... WHOAH!  PUBLISHING INTO A PUB NOT FOUND! (WEIRD!)  ADDING new pub to the table... (this is bogus, man)\n", whoami);
-        pub = SOS_new_pub(guid_str);
+        pub = SOS_pub_create(guid_str);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = header.pub_guid;
     } else {
@@ -968,7 +999,7 @@ void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_announce");
 
     dlog(6, "[%s]: Calling SOS_announce_from_buffer()...\n", whoami);
-    SOS_announce_from_buffer(pub, msg, msg_len);
+    SOS_announce_from_buffer(pub, msg);
 
     return;
 }
@@ -978,7 +1009,7 @@ void SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_publish");
 
     dlog(6, "[%s]: Calling SOS_publish_from_buffer()...\n", whoami);
-    SOS_publish_from_buffer(pub, msg, msg_len);
+    SOS_publish_from_buffer(pub, msg, SOS.task.val_intake);
 
     return;
 }
