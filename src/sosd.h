@@ -21,6 +21,7 @@
 #define SOSD_DEFAULT_LOCK_FILE       "sosd.lock"
 #define SOSD_DEFAULT_LOG_FILE        "sosd.log"
 #define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
+
 #define SOSD_PUB_ANN_DIRTY           66
 #define SOSD_PUB_ANN_LOCAL           77
 #define SOSD_PUB_ANN_CLOUD           88

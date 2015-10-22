@@ -10,20 +10,13 @@
 #include <string.h>
 #include <pthread.h>
 
+#undef SOS_DEBUG
+#define SOS_DEBUG 0
+
 #include "sos.h"
-#include "sos_debug.h"
-
-int demo_run;
-
-
-void* repub_thread(void *arg) {
-    while (demo_run) { ; }   
-    return NULL;
-}
-
 
 int main(int argc, char *argv[]) {
-    int i, n, k, thread_support;
+    int i;
     char pub_title[SOS_DEFAULT_STRING_LEN];
     SOS_pub *pub;
     SOS_pub *pub2;
@@ -42,11 +35,11 @@ int main(int argc, char *argv[]) {
     SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
     SOS_SET_WHOAMI(whoami, "demo_app.main");
 
-    dlog(0, "[%s]: Creating a pub...\n", whoami);
+    printf("[%s]: Creating a pub...\n", whoami);
     pub = SOS_pub_create("demo");
-    dlog(0, "[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
+    printf("[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
 
-    dlog(6, "[%s]: Manually configuring some pub metadata...\n", whoami);
+    printf("[%s]: Manually configuring some pub metadata...\n", whoami);
     pub->prog_ver         = str_prog_ver;
     pub->meta.channel     = 1;
     pub->meta.nature      = SOS_NATURE_EXEC_WORK;
@@ -56,68 +49,131 @@ int main(int argc, char *argv[]) {
     pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
 
-    dlog(0, "[%s]: Packing a couple values...\n", whoami);
+    printf("[%s]: Packing a couple values...\n", whoami);
     var_double = 0.0;
     var_int = 0;
 
-    i = SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    (SOS_val) var_int         );
-    i = SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, (SOS_val) var_string      );
-    i = SOS_pack(pub, "example_dbl", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double      );
-   
-    dlog(0, "[%s]: Announcing the pub...\n", whoami);
-    SOS_announce(pub);
+    SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    (SOS_val) var_int         );
+    SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, (SOS_val) var_string      );
 
-    dlog(0, "[%s]: Publishing the pub...\n", whoami);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_01", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_02", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_03", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_04", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_05", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_06", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_07", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_08", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_09", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_10", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_11", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_12", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_13", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_14", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_15", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_16", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    
+    /*
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_20", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_21", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_22", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_23", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_24", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_25", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_26", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_27", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_28", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_29", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_30", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_31", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_32", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_33", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_34", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_35", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_36", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_37", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_38", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    var_double += 0.00001; SOS_pack(pub, "example_dbl_39", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+    */
+
+    printf("announcing\n");
+    SOS_announce(pub);
+    printf("initial publish\n");
     SOS_publish(pub);
 
     SOS_TIME( time_start );
 
-    n = 0;
-    k = 0;
+    int mils = 0;
+    int ones = 0;
     while (1) {
-        n += 1;
-        if ((n%100) == 0) {
+        ones += 1;
+        if ((ones%1000) == 0) {
             SOS_TIME( time_now );
-            printf("[%d].%d   (%lf seconds)\n", k, n, (time_now - time_start));
+            printf("[%dmil] + %d   (%lf seconds)\n", mils, ones, (time_now - time_start));
+            usleep(1000);
             SOS_TIME( time_start);
         }
-        if (n > 1000000) {
-            k += 1;
-            n == 0;
+        if (ones > 1000000) {
+            mils += 1;
+            ones = 0;
             printf("[---resetting---]\n");
         }
-        usleep(2500);
 
-        var_double += 0.00001;
-        SOS_repack(pub, i, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_01", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_02", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_03", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_04", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_05", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_06", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_07", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_08", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_09", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_10", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_11", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_12", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_13", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_14", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_15", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_16", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        /*
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_20", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_21", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_22", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_23", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_24", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_25", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_26", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_27", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_28", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_29", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_30", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_31", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_32", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_33", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_34", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_35", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_36", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_37", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_38", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        var_double += 0.00001; SOS_pack(pub, "example_dbl_39", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+        */
+
         SOS_publish(pub);
     }
-
-    /*  LOOP VERSION...
-     *
-    dlog(0, "[%s]: Re-packing the last value...\n", whoami);
-    for (n = 0; n < 1000; n++) {
-        if (n%50 == 0) {
-            SOS_TIME( time_now );
-            dlog(0, "[%s]: %d iterations of SOS_repack() --> SOS_publish()...    (%lf seconds elapsed)\n", whoami, n, (time_now - time_start) );
-        }
-        var_double += 0.001;
-        SOS_repack(pub, i, (SOS_val) var_double);
-        SOS_publish(pub);
-    }
-    SOS_TIME( time_now );
-    dlog(0, "[%s]: Total time for 1,000 immediate SOS_repack() --> SOS_publish() calls: %lf seconds\n", whoami, (time_now - time_start));
-    */
-
-    /*
-     *  Skipping the threaded part for now.
-     *
-    demo_run = 1;
-    pthread_create(&repub_t, NULL, repub_thread, (void*)pub);    
-    pthread_join(repub_t, NULL);
-     */
     
-    dlog(0, "[%s]: Shutting down!\n", whoami);
+    printf("[%s]: Shutting down!\n", whoami);
     SOS_finalize();
     
     return (EXIT_SUCCESS);

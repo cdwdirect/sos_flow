@@ -5,4 +5,5 @@ if [ -z $1 ]; then echo "   >>> Clearing the database."; fi;
 rm -f ./sosd.0.db
 rm -rf ./sosd.0.db.lock
 if [ -z $1 ]; then echo "   >>> Launching the sosd daemon...   (port:$SOS_CMD_PORT)" ; fi;
-mpirun -np 1 ../bin/sosd --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)
+valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all mpirun -np 1 ../bin/sosd --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)
+if [ -z $1 ]; then ps `cat sosd.0.lock` ; fi;

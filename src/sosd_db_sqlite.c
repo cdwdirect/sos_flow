@@ -52,6 +52,7 @@ char *sql_create_table_data = ""                                        \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " pub_guid "        " INTEGER, "                                    \
     " guid "            " INTEGER, "                                    \
+    " name "            " STRING, "                                     \
     " val_type "        " STRING, "                                     \
     " meta_freq "       " STRING, "                                     \
     " meta_semantic "   " STRING, "                                     \
@@ -94,6 +95,7 @@ const char *sql_insert_data = ""                                        \
     "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " ("                         \
     " pub_guid,"                                                        \
     " guid,"                                                            \
+    " name,"                                                            \
     " val_type,"                                                        \
     " meta_freq,"                                                       \
     " meta_semantic,"                                                   \
@@ -101,7 +103,7 @@ const char *sql_insert_data = ""                                        \
     " meta_pattern,"                                                    \
     " meta_compare,"                                                    \
     " meta_mood "                                                       \
-    ") VALUES (?,?,?,?,?,?,?,?,?); ";
+    ") VALUES (?,?,?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_val = ""                                         \
     "INSERT INTO " SOSD_DB_VALS_TABLE_NAME " ("                         \
@@ -166,15 +168,15 @@ void SOSD_db_init_database() {
 
     dlog(2, "[%s]: Preparing transactions...\n", whoami);
 
-    dlog(2, "[%s]:   ... \"%s\"\n", whoami, sql_insert_pub);
+    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_pub);
     retval = sqlite3_prepare_v2(database, sql_insert_pub, strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
     if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
 
-    dlog(2, "[%s]:   ... \"%s\"\n", whoami, sql_insert_data);
+    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_data);
     retval = sqlite3_prepare_v2(database, sql_insert_data, strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
     if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
 
-    dlog(2, "[%s]:   ... \"%s\"\n", whoami, sql_insert_val);
+    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_val);
     retval = sqlite3_prepare_v2(database, sql_insert_val, strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
     if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
 
@@ -457,6 +459,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
          */
         long          pub_guid          = pub->guid;
         long          guid              = pub->data[i]->guid;
+        const char   *name              = pub->data[i]->name;
         char         *val;
         const char   *val_type          = SOS_ENUM_STR( pub->data[i]->type, SOS_VAL_TYPE );
         const char   *meta_freq         = SOS_ENUM_STR( pub->data[i]->meta.freq, SOS_VAL_FREQ );
@@ -478,13 +481,14 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
 
         CALL_SQLITE (bind_int    (stmt_insert_data, 1,  pub_guid     ));
         CALL_SQLITE (bind_int    (stmt_insert_data, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  val_type,         1 + strlen(val_type), SQLITE_STATIC     ))
-        CALL_SQLITE (bind_text   (stmt_insert_data, 4,  meta_freq,        1 + strlen(meta_freq), SQLITE_STATIC     ))
-        CALL_SQLITE (bind_text   (stmt_insert_data, 5,  meta_semantic,    1 + strlen(meta_semantic), SQLITE_STATIC     ))
-        CALL_SQLITE (bind_text   (stmt_insert_data, 6,  meta_class,       1 + strlen(meta_class), SQLITE_STATIC     ))
-        CALL_SQLITE (bind_text   (stmt_insert_data, 7,  meta_pattern,     1 + strlen(meta_pattern), SQLITE_STATIC     ))
-        CALL_SQLITE (bind_text   (stmt_insert_data, 8,  meta_compare,     1 + strlen(meta_compare), SQLITE_STATIC     ))
-        CALL_SQLITE (bind_text   (stmt_insert_data, 9,  meta_mood,        1 + strlen(meta_mood), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             1 + strlen(name), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 4,  val_type,         1 + strlen(val_type), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 5,  meta_freq,        1 + strlen(meta_freq), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 6,  meta_semantic,    1 + strlen(meta_semantic), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 7,  meta_class,       1 + strlen(meta_class), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 8,  meta_pattern,     1 + strlen(meta_pattern), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 9,  meta_compare,     1 + strlen(meta_compare), SQLITE_STATIC     ))
+        CALL_SQLITE (bind_text   (stmt_insert_data, 10, meta_mood,        1 + strlen(meta_mood), SQLITE_STATIC     ))
 
         dlog(5, "[%s]:   ... executing insert query   pub->data[%d].(%s)\n", whoami, i, pub->data[i]->name);
 
@@ -525,7 +529,7 @@ void SOSD_db_create_tables(void) {
         dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME " in the database!  (%s)\n", whoami, err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
-        dlog(0, "[%s]:   ... Created %s\n", whoami, SOSD_DB_DATA_TABLE_NAME);
+        dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_DATA_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_vals, NULL, NULL, &err);
@@ -536,7 +540,7 @@ void SOSD_db_create_tables(void) {
         dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_VALS_TABLE_NAME);
     }
 
-    dlog(1, "[%s]:   ... Done.\n", whoami);
+    dlog(1, "[%s]:   ... done.\n", whoami);
     return;
 }
 

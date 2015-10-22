@@ -419,6 +419,7 @@ extern "C" {
 #endif
 
     void      SOS_init( int *argc, char ***argv, SOS_role role );
+    void      SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
     void      SOS_finalize();
 
     SOS_pub*  SOS_pub_create(char *pub_title);

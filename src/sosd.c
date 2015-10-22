@@ -111,8 +111,8 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]: Ending the pub_ring monitors:\n", whoami);
     dlog(0, "[%s]:   ... waiting for the pub_ring monitor to iterate and exit.\n", whoami);
     pthread_join( *(SOSD.local_sync->extract_t), NULL);
-    pthread_join( *(SOSD.local_sync->commit_t), NULL);
     pthread_join( *(SOSD.cloud_sync->extract_t), NULL);
+    pthread_join( *(SOSD.local_sync->commit_t), NULL);
     pthread_join( *(SOSD.cloud_sync->commit_t), NULL);
     dlog(0, "[%s]:   ... destroying the ring monitors...\n", whoami);
     SOSD_pub_ring_monitor_destroy(SOSD.local_sync);
@@ -120,28 +120,30 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]:   ... destroying the val_snap queues...\n", whoami);
     SOS_val_snap_queue_destroy(SOS.task.val_intake);
     SOS_val_snap_queue_destroy(SOS.task.val_outlet);
+    dlog(0, "[%s]:   ... destroying uid configurations.\n", whoami);
+    SOS_uid_destroy( SOSD.guid );
     dlog(0, "[%s]:   ... done.\n", whoami);
     dlog(0, "[%s]: Closing the database.\n", whoami);
     SOSD_db_close_database();
-    dlog(0, "[%s]: Shutting down SOS services.\n", whoami);
-    SOS_uid_destroy( SOSD.guid );
-    #ifdef SOSD_CLOUD_SYNC
-    SOSD_cloud_finalize();
-    #endif
-    SOS_finalize();
     dlog(0, "[%s]: Closing the socket.\n", whoami);
     shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
-    dlog(0, "[%s]: Exiting daemon's main() gracefully.\n", whoami);
+    #ifdef SOSD_CLOUD_SYNC
+    dlog(0, "[%s]: Detaching from the cloud of sosd daemons.\n", whoami);
+    SOSD_cloud_finalize();
+    #endif
+    dlog(0, "[%s]: Shutting down SOS services.\n", whoami);
+    SOS_finalize();
 
     if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
+    if (SOSD_DAEMON_LOG) { free(SOSD.daemon.log_file); }
 
     close(sos_daemon_lock_fptr);
     remove(SOSD.daemon.lock_file);
 
     free(SOSD.daemon.name);
     free(SOSD.daemon.lock_file);
-    free(SOSD.daemon.log_file);
-    free(SOSD.db.file);
+
+    dlog(0, "[%s]: Exiting sosd.main() successfully.\n", whoami);
     
     return(EXIT_SUCCESS);
 } //end: main()
@@ -300,7 +302,6 @@ void SOSD_listen_loop() {
         default:                      SOSD_handle_unknown(buffer, byte_count); break;
         }
 
-
         close( SOSD.net.client_socket_fd );
     }
     free(buffer);
@@ -345,6 +346,10 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
         gettimeofday(&tp, NULL); ts.tv_sec  = 0 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
     }
     pthread_mutex_unlock(my->extract_lock);
+
+    /* Free up the commit/inject thread to close down, too... */
+    pthread_mutex_unlock(my->commit_lock);
+    pthread_cond_signal(my->commit_cond);
     dlog(0, "[%s]: Leaving thread safely.\n", whoami);
     pthread_exit(NULL);
 }
@@ -369,7 +374,9 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     while (SOSD.daemon.running) {
         pthread_cond_wait(my->commit_cond, my->commit_lock);
 
-        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) SOSD_db_transaction_begin();
+        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) {
+            SOSD_db_transaction_begin();
+        }
 
         for (list_index = 0; list_index < my->commit_count; list_index++) {
             memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
@@ -382,7 +389,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             switch (my->commit_target) {
 
             case SOS_TARGET_LOCAL_SYNC:
-                if (pub->announced != SOSD_PUB_ANN_LOCAL) {
+                if (pub->announced == SOSD_PUB_ANN_DIRTY) {
                     SOSD_db_insert_pub(pub);
                     SOSD_db_insert_data(pub);
                     pub->announced = SOSD_PUB_ANN_LOCAL;
@@ -392,7 +399,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 break;
 
             case SOS_TARGET_NODE_SYNC:
-                if (pub->announced != SOSD_PUB_ANN_CLOUD) {
+                if (pub->announced == SOSD_PUB_ANN_LOCAL) {
                     dlog(1, "[%s]: DAEMON ---ANNOUNCE---> 'SOS CLOUD'      (to-do...)\n", whoami);
                     /* Announce to the database... */
                     buffer = buffer_static;
@@ -409,19 +416,6 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
 
-                /*
-                 *   This has turned into flushing the values, after the pub has been announced.
-                 *   We don't want to do SOS_publish_to_buffer(), we want to use a new function that
-                 *   packs the queued val_snap's into a buffer.
-                 *
-                 *   Current state of the pub at any given moment is actually irrelevant for
-                 *   node_sync at this point (now that we've ensured the pub is announced).
-                 *
-                SOS_publish_to_buffer( pub, &buffer, &buffer_len );
-                SOSD_cloud_send( buffer, buffer_len );
-                 *
-                 */
-
                 SOS_val_snap_queue_to_buffer(my->val_intake, &buffer, &buffer_len);
                 #if (SOSD_CLOUD_SYNC > 0)
                 SOSD_cloud_send(buffer, buffer_len);
@@ -434,7 +428,9 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             }
 
         }
-        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) SOSD_db_transaction_commit();
+        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) {
+            SOSD_db_transaction_commit();
+        }
         free(my->commit_list);
     }
     pthread_mutex_unlock(my->commit_lock);
@@ -714,15 +710,23 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    char response[SOS_DEFAULT_BUFFER_LEN];
-    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
-    sprintf( response, "I received your SHUTDOWN!");
+    char response[SOS_DEFAULT_ACK_LEN];
+    memset ( response, '\0', SOS_DEFAULT_ACK_LEN );
+    sprintf( response, "ACK");
 
     i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
 
     SOSD.daemon.running = 0;
+
+    /*
+     * We don't need to do this here, the handler is the same thread as
+     * the listener, so setting the flag (above) is sufficient.
+     *
+    shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
+     *
+     */
 
     return;
 }
@@ -945,7 +949,7 @@ void SOSD_init() {
      *     configure the issuer of guids for this daemon
      */
     dlog(1, "[%s]: Obtaining this instance's guid range...\n", whoami);
-    #ifdef SOSD_CLOUD_SYNC
+#if (SOSD_CLOUD_SYNC > 0)
         long guid_block_size = (long) ((long double) SOS_DEFAULT_UID_MAX / (long double) SOS.config.comm_size);
         long guid_my_first   = (long) SOS.config.comm_rank * guid_block_size;
         SOS_uid_init(&SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));

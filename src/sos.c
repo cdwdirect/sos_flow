@@ -28,7 +28,6 @@ void*  SOS_THREAD_post( void *arg );
 void*  SOS_THREAD_read( void *arg );
 void*  SOS_THREAD_scan( void *arg );
 
-void   SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
 void   SOS_expand_data( SOS_pub *pub );
 
 void   SOS_uid_init( SOS_uid **uid, long from, long to );
@@ -51,6 +50,8 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     int i, n, retval, server_socket_fd;
     long guid_pool_from;
     long guid_pool_to;
+
+    memset(&SOS, '\0', sizeof(SOS_runtime));
 
     SOS.role = role;
     SOS.status = SOS_STATUS_INIT;
@@ -152,6 +153,7 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         memcpy(&guid_pool_to, (buffer + sizeof(long)), sizeof(long));
         dlog(1, "[%s]:   ... received guid range from %ld to %ld.\n", whoami, guid_pool_from, guid_pool_to);
         dlog(1, "[%s]:   ... configuring uid sets.\n", whoami);
+
         SOS_uid_init(&SOS.uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
         SOS_uid_init(&SOS.uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* DAEMON doesn't use this, it's for CLIENTS. */
 
@@ -358,9 +360,11 @@ void SOS_finalize() {
     pthread_join( *SOS.task.scan, NULL );
     #endif
 
-    dlog(0, "[%s]:   ... Releasing uid objects...\n", whoami);
-    SOS_uid_destroy(SOS.uid.local_serial);
-    SOS_uid_destroy(SOS.uid.my_guid_pool);
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        dlog(0, "[%s]:   ... Releasing uid objects...\n", whoami);
+        SOS_uid_destroy(SOS.uid.local_serial);
+        SOS_uid_destroy(SOS.uid.my_guid_pool);
+    }
 
     dlog(0, "[%s]:   ... Releasing ring queues...\n", whoami);
     SOS_ring_destroy(SOS.ring.send);
@@ -444,9 +448,14 @@ void SOS_uid_init( SOS_uid **id_var, long set_from, long set_to ) {
 void SOS_uid_destroy( SOS_uid *id ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_destroy");
 
+
     #if (SOS_CONFIG_USE_MUTEXES > 0)
+    dlog(1, "[%s]:   ... destroying uid mutex     &(%ld)\n", whoami, (long) &id->lock );
+    pthread_mutex_destroy( id->lock );
+    dlog(1, "[%s]:   ... freeing uid mutex space  &(%ld)\n", whoami, (long) &id->lock );
     free(id->lock);
     #endif
+    dlog(1, "[%s]:   ... freeing uid memory       &(%ld)\n", whoami, (long) id);
     memset(id, '\0', sizeof(SOS_uid));
     free(id);
 
