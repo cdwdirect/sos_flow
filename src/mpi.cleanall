@@ -1,7 +1,7 @@
 if [ -z $1 ]; then echo "   >>> Clearing the log file[s]."; fi;
-rm -f ./sosd.*.log
+rm -rf ./sosd.*.log
 if [ -z $1 ]; then echo "   >>> Clearing the lock file[s]."; fi;
-rm -f ./sosd.*.lock
+rm -rf ./sosd.*.lock
 if [ -z $1 ]; then echo "   >>> Clearing the database[s]."; fi;
-rm -f ./sosd.*.db
+rm -rf ./sosd.*.db
 rm -rf ./sosd.*.db.lock

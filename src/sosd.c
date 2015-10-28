@@ -69,8 +69,9 @@ int main(int argc, char *argv[])  {
         else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
         else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.daemon.work_dir    = argv[next_elem];       }
         else if ( strcmp(argv[elem], "--role"            ) == 0) {
-            if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0) { SOS.role = SOS_ROLE_DAEMON; }
-            else if ( strcmp(argv[next_elem], "SOS_ROLE_DB" ) == 0) { SOS.role = SOS_ROLE_DB; }
+            if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0)  { SOS.role = SOS_ROLE_DAEMON; }
+            else if ( strcmp(argv[next_elem], "SOS_ROLE_DB" ) == 0)      { SOS.role = SOS_ROLE_DB; }
+            else if ( strcmp(argv[next_elem], "SOS_ROLE_CONTROL" ) == 0) { SOS.role = SOS_ROLE_CONTROL; }
             else {  fprintf(stderr, "Unknown role: %s %s\n", argv[elem], argv[next_elem]); }
         } else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
@@ -83,17 +84,18 @@ int main(int argc, char *argv[])  {
 
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[sosd.X.main]: sosd on port %s has SOS.role == %d\n", SOSD.net.server_port, SOS.role); }
-
     #ifdef SOSD_CLOUD_SYNC
     SOSD_cloud_init( &argc, &argv );
     #endif
 
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[sosd.%d.main]: Calling SOSD_init()...\n", SOS.config.comm_rank); fflush(stdout); }
-    SOSD_init();
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[sosd.%d.main]: Calling SOS_init...\n", SOS.config.comm_rank);  fflush(stdout); }
-    SOS_init( &argc, &argv, SOS.role );
     SOS_SET_WHOAMI(whoami, "main");
+   
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Initializing SOS:\n", whoami); fflush(stdout); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:    ... calling SOSD_init()...\n", whoami); fflush(stdout); }
+    SOSD_init();
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:    ... calling SOS_init...\n", whoami);  fflush(stdout); }
+    SOS_init( &argc, &argv, SOS.role );
+    dlog(0, "[%s]:    ... done. (SOSD_init + SOS_init are complete)\n", whoami);
     dlog(0, "[%s]: Calling register_signal_handler()...\n", whoami);
     if (SOS_DEBUG) SOS_register_signal_handler();
     if (SOS.role == SOS_ROLE_DAEMON) {

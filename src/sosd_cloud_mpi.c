@@ -120,7 +120,6 @@ void SOSD_cloud_listen_loop(void) {
 
 
 int SOSD_cloud_init(int *argc, char ***argv) {
-    char  whoami[] = "daemon.X.SOSD_cloud_init(MPI)";
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
     int   rc;
@@ -128,6 +127,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     int  *my_role;
     int  *sosd_roles;
     int   cloud_sync_target_count;
+
+    SOS.config.comm_rank = getpid();
+    SOS_SET_WHOAMI(whoami, "SOSD_clout_init");
 
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]: Configuring this daemon with MPI:\n", whoami);
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]:   ... calling MPI_Init_thread();\n", whoami);
@@ -149,6 +151,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
     rc = MPI_Comm_rank( MPI_COMM_WORLD, &SOS.config.comm_rank );
     rc = MPI_Comm_size( MPI_COMM_WORLD, &SOS.config.comm_size );
+
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]:   ... rank: %d\n", whoami, SOS.config.comm_rank);
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]:   ... size: %d\n", whoami, SOS.config.comm_size);
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]:   ... done.\n", whoami);

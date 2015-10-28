@@ -1,7 +1,7 @@
 #!/bin/bash
 if [ -z $1 ]; then echo "   >>> BATCH MODE!"; fi;
 if [ -z $1 ]; then echo "   >>> Starting the sosd daemons..."; fi;
-mpi.clearall
+mpi.cleanall
 if [ -z $1 ]; then echo "   >>> Launching the sosd daemons..."; fi;
 daemon0="-np 1 ../bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
 daemon1="-np 1 ../bin/sosd --role SOS_ROLE_DAEMON --port 22501 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
