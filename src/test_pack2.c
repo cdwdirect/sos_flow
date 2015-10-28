@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
 #endif
 
 #if (BSS > 0)
-    static SOS_buffer buffer_bss;
+    static SOS_buf buffer_bss;
     char *ptr;
     ptr = buffer_bss.data;
 #endif

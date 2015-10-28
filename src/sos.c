@@ -176,6 +176,168 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     return;
 }
 
+
+void SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr) {
+    SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_init");
+    SOS_async_buf_pair *buf_pair;
+
+    *buf_pair_ptr = (SOS_async_buf_pair *) malloc(sizeof(SOS_async_buf_pair));
+    buf_pair = *buf_pair_ptr;
+    
+    memset(buf_pair->a.data, '\0', SOS_DEFAULT_BUFFER_LEN);
+    memset(buf_pair->b.data, '\0', SOS_DEFAULT_BUFFER_LEN);
+    buf_pair->a.len = 0;
+    buf_pair->b.len = 0;
+    buf_pair->a.max = SOS_DEFAULT_BUFFER_LEN;
+    buf_pair->b.max = SOS_DEFAULT_BUFFER_LEN;
+    buf_pair->grow_buf = &buf_pair->a;
+    buf_pair->send_buf = &buf_pair->b;
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    buf_pair->a.lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    buf_pair->b.lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(buf_pair->a.lock, NULL);
+    pthread_mutex_init(buf_pair->b.lock, NULL);
+    buf_pair->flush_cond = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    pthread_cond_init(buf_pair->flush_cond, NULL);
+    #else
+    dlog(0, "[%s]: ERROR!  You are attempting to use async_buf_pair without mutexes and conditions!\n", whoami);
+    dlog(0, "[%s]: ERROR!  This behavior is NOT SUPPORTED.\n", whoami);
+    exit(EXIT_FAILURE);
+    #endif
+
+    return;
+}
+
+void SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair) {
+    SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_fflush");
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(buf_pair->grow_buf->lock);
+    #endif
+    SOS_async_buf_pair_autoflush(buf_pair);
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(buf_pair->grow_buf->lock);
+    #endif
+
+    return;
+}
+
+void SOS_async_buf_pair_autoflush(SOS_async_buf_pair *buf_pair) {
+    SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_autoflush");
+
+    /* The thread that actually does the 'flushing' is set up by the
+     * context that creats the buf_pair.  Specifically, all we do here
+     * is grab the locks, swap the roles of the buffers, and trigger the
+     * flush condition.  Immediately, grow_buf is available to handle new
+     * writes.  Whatever thread was started that is waiting on the flush
+     * condition will be activated to perform the async send/write, and
+     * it can operate knowing that it effectively holds locks on both
+     * grow and send buffers.
+     * NOTE: When that thread is done with the actual send/commit it
+     *       has been designed to do, and it releases the send lock,
+     *       the send buffer is unstable, that is, it might be cleared
+     *       out by some other function.  Do your operation entirely
+     *       atomically, or make a copy of the buffer to work with before
+     *       releasing the send lock! */
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    /* NOTE: This is the _autoflush function, so the grow_buf lock
+     *       has already been obtained/locked by either _fflush()
+     *       or the _insert() buf_pair functions.  We don't need
+     *       to be concerned about it here. */
+    pthread_mutex_lock(buf_pair->send_buf->lock);
+    #endif
+
+    if (buf_pair->send_buf == &buf_pair->a) {
+        buf_pair->grow_buf = &buf_pair->a;
+        buf_pair->send_buf = &buf_pair->b;
+    } else {
+        buf_pair->grow_buf = &buf_pair->b;
+        buf_pair->send_buf = &buf_pair->a;
+    }
+
+    pthread_cond_signal(buf_pair->flush_cond);
+
+    memset(buf_pair->grow_buf->data, '\0', buf_pair->grow_buf->max);
+    buf_pair->grow_buf->len = 0;
+    buf_pair->grow_buf->entry_count = 0;
+
+    return;
+}
+
+void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int msg_len) {
+    SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_insert");
+    SOS_buf *buf;
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(buf_pair->grow_buf->lock);
+    #endif
+
+    /* NOTE: '8' to make sure we'll have room to pack in the msg_len... */
+    if ((8 + msg_len + buf_pair->grow_buf->len) > buf_pair->grow_buf->max) {
+        SOS_async_buf_pair_autoflush(buf_pair);
+        /* Now buf_pair->grow_buf points to an totally empty/available buffer...*/
+    }
+
+    buf = buf_pair->grow_buf;
+
+    if ((8 + msg_len) > buf->max) {
+        dlog(0, "[%s]: WARNING! You've attempted to insert a value that is larger than the buffer!  (msg_len == %d)\n", whoami, msg_len);
+        dlog(0, "[%s]: WARNING! Skipping this value, but the system is no longer tracking all entries.\n", whoami);
+        #if (SOS_CONFIG_USE_MUTEXES > 0)
+        pthread_mutex_unlock(buf_pair->grow_buf->lock);
+        #endif
+        return;
+    }
+
+    buf->len += SOS_buffer_pack((buf->data + buf->len), "i", msg_len);
+
+    /* NOTE: We can't use SOS_buffer_pack() for the msg because, being already
+     *       the product of packing, msg may contain inline null zero's and is
+     *       not useable as a 'string'.  We use memcpy on it instead.  This will
+     *       be true on the receiving/processing side of this buffer as well,
+     *       which is why it is imperative that we pack in the msg_len. */
+    memcpy((buf->data + buf->len), msg_ptr, msg_len);
+    buf->len += msg_len;
+
+    buf->entry_count++;
+    SOS_buffer_pack(buf->data, "i", buf->entry_count);
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_unlock(buf->lock);
+    #endif
+
+    return;
+}
+
+
+void SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair) {
+    SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_destroy");
+
+    /* Naturally, exit/join any affiliated threads before calling this, as
+     * this wipes out the condition variable that the thread might be
+     * waiting on.  */
+
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_lock(buf_pair->a.lock);
+    pthread_mutex_lock(buf_pair->b.lock);
+    pthread_mutex_destroy(buf_pair->a.lock);
+    pthread_mutex_destroy(buf_pair->b.lock);
+    free(buf_pair->a.lock);
+    free(buf_pair->b.lock);
+    pthread_cond_destroy(buf_pair->flush_cond);
+    free(buf_pair->flush_cond);
+    #endif
+
+    memset(buf_pair, '\0', sizeof(buf_pair));
+    free(buf_pair);
+
+    return;
+}
+
+
+
 void SOS_ring_init(SOS_ring_queue **ring_var) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_init");
     SOS_ring_queue *ring;
@@ -1084,9 +1246,17 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
 }
 
 
-void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, char **buffer, int *buffer_len) {
+void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, char **buf_ptr, int *buf_len) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_to_buffer");
+    SOS_msg_header header;
+    char *buffer;
+    char *ptr;
+    int   buffer_len;
 
+    buffer_len = 0;
+    
+
+    
     return;
 }
 
@@ -1094,6 +1264,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, char **buffer, int 
 
 void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, char *buffer) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_from_buffer");
+
 
     return;
 }
@@ -1432,7 +1603,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, char *buf_ptr ) {
         }
         ptr = (buffer + buffer_pos);
 
-        /* Enqueue this value for writing out to local_sync and node_sync:
+        /* Enqueue this value for writing out to local_sync and cloud_sync:
          * NOTE: Flushing *this* queue is triggered by the sync thread
          *       encounting this pub handle in the to-do queue. */
         if (opt_queue != NULL) {

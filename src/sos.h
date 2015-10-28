@@ -43,8 +43,8 @@
         switch (SOS.role) {                                             \
         case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
         case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func ); break; \
-        case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%ld).%s",      SOS.my_guid, __SOS_str_func ); break; \
-        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%ld).%s", SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%d).%s",      SOS.config.comm_rank, __SOS_str_func ); break; \
+        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%d).%s", SOS.config.comm_rank, __SOS_str_func ); break; \
         default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
         }                                                               \
     }
@@ -73,7 +73,7 @@
 
 #define FOREACH_TARGET(TARGET)                  \
     TARGET(SOS_TARGET_LOCAL_SYNC)               \
-    TARGET(SOS_TARGET_NODE_SYNC)                \
+    TARGET(SOS_TARGET_CLOUD_SYNC)               \
     TARGET(SOS_TARGET___MAX)
     
 #define FOREACH_STATUS(STATUS)                  \
@@ -228,7 +228,7 @@ static const char *SOS_NATURE_string[] =       { FOREACH_NATURE(GENERATE_STRING)
 static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)       };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
-#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **";
+#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
 /*  Examples:   char *pub_layer     = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
  *              char *data_type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
  *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
@@ -244,8 +244,21 @@ typedef union {
 
 typedef struct {
     char                data[SOS_DEFAULT_BUFFER_LEN];
-    int                 char_count;
-} SOS_buffer;
+    int                 len;
+    int                 max;
+    int                 entry_count;
+    #if (SOS_CONFIG_USE_MUTEXES > 0)
+    pthread_mutex_t    *lock;
+    #endif
+} SOS_buf;
+
+typedef struct {
+    SOS_buf             a;
+    SOS_buf             b;
+    SOS_buf            *send_buf;
+    SOS_buf            *grow_buf;
+    pthread_cond_t     *flush_cond;
+} SOS_async_buf_pair;
 
 typedef struct {
     double              pack;         /* default: 0.0                   */
@@ -436,6 +449,12 @@ extern "C" {
     void      SOS_publish( SOS_pub *pub );
     void      SOS_publish_to_buffer( SOS_pub *pub, char **buffer, int *buffer_len );
     void      SOS_publish_from_buffer( SOS_pub *pub, char *buffer, SOS_val_snap_queue *opt_queue );
+
+    void      SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr);
+    void      SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair);
+    void      SOS_async_buf_pair_autoflush(SOS_async_buf_pair *buf_pair);
+    void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int msg_len);
+    void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
 
     void      SOS_val_snap_queue_init(SOS_val_snap_queue **queue);
     void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);

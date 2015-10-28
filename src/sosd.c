@@ -40,7 +40,7 @@
 #include "qhashtbl.h"
 #include "pack_buffer.h"
 
-#define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--work_dir <path>]"
+#define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--role <role>] [--work_dir <path>]"
 
 int main(int argc, char *argv[])  {
     int elem, next_elem;
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])  {
     memset(SOSD.daemon.lock_file, '\0', SOS_DEFAULT_STRING_LEN);
     memset(SOSD.daemon.log_file,  '\0', SOS_DEFAULT_STRING_LEN);
 
-    SOS.role = SOS_ROLE_DAEMON;
+    SOS.role = SOS_ROLE_DAEMON; /* ...this can be overridden by command line parameter. */
 
     /* Process command-line arguments */
     if ( argc < 7 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -67,8 +67,12 @@ int main(int argc, char *argv[])  {
         if (      strcmp(argv[elem], "--port"            ) == 0) { SOSD.net.server_port    = argv[next_elem];       }
         else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { SOSD.net.buffer_len     = atoi(argv[next_elem]); }
         else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
-        else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.daemon.work_dir    = argv[next_elem];       } /* optional */
-        else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
+        else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.daemon.work_dir    = argv[next_elem];       }
+        else if ( strcmp(argv[elem], "--role"            ) == 0) {
+            if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0) { SOS.role = SOS_ROLE_DAEMON; }
+            else if ( strcmp(argv[next_elem], "SOS_ROLE_DB" ) == 0) { SOS.role = SOS_ROLE_DB; }
+            else {  fprintf(stderr, "Unknown role: %s %s\n", argv[elem], argv[next_elem]); }
+        } else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
     SOSD.net.port_number = atoi(SOSD.net.server_port);
@@ -79,19 +83,23 @@ int main(int argc, char *argv[])  {
 
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[sosd.X.main]: sosd on port %s has SOS.role == %d\n", SOSD.net.server_port, SOS.role); }
+
     #ifdef SOSD_CLOUD_SYNC
     SOSD_cloud_init( &argc, &argv );
     #endif
 
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[daemon.%d.main]: Calling SOSD_init()...\n", SOS.config.comm_rank); fflush(stdout); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[sosd.%d.main]: Calling SOSD_init()...\n", SOS.config.comm_rank); fflush(stdout); }
     SOSD_init();
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[daemon.%d.main]: Calling SOS_init...\n", SOS.config.comm_rank);  fflush(stdout); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[sosd.%d.main]: Calling SOS_init...\n", SOS.config.comm_rank);  fflush(stdout); }
     SOS_init( &argc, &argv, SOS.role );
     SOS_SET_WHOAMI(whoami, "main");
     dlog(0, "[%s]: Calling register_signal_handler()...\n", whoami);
     if (SOS_DEBUG) SOS_register_signal_handler();
-    dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
-    SOSD_setup_socket();
+    if (SOS.role == SOS_ROLE_DAEMON) {
+        dlog(0, "[%s]: Calling daemon_setup_socket()...\n", whoami);
+        SOSD_setup_socket();
+    }
     dlog(0, "[%s]: Calling daemon_init_database()...\n", whoami);
     SOSD_db_init_database();
     dlog(0, "[%s]: Creating the val_snap queues.\n", whoami);
@@ -99,13 +107,16 @@ int main(int argc, char *argv[])  {
     SOS_val_snap_queue_init(&SOS.task.val_outlet);
     dlog(0, "[%s]: Creating ring queue monitors to track 'to-do' list for pubs...\n", whoami);
     SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, SOS.task.val_outlet, SOS_TARGET_LOCAL_SYNC);
-    SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS.task.val_outlet, NULL, SOS_TARGET_NODE_SYNC);
+    SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS.task.val_outlet, NULL, SOS_TARGET_CLOUD_SYNC);
 
+    dlog(0, "[%s]: Entering listening loop...\n", whoami);
 
     /* Go! */
-    dlog(0, "[%s]: Calling daemon_listen_loop()...\n", whoami);
-    SOSD_listen_loop();
-  
+    switch (SOS.role) {
+    case SOS_ROLE_DAEMON:   SOSD_listen_loop(); break;
+    case SOS_ROLE_DB:       SOSD_cloud_listen_loop(); break;
+    case SOS_ROLE_CONTROL:  break;
+    }
 
     /* Done!  Cleanup and shut down. */
     dlog(0, "[%s]: Ending the pub_ring monitors:\n", whoami);
@@ -125,8 +136,10 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]:   ... done.\n", whoami);
     dlog(0, "[%s]: Closing the database.\n", whoami);
     SOSD_db_close_database();
-    dlog(0, "[%s]: Closing the socket.\n", whoami);
-    shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
+    if (SOS.role == SOS_ROLE_DAEMON) {
+        dlog(0, "[%s]: Closing the socket.\n", whoami);
+        shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
+    }
     #ifdef SOSD_CLOUD_SYNC
     dlog(0, "[%s]: Detaching from the cloud of sosd daemons.\n", whoami);
     SOSD_cloud_finalize();
@@ -293,13 +306,13 @@ void SOSD_listen_loop() {
         }
 
         switch (header.msg_type) {
-        case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register(buffer, byte_count); break; 
-        case SOS_MSG_TYPE_GUID_BLOCK: SOSD_handle_guid_block(buffer, byte_count); break;
-        case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce(buffer, byte_count); break;
-        case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish(buffer, byte_count); break;
-        case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo(buffer, byte_count); break;
-        case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown(buffer, byte_count); break;
-        default:                      SOSD_handle_unknown(buffer, byte_count); break;
+        case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register   (buffer, byte_count); break; 
+        case SOS_MSG_TYPE_GUID_BLOCK: SOSD_handle_guid_block (buffer, byte_count); break;
+        case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer, byte_count); break;
+        case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer, byte_count); break;
+        case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (buffer, byte_count); break;
+        case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer, byte_count); break;
+        default:                      SOSD_handle_unknown    (buffer, byte_count); break;
         }
 
         close( SOSD.net.client_socket_fd );
@@ -323,9 +336,7 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     struct timespec ts;
     struct timeval  tp;
     int wake_type;
-
     gettimeofday(&tp, NULL); ts.tv_sec  = 2 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
-
     pthread_mutex_lock(my->extract_lock);
     while (SOSD.daemon.running) {
         wake_type = pthread_cond_timedwait(my->extract_cond, my->extract_lock, &ts);
@@ -398,7 +409,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
                 break;
 
-            case SOS_TARGET_NODE_SYNC:
+            case SOS_TARGET_CLOUD_SYNC:
                 if (pub->announced == SOSD_PUB_ANN_LOCAL) {
                     dlog(1, "[%s]: DAEMON ---ANNOUNCE---> 'SOS CLOUD'      (to-do...)\n", whoami);
                     /* Announce to the database... */
@@ -842,7 +853,11 @@ void SOSD_init() {
     /* [daemon name]
      *     assign a name appropriate for whether it is participating in a cloud or not
      */
-    snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME);
+    switch (SOS.role) {
+    case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME); break;
+    case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME ".role_db"); break;
+    case SOS_ROLE_CONTROL: snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME ".role_ctl"); break;
+    }
 
     /* [lock file]
      *     create and hold lock file to prevent multiple daemon spawn
@@ -853,7 +868,7 @@ void SOSD_init() {
     snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s.lock", SOSD.daemon.name);
     #endif
     sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
-    if (sos_daemon_lock_fptr < 0) { 
+    if (sos_daemon_lock_fptr < 0) {
         fprintf(stderr, "\n[%s]: ERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n", whoami, SOSD.daemon.name, SOSD.daemon.lock_file, SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
@@ -949,7 +964,7 @@ void SOSD_init() {
      *     configure the issuer of guids for this daemon
      */
     dlog(1, "[%s]: Obtaining this instance's guid range...\n", whoami);
-#if (SOSD_CLOUD_SYNC > 0)
+    #if (SOSD_CLOUD_SYNC > 0)
         long guid_block_size = (long) ((long double) SOS_DEFAULT_UID_MAX / (long double) SOS.config.comm_size);
         long guid_my_first   = (long) SOS.config.comm_rank * guid_block_size;
         SOS_uid_init(&SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));

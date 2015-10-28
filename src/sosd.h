@@ -76,6 +76,9 @@ typedef struct {
     char               *name;
     int                 running;
     char                pid_str[256];
+    int                *cloud_sync_target_set;
+    int                 cloud_sync_target_count;
+    int                 cloud_sync_target;
 } SOSD_runtime;
 
 typedef struct {
