@@ -110,10 +110,10 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosd" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-#TARGET ---> sosdstop
+#TARGET ---> sosd_stop
 #            (command-line interface)
-add_executable("sosdstop" "sosdstop.c")
-target_link_libraries("sosdstop" "sos")
+add_executable("sosd_stop" "sosd_stop.c")
+target_link_libraries("sosd_stop" "sos")
 
 
 #TARGET ---> sos_cmd
