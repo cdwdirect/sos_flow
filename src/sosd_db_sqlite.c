@@ -131,11 +131,9 @@ void SOSD_db_init_database() {
     SOSD.db.file  = (char *) malloc(SOS_DEFAULT_STRING_LEN);
     memset(SOSD.db.file, '\0', SOS_DEFAULT_STRING_LEN);
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     SOSD.db.lock  = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init( SOSD.db.lock, NULL );
     pthread_mutex_lock( SOSD.db.lock );
-    #endif
 
     flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
@@ -182,9 +180,7 @@ void SOSD_db_init_database() {
 
     SOSD.db.ready = 1;
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_unlock(SOSD.db.lock);
-    #endif
 
     dlog(2, "[%s]:   ... done.\n", whoami);
 
@@ -196,9 +192,7 @@ void SOSD_db_close_database() {
     SOS_SET_WHOAMI(whoami, "SOSD_db_close_database");
 
     dlog(2, "[%s]: Closing database.   (%s)\n", whoami, SOSD.db.file);
-    #if (SOS_CONFIG_USE_MUTEXES)
     pthread_mutex_lock( SOSD.db.lock );
-    #endif
     dlog(2, "[%s]:   ... finalizing statements.\n", whoami);
     SOSD.db.ready = 0;
     CALL_SQLITE (finalize(stmt_insert_pub));
@@ -206,11 +200,9 @@ void SOSD_db_close_database() {
     CALL_SQLITE (finalize(stmt_insert_val));
     dlog(2, "[%s]:   ... closing database file.\n", whoami);
     sqlite3_close_v2(database);
-    #if (SOS_CONFIG_USE_MUTEXES)
     dlog(2, "[%s]:   ... destroying the mutex.\n", whoami);
     pthread_mutex_unlock(SOSD.db.lock);
     pthread_mutex_destroy(SOSD.db.lock);
-    #endif
     free(SOSD.db.lock);
     free(SOSD.db.file);
     dlog(2, "[%s]:   ... done.\n", whoami);
@@ -224,9 +216,7 @@ void SOSD_db_transaction_begin() {
     int   rc;
     char *err = NULL;
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_lock(SOSD.db.lock);
-    #endif
 
     dlog(6, "[%s]:  > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n", whoami);
     dlog(6, "[%s]: >>>>>>>>>> >> >> >> BEGIN TRANSACTION >> >> >> >>>>>>>>>>\n", whoami);
@@ -249,9 +239,7 @@ void SOSD_db_transaction_commit() {
     rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
     if (rc) { dlog(2, "[%s]: ##### ERROR ##### : (%d)\n", whoami, rc); }
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_unlock(SOSD.db.lock);
-    #endif
 
     return;
 }
@@ -334,14 +322,12 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
     sprintf(pub_guid_str, "%ld", pub->guid);
 
     dlog(2, "[%s]:   ... getting locks for queues\n", whoami);
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     if (re_queue != NULL) {
         dlog(2, "[%s]:      ... re_queue->lock\n", whoami);
         pthread_mutex_lock( re_queue->lock );
     }
     dlog(2, "[%s]:      ... queue->lock\n", whoami);
     pthread_mutex_lock( queue->lock );
-    #endif
 
     dlog(2, "[%s]:   ... grabbing LIFO snap_queue head\n", whoami);
     /* Grab the linked-list (LIFO queue) */
@@ -351,10 +337,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
     /* Clear the queue and unlock it so new additions can inject. */
     queue->from->remove(queue->from, pub_guid_str);
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     dlog(2, "[%s]:   ... releasing queue->lock\n", whoami);
     pthread_mutex_unlock( queue->lock );
-    #endif
 
     dlog(2, "[%s]:   ... processing snaps extracted from the queue\n", whoami);
 
@@ -437,9 +421,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
     dlog(2, "[%s]:      ... done.\n", whoami);
     dlog(2, "[%s]:   ... releasing re_queue->lock\n", whoami);
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     if (re_queue != NULL) { pthread_mutex_unlock( re_queue->lock ); }
-    #endif
     
     dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
 

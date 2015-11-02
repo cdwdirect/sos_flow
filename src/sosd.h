@@ -94,6 +94,7 @@ typedef struct {
     SOS_uid            *guid;
     SOSD_pub_ring_mon  *local_sync;
     SOSD_pub_ring_mon  *cloud_sync;
+    SOS_async_buf_pair *cloud_bp;
     qhashtbl_t         *pub_table;
 } SOSD_global;
 
@@ -111,10 +112,11 @@ extern "C" {
 
 #ifdef SOSD_CLOUD_SYNC
     /* All cloud_sync modules must have the following signatures: */
-    extern int SOSD_cloud_init(int *argc, char ***argv);
-    extern int SOSD_cloud_send(char *msg, int msg_len);
-    extern int SOSD_cloud_finalize();
-    /* TODO:{ CLOUD_SYNC } Add signature for queries / callbacks.  This is more advanced, so ... do last. */
+    extern int  SOSD_cloud_init(int *argc, char ***argv);
+    extern int  SOSD_cloud_send(char *msg, int msg_len);
+    extern void SOSD_cloud_enqueue(char *msg, int msg_len);
+    extern void SOSD_cloud_fflush(void);
+    extern int  SOSD_cloud_finalize();
 #endif
 
     void  SOSD_init();

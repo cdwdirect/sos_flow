@@ -29,11 +29,9 @@
 
 /*
  *   TODO: { VMPI } Merge in the capability of the former SOS project...
- *
  */
 
 #define SOS_CONFIG_USE_THREAD_POOL     1
-#define SOS_CONFIG_USE_MUTEXES         1
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
@@ -52,11 +50,11 @@
 #define SOS_DEFAULT_SERVER_HOST    "localhost"
 #define SOS_DEFAULT_SERVER_PORT    22505
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
-#define SOS_DEFAULT_BUFFER_LEN     1048576
+#define SOS_DEFAULT_BUFFER_LEN     4194304
 #define SOS_DEFAULT_ACK_LEN        128
+#define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_RING_SIZE      1024
 #define SOS_DEFAULT_TABLE_SIZE     128
-#define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_UID_MAX        LONG_MAX
 #define SOS_DEFAULT_GUID_BLOCK     512
 #define SOS_DEFAULT_ELEM_MAX       64
@@ -87,6 +85,7 @@
     MSG_TYPE(SOS_MSG_TYPE_GUID_BLOCK)           \
     MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \
     MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
+    MSG_TYPE(SOS_MSG_TYPE_VAL_SNAPS)            \
     MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
     MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
@@ -247,9 +246,7 @@ typedef struct {
     int                 len;
     int                 max;
     int                 entry_count;
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_t    *lock;
-    #endif
 } SOS_buf;
 
 typedef struct {
@@ -286,9 +283,7 @@ typedef struct {
 
 typedef struct {
     qhashtbl_t         *from;
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_t    *lock;
-    #endif
 } SOS_val_snap_queue;
 
 typedef struct {
@@ -458,8 +453,9 @@ extern "C" {
 
     void      SOS_val_snap_queue_init(SOS_val_snap_queue **queue);
     void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);
-    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, char **buffer, int *buffer_len);
-    void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, char *buffer);
+    void      SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock);
+    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char **buffer, int *buffer_len);
+    void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, char *buffer, int buffer_size);
     void      SOS_val_snap_queue_destroy(SOS_val_snap_queue *queue);
 
     void      SOS_strip_str(char *str);

@@ -10,6 +10,11 @@
 #include <string.h>
 #include <pthread.h>
 
+
+#define MAX_SEND_COUNT 10000
+#define ITERATION_SIZE 1000
+#define NUM_VALUES     20
+
 #undef SOS_DEBUG
 #define SOS_DEBUG 0
 
@@ -77,7 +82,7 @@ int main(int argc, char *argv[]) {
     var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    
+
     /*
     var_double += 0.00001; SOS_pack(pub, "example_dbl_20", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     var_double += 0.00001; SOS_pack(pub, "example_dbl_21", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
@@ -102,27 +107,36 @@ int main(int argc, char *argv[]) {
     var_double += 0.00001; SOS_pack(pub, "example_dbl_39", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     */
 
-    printf("announcing\n");
+    printf("[%s]:   ... Announcing\n", whoami);
     SOS_announce(pub);
-    printf("initial publish\n");
+    printf("[%s]:   ... Publishing (initial)\n", whoami);
     SOS_publish(pub);
 
+    printf("[%s]:   ... Re-packing --> Publishing %d values for %d times per iteration:\n",
+           whoami,
+           NUM_VALUES,
+           ITERATION_SIZE);
+           
     SOS_TIME( time_start );
-
     int mils = 0;
     int ones = 0;
-    while (1) {
+    while (((mils * 1000000) + ones) < MAX_SEND_COUNT) {
         ones += 1;
-        if ((ones%1000) == 0) {
+        if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
-            printf("[%dmil] + %d   (%lf seconds)\n", mils, ones, (time_now - time_start));
+            printf("[%s]:      ... [%dmil] + %d   (%lf seconds total @ %lf / value)\n",
+                   whoami,
+                   mils,
+                   ones,
+                   (time_now - time_start),
+                   ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)));
             usleep(1000);
             SOS_TIME( time_start);
         }
         if (ones > 1000000) {
             mils += 1;
             ones = 0;
-            printf("[---resetting---]\n");
+            printf("[%s]:      ... 1,000,000 value milestone ---------\n", whoami);
         }
 
         var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
@@ -146,6 +160,7 @@ int main(int argc, char *argv[]) {
         var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
+
         /*
         var_double += 0.00001; SOS_pack(pub, "example_dbl_20", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_21", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
@@ -172,7 +187,7 @@ int main(int argc, char *argv[]) {
 
         SOS_publish(pub);
     }
-    
+    printf("[%s]:   ... done.\n", whoami);
     printf("[%s]: Shutting down!\n", whoami);
     SOS_finalize();
     

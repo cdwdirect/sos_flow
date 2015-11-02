@@ -21,15 +21,16 @@
  */
 
 
-/* The debug logging sensitivity level.  5+ is VERY verbose. */
-
-#define SOS_DEBUG                 99
+/* The debug logging sensitivity level.
+ *     +3 = VERY verbose
+ *      0 = essential messages only (allows daemon logging)
+ *     -1 = disabled in daemon/client (for production runs)  */
+#define SOS_DEBUG                 0
 #define SOS_DEBUG_SHOW_LOCATION   0
 
-/* Should the daemon do any logging?  (yes/no)  */
-
-#define SOSD_DAEMON_LOG           99
-#define SOSD_ECHO_TO_STDOUT       1
+/* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
+#define SOSD_DAEMON_LOG           10
+#define SOSD_ECHO_TO_STDOUT       0
 
 int     sos_daemon_lock_fptr;
 FILE   *sos_daemon_log_fptr;
@@ -37,7 +38,7 @@ FILE   *sos_daemon_log_fptr;
 
 /* Defined in sosd.c ... */
 
-#if (SOS_DEBUG < 1)
+#if (SOS_DEBUG < 0)
 
     /* Nullify the variadic debugging macros wherever they are in code: */
     #define dlog(level, ...)
@@ -46,8 +47,8 @@ FILE   *sos_daemon_log_fptr;
     /* Set the behavior of the debugging macros: */
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
-    if (SOS.role == SOS_ROLE_DAEMON) {                                  \
-                                      if (SOSD_DAEMON_LOG > level) {    \
+    if (SOS.role != SOS_ROLE_CLIENT) {                                  \
+        if (SOSD_DAEMON_LOG > level) {                                  \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 fprintf(sos_daemon_log_fptr, "(%s:%d)",                 \
                         __FILE__, __LINE__ );                           \

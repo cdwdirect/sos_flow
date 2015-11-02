@@ -46,25 +46,21 @@ static void SOS_custom_signal_handler(int sig) {
             syslog(LOG_DEBUG, "SIGHUP signal caught, shutting down.");
             dlog(0, "[%s]: Caught SIGHUP, shutting down.\n", whoami);
             SOSD.daemon_running = 0;
-            #if (SOS_CONFIG_USE_MUTEXES > 0)
             dlog(0, "[%s]: Signaling the pub_ring monitors to iterate and then quit.\n", whoami);
             pthread_cond_signal(SOSD.local_sync->extract_cond);
             pthread_cond_signal(SOSD.local_sync->commit_cond);
             pthread_cond_signal(SOSD.cloud_sync->extract_cond);
             pthread_cond_signal(SOSD.cloud_sync->commit_cond);
-            #endif
             return;
         } else if (sig == SIGTERM) {
             syslog(LOG_DEBUG, "SIGTERM signal caught, shutting down.");
             dlog(0, "[%s]: Caught SIGTERM, shutting down.\n", whoami);
             SOSD.daemon_running = 0;
-            #if (SOS_CONFIG_USE_MUTEXES > 0)
             dlog(0, "[%s]: Signaling the pub_ring monitors to iterate and then quit.\n", whoami);
             pthread_cond_signal(SOSD.local_sync->extract_cond);
             pthread_cond_signal(SOSD.local_sync->commit_cond);
             pthread_cond_signal(SOSD.cloud_sync->extract_cond);
             pthread_cond_signal(SOSD.cloud_sync->commit_cond);
-            #endif
             return;
         }
     }

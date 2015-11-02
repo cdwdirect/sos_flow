@@ -188,7 +188,7 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
 
     int packed_bytes;  // how many bytes have been packed...
 
-    dlog(7, "[%s]: Packing the following format string: \"%s\"\n", whoami, format);
+    dlog(20, "[%s]: Packing the following format string: \"%s\"\n", whoami, format);
 
     packed_bytes = 0;
 
@@ -198,7 +198,7 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
         switch(*format) {
         case 'i': // 32-bit
             i = va_arg(ap, int);
-            dlog(7, "[%s]:   ... packing i @ %d:   %d   [32-bit]\n", whoami, packed_bytes, (int) i);
+            dlog(20, "[%s]:   ... packing i @ %d:   %d   [32-bit]\n", whoami, packed_bytes, (int) i);
             SOS_buffer_packi32(buf, i);
             buf += 4;
             packed_bytes += 4;
@@ -206,7 +206,7 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
 
         case 'l': // 64-bit
             l = va_arg(ap, long);
-            dlog(7, "[%s]:   ... packing l @ %d:   %ld   [64-bit]\n", whoami, packed_bytes, (long) l);
+            dlog(20, "[%s]:   ... packing l @ %d:   %ld   [64-bit]\n", whoami, packed_bytes, (long) l);
             SOS_buffer_packi64(buf, l);
             buf += 8;
             packed_bytes += 8;
@@ -214,7 +214,7 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
 
         case 'd': // float-64
             d = va_arg(ap, double);
-            dlog(7, "[%s]:   ... packing d @ %d:   %lf   [64-bit float]\n", whoami, packed_bytes, (double) d);
+            dlog(20, "[%s]:   ... packing d @ %d:   %lf   [64-bit float]\n", whoami, packed_bytes, (double) d);
             fhold = SOS_buffer_pack754_64(d); // convert to IEEE 754
             SOS_buffer_packi64(buf, fhold);
             buf += 8;
@@ -224,7 +224,7 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
-            dlog(7, "[%s]:   ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);
+            dlog(20, "[%s]:   ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;
             packed_bytes += 4;
@@ -236,7 +236,7 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
     }
 
     va_end(ap);
-    dlog(7, "[%s]:   ... done.  total packed_bytes = %d\n", whoami, packed_bytes);
+    dlog(20, "[%s]:   ... done\n", whoami);
 
     return packed_bytes;
 }
@@ -264,7 +264,7 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
 
     int packed_bytes;
 
-    dlog(7, "[%s]: Unpacking the following format string: \"%s\"\n", whoami, format);
+    dlog(20, "[%s]: Unpacking the following format string: \"%s\"\n", whoami, format);
 
     packed_bytes = 0;
 
@@ -275,14 +275,14 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
         case 'i': // 32-bit
             i = va_arg(ap, int*);
             *i = SOS_buffer_unpacki32(buf);
-            dlog(7, "[%s]:   ... unpacked i @ %d:   %d   [32-bit]\n", whoami, packed_bytes, *i);
+            dlog(20, "[%s]:   ... unpacked i @ %d:   %d   [32-bit]\n", whoami, packed_bytes, *i);
             buf += 4;
             packed_bytes += 4;
             break;
         case 'l': // 64-bit
             l = va_arg(ap, long*);
             *l = SOS_buffer_unpacki64(buf);
-            dlog(7, "[%s]:   ... unpacked l @ %d:   %ld   [64-bit]\n", whoami, packed_bytes, *l);
+            dlog(20, "[%s]:   ... unpacked l @ %d:   %ld   [64-bit]\n", whoami, packed_bytes, *l);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -290,7 +290,7 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
             d = va_arg(ap, double*);
             fhold = SOS_buffer_unpacku64(buf);
             *d = SOS_buffer_unpack754_64(fhold);
-            dlog(7, "[%s]:   ... unpacked d @ %d:   %lf   [64-bit double]\n", whoami, packed_bytes, *d);
+            dlog(20, "[%s]:   ... unpacked d @ %d:   %lf   [64-bit double]\n", whoami, packed_bytes, *d);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -303,7 +303,7 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
             else count = len;
             memcpy(s, buf, count);
             s[count] = '\0';
-            dlog(7, "[%s]:   ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);
+            dlog(20, "[%s]:   ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);
             buf += len;
             packed_bytes += len;
             break;
@@ -318,7 +318,7 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
     }
 
     va_end(ap);
-    dlog(7, "[%s]:   ... done.  total bytes = %d\n", whoami, packed_bytes);
+    dlog(20, "[%s]:   ... done\n", whoami);
     
 
     return packed_bytes;

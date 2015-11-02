@@ -110,6 +110,8 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]: Creating ring queue monitors to track 'to-do' list for pubs...\n", whoami);
     SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, SOS.task.val_outlet, SOS_TARGET_LOCAL_SYNC);
     SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS.task.val_outlet, NULL, SOS_TARGET_CLOUD_SYNC);
+    dlog(0, "[%s]: Releasing the cloud_sync (flush) thread to begin operation...\n", whoami);
+    pthread_cond_signal(SOSD.cloud_bp->flush_cond);
 
     dlog(0, "[%s]: Entering listening loop...\n", whoami);
 
@@ -163,17 +165,6 @@ int main(int argc, char *argv[])  {
     return(EXIT_SUCCESS);
 } //end: main()
 
-
-
-
-void  SOSD_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
-    SOS_SET_WHOAMI(whoami, "SOSD_val_snap_enqueue");
-
-    SOS_val_snap *snap;
-    
-
-    return;
-}
 
 
 void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_val_snap_queue *val_source, SOS_val_snap_queue *val_target, SOS_target target) {
@@ -413,25 +404,21 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
 
             case SOS_TARGET_CLOUD_SYNC:
                 if (pub->announced == SOSD_PUB_ANN_LOCAL) {
-                    dlog(1, "[%s]: DAEMON ---ANNOUNCE---> 'SOS CLOUD'      (to-do...)\n", whoami);
-                    /* Announce to the database... */
                     buffer = buffer_static;
                     buffer_len = SOS_DEFAULT_BUFFER_LEN;
                     memset(buffer, '\0', buffer_len);
                     SOS_announce_to_buffer( pub, &buffer, &buffer_len );
                     #if (SOSD_CLOUD_SYNC > 0)
-                    SOSD_cloud_send( buffer, buffer_len );
+                    SOSD_cloud_enqueue( buffer, buffer_len );
                     #endif
                     pub->announced = SOSD_PUB_ANN_CLOUD;
                 }
-                dlog(1, "[%s]: DAEMON ----PUBLISH---> 'SOS CLOUD'      (to-do...)\n", whoami);
                 buffer     = buffer_static;
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
-
-                SOS_val_snap_queue_to_buffer(my->val_intake, &buffer, &buffer_len);
+                SOS_val_snap_queue_to_buffer(my->val_intake, pub, &buffer, &buffer_len);
                 #if (SOSD_CLOUD_SYNC > 0)
-                SOSD_cloud_send(buffer, buffer_len);
+                SOSD_cloud_enqueue(buffer, buffer_len);
                 #endif
 
                 break;
@@ -441,8 +428,9 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             }
 
         }
-        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) {
-            SOSD_db_transaction_commit();
+        switch (my->commit_target) {
+        case SOS_TARGET_LOCAL_SYNC: SOSD_db_transaction_commit(); break;
+        case SOS_TARGET_CLOUD_SYNC: SOSD_cloud_fflush(); break;
         }
         free(my->commit_list);
     }
@@ -475,6 +463,31 @@ void SOSD_handle_echo(char *msg, int msg_size) {
         
     return;
 }
+
+
+
+void SOSD_handle_val_snaps(char *msg, int msg_size) { 
+    SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
+    SOS_msg_header header;
+    int ptr        = 0;
+    int i          = 0;
+
+    dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_VAL_SNAPS\n", whoami);
+
+    dlog(5, "[%s]: Injecting snaps into local_sync queue...\n", whoami);
+    SOS_val_snap_queue_from_buffer(SOSD.local_sync->val_intake, SOSD.pub_table, msg, msg_size);
+    SOS_buffer_unpack(msg, "iill",
+                      &header.msg_size,
+                      &header.msg_type,
+                      &header.msg_from,
+                      &header.pub_guid);
+    SOS_ring_put(SOSD.local_sync->ring, header.pub_guid);
+
+    dlog(5, "[%s]:   ... done.\n", whoami);
+        
+    return;
+}
+
 
 
 
@@ -619,6 +632,8 @@ void SOSD_handle_announce(char *msg, int msg_size) {
     SOSD_apply_announce(pub, msg, msg_size);
     pub->announced = SOSD_PUB_ANN_DIRTY;
 
+    if (SOS.role == SOS_ROLE_DB) { return; }
+
     dlog(5, "[%s]:   ... pub(%ld)->elem_count = %d\n", whoami, pub->guid, pub->elem_count);
 
     memset(response, '\0', SOS_DEFAULT_ACK_LEN);
@@ -692,6 +707,8 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
 
     dlog(5, "[%s]:   ... done.   (SOSD.pub_ring->elem_count == %d)\n", whoami, SOSD.local_sync->ring->elem_count);
 
+    if (SOS.role == SOS_ROLE_DB) { return; }
+
     memset (response, '\0', SOS_DEFAULT_ACK_LEN);
     sprintf(response, "ACK");
     response_len = 4;
@@ -723,13 +740,15 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    char response[SOS_DEFAULT_ACK_LEN];
-    memset ( response, '\0', SOS_DEFAULT_ACK_LEN );
-    sprintf( response, "ACK");
-
-    i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
-    if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
-    else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
+    if (SOS.role == SOS_ROLE_DAEMON) {
+        char response[SOS_DEFAULT_ACK_LEN];
+        memset ( response, '\0', SOS_DEFAULT_ACK_LEN );
+        sprintf( response, "ACK");
+        
+        i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
+        if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+        else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
+    }
 
     SOSD.daemon.running = 0;
 
@@ -747,7 +766,7 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
 
 
 void SOSD_handle_unknown(char *msg, int msg_size) {
-    SOS_SET_WHOAMI(whoami, "daemon_handle_unknown");
+    SOS_SET_WHOAMI(whoami, "SOSD_handle_unknown");
     SOS_msg_header header;
     int ptr = 0;
     int i   = 0;
@@ -759,6 +778,13 @@ void SOSD_handle_unknown(char *msg, int msg_size) {
                              &header.msg_type,
                              &header.msg_from,
                              &header.pub_guid);
+
+    dlog(1, "[%s]: header.msg_size == %d\n", whoami, header.msg_size);
+    dlog(1, "[%s]: header.msg_type == %d\n", whoami, header.msg_type);
+    dlog(1, "[%s]: header.msg_from == %ld\n", whoami, header.msg_from);
+    dlog(1, "[%s]: header.pub_guid == %ld\n", whoami, header.pub_guid);
+
+    if (SOS.role == SOS_ROLE_DB) { return; }
 
     char response[SOS_DEFAULT_BUFFER_LEN];
     memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
@@ -856,9 +882,9 @@ void SOSD_init() {
      *     assign a name appropriate for whether it is participating in a cloud or not
      */
     switch (SOS.role) {
-    case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME); break;
-    case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME ".role_db"); break;
-    case SOS_ROLE_CONTROL: snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME ".role_ctl"); break;
+    case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
+    case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
+    case SOS_ROLE_CONTROL: snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".ctl" */); break;
     }
 
     /* [lock file]
@@ -989,10 +1015,7 @@ void SOSD_init() {
 void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to) {
     SOS_SET_WHOAMI(whoami, "SOSD_guid_claim_range");
 
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_lock( id->lock );
-    #endif
-
 
     if ((id->next + size) > id->last) {
         /* This is basically a failure case if any more GUIDs are requested. */
@@ -1005,11 +1028,7 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to
         id->next   = id->next + size + 1;
     }
 
-
-
-    #if (SOS_CONFIG_USE_MUTEXES > 0)
     pthread_mutex_unlock( id->lock );
-    #endif
 
     return;
 }
