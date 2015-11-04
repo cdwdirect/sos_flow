@@ -1,5 +1,5 @@
-include_directories("${sos_flow_SOURCE_DIR}/src")
 include_directories("${MPI_INCLUDE_PATH}")
+include_directories("${sos_flow_SOURCE_DIR}/src")
    link_directories("${sos_flow_SOURCE_DIR}/src")
 
 if(EXISTS "$ENV{SQLITE}")
@@ -62,8 +62,14 @@ if(SOSD_CLOUD_SYNC)
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_MPI")
-    target_link_libraries("sosd" "sos" "rt" "${MPI_LIBRARIES}" "${SQLITE3_LIBRARY}")
-    if(MPI_COMPILE_FLAGS)
+    target_link_libraries("sosd" "sos" "${MPI_LIBRARIES}" "${SQLITE3_LIBRARY}")
+    if(APPLE)
+        # Apple does no support the '-lrt' compiler option.
+    else()
+        target_link_libraries("sosd" "rt")
+    endif()
+
+if(MPI_COMPILE_FLAGS)
       set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
     endif()
     if(MPI_LINK_FLAGS)

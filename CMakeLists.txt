@@ -21,8 +21,12 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 set(PROJECT_NAME sos_flow)
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
-project(${PROJECT_NAME} C)
+if(APPLE)
+    #set(CMAKE_C_COMPILER "/usr/bin/c99")
+else()
+endif()
 
+project(${PROJECT_NAME} C)
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package("Sqlite3" REQUIRED)

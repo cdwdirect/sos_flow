@@ -5,3 +5,4 @@ rm -rf ./sosd.*.lock
 if [ -z $1 ]; then echo "   >>> Clearing the database[s]."; fi;
 rm -rf ./sosd.*.db
 rm -rf ./sosd.*.db.lock
+rm -rf ./sosd.*.db-journal
