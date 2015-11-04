@@ -11,8 +11,8 @@
 #include <pthread.h>
 
 
-#define MAX_SEND_COUNT 400
-#define ITERATION_SIZE 10
+#define MAX_SEND_COUNT 200000
+#define ITERATION_SIZE 1000
 #define NUM_VALUES     20
 
 #undef SOS_DEBUG
@@ -83,30 +83,6 @@ int main(int argc, char *argv[]) {
     var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
 
-    /*
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_20", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_21", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_22", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_23", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_24", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_25", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_26", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_27", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_28", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_29", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_30", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_31", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_32", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_33", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_34", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_35", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_36", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_37", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_38", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_39", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-    */
-
     printf("[%s]:   ... Announcing\n", whoami);
     SOS_announce(pub);
     printf("[%s]:   ... Publishing (initial)\n", whoami);
@@ -120,22 +96,21 @@ int main(int argc, char *argv[]) {
     SOS_TIME( time_start );
     int mils = 0;
     int ones = 0;
-    while (((mils * 1000000) + ones) < MAX_SEND_COUNT) {
+    while (ones < MAX_SEND_COUNT) {
         ones += 1;
         if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
-            printf("[%s]:      ... [%dmil] + %d   (%lf seconds total @ %lf / value)\n",
+            printf("[%s]:      ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
                    whoami,
-                   mils,
-                   ones,
+                   ITERATION_SIZE,
+                   NUM_VALUES,
                    (time_now - time_start),
-                   ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)));
+                   ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)),
+                   (ones * NUM_VALUES));
             usleep(1000);
             SOS_TIME( time_start);
         }
-        if (ones > 1000000) {
-            mils += 1;
-            ones = 0;
+        if (((ones * NUM_VALUES)%1000000) == 0) {
             printf("[%s]:      ... 1,000,000 value milestone ---------\n", whoami);
         }
 
@@ -160,30 +135,6 @@ int main(int argc, char *argv[]) {
         var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-
-        /*
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_20", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_21", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_22", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_23", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_24", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_25", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_26", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_27", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_28", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_29", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_30", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_31", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_32", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_33", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_34", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_35", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_36", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_37", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_38", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_39", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
-        */
 
         SOS_publish(pub);
     }
