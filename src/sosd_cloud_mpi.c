@@ -153,7 +153,7 @@ void SOSD_cloud_listen_loop(void) {
                               &header.msg_from,
                               &header.pub_guid);
             dlog(6, "[%s]:      ... header.msg_size == %d\n", whoami, header.msg_size);
-            dlog(6, "[%s]:      ... header.msg_type == %d\n", whoami, header.msg_type);
+            dlog(6, "[%s]:      ... header.msg_type == %s  (%d)\n", whoami, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
             dlog(6, "[%s]:      ... header.msg_from == %ld\n", whoami, header.msg_from);
             dlog(6, "[%s]:      ... header.pub_guid == %ld\n", whoami, header.pub_guid);
 

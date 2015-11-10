@@ -9,9 +9,6 @@
 /*
  * sos_debug.h
  *
- * THREAD SAFETY NOTE: The LOCKING version of this *is* thread safe.  :)
- *
- *
  * NOTE: A central location to switch the debug flags on and off, as
  *       well as define/re-define what happens when various debugging
  *       functions are called.
@@ -29,7 +26,7 @@
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           0
+#define SOSD_DAEMON_LOG           99
 #define SOSD_ECHO_TO_STDOUT       0
 
 int     sos_daemon_lock_fptr;

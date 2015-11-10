@@ -396,9 +396,9 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
 
         next_snap = (SOS_val_snap *) snap->next;
         if (re_queue != NULL) {
-
-            dlog(5, "[%s]:      ... re_queue this val_snap in the val_outlet\n", whoami);
             snap->next = (void *) re_queue->from->get(re_queue->from, pub_guid_str);
+            re_queue->from->remove(re_queue->from, pub_guid_str);
+            dlog(5, "[%s]:      ... re_queue this val_snap in the val_outlet   (%ld).next->(%ld)\n", whoami, (long) snap, (long) snap->next);
             re_queue->from->put(re_queue->from, pub_guid_str, (void *) snap);
         } else {
             /* You're not re-queueing them...

@@ -34,6 +34,10 @@ void   SOS_uid_init( SOS_uid **uid, long from, long to );
 long   SOS_uid_next( SOS_uid *uid );
 void   SOS_uid_destroy( SOS_uid *uid );
 
+/* Doesn't lock the queue, for use within queue functions. */
+void   SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub);
+
+
 /* Private variables (not exposed in the header file) */
 int   SOS_NULL_STR_LEN  = sizeof(char);
 char  SOS_NULL_STR_CHAR = '\0';
@@ -356,7 +360,7 @@ int SOS_ring_put(SOS_ring_queue *ring, long item) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_put");
     pthread_mutex_lock(ring->lock);
 
-    dlog(5, "[%s]: Attempting to add an item into the ring.\n", whoami);
+    dlog(5, "[%s]: Attempting to add (%ld) into the ring.\n", whoami, item);
 
     if (ring == NULL) { dlog(0, "[%s]: ERROR!  Attempted to insert into a NULL ring!\n", whoami); exit(EXIT_FAILURE); }
 
@@ -729,7 +733,6 @@ void SOS_expand_data( SOS_pub *pub ) {
 
     return;
 }
-
 
 
 void SOS_strip_str( char *str ) {
@@ -1190,7 +1193,7 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
 }
 
 
-void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char **buf_ptr, int *buf_len) {
+void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char **buf_ptr, int *buf_len, bool drain) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_to_buffer");
     SOS_msg_header header;
     char pub_guid_str[SOS_DEFAULT_STRING_LEN];
@@ -1227,6 +1230,8 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char 
     snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
 
     while (snap != NULL) {
+    dlog(2, "[%s]:      ... guid=%ld\n", whoami, snap->guid);
+
         buffer_len += SOS_buffer_pack(ptr, "ildddl",
                                       snap->elem,
                                       snap->guid,
@@ -1245,6 +1250,11 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char 
         ptr = (buffer + buffer_len);
         snap = snap->next;
     }
+    if (drain) {
+        dlog(2, "[%s]:      ... draining queue for pub(%s)\n", whoami, pub_guid_str);
+        SOS_val_snap_queue_drain(queue, pub);
+    }
+
     dlog(2, "[%s]:      ... releasing queue->lock\n", whoami);
     pthread_mutex_unlock( queue->lock );
 
@@ -1349,6 +1359,31 @@ void SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_v
     queue->from->remove(queue->from, pub_guid_str);
     queue->from->put(queue->from, pub_guid_str, (void *) snap);
     if (use_lock) { pthread_mutex_unlock(queue->lock); }
+
+    return;
+}
+
+
+
+ void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
+    SOS_val_snap *snap;
+    SOS_val_snap *next_snap;
+    char pub_guid_str[SOS_DEFAULT_STRING_LEN];
+
+    memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
+
+    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
+    queue->from->remove(queue->from, pub_guid_str);
+    
+    while (snap != NULL) {
+        next_snap = snap->next;
+        if(pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) {
+            free(snap->val.c_val);
+        }
+        free(snap);
+        snap = next_snap;
+    }
 
     return;
 }

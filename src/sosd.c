@@ -345,6 +345,10 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
         pthread_mutex_lock(my->commit_lock);  /* This will block until the current commit-list is cleared. */
         my->commit_count = 0;
         my->commit_list = SOS_ring_get_all(my->ring, &my->commit_count);
+        int z;
+        for (z = 0; z < my->commit_count; z++) {
+            dlog(6, "[%s]:   ... %ld\n", whoami, my->commit_list[z]);
+        }
         pthread_mutex_unlock(my->commit_lock);
         pthread_cond_signal(my->commit_cond);
         gettimeofday(&tp, NULL); ts.tv_sec  = 0 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
@@ -377,6 +381,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     pthread_mutex_lock(my->commit_lock);
     while (SOSD.daemon.running) {
         pthread_cond_wait(my->commit_cond, my->commit_lock);
+        if (my->commit_count == 0) { continue; }
 
         if (my->commit_target == SOS_TARGET_LOCAL_SYNC) {
             SOSD_db_transaction_begin();
@@ -398,11 +403,16 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                     SOSD_db_insert_data(pub);
                     pub->announced = SOSD_PUB_ANN_LOCAL;
                 }
-                SOSD_db_insert_vals(pub, my->val_intake, my->val_outlet);
-                SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
+                if (SOS.role == SOS_ROLE_DB) {
+                    SOSD_db_insert_vals(pub, my->val_intake, NULL);
+                } else {
+                    SOSD_db_insert_vals(pub, my->val_intake, my->val_outlet);
+                    SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
+                }
                 break;
 
             case SOS_TARGET_CLOUD_SYNC:
+                if (SOS.role == SOS_ROLE_DB) { break; }
                 if (pub->announced == SOSD_PUB_ANN_LOCAL) {
                     buffer = buffer_static;
                     buffer_len = SOS_DEFAULT_BUFFER_LEN;
@@ -416,11 +426,12 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 buffer     = buffer_static;
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
-                SOS_val_snap_queue_to_buffer(my->val_intake, pub, &buffer, &buffer_len);
                 #if (SOSD_CLOUD_SYNC > 0)
+                SOS_val_snap_queue_to_buffer(my->val_intake, pub, &buffer, &buffer_len, true);
                 SOSD_cloud_enqueue(buffer, buffer_len);
+                buffer_len = SOS_DEFAULT_BUFFER_LEN;
+                memset(buffer, '\0', buffer_len);
                 #endif
-
                 break;
 
             default:
@@ -430,9 +441,16 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
         }
         switch (my->commit_target) {
         case SOS_TARGET_LOCAL_SYNC: SOSD_db_transaction_commit(); break;
-        case SOS_TARGET_CLOUD_SYNC: SOSD_cloud_fflush(); break;
+        case SOS_TARGET_CLOUD_SYNC:
+            #if (SOSD_CLOUD_SYNC > 0)
+            if (SOS.role != SOS_ROLE_DB) {
+                SOSD_cloud_fflush();
+            }
+            #endif
+            break;
         }
         free(my->commit_list);
+        my->commit_count = 0;
     }
     pthread_mutex_unlock(my->commit_lock);
     dlog(0, "[%s]: Leaving thread safely.\n", whoami);
@@ -981,7 +999,7 @@ void SOSD_init() {
      *     close unused IO handles
      */
 
-    if (SOS_DEBUG == 0) {
+    if (SOS_DEBUG < 1) {
         dlog(1, "[%s]: Closing traditional I/O for the daemon...\n", whoami);
         close(STDIN_FILENO);
         close(STDOUT_FILENO);

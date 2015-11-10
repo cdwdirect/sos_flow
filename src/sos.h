@@ -50,7 +50,7 @@
 #define SOS_DEFAULT_SERVER_HOST    "localhost"
 #define SOS_DEFAULT_SERVER_PORT    22505
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
-#define SOS_DEFAULT_BUFFER_LEN     4194304
+#define SOS_DEFAULT_BUFFER_LEN     2621440
 #define SOS_DEFAULT_ACK_LEN        128
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_RING_SIZE      1024
@@ -454,7 +454,7 @@ extern "C" {
     void      SOS_val_snap_queue_init(SOS_val_snap_queue **queue);
     void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);
     void      SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock);
-    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char **buffer, int *buffer_len);
+    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char **buffer, int *buffer_len, bool drain);
     void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, char *buffer, int buffer_size);
     void      SOS_val_snap_queue_destroy(SOS_val_snap_queue *queue);
 
