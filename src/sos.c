@@ -187,6 +187,7 @@ void SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr) {
 
     *buf_pair_ptr = (SOS_async_buf_pair *) malloc(sizeof(SOS_async_buf_pair));
     buf_pair = *buf_pair_ptr;
+    memset(buf_pair, '\0', sizeof(SOS_async_buf_pair));
     
     memset(buf_pair->a.data, '\0', SOS_DEFAULT_BUFFER_LEN);
     memset(buf_pair->b.data, '\0', SOS_DEFAULT_BUFFER_LEN);
@@ -210,8 +211,16 @@ void SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr) {
 void SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair) {
     SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_fflush");
 
+    dlog(1, "[%s]: Forcing a flush...\n", whoami);
+    if (SOS.status != SOS_STATUS_RUNNING) {
+        dlog(1, "[%s]:   ... skipping buffer flush, system is shutting down\n", whoami);
+        return;
+    }
+    dlog(1, "[%s]:   ... obtaining grow_buf lock\n", whoami);
     pthread_mutex_lock(buf_pair->grow_buf->lock);
+    dlog(1, "[%s]:   ... calling _autoflush()\n", whoami);
     SOS_async_buf_pair_autoflush(buf_pair);
+    dlog(1, "[%s]:   ... releasing grow_buf lock\n", whoami);
     pthread_mutex_unlock(buf_pair->grow_buf->lock);
 
     return;
@@ -239,6 +248,7 @@ void SOS_async_buf_pair_autoflush(SOS_async_buf_pair *buf_pair) {
      *       has already been obtained/locked by either _fflush()
      *       or the _insert() buf_pair functions.  We don't need
      *       to be concerned about it here. */
+    
     pthread_mutex_lock(buf_pair->send_buf->lock);
 
     if (buf_pair->send_buf == &buf_pair->a) {
@@ -305,10 +315,18 @@ void SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair) {
      * this wipes out the condition variable that the thread might be
      * waiting on.  */
 
-    pthread_mutex_lock(buf_pair->a.lock);
-    pthread_mutex_lock(buf_pair->b.lock);
-    pthread_mutex_destroy(buf_pair->a.lock);
-    pthread_mutex_destroy(buf_pair->b.lock);
+    dlog(1, "[%s]:   ... send_buf mutex\n", whoami);
+    dlog(1, "[%s]:      ... obtaining\n", whoami);
+    pthread_mutex_lock(buf_pair->send_buf->lock);
+    dlog(1, "[%s]:      ... destroying\n", whoami);
+    pthread_mutex_destroy(buf_pair->send_buf->lock);
+
+    dlog(1, "[%s]:   ... grow_buf mutex\n", whoami);
+    dlog(1, "[%s]:      ... obtaining mutex\n", whoami);
+    pthread_mutex_lock(buf_pair->grow_buf->lock);
+    dlog(1, "[%s]:      ... destroying\n", whoami);
+    pthread_mutex_destroy(buf_pair->grow_buf->lock);
+
     free(buf_pair->a.lock);
     free(buf_pair->b.lock);
     pthread_cond_destroy(buf_pair->flush_cond);

@@ -7,4 +7,8 @@ daemon0="-np 1 ../bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 2048
 daemon1="-np 1 ../bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)"
 echo ${daemon0}
 echo ${daemon1}
+
+#GOOD:   valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --trace-children=yes mpirun ${daemon0} : ${daemon1}
+#BETTER: valgrind --tool=memcheck --trace-children=yes --track-origins=yes mpirun ${daemon0} : ${daemon1}
+
 mpirun ${daemon0} : ${daemon1}

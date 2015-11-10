@@ -6,7 +6,6 @@
  */
 
 
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -160,8 +159,6 @@ int main(int argc, char *argv[])  {
     free(SOSD.daemon.name);
     free(SOSD.daemon.lock_file);
 
-    dlog(0, "[%s]: Exiting sosd.main() successfully.\n", whoami);
-    
     return(EXIT_SUCCESS);
 } //end: main()
 
@@ -443,7 +440,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
         case SOS_TARGET_LOCAL_SYNC: SOSD_db_transaction_commit(); break;
         case SOS_TARGET_CLOUD_SYNC:
             #if (SOSD_CLOUD_SYNC > 0)
-            if (SOS.role != SOS_ROLE_DB) {
+            if (SOS.role != SOS_ROLE_DB && SOSD.daemon.running) {
                 SOSD_cloud_fflush();
             }
             #endif

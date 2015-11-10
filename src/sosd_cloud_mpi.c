@@ -13,14 +13,49 @@
 
 
 pthread_t *SOSD_cloud_flush;
+bool SOSD_cloud_shutdown_underway;
 
 void SOSD_cloud_shutdown_notice(void) {
+    SOS_SET_WHOAMI(whoami, "SOSD_cloud_shutdown_notice");
     /* NOTE: This function is to facilitate notification of sosd components
      *       that might not be listening to a socket.
      *       Only certain ranks will participate in it.
      */
 
+    dlog(1, "[%s]: Providing shutdown notice to the cloud_sync backend...\n", whoami);
+    SOSD_cloud_shutdown_underway = true;
+
+    if (SOS.config.comm_rank < SOSD.daemon.cloud_sync_target_count) {
+        dlog(1, "[%s]:   ... preparing notice to SOS_ROLE_DB at rank %d\n", whoami, SOSD.daemon.cloud_sync_target);
+        /* The first N ranks will notify the N databases... */
+        SOS_msg_header header;
+        char shutdown_msg[128];
+        int count;
+        int pack_inset;
+        int offset;
+        count = 1;
+        memset(shutdown_msg, '\0', 128);
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
+        header.msg_from = SOS.my_guid;
+        header.pub_guid = 0;
+        pack_inset = SOS_buffer_pack(shutdown_msg, "i", count);
+        offset = SOS_buffer_pack((shutdown_msg + pack_inset), "iill",
+                                 header.msg_size,
+                                 header.msg_type,
+                                 header.msg_from,
+                                 header.pub_guid  );
+        header.msg_size = offset;
+        SOS_buffer_pack(shutdown_msg, "ii", count, header.msg_size);
+
+        dlog(1, "[%s]:   ... sending notice\n", whoami);
+        MPI_Send((void *) shutdown_msg, header.msg_size, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+        dlog(1, "[%s]:   ... sent successfully\n", whoami);
+    }
     
+    dlog(1, "[%s]:   ... waiting at barrier for the rest of the sosd daemons\n", whoami);
+    MPI_Barrier(MPI_COMM_WORLD);
+    dlog(1, "[%s]:   ... done\n", whoami);
 
     return;
 }
@@ -54,6 +89,12 @@ void* SOSD_THREAD_cloud_flush(void *params) {
     while (SOSD.daemon.running) {
         wake_type = pthread_cond_timedwait(bp->flush_cond, bp->send_buf->lock, &tsleep);
         dlog(1, "[%s]: Waking up!\n", whoami);
+
+        if (SOSD_cloud_shutdown_underway) {
+            dlog(1, "[%s]:   ... shutdown is imminent, bailing out\n", whoami);
+            break;
+        }
+
         dlog(1, "[%s]:   ... bp->grow_buf->entry_count == %d\n", whoami, bp->grow_buf->entry_count);
         dlog(1, "[%s]:   ... bp->send_buf->entry_count == %d\n", whoami, bp->send_buf->entry_count);
         if (wake_type == ETIMEDOUT) {
@@ -82,12 +123,18 @@ void* SOSD_THREAD_cloud_flush(void *params) {
         tsleep.tv_nsec = tnow.tv_usec + 500000UL;
     }
 
+    dlog(1, "[%s]:   ... unlocking send_buf\n", whoami);
+    pthread_mutex_unlock(bp->send_buf->lock);
+    dlog(1, "[%s]:   ... exiting thread safely.\n", whoami);
+
     return NULL;
 }
 
 
 void SOSD_cloud_enqueue(char *msg, int msg_len) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_enqueue");
+
+    if (SOSD_cloud_shutdown_underway) { return; }
 
     dlog(1, "[%s]: Enqueueing a message of %d bytes...\n", whoami, msg_len);
     SOS_async_buf_pair_insert(SOSD.cloud_bp, msg, msg_len);
@@ -137,7 +184,6 @@ void SOSD_cloud_listen_loop(void) {
 
     SOS_async_buf_pair_init(&bp);  /* Since MPI_ is serial here, we can simply ignore the mutexes. */
 
-    /* TODO: SOS_ROLE_DB { Who is responsible for terminating DB's?  They don't use a socket. } */
     while(SOSD.daemon.running) {
         entry_count = 0;
         offset = 0;
@@ -175,18 +221,23 @@ void SOSD_cloud_listen_loop(void) {
 
             /* Now let's handle the message we've moved over into buffer bp-b.data */
             switch (header.msg_type) {
-            case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register   (bp->b.data, header.msg_size); break; 
-            case SOS_MSG_TYPE_GUID_BLOCK: SOSD_handle_guid_block (bp->b.data, header.msg_size); break;
+
             case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (bp->b.data, header.msg_size); break;
             case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (bp->b.data, header.msg_size); break;
             case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (bp->b.data, header.msg_size); break;
-            case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (bp->b.data, header.msg_size); break;
-            case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (bp->b.data, header.msg_size); break;
+
+            case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
+
+            case SOS_MSG_TYPE_REGISTER:   /* SOSD_handle_register   (bp->b.data, header.msg_size); break; */
+            case SOS_MSG_TYPE_GUID_BLOCK: /* SOSD_handle_guid_block (bp->b.data, header.msg_size); break; */
+            case SOS_MSG_TYPE_ECHO:       /* SOSD_handle_echo       (bp->b.data, header.msg_size); break; */
             default:                      SOSD_handle_unknown    (bp->b.data, header.msg_size); break;
             }
         }
-
     }
+
+    /* Join with the daemon's and close out together... */
+    MPI_Barrier(MPI_COMM_WORLD);
 
     return;
 }
@@ -204,6 +255,8 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     SOS.config.comm_rank = getpid();
     SOS_SET_WHOAMI(whoami, "SOSD_clout_init");
+
+    SOSD_cloud_shutdown_underway = false;
 
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]: Configuring this daemon with MPI:\n", whoami);
     if (SOSD_ECHO_TO_STDOUT) printf("[%s]:   ... calling MPI_Init_thread();\n", whoami);
