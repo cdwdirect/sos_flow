@@ -1,0 +1,67 @@
+#!/bin/bash 
+#PBS -N sos_flow_3x12                                     ## the name of the batch job
+#PBS -q generic                                           ## this line tells Torque which queue to submit to
+#PBS -l nodes=3:ppn=12                                    ## requests 3 node and 12 processors per node
+#PBS -l walltime=0:15:00                                  ## requests 15 minutes
+#PBS -d /home12/cdw/research/sos_flow                     ## the working directory for your job
+#PBS -o /home12/cdw/research/sos_flow/jobs/aciss/log      ## batch script output location
+#PBS -e /home12/cdw/research/sos_flow/jobs/aciss/log      ## batch script errors location
+
+
+# # # # # # #   modules   # # # # # # #
+
+module load sqlite/3.8
+module load gcc/4.9
+module load mpi-tor/openmpi-1.8_gcc-4.9
+
+
+# # # # # # #   execute   # # # # # # #
+
+proj_path="/home12/cdw/research/sos_flow"
+
+# sos:
+
+daemon0="-np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
+daemon1="-np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
+daemon2="-np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
+db0="    -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
+
+sosd_programs=""
+sosd_programs="${sosd_programs} ${daemon0} : "
+sosd_programs="${sosd_programs} ${daemon1} : "
+sosd_programs="${sosd_programs} ${daemon2} : "
+sosd_programs="${sosd_programs} ${db0} "
+
+sosd_mpi_opts=""
+sosd_mpi_opts="${sosd_mpi_opts} -rf aciss.3.rf "
+sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
+sosd_mpi_opts="${sosd_mpi_opts} –mca btl_tcp_if_include torbr "
+
+# flow:
+
+demo_app="${proj_path}/bin/demo_app"
+
+flow_programs=""
+flow_programs="${flow_programs} --npernode 11 ${demo_app} "
+
+flow_mpi_opts=""
+flow_mpi_opts="${flow_mpi_opts} -report-bindings "
+flow_mpi_opts="${flow_mpi_opts} –mca btl_tcp_if_include torbr "
+
+echo "SOSD:"
+echo ""
+echo ${sosd_mpi_opts}
+echo ${sosd_programs}
+
+echo "FLOW:"
+echo ""
+echo ${flow_mpi_opts}
+echo ${flow_programs}
+
+
+#(mpirun ${sosd_mpi_opts} ${sosd_programs}) &
+#(mpirun ${flow_mpi_opts} ${flow_programs}) &
+
+wait   #bash: pause until all background tasks complete
+
+#TODO: Copy the databases/logs to a permanent store.
