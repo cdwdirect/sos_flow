@@ -14,6 +14,18 @@
 
 pthread_t *SOSD_cloud_flush;
 
+void SOSD_cloud_shutdown_notice(void) {
+    /* NOTE: This function is to facilitate notification of sosd components
+     *       that might not be listening to a socket.
+     *       Only certain ranks will participate in it.
+     */
+
+    
+
+    return;
+}
+
+
 
 void* SOSD_THREAD_cloud_flush(void *params) {
     SOS_SET_WHOAMI(whoami, "SOSD_THREAD_cloud_flush(MPI)");

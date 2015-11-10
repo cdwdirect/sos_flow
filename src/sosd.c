@@ -768,6 +768,10 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
         else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     }
 
+    #if (SOSD_CLOUD_SYNC > 0)
+    SOSD_cloud_shutdown_notice();
+    #endif
+
     SOSD.daemon.running = 0;
 
     /*
