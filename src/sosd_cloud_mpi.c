@@ -147,9 +147,7 @@ void SOSD_cloud_enqueue(char *msg, int msg_len) {
 void SOSD_cloud_fflush(void) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_fflush");
 
-    dlog(1, "[%s]: Moving grow_buf into the send_buf position...\n", whoami);
     SOS_async_buf_pair_fflush(SOSD.cloud_bp);
-    dlog(1, "[%s]:   ... done.\n", whoami);
 
     return;
 }

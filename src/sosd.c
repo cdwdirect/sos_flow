@@ -440,7 +440,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
         case SOS_TARGET_LOCAL_SYNC: SOSD_db_transaction_commit(); break;
         case SOS_TARGET_CLOUD_SYNC:
             #if (SOSD_CLOUD_SYNC > 0)
-            if (SOS.role != SOS_ROLE_DB && SOSD.daemon.running) {
+            if ((SOS.role != SOS_ROLE_DB) && SOSD.daemon.running) {
                 SOSD_cloud_fflush();
             }
             #endif
@@ -770,6 +770,7 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
     #endif
 
     SOSD.daemon.running = 0;
+    SOS.status = SOS_STATUS_SHUTDOWN;
 
     /*
      * We don't need to do this here, the handler is the same thread as
