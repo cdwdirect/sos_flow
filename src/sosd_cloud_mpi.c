@@ -86,19 +86,19 @@ void* SOSD_THREAD_cloud_flush(void *params) {
     tsleep.tv_sec  = tnow.tv_sec  + 0;
     tsleep.tv_nsec = (1000 * tnow.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
 
-    dlog(1, "[%s]:   ... entering loop\n", whoami);
+    dlog(6, "[%s]:   ... entering loop\n", whoami);
     while (SOSD.daemon.running) {
-        dlog(1, "[%s]: Sleeping!    (UNLOCK on bp->flush_lock)\n", whoami);
+        dlog(6, "[%s]: Sleeping!    (UNLOCK on bp->flush_lock)\n", whoami);
         wake_type = pthread_cond_timedwait(bp->flush_cond, bp->flush_lock, &tsleep);
-        dlog(1, "[%s]: Waking up!   (LOCK on bp->flush_lock)\n", whoami);
+        dlog(6, "[%s]: Waking up!   (LOCK on bp->flush_lock)\n", whoami);
 
         if (SOSD_cloud_shutdown_underway) {
-            dlog(1, "[%s]:   ... shutdown is imminent, bailing out\n", whoami);
+            dlog(6, "[%s]:   ... shutdown is imminent, bailing out\n", whoami);
             break;
         }
 
-        dlog(1, "[%s]:   ... bp->grow_buf->entry_count == %d\n", whoami, bp->grow_buf->entry_count);
-        dlog(1, "[%s]:   ... bp->send_buf->entry_count == %d\n", whoami, bp->send_buf->entry_count);
+        dlog(6, "[%s]:   ... bp->grow_buf->entry_count == %d\n", whoami, bp->grow_buf->entry_count);
+        dlog(6, "[%s]:   ... bp->send_buf->entry_count == %d\n", whoami, bp->send_buf->entry_count);
         if (wake_type == ETIMEDOUT) {
             dlog(1, "[%s]:   ... timed-out\n", whoami);
         } else {
@@ -125,7 +125,7 @@ void* SOSD_THREAD_cloud_flush(void *params) {
         tsleep.tv_nsec = tnow.tv_usec + 62500000;   /* ~ 0.06 seconds. */
     }
 
-    dlog(1, "[%s]:   ... UNLOCK bp->flush_lock\n", whoami);
+    dlog(6, "[%s]:   ... UNLOCK bp->flush_lock\n", whoami);
     pthread_mutex_unlock(bp->flush_lock);
     dlog(1, "[%s]:   ... exiting thread safely.\n", whoami);
 
@@ -175,9 +175,13 @@ int SOSD_cloud_send(char *msg, int msg_len) {
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
     int   rc;
 
-    dlog(5, "[%s]: -----------> ----> -------------> ----------> ------------->\n", whoami);
-    dlog(5, "[%s]: ----> -----------> >>Transporting off-node!>> ------> ----->\n", whoami);
-    dlog(5, "[%s]: ---------------> ---------> --------------> ----> -----> -->\n", whoami);
+    int   entry_count;
+
+    SOS_buffer_unpack(msg, "i", &entry_count);
+
+    dlog(2, "[%s]: -----------> ----> -------------> ----------> ------------->\n", whoami);
+    dlog(2, "[%s]: ----> --> >>Transporting off-node!>> ---(%d entries)---->\n", whoami);
+    dlog(2, "[%s]: ---------------> ---------> --------------> ----> -----> -->\n", whoami);
 
     /* At this point, it's pretty simple: */
     MPI_Send((void *) msg, msg_len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
