@@ -75,7 +75,7 @@ void* SOSD_THREAD_cloud_flush(void *params) {
     pthread_mutex_lock(bp->flush_lock);
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... UNLOCK bp->flush_lock, waiting for daemon to finish initializing.\n", whoami); }
     pthread_cond_wait(bp->flush_cond, bp->flush_lock);
-    dlog(1, "[%s]:   ... Woken up!  (LOCK on bp->flush_lock)\n", whoami);
+    dlog(6, "[%s]:   ... Woken up!  (LOCK on bp->flush_lock)\n", whoami);
 
     if (SOS.role == SOS_ROLE_DB) {
         dlog(0, "[%s]: WARNING!  Returning from the SOSD_THREAD_cloud_flush routine, not used by DB.\n", whoami);
@@ -100,13 +100,13 @@ void* SOSD_THREAD_cloud_flush(void *params) {
         dlog(6, "[%s]:   ... bp->grow_buf->entry_count == %d\n", whoami, bp->grow_buf->entry_count);
         dlog(6, "[%s]:   ... bp->send_buf->entry_count == %d\n", whoami, bp->send_buf->entry_count);
         if (wake_type == ETIMEDOUT) {
-            dlog(1, "[%s]:   ... timed-out\n", whoami);
+            dlog(6, "[%s]:   ... timed-out\n", whoami);
         } else {
-            dlog(1, "[%s]:   ... manually triggered\n", whoami);
+            dlog(6, "[%s]:   ... manually triggered\n", whoami);
         }
 
         if (bp->send_buf->entry_count == 0) {
-            dlog(1, "[%s]:   ... nothing to do, going back to sleep.\n", whoami);
+            dlog(6, "[%s]:   ... nothing to do, going back to sleep.\n", whoami);
             gettimeofday(&tnow, NULL);
             tsleep.tv_sec  = tnow.tv_sec  + 0;
             tsleep.tv_nsec = (1000 * tnow.tv_usec) + 122500000UL;   /* ~ 0.12 seconds */
@@ -151,7 +151,7 @@ void SOSD_cloud_enqueue(char *msg, int msg_len) {
                       &header.msg_from,
                       &header.pub_guid);           
 
-    dlog(1, "[%s]: Enqueueing a %s message of %d bytes...\n", whoami, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), msg_len);
+    dlog(6, "[%s]: Enqueueing a %s message of %d bytes...\n", whoami, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), msg_len);
     if (msg_len != header.msg_size) { dlog(1, "[%s]:   ... ERROR: msg_size(%d) != header.msg_size(%d)", whoami, msg_len, header.msg_size); }
     SOS_async_buf_pair_insert(SOSD.cloud_bp, msg, msg_len);
     dlog(1, "[%s]:   ... done.\n", whoami);
@@ -161,10 +161,7 @@ void SOSD_cloud_enqueue(char *msg, int msg_len) {
 
 
 void SOSD_cloud_fflush(void) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_fflush");
-
     SOS_async_buf_pair_fflush(SOSD.cloud_bp);
-
     return;
 }
 
@@ -179,9 +176,9 @@ int SOSD_cloud_send(char *msg, int msg_len) {
 
     SOS_buffer_unpack(msg, "i", &entry_count);
 
-    dlog(2, "[%s]: -----------> ----> -------------> ----------> ------------->\n", whoami);
-    dlog(2, "[%s]: ----> --> >>Transporting off-node!>> ---(%d entries)---->\n", whoami);
-    dlog(2, "[%s]: ---------------> ---------> --------------> ----> -----> -->\n", whoami);
+    dlog(5, "[%s]: -----------> ----> -------------> ----------> ------------->\n", whoami);
+    dlog(5, "[%s]: ----> --> >>Transporting off-node!>> ---(%d entries)---->\n", whoami, entry_count);
+    dlog(5, "[%s]: ---------------> ---------> --------------> ----> -----> -->\n", whoami);
 
     /* At this point, it's pretty simple: */
     MPI_Send((void *) msg, msg_len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
