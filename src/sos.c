@@ -204,55 +204,41 @@ void SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr) {
     buf_pair->b.lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(buf_pair->a.lock, NULL);
     pthread_mutex_init(buf_pair->b.lock, NULL);
+
+    buf_pair->flush_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(buf_pair->flush_lock, NULL);
     buf_pair->flush_cond = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
     pthread_cond_init(buf_pair->flush_cond, NULL);
 
     return;
 }
 
+
 void SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair) {
     SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_fflush");
+
+    /* The thread that actually does the 'flushing' is set up by the
+     * context that creats the buf_pair.  Specifically, all we do here
+     * is grab the locks, swap the roles of the buffers, trigger the
+     * flush condition, and release the lock.
+     * Immediately, grow_buf is available to handle new
+     * writes, because the facilitating thread does not go back to sleep
+     * and release the flush lock until the sending buffer has been
+     * entirely handled. */
 
     dlog(1, "[%s]: Forcing a flush...\n", whoami);
     if (SOS.status != SOS_STATUS_RUNNING) {
         dlog(1, "[%s]:   ... skipping buffer flush, system is shutting down\n", whoami);
         return;
     }
-    dlog(1, "[%s]:   ... LOCK grow_buf->lock\n", whoami);
-    pthread_mutex_lock(buf_pair->grow_buf->lock);
-    dlog(1, "[%s]:   ... calling _autoflush()\n", whoami);
-    SOS_async_buf_pair_autoflush(buf_pair);
-    dlog(1, "[%s]:   ... UNLOCK grow_buf->lock\n", whoami);
-    pthread_mutex_unlock(buf_pair->grow_buf->lock);
-
-    return;
-}
-
-void SOS_async_buf_pair_autoflush(SOS_async_buf_pair *buf_pair) {
-    SOS_SET_WHOAMI(whoami, "SOS_async_buf_pair_autoflush");
-
-    /* The thread that actually does the 'flushing' is set up by the
-     * context that creats the buf_pair.  Specifically, all we do here
-     * is grab the locks, swap the roles of the buffers, and trigger the
-     * flush condition.  Immediately, grow_buf is available to handle new
-     * writes.  Whatever thread was started that is waiting on the flush
-     * condition will be activated to perform the async send/write, and
-     * it can operate knowing that it effectively holds locks on both
-     * grow and send buffers.
-     * NOTE: When that thread is done with the actual send/commit it
-     *       has been designed to do, and it releases the send lock,
-     *       the send buffer is unstable, that is, it might be cleared
-     *       out by some other function.  Do your operation entirely
-     *       atomically, or make a copy of the buffer to work with before
-     *       releasing the send lock! */
-
-    /* NOTE: This is the _autoflush function, so the grow_buf lock
-     *       has already been obtained/locked by either _fflush()
-     *       or the _insert() buf_pair functions.  We don't need
-     *       to be concerned about it here. */
-
-    dlog(1, "[%s]:   ... LOCK send_buf->lock\n", whoami);
+    dlog(1, "[%s]:   ... LOCK buf_pair->flush_lock\n", whoami);
+    pthread_mutex_lock(buf_pair->flush_lock);
+    dlog(1, "[%s]:   ... LOCK buf_pair->send_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->send_buf->lock);
+    dlog(1, "[%s]:   ... LOCK buf_pair->grow_buf->lock\n", whoami);
+    pthread_mutex_lock(buf_pair->grow_buf->lock);
+
+
     dlog(1, "[%s]:   ... swap buffers\n", whoami);
     if (buf_pair->send_buf == &buf_pair->a) {
         buf_pair->grow_buf = &buf_pair->a;
@@ -261,11 +247,15 @@ void SOS_async_buf_pair_autoflush(SOS_async_buf_pair *buf_pair) {
         buf_pair->grow_buf = &buf_pair->b;
         buf_pair->send_buf = &buf_pair->a;
     }
+    dlog(1, "[%s]:   ... UNLOCK buf_pair->send_buf->lock\n", whoami);
+    pthread_mutex_unlock(buf_pair->send_buf->lock);
+    dlog(1, "[%s]:   ... UNLOCK buf_pair->grow_buf->lock\n", whoami);
+    pthread_mutex_unlock(buf_pair->grow_buf->lock);
 
     dlog(1, "[%s]:   ... signal flush condition\n", whoami);
     pthread_cond_signal(buf_pair->flush_cond);
-    dlog(1, "[%s]:   ... UNLOCK send_buf->lock\n", whoami);
-    pthread_mutex_unlock(buf_pair->send_buf->lock);
+    dlog(1, "[%s]:   ... UNLOCK buf_pair->flush_lock\n", whoami);
+    pthread_mutex_unlock(buf_pair->flush_lock);
 
     return;
 }
@@ -276,10 +266,10 @@ void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int 
     int count;
     int count_size;
 
-    dlog(1, "[%s]:   ... LOCK grow_buf->lock\n", whoami);
-    pthread_mutex_lock(buf_pair->grow_buf->lock);
-
     buf = buf_pair->grow_buf;
+
+    dlog(1, "[%s]:   ... LOCK grow_buf->lock\n", whoami);
+    pthread_mutex_lock(buf->lock);
     count_size = SOS_buffer_unpack(buf->data, "i", &count);
 
     /* NOTE: '8' to make sure we'll have room to pack in the msg_len... */
@@ -287,16 +277,19 @@ void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int 
         dlog(0, "[%s]: WARNING! You've attempted to insert a value that is larger than the buffer!  (msg_len == %d)\n", whoami, msg_len);
         dlog(0, "[%s]: WARNING! Skipping this value, but the system is no longer tracking all entries.\n", whoami);
         dlog(1, "[%s]:   ... UNLOCK grow_buf->lock\n", whoami);
-        pthread_mutex_unlock(buf_pair->grow_buf->lock);
+        pthread_mutex_unlock(buf->lock);
         return;
     }
 
-    if ((8 + msg_len + buf->len) > buf->max) {
-        SOS_async_buf_pair_autoflush(buf_pair);
+    while ((8 + msg_len + buf->len) > buf->max) {
+        pthread_mutex_unlock(buf->lock);
+        SOS_async_buf_pair_fflush(buf_pair);
         buf = buf_pair->grow_buf;
-        /* Now buf points to an totally empty/available buffer,
-         * and we know our value fits.*/
+        pthread_mutex_lock(buf->lock);
     }
+    /* Now buf points to an totally empty/available buffer,
+     * and we know our value fits, even if multiple threads
+     * are hitting it. */
 
     /* NOTE: We can't use SOS_buffer_pack() for the msg because, being already
      *       the product of packing, msg may contain inline null zero's and is
@@ -327,14 +320,20 @@ void SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair) {
     dlog(1, "[%s]:   ... send_buf mutex\n", whoami);
     dlog(1, "[%s]:      ... LOCK send_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->send_buf->lock);
-    dlog(1, "[%s]:      ... destroying\n", whoami);
+    dlog(1, "[%s]:      ... UNLOCK send_buf->lock (destroy)\n", whoami);
     pthread_mutex_destroy(buf_pair->send_buf->lock);
 
     dlog(1, "[%s]:   ... grow_buf mutex\n", whoami);
     dlog(1, "[%s]:      ... LOCK grow_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->grow_buf->lock);
-    dlog(1, "[%s]:      ... destroying\n", whoami);
+    dlog(1, "[%s]:      ... UNLOCK grow_buf->lock (destroy)\n", whoami);
     pthread_mutex_destroy(buf_pair->grow_buf->lock);
+
+    dlog(1, "[%s]:   ... flush_lock mutex\n", whoami);
+    dlog(1, "[%s]:      ... LOCK bp->flush_lock\n", whoami);
+    pthread_mutex_lock(buf_pair->flush_lock);
+    dlog(1, "[%s]:      ... UNLOCK bp->flush_lock (destroy)\n", whoami);
+    pthread_mutex_destroy(buf_pair->flush_lock);
 
     free(buf_pair->a.lock);
     free(buf_pair->b.lock);
@@ -1292,7 +1291,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char 
         SOS_val_snap_queue_drain(queue, pub);
     }
 
-    dlog(2, "[%s]:      ... LOCK queue->lock\n", whoami);
+    dlog(2, "[%s]:      ... UNLOCK queue->lock\n", whoami);
     pthread_mutex_unlock( queue->lock );
 
     *buf_len        = buffer_len;
@@ -1343,6 +1342,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
     if (pub == NULL) {
         dlog(1, "[%s]: WARNING! Attempting to build snap_queue for a pub we don't know about.\n", whoami);
         dlog(1, "[%s]:   ... skipping this request.\n", whoami);
+        dlog(1, "[%s]:   ... UNLOCK queue->lock\n", whoami);
         pthread_mutex_unlock( queue->lock );
         return;
     }

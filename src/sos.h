@@ -255,6 +255,7 @@ typedef struct {
     SOS_buf            *send_buf;
     SOS_buf            *grow_buf;
     pthread_cond_t     *flush_cond;
+    pthread_mutex_t    *flush_lock;
 } SOS_async_buf_pair;
 
 typedef struct {
@@ -447,7 +448,6 @@ extern "C" {
 
     void      SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr);
     void      SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair);
-    void      SOS_async_buf_pair_autoflush(SOS_async_buf_pair *buf_pair);
     void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int msg_len);
     void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
 

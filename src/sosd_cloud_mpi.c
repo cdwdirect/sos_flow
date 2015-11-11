@@ -71,10 +71,11 @@ void* SOSD_THREAD_cloud_flush(void *params) {
 
     /* Since the log files are not even open yet, we must wait to use dlog() */
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Starting thread.\n", whoami); }
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... obtaining send_buf->lock\n", whoami); }
-    pthread_mutex_lock(bp->send_buf->lock);
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... waiting for daemon to finish initializing.\n", whoami); }
-    pthread_cond_wait(bp->flush_cond, bp->send_buf->lock);
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... LOCK bp->flush_lock\n", whoami); }
+    pthread_mutex_lock(bp->flush_lock);
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... UNLOCK bp->flush_lock, waiting for daemon to finish initializing.\n", whoami); }
+    pthread_cond_wait(bp->flush_cond, bp->flush_lock);
+    dlog(1, "[%s]:   ... Woken up!  (LOCK on bp->flush_lock)\n", whoami);
 
     if (SOS.role == SOS_ROLE_DB) {
         dlog(0, "[%s]: WARNING!  Returning from the SOSD_THREAD_cloud_flush routine, not used by DB.\n", whoami);
@@ -87,8 +88,9 @@ void* SOSD_THREAD_cloud_flush(void *params) {
 
     dlog(1, "[%s]:   ... entering loop\n", whoami);
     while (SOSD.daemon.running) {
-        wake_type = pthread_cond_timedwait(bp->flush_cond, bp->send_buf->lock, &tsleep);
-        dlog(1, "[%s]: Waking up!\n", whoami);
+        dlog(1, "[%s]: Sleeping!    (UNLOCK on bp->flush_lock)\n", whoami);
+        wake_type = pthread_cond_timedwait(bp->flush_cond, bp->flush_lock, &tsleep);
+        dlog(1, "[%s]: Waking up!   (LOCK on bp->flush_lock)\n", whoami);
 
         if (SOSD_cloud_shutdown_underway) {
             dlog(1, "[%s]:   ... shutdown is imminent, bailing out\n", whoami);
@@ -123,8 +125,8 @@ void* SOSD_THREAD_cloud_flush(void *params) {
         tsleep.tv_nsec = tnow.tv_usec + 500000UL;
     }
 
-    dlog(1, "[%s]:   ... unlocking send_buf\n", whoami);
-    pthread_mutex_unlock(bp->send_buf->lock);
+    dlog(1, "[%s]:   ... UNLOCK bp->flush_lock\n", whoami);
+    pthread_mutex_unlock(bp->flush_lock);
     dlog(1, "[%s]:   ... exiting thread safely.\n", whoami);
 
     return NULL;
@@ -352,6 +354,7 @@ int SOSD_cloud_finalize() {
         dlog(1, "[%s]: Shutting down SOSD cloud services...\n", whoami);
         dlog(1, "[%s]:   ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n", whoami);
         SOS_async_buf_pair_fflush(SOSD.cloud_bp);
+        pthread_cond_signal(SOSD.cloud_bp->flush_cond);
         dlog(1, "[%s]:   ... joining the cloud_sync flush thread.\n", whoami);
         pthread_join(*SOSD_cloud_flush, NULL);
         free(SOSD_cloud_flush);
