@@ -1,6 +1,6 @@
 # Package Information for pkg-config
 
-prefix=/usr/local
+prefix=/home/cdw/Dropbox/research/sos_flow/include/sqlite3
 exec_prefix=${prefix}
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include

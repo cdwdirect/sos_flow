@@ -326,15 +326,15 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     struct timespec ts;
     struct timeval  tp;
     int wake_type;
-    gettimeofday(&tp, NULL); ts.tv_sec  = 2 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
+    gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
     pthread_mutex_lock(my->extract_lock);
     while (SOSD.daemon.running) {
         wake_type = pthread_cond_timedwait(my->extract_cond, my->extract_lock, &ts);
         if (wake_type == ETIMEDOUT) {
             /* ...any special actions that need to happen if timed-out vs. called-explicitly */
             if (my->ring->elem_count == 0) {
-                /* If the ring is empty, wait for two seconds before proceeding. */
-                gettimeofday(&tp, NULL); ts.tv_sec  = 2 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
+                /* If the ring is empty, wait slightly longer. */
+                gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 122500000;   /* ~ 0.12 seconds. */
                 continue;
             }
             dlog(6, "[%s]: Checking ring...  (%d entries)\n", whoami, my->ring->elem_count);
@@ -348,7 +348,7 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
         }
         pthread_mutex_unlock(my->commit_lock);
         pthread_cond_signal(my->commit_cond);
-        gettimeofday(&tp, NULL); ts.tv_sec  = 0 + tp.tv_sec; ts.tv_nsec = 200 + (1000 * tp.tv_usec);
+        gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
     }
     pthread_mutex_unlock(my->extract_lock);
 

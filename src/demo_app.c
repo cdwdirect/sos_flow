@@ -11,8 +11,8 @@
 #include <pthread.h>
 
 
-#define MAX_SEND_COUNT 4
-#define ITERATION_SIZE 10
+#define MAX_SEND_COUNT 20000
+#define ITERATION_SIZE 100
 #define NUM_VALUES     20
 
 #undef SOS_DEBUG
@@ -39,6 +39,8 @@ int main(int argc, char *argv[]) {
     
     SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
     SOS_SET_WHOAMI(whoami, "demo_app.main");
+
+    srandom(SOS.my_guid);
 
     printf("[%s]: Creating a pub...\n", whoami);
     pub = SOS_pub_create("demo");
@@ -107,7 +109,7 @@ int main(int argc, char *argv[]) {
                    (time_now - time_start),
                    ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)),
                    (ones * NUM_VALUES));
-            usleep(1000);
+            usleep((random() * 1000)%1000000);
             SOS_TIME( time_start);
         }
         if (((ones * NUM_VALUES)%1000000) == 0) {

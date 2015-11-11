@@ -83,8 +83,8 @@ void* SOSD_THREAD_cloud_flush(void *params) {
     }
 
     gettimeofday(&tnow, NULL);
-    tsleep.tv_sec  = tnow.tv_sec  + 2;
-    tsleep.tv_nsec = tnow.tv_usec + 500000UL;
+    tsleep.tv_sec  = tnow.tv_sec  + 0;
+    tsleep.tv_nsec = (1000 * tnow.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
 
     dlog(1, "[%s]:   ... entering loop\n", whoami);
     while (SOSD.daemon.running) {
@@ -108,8 +108,8 @@ void* SOSD_THREAD_cloud_flush(void *params) {
         if (bp->send_buf->entry_count == 0) {
             dlog(1, "[%s]:   ... nothing to do, going back to sleep.\n", whoami);
             gettimeofday(&tnow, NULL);
-            tsleep.tv_sec  = tnow.tv_sec  + 5;
-            tsleep.tv_nsec = tnow.tv_usec + 500000UL;
+            tsleep.tv_sec  = tnow.tv_sec  + 0;
+            tsleep.tv_nsec = (1000 * tnow.tv_usec) + 122500000UL;   /* ~ 0.12 seconds */
             continue;
         }
 
@@ -121,8 +121,8 @@ void* SOSD_THREAD_cloud_flush(void *params) {
 
         /* Done.  Go back to sleep. */
         gettimeofday(&tnow, NULL);
-        tsleep.tv_sec  = tnow.tv_sec  + 2;
-        tsleep.tv_nsec = tnow.tv_usec + 500000UL;
+        tsleep.tv_sec  = tnow.tv_sec  + 5;
+        tsleep.tv_nsec = tnow.tv_usec + 62500000;   /* ~ 0.06 seconds. */
     }
 
     dlog(1, "[%s]:   ... UNLOCK bp->flush_lock\n", whoami);

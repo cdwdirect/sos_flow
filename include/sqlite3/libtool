@@ -1,8 +1,8 @@
-#! /bin/sh
+#! /bin/bash
 
 # libtool - Provide generalized library-building support services.
 # Generated automatically by config.status (sqlite) 3.9.1
-# Libtool was configured on host cn93:
+# Libtool was configured on host icebox:
 # NOTE: Changes made to this file will be lost: look at ltmain.sh.
 #
 #   Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2003, 2004, 2005,
@@ -56,7 +56,7 @@ pic_mode=default
 fast_install=yes
 
 # Shell to use when invoking shell scripts.
-SHELL="/bin/sh"
+SHELL="/bin/bash"
 
 # An echo program that protects backslashes.
 ECHO="printf %s\\n"
@@ -96,7 +96,7 @@ NM="/usr/bin/nm -B"
 LN_S="ln -s"
 
 # What is the maximum length of a command?
-max_cmd_len=1966080
+max_cmd_len=1572864
 
 # Object file suffix (normally "o").
 objext=o
@@ -272,10 +272,10 @@ finish_eval=""
 hardcode_into_libs=yes
 
 # Compile-time system search path for libraries.
-sys_lib_search_path_spec="/ibrix/packages/gcc/4.9.3/lib/gcc/x86_64-unknown-linux-gnu/4.9.3 /ibrix/packages/gcc/4.9.3/lib/gcc /ibrix/packages/gcc/4.9.3/lib64 /lib64 /usr/lib64 "
+sys_lib_search_path_spec="/usr/lib/gcc/x86_64-linux-gnu/4.8 /usr/lib/x86_64-linux-gnu /usr/lib /lib/x86_64-linux-gnu /lib "
 
 # Run-time system search path for libraries.
-sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/lib64/R/lib /usr/lib64/atlas /usr/lib64/ctapi /usr/lib64/mysql /usr/lib64/octave/3.4.3 /usr/lib64/papi-4.1.3 /usr/lib64/papi-5.1.1/usr/lib /usr/lib64/qt-3.3/lib /usr/lib64/tcl8.5/tclx8.4 /usr/lib/wine/ /usr/lib64/wine/ /usr/lib64/xulrunner "
+sys_lib_dlsearch_path_spec="/lib /usr/lib /usr/lib/x86_64-linux-gnu/libfakeroot /usr/lib/i386-linux-gnu/mesa /lib/i386-linux-gnu /usr/lib/i386-linux-gnu /lib/i686-linux-gnu /usr/lib/i686-linux-gnu /usr/local/lib /lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu /usr/lib/x86_64-linux-gnu/mesa-egl /usr/lib/x86_64-linux-gnu/mesa /lib32 /usr/lib32 /libx32 /usr/libx32 "
 
 # Whether dlopen is supported.
 dlopen_support=unknown
