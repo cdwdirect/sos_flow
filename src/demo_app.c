@@ -12,7 +12,7 @@
 
 
 #define MAX_SEND_COUNT 400
-#define ITERATION_SIZE 2
+#define ITERATION_SIZE 10
 #define NUM_VALUES     20
 
 #undef SOS_DEBUG

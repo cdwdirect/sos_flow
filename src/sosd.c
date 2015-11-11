@@ -355,7 +355,7 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     /* Free up the commit/inject thread to close down, too... */
     pthread_mutex_unlock(my->commit_lock);
     pthread_cond_signal(my->commit_cond);
-    dlog(0, "[%s]: Leaving thread safely.\n", whoami);
+    dlog(6, "[%s]: Leaving thread safely.\n", whoami);
     pthread_exit(NULL);
 }
 
@@ -425,7 +425,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 memset(buffer, '\0', buffer_len);
                 #if (SOSD_CLOUD_SYNC > 0)
                 SOS_val_snap_queue_to_buffer(my->val_intake, pub, &buffer, &buffer_len, true);
-                SOSD_cloud_enqueue(buffer, buffer_len);
+                if (buffer_len > 0) { SOSD_cloud_enqueue(buffer, buffer_len); }
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
                 #endif
@@ -450,7 +450,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
         my->commit_count = 0;
     }
     pthread_mutex_unlock(my->commit_lock);
-    dlog(0, "[%s]: Leaving thread safely.\n", whoami);
+    dlog(6, "[%s]: Leaving thread safely.\n", whoami);
     pthread_exit(NULL);
 }
 
@@ -482,7 +482,7 @@ void SOSD_handle_echo(char *msg, int msg_size) {
 
 
 void SOSD_handle_val_snaps(char *msg, int msg_size) { 
-    SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
+    SOS_SET_WHOAMI(whoami, "daemon_handle_val_snaps");
     SOS_msg_header header;
     int ptr        = 0;
     int i          = 0;
@@ -496,6 +496,11 @@ void SOSD_handle_val_snaps(char *msg, int msg_size) {
                       &header.msg_type,
                       &header.msg_from,
                       &header.pub_guid);
+
+    if (header.pub_guid == 0) {
+        dlog(1, "[%s]:   ... ERROR: Being forced to insert a val_snap with a '0' pub_guid!  (msg_from == %ld)\n", whoami, header.msg_from);
+    }
+    
     SOS_ring_put(SOSD.local_sync->ring, header.pub_guid);
 
     dlog(5, "[%s]:   ... done.\n", whoami);

@@ -230,11 +230,11 @@ void SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair) {
         dlog(1, "[%s]:   ... skipping buffer flush, system is shutting down\n", whoami);
         return;
     }
-    dlog(1, "[%s]:   ... LOCK buf_pair->flush_lock\n", whoami);
+    dlog(7, "[%s]:   ... LOCK buf_pair->flush_lock\n", whoami);
     pthread_mutex_lock(buf_pair->flush_lock);
-    dlog(1, "[%s]:   ... LOCK buf_pair->send_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... LOCK buf_pair->send_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->send_buf->lock);
-    dlog(1, "[%s]:   ... LOCK buf_pair->grow_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... LOCK buf_pair->grow_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->grow_buf->lock);
 
 
@@ -246,14 +246,14 @@ void SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair) {
         buf_pair->grow_buf = &buf_pair->b;
         buf_pair->send_buf = &buf_pair->a;
     }
-    dlog(1, "[%s]:   ... UNLOCK buf_pair->send_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... UNLOCK buf_pair->send_buf->lock\n", whoami);
     pthread_mutex_unlock(buf_pair->send_buf->lock);
-    dlog(1, "[%s]:   ... UNLOCK buf_pair->grow_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... UNLOCK buf_pair->grow_buf->lock\n", whoami);
     pthread_mutex_unlock(buf_pair->grow_buf->lock);
 
-    dlog(1, "[%s]:   ... signal flush condition\n", whoami);
+    dlog(7, "[%s]:   ... signal flush condition\n", whoami);
     pthread_cond_signal(buf_pair->flush_cond);
-    dlog(1, "[%s]:   ... UNLOCK buf_pair->flush_lock\n", whoami);
+    dlog(7, "[%s]:   ... UNLOCK buf_pair->flush_lock\n", whoami);
     pthread_mutex_unlock(buf_pair->flush_lock);
 
     return;
@@ -267,7 +267,7 @@ void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int 
 
     buf = buf_pair->grow_buf;
 
-    dlog(1, "[%s]:   ... LOCK grow_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... LOCK grow_buf->lock\n", whoami);
     pthread_mutex_lock(buf->lock);
     count_size = SOS_buffer_unpack(buf->data, "i", &count);
 
@@ -275,7 +275,7 @@ void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int 
     if ((8 + msg_len) > buf->max) {
         dlog(0, "[%s]: WARNING! You've attempted to insert a value that is larger than the buffer!  (msg_len == %d)\n", whoami, msg_len);
         dlog(0, "[%s]: WARNING! Skipping this value, but the system is no longer tracking all entries.\n", whoami);
-        dlog(1, "[%s]:   ... UNLOCK grow_buf->lock\n", whoami);
+        dlog(7, "[%s]:   ... UNLOCK grow_buf->lock\n", whoami);
         pthread_mutex_unlock(buf->lock);
         return;
     }
@@ -302,7 +302,7 @@ void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int 
 
     SOS_buffer_pack(buf->data, "i", buf->entry_count);
 
-    dlog(1, "[%s]:   ... UNLOCK grow_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... UNLOCK grow_buf->lock\n", whoami);
     pthread_mutex_unlock(buf->lock);
 
     return;
@@ -316,22 +316,22 @@ void SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair) {
      * this wipes out the condition variable that the thread might be
      * waiting on.  */
 
-    dlog(1, "[%s]:   ... send_buf mutex\n", whoami);
-    dlog(1, "[%s]:      ... LOCK send_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... send_buf mutex\n", whoami);
+    dlog(7, "[%s]:      ... LOCK send_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->send_buf->lock);
-    dlog(1, "[%s]:      ... UNLOCK send_buf->lock (destroy)\n", whoami);
+    dlog(7, "[%s]:      ... UNLOCK send_buf->lock (destroy)\n", whoami);
     pthread_mutex_destroy(buf_pair->send_buf->lock);
 
-    dlog(1, "[%s]:   ... grow_buf mutex\n", whoami);
-    dlog(1, "[%s]:      ... LOCK grow_buf->lock\n", whoami);
+    dlog(7, "[%s]:   ... grow_buf mutex\n", whoami);
+    dlog(7, "[%s]:      ... LOCK grow_buf->lock\n", whoami);
     pthread_mutex_lock(buf_pair->grow_buf->lock);
-    dlog(1, "[%s]:      ... UNLOCK grow_buf->lock (destroy)\n", whoami);
+    dlog(7, "[%s]:      ... UNLOCK grow_buf->lock (destroy)\n", whoami);
     pthread_mutex_destroy(buf_pair->grow_buf->lock);
 
-    dlog(1, "[%s]:   ... flush_lock mutex\n", whoami);
-    dlog(1, "[%s]:      ... LOCK bp->flush_lock\n", whoami);
+    dlog(7, "[%s]:   ... flush_lock mutex\n", whoami);
+    dlog(7, "[%s]:      ... LOCK bp->flush_lock\n", whoami);
     pthread_mutex_lock(buf_pair->flush_lock);
-    dlog(1, "[%s]:      ... UNLOCK bp->flush_lock (destroy)\n", whoami);
+    dlog(7, "[%s]:      ... UNLOCK bp->flush_lock (destroy)\n", whoami);
     pthread_mutex_destroy(buf_pair->flush_lock);
 
     free(buf_pair->a.lock);
@@ -383,17 +383,19 @@ void SOS_ring_destroy(SOS_ring_queue *ring) {
 
 int SOS_ring_put(SOS_ring_queue *ring, long item) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_put");
-    dlog(5, "[%s]: LOCK ring->lock\n", whoami);
+    dlog(7, "[%s]: LOCK ring->lock\n", whoami);
     pthread_mutex_lock(ring->lock);
 
     dlog(5, "[%s]: Attempting to add (%ld) into the ring.\n", whoami, item);
+
+    if (item == 0) { dlog(1, "[%s]:   ... ERROR: Being asked to insert a '0' element!\n", whoami); }
 
     if (ring == NULL) { dlog(0, "[%s]: ERROR!  Attempted to insert into a NULL ring!\n", whoami); exit(EXIT_FAILURE); }
 
     if (ring->elem_count >= ring->elem_max) {
         /* The ring is full... */
         dlog(5, "[%s]: ERROR!  Attempting to insert a data element into a full ring!", whoami);
-        dlog(5, "[%s]:   ... UNLOCK ring->lock\n", whoami);
+        dlog(7, "[%s]:   ... UNLOCK ring->lock\n", whoami);
         pthread_mutex_unlock(ring->lock);
         return(-1);
     }
@@ -417,7 +419,7 @@ long SOS_ring_get(SOS_ring_queue *ring) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_get");
     long element;
 
-    dlog(1, "[%s]: LOCK ring->lock\n", whoami);
+    dlog(7, "[%s]: LOCK ring->lock\n", whoami);
     pthread_mutex_lock(ring->lock);
 
     if (ring->elem_count == 0) {
@@ -429,7 +431,7 @@ long SOS_ring_get(SOS_ring_queue *ring) {
     ring->read_elem = (ring->read_elem + 1) % ring->elem_max;
     ring->elem_count--;
 
-    dlog(1, "[%s]: UNLOCK ring->lock\n", whoami);
+    dlog(7, "[%s]: UNLOCK ring->lock\n", whoami);
     pthread_mutex_unlock(ring->lock);
 
     return element;
@@ -442,7 +444,7 @@ long* SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
     int elem_list_bytes;
     int fragment_count;
 
-    dlog(1, "[%s]: LOCK ring->lock\n", whoami);
+    dlog(7, "[%s]: LOCK ring->lock\n", whoami);
     pthread_mutex_lock(ring->lock);
 
     elem_list_bytes = (ring->elem_count * ring->elem_size);
@@ -455,7 +457,7 @@ long* SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
     ring->read_elem = ring->write_elem;
     ring->elem_count = 0;
 
-    dlog(1, "[%s]: UNLOCK ring->lock\n", whoami);
+    dlog(7, "[%s]: UNLOCK ring->lock\n", whoami);
     pthread_mutex_unlock(ring->lock);
 
     return elem_list;
@@ -620,7 +622,7 @@ long SOS_uid_next( SOS_uid *id ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_next");
     long next_serial;
 
-    dlog(1, "[%s]: LOCK id->lock\n", whoami);
+    dlog(7, "[%s]: LOCK id->lock\n", whoami);
     pthread_mutex_lock( id->lock );
 
     next_serial = id->next++;
@@ -654,7 +656,7 @@ long SOS_uid_next( SOS_uid *id ) {
         }
     }
 
-    dlog(1, "[%s]: UNLOCK id->lock\n", whoami);
+    dlog(7, "[%s]: UNLOCK id->lock\n", whoami);
     pthread_mutex_unlock( id->lock );
 
     return next_serial;
@@ -1173,13 +1175,13 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     SOS_val_snap *new_snap;
     SOS_val val_copy;
 
-    dlog(2, "[%s]: Creating and enqueue'ing a snapshot of \"%s\":\n", whoami, pub->data[elem]->name);
+    dlog(6, "[%s]: Creating and enqueue'ing a snapshot of \"%s\":\n", whoami, pub->data[elem]->name);
 
     if (queue == NULL) { return; }
-    dlog(2, "[%s]:   ... LOCK queue->lock\n", whoami);
+    dlog(7, "[%s]:   ... LOCK queue->lock\n", whoami);
     pthread_mutex_lock(queue->lock);
 
-    dlog(2, "[%s]:   ... initializing snapshot\n", whoami);
+    dlog(6, "[%s]:   ... initializing snapshot\n", whoami);
     new_snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
     memset(new_snap, '\0', sizeof(SOS_val_snap));
 
@@ -1188,13 +1190,13 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
 
     val_copy = pub->data[elem]->val;
     if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
-        dlog(2, "[%s]:   ... allocating memory for a string (pub->data[%d]->val_len == %d)\n", whoami, elem, pub->data[elem]->val_len);
+        dlog(6, "[%s]:   ... allocating memory for a string (pub->data[%d]->val_len == %d)\n", whoami, elem, pub->data[elem]->val_len);
         val_copy.c_val = (char *) malloc (1 + pub->data[elem]->val_len);
         memset(val_copy.c_val, '\0', (1 + pub->data[elem]->val_len));
         memcpy(val_copy.c_val, pub->data[elem]->val.c_val, pub->data[elem]->val_len);
     }
 
-    dlog(2, "[%s]:   ... assigning values to snapshot\n", whoami);
+    dlog(6, "[%s]:   ... assigning values to snapshot\n", whoami);
 
     new_snap->elem  = elem;
     new_snap->guid  = pub->data[elem]->guid;
@@ -1204,25 +1206,25 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     new_snap->next  = (void *) queue->from->get(queue->from, pub_id_str);
     queue->from->remove(queue->from, pub_id_str);
 
-    dlog(2, "[%s]:      &(%ld) new_snap->elem  = %d\n", whoami, (long) new_snap, new_snap->elem);
-    dlog(2, "[%s]:      &(%ld) new_snap->guid  = %ld\n", whoami, (long) new_snap, new_snap->guid);
+    dlog(6, "[%s]:      &(%ld) new_snap->elem  = %d\n", whoami, (long) new_snap, new_snap->elem);
+    dlog(6, "[%s]:      &(%ld) new_snap->guid  = %ld\n", whoami, (long) new_snap, new_snap->guid);
     switch(pub->data[elem]->type) {
-    case SOS_VAL_TYPE_INT:     dlog(2, "[%s]:      &(%ld) new_snap->val   = %d (int)\n",     whoami, (long) new_snap, new_snap->val.i_val); break;
-    case SOS_VAL_TYPE_LONG:    dlog(2, "[%s]:      &(%ld) new_snap->val   = %ld (long)\n",   whoami, (long) new_snap, new_snap->val.l_val); break;
-    case SOS_VAL_TYPE_DOUBLE:  dlog(2, "[%s]:      &(%ld) new_snap->val   = %lf (double)\n", whoami, (long) new_snap, new_snap->val.d_val); break;
-    case SOS_VAL_TYPE_STRING:  dlog(2, "[%s]:      &(%ld) new_snap->val   = %s (string)\n",  whoami, (long) new_snap, new_snap->val.c_val); break;
+    case SOS_VAL_TYPE_INT:     dlog(6, "[%s]:      &(%ld) new_snap->val   = %d (int)\n",     whoami, (long) new_snap, new_snap->val.i_val); break;
+    case SOS_VAL_TYPE_LONG:    dlog(6, "[%s]:      &(%ld) new_snap->val   = %ld (long)\n",   whoami, (long) new_snap, new_snap->val.l_val); break;
+    case SOS_VAL_TYPE_DOUBLE:  dlog(6, "[%s]:      &(%ld) new_snap->val   = %lf (double)\n", whoami, (long) new_snap, new_snap->val.d_val); break;
+    case SOS_VAL_TYPE_STRING:  dlog(6, "[%s]:      &(%ld) new_snap->val   = %s (string)\n",  whoami, (long) new_snap, new_snap->val.c_val); break;
     }
-    dlog(2, "[%s]:      &(%ld) new_snap->frame = %ld\n", whoami, (long) new_snap, new_snap->frame);
-    dlog(2, "[%s]:      &(%ld) new_snap->next  = %ld\n", whoami, (long) new_snap, (long) new_snap->next);
-    dlog(2, "[%s]:   ... making this the new head of the val_snap queue\n", whoami);
+    dlog(6, "[%s]:      &(%ld) new_snap->frame = %ld\n", whoami, (long) new_snap, new_snap->frame);
+    dlog(6, "[%s]:      &(%ld) new_snap->next  = %ld\n", whoami, (long) new_snap, (long) new_snap->next);
+    dlog(6, "[%s]:   ... making this the new head of the val_snap queue\n", whoami);
 
     /* We're hashing into per-pub val_snap stacks... (say that 5 times fast) */
     queue->from->put(queue->from, pub_id_str, (void *) new_snap);
 
-    dlog(2, "[%s]:   ... UNLOCK queue->lock\n", whoami);
+    dlog(7, "[%s]:   ... UNLOCK queue->lock\n", whoami);
     pthread_mutex_unlock(queue->lock);
 
-    dlog(2, "[%s]:   ... done.\n", whoami);
+    dlog(6, "[%s]:   ... done.\n", whoami);
 
     return;
 }
@@ -1243,11 +1245,20 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char 
     buffer = *buf_ptr;
     buffer_len = 0;
     ptr = (buffer + buffer_len);
+    memset(ptr, '\0', SOS_DEFAULT_BUFFER_LEN);
 
-    dlog(2, "[%s]:   ... building buffer from the val_snap queue:\n", whoami);
-    dlog(2, "[%s]:      ... LOCK queue->lock\n", whoami);
+    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
+
+    if (snap == NULL) {
+        dlog(4, "[%s]:   ... nothing to do for pub(%s)\n", whoami, pub_guid_str);
+        *buf_len = buffer_len;
+        return;
+    }
+
+    dlog(6, "[%s]:   ... building buffer from the val_snap queue:\n", whoami);
+    dlog(7, "[%s]:      ... LOCK queue->lock\n", whoami);
     pthread_mutex_lock( queue->lock );
-    dlog(2, "[%s]:      ... processing header\n", whoami);
+    dlog(6, "[%s]:      ... processing header\n", whoami);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_VAL_SNAPS;
@@ -1261,11 +1272,11 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char 
                                   header.pub_guid);
     ptr = (buffer + buffer_len);
 
-    dlog(2, "[%s]:      ... processing snaps extracted from the queue\n", whoami);
+    dlog(6, "[%s]:      ... processing snaps extracted from the queue\n", whoami);
     snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
 
     while (snap != NULL) {
-    dlog(2, "[%s]:      ... guid=%ld\n", whoami, snap->guid);
+    dlog(6, "[%s]:      ... guid=%ld\n", whoami, snap->guid);
 
         buffer_len += SOS_buffer_pack(ptr, "ildddl",
                                       snap->elem,
@@ -1286,17 +1297,17 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char 
         snap = snap->next;
     }
     if (drain) {
-        dlog(2, "[%s]:      ... draining queue for pub(%s)\n", whoami, pub_guid_str);
+        dlog(6, "[%s]:      ... draining queue for pub(%s)\n", whoami, pub_guid_str);
         SOS_val_snap_queue_drain(queue, pub);
     }
 
-    dlog(2, "[%s]:      ... UNLOCK queue->lock\n", whoami);
+    dlog(7, "[%s]:      ... UNLOCK queue->lock\n", whoami);
     pthread_mutex_unlock( queue->lock );
 
     *buf_len        = buffer_len;
     header.msg_size = buffer_len;
     SOS_buffer_pack(buffer, "i", header.msg_size);
-    dlog(2, "[%s]:      ... done   (buf_len == %d)\n", whoami, *buf_len);
+    dlog(6, "[%s]:      ... done   (buf_len == %d)\n", whoami, *buf_len);
    
     return;
 }
@@ -1316,10 +1327,10 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
     offset = 0;
     ptr = (buffer + offset);
 
-    dlog(2, "[%s]:   ... building val_snap queue from a buffer:\n", whoami);
-    dlog(2, "[%s]:      ... LOCK queue->lock\n", whoami);
+    dlog(6, "[%s]:   ... building val_snap queue from a buffer:\n", whoami);
+    dlog(7, "[%s]:      ... LOCK queue->lock\n", whoami);
     pthread_mutex_lock( queue->lock );
-    dlog(2, "[%s]:      ... processing header\n", whoami);
+    dlog(6, "[%s]:      ... processing header\n", whoami);
 
     offset += SOS_buffer_unpack(ptr, "iill",
                                   &header.msg_size,
@@ -1328,10 +1339,10 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
                                   &header.pub_guid);
     ptr = (buffer + offset);
 
-    dlog(2, "[%s]:      ... header.msg_size == %d\n", whoami, header.msg_size);
-    dlog(2, "[%s]:      ... header.msg_type == %d\n", whoami, header.msg_type);
-    dlog(2, "[%s]:      ... header.msg_from == %ld\n", whoami, header.msg_from);
-    dlog(2, "[%s]:      ... header.pub_guid == %ld\n", whoami, header.pub_guid);
+    dlog(6, "[%s]:      ... header.msg_size == %d\n", whoami, header.msg_size);
+    dlog(6, "[%s]:      ... header.msg_type == %d\n", whoami, header.msg_type);
+    dlog(6, "[%s]:      ... header.msg_from == %ld\n", whoami, header.msg_from);
+    dlog(6, "[%s]:      ... header.pub_guid == %ld\n", whoami, header.pub_guid);
 
     memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", header.pub_guid);
@@ -1341,13 +1352,13 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
     if (pub == NULL) {
         dlog(1, "[%s]: WARNING! Attempting to build snap_queue for a pub we don't know about.\n", whoami);
         dlog(1, "[%s]:   ... skipping this request.\n", whoami);
-        dlog(1, "[%s]:   ... UNLOCK queue->lock\n", whoami);
+        dlog(7, "[%s]:   ... UNLOCK queue->lock\n", whoami);
         pthread_mutex_unlock( queue->lock );
         return;
     }
     
 
-    dlog(2, "[%s]:      ... pushing snaps down onto the queue.\n", whoami);
+    dlog(6, "[%s]:      ... pushing snaps down onto the queue.\n", whoami);
 
     while (offset < buffer_size) {
         snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
@@ -1378,9 +1389,9 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
         SOS_val_snap_push_down(queue, pub_guid_str, snap, 0);
     }
 
-    dlog(2, "[%s]:      ... UNLOCK queue->lock\n", whoami);
+    dlog(7, "[%s]:      ... UNLOCK queue->lock\n", whoami);
     pthread_mutex_unlock( queue->lock );
-    dlog(2, "[%s]:      ... done\n", whoami);
+    dlog(6, "[%s]:      ... done\n", whoami);
 
     return;
 }
@@ -1390,11 +1401,11 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
 void SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_push_down");
 
-    if (use_lock) { dlog(1, "[%s]: LOCK queue->lock\n", whoami); pthread_mutex_lock(queue->lock); }
+    if (use_lock) { dlog(7, "[%s]: LOCK queue->lock\n", whoami); pthread_mutex_lock(queue->lock); }
     snap->next = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
     queue->from->remove(queue->from, pub_guid_str);
     queue->from->put(queue->from, pub_guid_str, (void *) snap);
-    if (use_lock) { dlog(1, "[%s]: UNLOCK queue->lock\n", whoami); pthread_mutex_unlock(queue->lock); }
+    if (use_lock) { dlog(7, "[%s]: UNLOCK queue->lock\n", whoami); pthread_mutex_unlock(queue->lock); }
 
     return;
 }

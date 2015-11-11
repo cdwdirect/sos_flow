@@ -101,15 +101,12 @@ sleep 60
 echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
 echo "[7/7] : All tasks complete." >> launch.log
-#sleep 8
-#db0_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.0.db "select max(rowid) from tblvals;"`"
-#db1_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.1.db "select max(rowid) from tblvals;"`"
-#db2_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.2.db "select max(rowid) from tblvals;"`"
-#db3_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.3.db "select max(rowid) from tblvals;"`"
+sleep 12
+echo "" >> launch.log
+#echo -n "sosd.0.db : " >> launch.log ; $(`sqlite3 ${proj_path}/jobs/aciss/data/sosd.0.db "select max(rowid) from tblvals;"`))
+#echo -n "sosd.1.db : " ; echo $(`sqlite3 ${proj_path}/jobs/aciss/data/sosd.1.db "select max(rowid) from tblvals;"`)) >> launch.log
+#echo -n "sosd.2.db : " ; echo $(`sqlite3 ${proj_path}/jobs/aciss/data/sosd.2.db "select max(rowid) from tblvals;"`)) >> launch.log
+#echo -n "sosd.3.db : " ; echo $(`sqlite3 ${proj_path}/jobs/aciss/data/sosd.3.db "select max(rowid) from tblvals;"`)) >> launch.log
 #echo "" >> launch.log
-#echo "        daemon.0 --> ${db0_valvount} values." >> launch.log
-#echo "        daemon.1 --> ${db1_valvount} values." >> launch.log
-#echo "        daemon.2 --> ${db2_valvount} values." >> launch.log
-#echo "        db.0 ------> ${db3_valvount} values." >> launch.log
-#echo "" >> launch.log
+
 

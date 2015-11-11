@@ -137,8 +137,22 @@ void SOSD_cloud_enqueue(char *msg, int msg_len) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_enqueue");
 
     if (SOSD_cloud_shutdown_underway) { return; }
+    if (msg_len == 0) {
+        dlog(1, "[%s]: ERROR: You attempted to enqueue a zero-length message.\n", whoami);
+        return;
+    }
 
-    dlog(1, "[%s]: Enqueueing a message of %d bytes...\n", whoami, msg_len);
+    SOS_msg_header header;
+    memset(&header, '\0', sizeof(SOS_msg_header));
+
+    SOS_buffer_unpack(msg, "iill",
+                      &header.msg_size,
+                      &header.msg_type,
+                      &header.msg_from,
+                      &header.pub_guid);           
+
+    dlog(1, "[%s]: Enqueueing a %s message of %d bytes...\n", whoami, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), msg_len);
+    if (msg_len != header.msg_size) { dlog(1, "[%s]:   ... ERROR: msg_size(%d) != header.msg_size(%d)", whoami, msg_len, header.msg_size); }
     SOS_async_buf_pair_insert(SOSD.cloud_bp, msg, msg_len);
     dlog(1, "[%s]:   ... done.\n", whoami);
 
