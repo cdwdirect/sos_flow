@@ -911,9 +911,9 @@ void SOSD_init() {
      *     create and hold lock file to prevent multiple daemon spawn
      */
     #ifdef SOSD_CLOUD_SYNC
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s.%d.lock", SOSD.daemon.name, SOS.config.comm_rank);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS.config.comm_rank);
     #else
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s.lock", SOSD.daemon.name);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
     sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) {

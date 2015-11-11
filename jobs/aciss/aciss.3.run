@@ -1,11 +1,13 @@
 zip_filename=3x12-$(date +%Yy%mm%dd:%Hh%Mm%Ss).aciss.zip
 echo "Archiving previous run's log and data:"
-gzip -r ${zip_filename} ./log ./data
-mv zip_filename ./archive/.
+zip -r ${zip_filename} ./log ./data
+mv ${zip_filename} ./archive/.
+
 echo "Clearing previous run's log and data:"
 rm -rf ./log
 rm -rf ./data
 mkdir log
 mkdir data
 echo "Submitting the script:"
-qsub –mca btl_tcp_if_include torbr -v SOS_CMD_PORT="22505" aciss.3.pbs
+qsub -v SOS_CMD_PORT="22505" aciss.3.pbs
+

@@ -1,11 +1,24 @@
 #!/bin/bash 
-#PBS -N sos_flow_3x12                                     ## the name of the batch job
-#PBS -q generic                                           ## this line tells Torque which queue to submit to
-#PBS -l nodes=3:ppn=12                                    ## requests 3 node and 12 processors per node
-#PBS -l walltime=0:15:00                                  ## requests 15 minutes
-#PBS -d /home12/cdw/research/sos_flow                     ## the working directory for your job
-#PBS -o /home12/cdw/research/sos_flow/jobs/aciss/log      ## batch script output location
-#PBS -e /home12/cdw/research/sos_flow/jobs/aciss/log      ## batch script errors location
+##### the name of the batch job
+#PBS -N sos_flow_3x12
+
+##### this line tells Torque which queue to submit to
+#PBS -q generic
+
+##### requests 3 node and 12 processors per node
+#PBS -l nodes=3:ppn=12
+
+##### requests 15 minutes
+#PBS -l walltime=0:15:00
+
+##### the working directory for your job
+#PBS -d /home12/cdw/research/sos_flow
+
+##### batch script output location
+#PBS -o /home12/cdw/research/sos_flow/jobs/aciss/log
+
+##### batch script errors location
+#PBS -e /home12/cdw/research/sos_flow/jobs/aciss/log
 
 
 # # # # # # #   modules   # # # # # # #
@@ -21,10 +34,10 @@ proj_path="/home12/cdw/research/sos_flow"
 
 # sos:
 
-daemon0="-np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
-daemon1="-np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
-daemon2="-np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
-db0="    -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 2048 --listen_backlog 10 --work_dir /scratch"
+daemon0=" -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
+daemon1=" -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
+daemon2=" -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
+db0="     -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
 
 sosd_programs=""
 sosd_programs="${sosd_programs} ${daemon0} : "
@@ -33,9 +46,9 @@ sosd_programs="${sosd_programs} ${daemon2} : "
 sosd_programs="${sosd_programs} ${db0} "
 
 sosd_mpi_opts=""
-sosd_mpi_opts="${sosd_mpi_opts} -rf aciss.3.rf "
+sosd_mpi_opts="${sosd_mpi_opts} -rf ${proj_path}/jobs/aciss/aciss.3.rankfile "
 sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
-sosd_mpi_opts="${sosd_mpi_opts} –mca btl_tcp_if_include torbr "
+#sosd_mpi_opts="${sosd_mpi_opts} –mca btl_tcp_if_include torbr "
 
 # flow:
 
@@ -46,22 +59,49 @@ flow_programs="${flow_programs} --npernode 11 ${demo_app} "
 
 flow_mpi_opts=""
 flow_mpi_opts="${flow_mpi_opts} -report-bindings "
-flow_mpi_opts="${flow_mpi_opts} –mca btl_tcp_if_include torbr "
+#flow_mpi_opts="${flow_mpi_opts} –mca btl_tcp_if_include torbr "
 
-echo "SOSD:"
+# finalize:
+
+stop_app="${proj_path}/bin/sosd_stop"
+
+stop_programs=""
+stop_programs="${stop_programs} --npernode 1 ${stop_app}"
+
+stop_mpi_opts=""
+stop_mpi_opts="${stop_mpi_opts} -report-bindings "
+#stop_mpi_opts="${stop_mpi_opts} –mca btl_tcp_if_include torbr "
+
+cd ${proj_path}/jobs/aciss/log
+{
+echo "SOSD command:"
 echo ""
-echo ${sosd_mpi_opts}
-echo ${sosd_programs}
-
-echo "FLOW:"
+echo "(mpirun ${sosd_mpi_opts} ${sosd_programs}) &"
 echo ""
-echo ${flow_mpi_opts}
-echo ${flow_programs}
+
+echo "FLOW command:"
+echo ""
+echo "(mpirun ${flow_mpi_opts} ${flow_programs})"
+echo ""
+
+echo "STOP command:"
+echo ""
+echo "(mpirun ${stop_mpi_opts} ${stop_programs})"
+echo ""
+} &> commands.used
+
+echo ""
+echo "Now executing..."
+echo ""
 
 
-#(mpirun ${sosd_mpi_opts} ${sosd_programs}) &
-#(mpirun ${flow_mpi_opts} ${flow_programs}) &
 
-wait   #bash: pause until all background tasks complete
+(mpirun ${sosd_mpi_opts} ${sosd_programs} )&
+sleep 30
+mpirun ${flow_mpi_opts} ${flow_programs}
 
-#TODO: Copy the databases/logs to a permanent store.
+wait $!
+mpirun ${stop_mpi_opts} ${stop_programs}
+
+#bash: pause until all background tasks complete
+wait

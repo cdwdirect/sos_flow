@@ -93,7 +93,6 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS.task.val_intake = NULL;
     SOS.task.val_outlet = NULL;
 
-
     if (SOS.role == SOS_ROLE_CLIENT) {
         /*
          *
