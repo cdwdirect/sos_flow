@@ -11,8 +11,8 @@
 #include <pthread.h>
 
 
-#define MAX_SEND_COUNT 2000
-#define ITERATION_SIZE 100
+#define MAX_SEND_COUNT 400
+#define ITERATION_SIZE 2
 #define NUM_VALUES     20
 
 #undef SOS_DEBUG

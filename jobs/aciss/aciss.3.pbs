@@ -28,6 +28,7 @@ module load gcc/4.9
 module load mpi-tor/openmpi-1.8_gcc-4.9
 
 
+
 # # # # # # #   execute   # # # # # # #
 
 proj_path="/home12/cdw/research/sos_flow"
@@ -38,39 +39,31 @@ daemon0=" -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buff
 daemon1=" -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
 daemon2=" -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
 db0="     -np 1 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 2048 --listen_backlog 10 --work_dir ${proj_path}/jobs/aciss/data"
-
 sosd_programs=""
 sosd_programs="${sosd_programs} ${daemon0} : "
 sosd_programs="${sosd_programs} ${daemon1} : "
 sosd_programs="${sosd_programs} ${daemon2} : "
 sosd_programs="${sosd_programs} ${db0} "
-
 sosd_mpi_opts=""
 sosd_mpi_opts="${sosd_mpi_opts} -rf ${proj_path}/jobs/aciss/aciss.3.rankfile "
 sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
-#sosd_mpi_opts="${sosd_mpi_opts} –mca btl_tcp_if_include torbr "
 
 # flow:
 
 demo_app="${proj_path}/bin/demo_app"
-
 flow_programs=""
 flow_programs="${flow_programs} --npernode 11 ${demo_app} "
-
 flow_mpi_opts=""
 flow_mpi_opts="${flow_mpi_opts} -report-bindings "
-#flow_mpi_opts="${flow_mpi_opts} –mca btl_tcp_if_include torbr "
 
 # finalize:
 
 stop_app="${proj_path}/bin/sosd_stop"
-
 stop_programs=""
 stop_programs="${stop_programs} --npernode 1 ${stop_app}"
-
 stop_mpi_opts=""
 stop_mpi_opts="${stop_mpi_opts} -report-bindings "
-#stop_mpi_opts="${stop_mpi_opts} –mca btl_tcp_if_include torbr "
+
 
 cd ${proj_path}/jobs/aciss/log
 {
@@ -95,13 +88,28 @@ echo "Now executing..."
 echo ""
 
 
-
+touch launch.log
+echo "[1/7] : Starting daemons." >> launch.log
 (mpirun ${sosd_mpi_opts} ${sosd_programs} )&
-sleep 30
-mpirun ${flow_mpi_opts} ${flow_programs}
-
-wait $!
+echo "[2/7] : Waiting 8 seconds." >> launch.log
+sleep 8
+echo "[3/7] : Starting demo_app instances." >> launch.log
+(mpirun ${flow_mpi_opts} ${flow_programs})
+echo "[4/7] : All demo_app instances are complete." >> launch.log
+echo "[5/7] : Waiting 60 seconds before bringing daemons down." >> launch.log
+sleep 60
+echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
+echo "[7/7] : All tasks complete." >> launch.log
+#sleep 8
+#db0_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.0.db "select max(rowid) from tblvals;"`"
+#db1_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.1.db "select max(rowid) from tblvals;"`"
+#db2_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.2.db "select max(rowid) from tblvals;"`"
+#db3_valcount="`sqlite3 ${proj_path}/jobs/aciss/data/sosd.3.db "select max(rowid) from tblvals;"`"
+#echo "" >> launch.log
+#echo "        daemon.0 --> ${db0_valvount} values." >> launch.log
+#echo "        daemon.1 --> ${db1_valvount} values." >> launch.log
+#echo "        daemon.2 --> ${db2_valvount} values." >> launch.log
+#echo "        db.0 ------> ${db3_valvount} values." >> launch.log
+#echo "" >> launch.log
 
-#bash: pause until all background tasks complete
-wait
