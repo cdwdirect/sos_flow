@@ -10,4 +10,5 @@ mkdir log
 mkdir data
 echo "Submitting the script:"
 qsub -v SOS_CMD_PORT="22505" 3.pbs
-
+sleep 3
+qstat -u cdw

@@ -10,7 +10,6 @@
 #include <string.h>
 #include <pthread.h>
 
-
 #define MAX_SEND_COUNT 200
 #define ITERATION_SIZE 100
 #define NUM_VALUES     20

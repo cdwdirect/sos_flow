@@ -12,7 +12,7 @@
 #PBS -l walltime=0:15:00
 
 ##### the working directory for your job
-#PBS -d /home12/cdw/research/sos_flow
+#PBS -d /temp
 
 ##### batch script output location
 #PBS -o /home12/cdw/research/sos_flow/jobs/aciss/log
@@ -29,7 +29,8 @@ module load mpi-tor/openmpi-1.8_gcc-4.9
 
 # # # # # # #   program   # # # # # # #
 
-proj_path="/home12/cdw/research/sos_flow"
+#proj_path="/home12/cdw/research/sos_flow"
+proj_path="/temp"
 
 #### sos: ##########
 
@@ -68,8 +69,8 @@ stop_programs="${stop_programs} --npernode 1 ${stop_app}"
 stop_mpi_opts=""
 stop_mpi_opts="${stop_mpi_opts} -report-bindings "
 
-
-cd ${proj_path}/jobs/aciss/log
+cd /temp
+cp -r ${proj_path}/bin .
 
 {
 echo "-- SOSD command: -----"
@@ -96,18 +97,30 @@ echo ""
 
 touch launch.log
 echo "[1/7] : Starting daemons." >> launch.log
-(mpirun ${sosd_mpi_opts} ${sosd_programs} )&
+mpirun ${sosd_mpi_opts} ${sosd_programs} &
 echo "[2/7] : Waiting 8 seconds." >> launch.log
 sleep 8
 echo "[3/7] : Starting demo_app instances." >> launch.log
-(mpirun ${flow_mpi_opts} ${flow_programs})
+
+echo -n "        ...pass 1: " >> launch.log
+mpirun ${flow_mpi_opts} ${flow_programs}
+echo "complete" >> launch.log
+
+#echo -n "        ...pass 2: " >> launch.log
+#mpirun ${flow_mpi_opts} ${flow_programs}
+#echo "complete" >> launch.log
+
+#echo -n "        ...pass 3: " >> launch.log
+#mpirun ${flow_mpi_opts} ${flow_programs}
+#echo "complete" >> launch.log
+
 echo "[4/7] : All demo_app instances are complete." >> launch.log
-echo "[5/7] : Waiting 60 seconds before bringing daemons down." >> launch.log
-sleep 60
+echo "[5/7] : Waiting 8 seconds before bringing daemons down." >> launch.log
+sleep 8
 echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
 echo "[7/7] : All tasks complete." >> launch.log
-sleep 12
+sleep 4
 echo "" >> launch.log
 #echo -n "sosd.0.db : " >> launch.log ; $(`sqlite3 ${proj_path}/jobs/aciss/data/sosd.0.db "select max(rowid) from tblvals;"`))
 #echo -n "sosd.1.db : " ; echo $(`sqlite3 ${proj_path}/jobs/aciss/data/sosd.1.db "select max(rowid) from tblvals;"`)) >> launch.log
