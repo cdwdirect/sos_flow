@@ -18,10 +18,13 @@ extern "C" {
 #endif
 
 void SOSD_db_init_database(void);
-void SOSD_db_close_database();
+void SOSD_db_close_database(void);
 void SOSD_db_create_tables(void);
-void SOSD_db_insert_pub( SOS_pub *pub );
-void SOSD_db_insert_data( SOS_pub *pub);
+void SOSD_db_insert_pub(SOS_pub *pub);
+void SOSD_db_insert_data(SOS_pub *pub);
+void SOSD_db_insert_vals(SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_queue *re_queue);
+void SOSD_db_transaction_begin(void);
+void SOSD_db_transaction_commit(void);
 
 #define CALL_SQLITE(f) {						\
     int i;								\

@@ -10,7 +10,7 @@
 #include "sos_error.h"
 #include "sosd.h"
 #include "sosd_cloud_mpi.h"
-
+#include "pack_buffer.h"
 
 pthread_t *SOSD_cloud_flush;
 bool SOSD_cloud_shutdown_underway;
@@ -29,7 +29,7 @@ void SOSD_cloud_shutdown_notice(void) {
         dlog(1, "[%s]:   ... preparing notice to SOS_ROLE_DB at rank %d\n", whoami, SOSD.daemon.cloud_sync_target);
         /* The first N ranks will notify the N databases... */
         SOS_msg_header header;
-        char shutdown_msg[128];
+        unsigned char shutdown_msg[128];
         int count;
         int pack_inset;
         int offset;
@@ -133,7 +133,7 @@ void* SOSD_THREAD_cloud_flush(void *params) {
 }
 
 
-void SOSD_cloud_enqueue(char *msg, int msg_len) {
+void SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_enqueue");
 
     if (SOSD_cloud_shutdown_underway) { return; }
@@ -166,7 +166,7 @@ void SOSD_cloud_fflush(void) {
 }
 
 
-int SOSD_cloud_send(char *msg, int msg_len) {
+int SOSD_cloud_send(unsigned char *msg, int msg_len) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_send(MPI)");
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
@@ -192,7 +192,7 @@ void SOSD_cloud_listen_loop(void) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_listen_loop(MPI)");
     MPI_Status status;
     SOS_async_buf_pair *bp;
-    char *ptr;
+    unsigned char *ptr;
     int offset;
     int entry_count, entry;
     SOS_msg_header header;
@@ -359,7 +359,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     return 0;
 }
 
-int SOSD_cloud_finalize() {
+int SOSD_cloud_finalize(void) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_finalize(MPI)");
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;

@@ -9,6 +9,7 @@
 #include <string.h>
 
 #include "sos.h"
+#include "pack_buffer.h"
 
 #define USAGE "USAGE: stopd [--cmd_port <port>]\n"
 
@@ -23,14 +24,14 @@
 
 int main(int argc, char *argv[]) {
     SOS_msg_header header;
-    char      *msg_out;
-    char      *msg_reply;
+    unsigned char      *msg_out;
+    unsigned char      *msg_reply;
     int        buf_len;
 
-    msg_out = (char *) malloc(SOS_DEFAULT_BUFFER_LEN);
-    msg_reply = (char *) malloc(SOS_DEFAULT_ACK_LEN);
+    msg_out = (unsigned char *) malloc(SOS_DEFAULT_BUFFER_LEN);
+    msg_reply = (unsigned char *) malloc(SOS_DEFAULT_REPLY_LEN);
     memset(msg_out, '\0', SOS_DEFAULT_BUFFER_LEN);
-    memset(msg_reply, '\0', SOS_DEFAULT_ACK_LEN);
+    memset(msg_reply, '\0', SOS_DEFAULT_REPLY_LEN);
 
     /* Process command line arguments: format for options is:   --argv[i] <argv[j]>    */
     int i, j;
@@ -71,7 +72,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stdout, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    SOS_send_to_daemon(msg_out, header.msg_size, msg_reply, SOS_DEFAULT_ACK_LEN);
+    SOS_send_to_daemon(msg_out, header.msg_size, msg_reply, SOS_DEFAULT_REPLY_LEN);
 
     fprintf(stdout, "Done.\n");
 

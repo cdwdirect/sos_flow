@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "sos.h"
+#define SOS_DEBUG 1
 
 int main(int argc, char **argv) {
     SOS_init(&argc, &argv, SOS_ROLE_CLIENT);
