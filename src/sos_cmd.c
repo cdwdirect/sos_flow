@@ -5,7 +5,7 @@
  *         of commands.
  *
  *
- *
+ *   (This code is also much more out-of-date than the other parts of SOS...)
  *
  */
 
@@ -112,8 +112,8 @@ int main(int argc, char *argv[]) {
     char      *cmd_count_env;
 
     int        msg_out_len;
-    char      *msg_out;
-    char      *msg_reply;
+    unsigned char *msg_out;
+    unsigned char *msg_reply;
 
     cmd_count_env = getenv("SOS_CMD_COUNT");
     if (cmd_count_env == NULL) { i = 1024; } else { i = atoi(cmd_count_env); }
@@ -121,15 +121,15 @@ int main(int argc, char *argv[]) {
     SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
     SOS_SET_WHOAMI(whoami, "sos_cmd.main");
 
-    msg_out   = (char *) malloc( sizeof(char) * 2048 );
-    msg_reply = (char *) malloc( sizeof(char) * 2048 );
+    msg_out   = (unsigned char *) malloc( sizeof(char) * 2048 );
+    msg_reply = (unsigned char *) malloc( sizeof(char) * 2048 );
 
     memset(msg_out,   'x',  2048);
     memset(msg_reply, '\0', 2048);
     memset(&header,   '\0', sizeof(SOS_msg_header));
 
     msg_out[2047] = '\0';
-    msg_out_len = strlen(msg_out);
+    msg_out_len = strlen((char *) msg_out);
 
     header.msg_type = SOS_MSG_TYPE_ECHO;
     header.msg_from = SOS.my_guid;

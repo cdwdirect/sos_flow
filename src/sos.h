@@ -39,11 +39,11 @@
     {                                                                   \
         memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
         switch (SOS.role) {                                             \
-        case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
-        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func ); break; \
-        case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%d).%s",      SOS.config.comm_rank, __SOS_str_func ); break; \
-        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%d).%s", SOS.config.comm_rank, __SOS_str_func ); break; \
-        default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func ); break; \
+        case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func); break; \
+        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func); break; \
+        case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%d).%s",      SOS.config.comm_rank, __SOS_str_func); break; \
+        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%d).%s", SOS.config.comm_rank, __SOS_str_func); break; \
+        default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func); break; \
         }                                                               \
     }
 
@@ -51,7 +51,7 @@
 #define SOS_DEFAULT_SERVER_PORT    22505
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
 #define SOS_DEFAULT_BUFFER_LEN     2621440
-#define SOS_DEFAULT_ACK_LEN        128
+#define SOS_DEFAULT_REPLY_LEN      128
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_RING_SIZE      1024
 #define SOS_DEFAULT_TABLE_SIZE     128
@@ -88,6 +88,7 @@
     MSG_TYPE(SOS_MSG_TYPE_VAL_SNAPS)            \
     MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
     MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
+    MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
     
 #define FOREACH_PRI(PRI)                        \
@@ -242,7 +243,7 @@ typedef union {
 } SOS_val;
 
 typedef struct {
-    char                data[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char                data[SOS_DEFAULT_BUFFER_LEN];
     int                 len;
     int                 max;
     int                 entry_count;
@@ -318,7 +319,7 @@ typedef struct {
     int                 elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
     int                 elem_count;   /* default: 0                     */
     int                 pragma_len;   /* default: -1                    */
-    char               *pragma_msg;   /* default: (null)                */
+    unsigned char      *pragma_msg;   /* default: (null)                */
     char               *node_id;      /* default: SOS.config.node_id    */
     char               *prog_name;    /* default: argv[0] / manual      */
     char               *prog_ver;     /* default: (null)                */
@@ -427,35 +428,39 @@ SOS_runtime SOS;
 extern "C" {
 #endif
 
-    void      SOS_init( int *argc, char ***argv, SOS_role role );
-    void      SOS_send_to_daemon( char *buffer, int buffer_len, char *reply, int reply_len );
+    void      SOS_init(int *argc, char ***argv, SOS_role role);
+    void      SOS_send_to_daemon(unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
     void      SOS_finalize();
 
     SOS_pub*  SOS_pub_create(char *pub_title);
     SOS_pub*  SOS_pub_create_sized(char *pub_title, int new_size);
 
-    int       SOS_define_val( SOS_pub *pub, const char *name, SOS_val_type type, SOS_val_meta meta);
-    int       SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val );
-    void      SOS_repack( SOS_pub *pub, int index, SOS_val pack_val );
+    int       SOS_define_val(SOS_pub *pub, const char *name, SOS_val_type type, SOS_val_meta meta);
+    int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
+    void      SOS_repack(SOS_pub *pub, int index, SOS_val pack_val);
 
-    void      SOS_announce( SOS_pub *pub );
-    void      SOS_announce_to_buffer( SOS_pub *pub, char **buffer, int *buffer_len );
-    void      SOS_announce_from_buffer( SOS_pub *pub, char *buffer );
+    void      SOS_announce(SOS_pub *pub);
+    void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
+    void      SOS_announce_from_buffer(SOS_pub *pub, unsigned char *buffer);
 
-    void      SOS_publish( SOS_pub *pub );
-    void      SOS_publish_to_buffer( SOS_pub *pub, char **buffer, int *buffer_len );
-    void      SOS_publish_from_buffer( SOS_pub *pub, char *buffer, SOS_val_snap_queue *opt_queue );
+    void      SOS_publish(SOS_pub *pub);
+    void      SOS_publish_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
+    void      SOS_publish_from_buffer(SOS_pub *pub, unsigned char *buffer, SOS_val_snap_queue *opt_queue);
 
     void      SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr);
     void      SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair);
-    void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, char *msg_ptr, int msg_len);
+    void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, unsigned char *msg_ptr, int msg_len);
     void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
 
+    void      SOS_uid_init(SOS_uid **uid, long from, long to);
+    long      SOS_uid_next(SOS_uid *uid);
+    void      SOS_uid_destroy(SOS_uid *uid);
+    
     void      SOS_val_snap_queue_init(SOS_val_snap_queue **queue);
     void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);
     void      SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock);
-    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, char **buffer, int *buffer_len, bool drain);
-    void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, char *buffer, int buffer_size);
+    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsigned char **buffer, int *buffer_len, bool drain);
+    void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, unsigned char *buffer, int buffer_size);
     void      SOS_val_snap_queue_destroy(SOS_val_snap_queue *queue);
 
     void      SOS_strip_str(char *str);
@@ -472,13 +477,13 @@ extern "C" {
 
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
-    SOS_val   SOS_get_val( SOS_pub *pub, char *name );
-    void      SOS_free_pub( SOS_pub *pub );
-    void      SOS_free_sub( SOS_sub *sub );
-    void      SOS_unannounce( SOS_pub *pub );
-    SOS_sub*  SOS_new_sub();
-    SOS_sub*  SOS_subscribe( SOS_role target_role, int target_rank, char *pub_title, int refresh_ms );
-    void      SOS_unsubscribe( SOS_sub *sub );
+    SOS_val   SOS_get_val(SOS_pub *pub, char *name);
+    void      SOS_free_pub(SOS_pub *pub);
+    void      SOS_free_sub(SOS_sub *sub);
+    void      SOS_unannounce(SOS_pub *pub);
+    SOS_sub*  SOS_new_sub(void);
+    SOS_sub*  SOS_subscribe(SOS_role target_role, int target_rank, char *pub_title, int refresh_ms);
+    void      SOS_unsubscribe(SOS_sub *sub);
 
 #ifdef __cplusplus
 }

@@ -255,23 +255,23 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
      *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
      */
 
-    long          guid              = pub->guid;
-    char         *title             = pub->title;
-    int           process_id        = pub->process_id;
-    int           thread_id         = pub->thread_id;
-    int           comm_rank         = pub->comm_rank;
-    char         *node_id           = pub->node_id;
-    char         *prog_name         = pub->prog_name;
-    char         *prog_ver          = pub->prog_ver;
-    int           meta_channel      = pub->meta.channel;
-    const char   *meta_nature       = SOS_ENUM_STR(pub->meta.nature, SOS_NATURE);
-    const char   *meta_layer        = SOS_ENUM_STR(pub->meta.layer, SOS_LAYER);
-    const char   *meta_pri_hint     = SOS_ENUM_STR(pub->meta.pri_hint, SOS_PRI);
-    const char   *meta_scope_hint   = SOS_ENUM_STR(pub->meta.scope_hint, SOS_SCOPE);
-    const char   *meta_retain_hint  = SOS_ENUM_STR(pub->meta.retain_hint, SOS_RETAIN);
-    char         *pragma            = pub->pragma_msg;
-    int           pragma_len        = pub->pragma_len;
-    char          pragma_empty[2];    memset(pragma_empty, '\0', 2);
+    long           guid              = pub->guid;
+    char          *title             = pub->title;
+    int            process_id        = pub->process_id;
+    int            thread_id         = pub->thread_id;
+    int            comm_rank         = pub->comm_rank;
+    char          *node_id           = pub->node_id;
+    char          *prog_name         = pub->prog_name;
+    char          *prog_ver          = pub->prog_ver;
+    int            meta_channel      = pub->meta.channel;
+    const char    *meta_nature       = SOS_ENUM_STR(pub->meta.nature, SOS_NATURE);
+    const char    *meta_layer        = SOS_ENUM_STR(pub->meta.layer, SOS_LAYER);
+    const char    *meta_pri_hint     = SOS_ENUM_STR(pub->meta.pri_hint, SOS_PRI);
+    const char    *meta_scope_hint   = SOS_ENUM_STR(pub->meta.scope_hint, SOS_SCOPE);
+    const char    *meta_retain_hint  = SOS_ENUM_STR(pub->meta.retain_hint, SOS_RETAIN);
+    unsigned char *pragma            = pub->pragma_msg;
+    int            pragma_len        = pub->pragma_len;
+    unsigned char  pragma_empty[2];    memset(pragma_empty, '\0', 2);
 
     dlog(5, "[%s]:   ... binding values into the statement\n", whoami);
     dlog(6, "[%s]:      ... pragma_len = %d\n", whoami, pragma_len);
@@ -293,9 +293,9 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     CALL_SQLITE (bind_text   (stmt_insert_pub, 14, meta_retain_hint, 1 + strlen(meta_retain_hint), SQLITE_STATIC  ));
     if (pragma_len > 0) {
         /* Only bind the pragma if there actually is something to insert... */
-        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, pragma,           pub->pragma_len, SQLITE_STATIC  ));
+        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma,           pub->pragma_len, SQLITE_STATIC  ));
     } else {
-        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, pragma_empty,    2, SQLITE_STATIC  ));
+        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma_empty,    2, SQLITE_STATIC  ));
     }
 
     dlog(5, "[%s]:   ... executing the query\n", whoami);
@@ -372,6 +372,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = snap->val.c_val; break;
+        default:
+            dlog(5, "[%s]:      ... error: invalid value type.  (%d)\n", whoami, pub->data[snap->elem]->type); break;
         }
 
         dlog(5, "[%s]:      ... binding values\n", whoami);
@@ -459,6 +461,10 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         case SOS_VAL_TYPE_LONG:   val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val; break;
+        default:
+            dlog(5, "[%s]: ERROR: Attempting to insert an invalid daya type.  (%d)  Continuing...\n", whoami, pub->data[i]->type);
+            break;
+            continue;
         }
 
         CALL_SQLITE (bind_int    (stmt_insert_data, 1,  pub_guid     ));

@@ -119,6 +119,7 @@ int main(int argc, char *argv[])  {
     case SOS_ROLE_DAEMON:   SOSD_listen_loop(); break;
     case SOS_ROLE_DB:       SOSD_cloud_listen_loop(); break;
     case SOS_ROLE_CONTROL:  break;
+    default: break;
     }
 
     /* Done!  Cleanup and shut down. */
@@ -234,8 +235,8 @@ void SOSD_listen_loop() {
     SOS_msg_header header;
     int      i, byte_count, recv_len;
 
-    char    *buffer;
-    buffer = (char *) malloc(sizeof(char) * SOSD.net.buffer_len);
+    unsigned char    *buffer;
+    buffer = (unsigned char *) malloc(sizeof(unsigned char) * SOSD.net.buffer_len);
 
     dlog(0, "[%s]: Entering main loop...\n", whoami);
     while (SOSD.daemon.running) {
@@ -371,8 +372,8 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     char      guid_str[SOS_DEFAULT_STRING_LEN];
     SOS_pub  *pub;
 
-    char     *buffer;
-    char      buffer_static[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char     *buffer;
+    unsigned char      buffer_static[SOS_DEFAULT_BUFFER_LEN];
     int       buffer_len;
 
     pthread_mutex_lock(my->commit_lock);
@@ -445,6 +446,9 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
             }
             #endif
             break;
+        default:
+            dlog(5, "[%s]: WARNING!  Your commit target doesn't make sense.  (%d)\n", whoami, my->commit_target);
+            break;
         }
         free(my->commit_list);
         my->commit_count = 0;
@@ -459,7 +463,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
 
 
 
-void SOSD_handle_echo(char *msg, int msg_size) { 
+void SOSD_handle_echo(unsigned char *msg, int msg_size) { 
     SOS_SET_WHOAMI(whoami, "daemon_handle_echo");
     SOS_msg_header header;
     int ptr        = 0;
@@ -481,7 +485,7 @@ void SOSD_handle_echo(char *msg, int msg_size) {
 
 
 
-void SOSD_handle_val_snaps(char *msg, int msg_size) { 
+void SOSD_handle_val_snaps(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_val_snaps");
     SOS_msg_header header;
     int ptr        = 0;
@@ -511,7 +515,7 @@ void SOSD_handle_val_snaps(char *msg, int msg_size) {
 
 
 
-void SOSD_handle_register(char *msg, int msg_size) {
+void SOSD_handle_register(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_register");
     SOS_msg_header header;
     int  ptr             = 0;
@@ -528,8 +532,8 @@ void SOSD_handle_register(char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
-    char response[SOS_DEFAULT_ACK_LEN];
-    memset(response, '\0', SOS_DEFAULT_ACK_LEN);
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     if (header.msg_from == 0) {
@@ -537,19 +541,18 @@ void SOSD_handle_register(char *msg, int msg_size) {
          * Supply them a block of GUIDs ...
          */
         SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_block_from, &guid_block_to);
-        memcpy(response, &guid_block_from, sizeof(long));
-        memcpy((response + sizeof(long)), &guid_block_to, sizeof(long));
+        memcpy(reply, &guid_block_from, sizeof(long));
+        memcpy((reply + sizeof(long)), &guid_block_to, sizeof(long));
         reply_len = 2 * sizeof(long);
 
     } else {
         /* An existing client (such as sos_cmd) is coming back online,
          * don't give them any GUIDs.
          */
-        sprintf(response, "ACK");
-        reply_len = 4;
+        SOSD_pack_ack(reply, &reply_len);
     }
 
-    i = send( SOSD.net.client_socket_fd, (void *) response, reply_len, 0 );
+    i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
@@ -559,7 +562,7 @@ void SOSD_handle_register(char *msg, int msg_size) {
 }
 
 
-void SOSD_handle_guid_block(char *msg, int msg_size) {
+void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_register");
     SOS_msg_header header;
     long block_from   = 0;
@@ -578,16 +581,16 @@ void SOSD_handle_guid_block(char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
 
-    char response[SOS_DEFAULT_ACK_LEN];
-    memset(response, '\0', SOS_DEFAULT_ACK_LEN);
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
-    memcpy(response, &block_from, sizeof(long));
-    memcpy((response + sizeof(long)), &block_to, sizeof(long));
+    memcpy(reply, &block_from, sizeof(long));
+    memcpy((reply + sizeof(long)), &block_to, sizeof(long));
     reply_len = 2 * sizeof(long);
 
-    i = send( SOSD.net.client_socket_fd, (void *) response, reply_len, 0 );
+    i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
@@ -597,26 +600,21 @@ void SOSD_handle_guid_block(char *msg, int msg_size) {
 }
 
 
-void SOSD_handle_announce(char *msg, int msg_size) {
+void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
-    char  *ptr;
+    unsigned char  *ptr;
+    unsigned char  reply[SOS_DEFAULT_BUFFER_LEN];
+    int   reply_len;
     int   buffer_pos;
     int   i;
-    char *response;
-    int   response_len;
-    char  response_stack[SOS_DEFAULT_BUFFER_LEN];
-    char  response_alloc;
 
     SOS_pub *pub;
     char     guid_str[SOS_DEFAULT_STRING_LEN];
 
-    ptr = msg;
+    ptr        = msg;
     buffer_pos = 0;
-
-    response = response_stack;
-    response_alloc = 0;
-    response_len = 0;
+    reply_len  = 0;
 
 
     /* Process the message into a pub handle... */
@@ -656,18 +654,10 @@ void SOSD_handle_announce(char *msg, int msg_size) {
 
     dlog(5, "[%s]:   ... pub(%ld)->elem_count = %d\n", whoami, pub->guid, pub->elem_count);
 
-    memset(response, '\0', SOS_DEFAULT_ACK_LEN);
-    sprintf(response, "ACK");
-    response_len = 4;
-
-    if (response_len > SOS_DEFAULT_ACK_LEN) {
-        response = (char *) malloc( response_len );
-        if (response == NULL) { dlog(0, "[%s]: ERROR!  Could not allocate memory for an announcement response!  (%s)\n", whoami, strerror(errno));  exit(1); }
-        memset (response, '\0', response_len);
-        response_alloc = 1;
-    }
-
-    i = send( SOSD.net.client_socket_fd, (void *) response, response_len, 0);
+    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    SOSD_pack_ack(reply, &reply_len);
+    
+    i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     
@@ -677,7 +667,7 @@ void SOSD_handle_announce(char *msg, int msg_size) {
 }
 
 
-void SOSD_handle_publish(char *msg, int msg_size)  {
+void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
     SOS_SET_WHOAMI(whoami, "daemon_handle_publish");
     SOS_msg_header header;
     long  guid = 0;
@@ -686,8 +676,8 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
 
     SOS_pub *pub;
     char     guid_str[SOS_DEFAULT_STRING_LEN];
-    char     response[SOS_DEFAULT_ACK_LEN];
-    int      response_len;
+    unsigned char     reply[SOS_DEFAULT_REPLY_LEN];
+    int      reply_len;
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
 
@@ -729,11 +719,10 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    memset (response, '\0', SOS_DEFAULT_ACK_LEN);
-    sprintf(response, "ACK");
-    response_len = 4;
-
-    i = send( SOSD.net.client_socket_fd, (void *) response, response_len, 0);
+    memset (reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    SOSD_pack_ack(reply, &reply_len);
+    
+    i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else {
         dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i);
@@ -746,9 +735,11 @@ void SOSD_handle_publish(char *msg, int msg_size)  {
 
 
 
-void SOSD_handle_shutdown(char *msg, int msg_size) {
+void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    int reply_len = 0;
     int ptr = 0;
     int i   = 0;
 
@@ -761,11 +752,9 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
                              &header.pub_guid);
 
     if (SOS.role == SOS_ROLE_DAEMON) {
-        char response[SOS_DEFAULT_ACK_LEN];
-        memset ( response, '\0', SOS_DEFAULT_ACK_LEN );
-        sprintf( response, "ACK");
+        SOSD_pack_ack(reply, &reply_len);
         
-        i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
+        i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );
         if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     }
@@ -778,8 +767,9 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
     SOS.status = SOS_STATUS_SHUTDOWN;
 
     /*
-     * We don't need to do this here, the handler is the same thread as
-     * the listener, so setting the flag (above) is sufficient.
+     * We don't need to do this here, the handlers are called by the same thread as
+     * the listener, so setting the flag (above) is sufficient to stop the listener
+     * loop and initiate a clean shutdown.
      *
     shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
      *
@@ -790,9 +780,11 @@ void SOSD_handle_shutdown(char *msg, int msg_size) {
 
 
 
-void SOSD_handle_unknown(char *msg, int msg_size) {
+void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "SOSD_handle_unknown");
     SOS_msg_header header;
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    int reply_len = 0;
     int ptr = 0;
     int i   = 0;
 
@@ -811,11 +803,11 @@ void SOSD_handle_unknown(char *msg, int msg_size) {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    char response[SOS_DEFAULT_BUFFER_LEN];
-    memset ( response, '\0', SOS_DEFAULT_BUFFER_LEN );
-    sprintf( response, "SOS daemon did not understand your message!");
+    memset (reply, '\0', SOS_DEFAULT_REPLY_LEN );
+    
+    SOSD_pack_ack(reply, &reply_len);
 
-    i = send( SOSD.net.client_socket_fd, (void *) response, strlen(response), 0 );
+    i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );
     if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
     else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
 
@@ -910,6 +902,7 @@ void SOSD_init() {
     case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
     case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
     case SOS_ROLE_CONTROL: snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".ctl" */); break;
+    default: break;
     }
 
     /* [lock file]
@@ -1060,7 +1053,7 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to
 
 
 
-void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len ) {
+void SOSD_apply_announce( SOS_pub *pub, unsigned char *msg, int msg_len ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_announce");
 
     dlog(6, "[%s]: Calling SOS_announce_from_buffer()...\n", whoami);
@@ -1070,7 +1063,7 @@ void SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len ) {
 }
 
 
-void SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len ) {
+void SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len ) {
     SOS_SET_WHOAMI(whoami, "SOSD_apply_publish");
 
     dlog(6, "[%s]: Calling SOS_publish_from_buffer()...\n", whoami);

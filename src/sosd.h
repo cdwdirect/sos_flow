@@ -27,13 +27,21 @@
 #define SOSD_PUB_ANN_CLOUD           88
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
-
-/* NOTE: The val_snap objects are used primarily by the DAEMON, but
- * there may come a time when the client does it's buffering to
- * allow local queueing of many packs for integration into a
- * multipart socket publish.  For now, that would be an overcomplication
- * since calls to the on-node socket are so blazingly fast...
- */
+#define SOSD_pack_ack(__buffer, __len_var) {             \
+        SOS_msg_header header;                           \
+        memset(&header, '\0', sizeof(header));           \
+        header.msg_size = -1;                            \
+        header.msg_type = SOS_MSG_TYPE_ACK;              \
+        header.msg_from = 0;                             \
+        header.pub_guid = 0;                             \
+        *__len_var = 0;                                  \
+        *__len_var += SOS_buffer_pack(__buffer, "iill",  \
+                                      header.msg_size,   \
+                                      header.msg_type,   \
+                                      header.msg_from,   \
+                                      header.pub_guid);  \
+        SOS_buffer_pack(__buffer, "i", *__len_var);      \
+    }
 
 
 typedef struct {
@@ -112,17 +120,20 @@ extern "C" {
 
 #ifdef SOSD_CLOUD_SYNC
     /* All cloud_sync modules must have the following signatures: */
-    extern int  SOSD_cloud_init(int *argc, char ***argv);
-    extern int  SOSD_cloud_send(char *msg, int msg_len);
-    extern void SOSD_cloud_enqueue(char *msg, int msg_len);
-    extern void SOSD_cloud_fflush(void);
-    extern int  SOSD_cloud_finalize();
+    extern int   SOSD_cloud_init(int *argc, char ***argv);
+    extern int   SOSD_cloud_send(unsigned char *msg, int msg_len);
+    extern void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len);
+    extern void  SOSD_cloud_fflush(void);
+    extern int   SOSD_cloud_finalize(void);
+    extern void  SOSD_cloud_shutdown_notice(void);
+    extern void  SOSD_cloud_listen_loop(void);
+    extern void* SOSD_THREAD_cloud_flush(void *params);
 #endif
 
-    void  SOSD_init();
-    void  SOSD_setup_socket();
+    void  SOSD_init(void);
+    void  SOSD_setup_socket(void);
 
-    void  SOSD_init_pub_ring_monitor();
+    void  SOSD_init_pub_ring_monitor(void);
     void* SOSD_THREAD_pub_ring_list_extractor(void *args);
     void* SOSD_THREAD_pub_ring_storage_injector(void *args);
     void  SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
@@ -133,18 +144,19 @@ extern "C" {
                                      SOS_target target);
     void  SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon_var);
 
-    void  SOSD_listen_loop();
-    void  SOSD_handle_register(char *msg_data, int msg_size);
-    void  SOSD_handle_guid_block(char *msg_data, int msg_size);
-    void  SOSD_handle_announce(char *msg_data, int msg_size);
-    void  SOSD_handle_publish(char *msg_data, int msg_size);
-    void  SOSD_handle_echo(char *msg_data, int msg_size);
-    void  SOSD_handle_shutdown(char *msg_data, int msg_size);
-    void  SOSD_handle_unknown(char *msg_data, int msg_size);
+    void  SOSD_listen_loop(void);
+    void  SOSD_handle_register(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_guid_block(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_announce(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_publish(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_echo(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_val_snaps(unsigned char *msg, int msg_size);
+    void  SOSD_handle_shutdown(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_unknown(unsigned char *msg_data, int msg_size);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, long *pool_from, long *pool_to );
-    void  SOSD_apply_announce( SOS_pub *pub, char *msg, int msg_len );
-    void  SOSD_apply_publish( SOS_pub *pub, char *msg, int msg_len );
+    void  SOSD_apply_announce( SOS_pub *pub, unsigned char *msg, int msg_len );
+    void  SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len );
 
     extern void SOS_uid_init( SOS_uid **uid, long from, long to);
 

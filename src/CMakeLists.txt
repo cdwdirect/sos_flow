@@ -135,15 +135,6 @@ target_link_libraries("sos_cmd" "sos")
 add_executable("test_ring" "test_ring.c")
 target_link_libraries("test_ring" "sos")
 
-#TARGET ---> test_pack   (pubs)
-#            (demonstration / example)
-add_executable("test_pack" "test_pack.c")
-target_link_libraries("test_pack" "sos")
-#TARGET ---> test_pack2  (marshalling functions)
-#            (demonstration / example)
-add_executable("test_pack2" "test_pack2.c")
-target_link_libraries("test_pack2" "sos")
-
 
 #TARGET ---> demo_app
 #            (demonstration / example)
