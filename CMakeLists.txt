@@ -1,5 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
+
+option(ENABLE_TAU_WRAPPER           "Compile the codes with tau_cc.sh?" ON)
 option(SOS_SILENCE_DEBUG            "Disable DEBUG messages?" OFF)
 option(SOSD_DAEMON_LOGGING          "Should the sosd daemon produce a log file?" ON)
 option(SOSD_DAEMON_DETACH           "Have the daemon fork, detach, and get its own session?  (Consider disabling for MPI)" OFF)
@@ -27,6 +29,17 @@ else()
 endif()
 
 project(${PROJECT_NAME} C)
+
+if(ENABLE_TAU_WRAPPER)
+  message(STATUS ">>> TAU:")
+  message(STATUS ">>> TAU:  Building the SOS system with support for TAU monitoring.")
+  message(STATUS ">>> TAU:")
+  set (CMAKE_C_COMPILER /usr/local/tau-2.24.1/x86_64/bin/tau_cc.sh)
+  add_definitions(-optMemDbg -optTrackPthread -optMpi -optTrackIO -optPDTInst)
+  include_directories(/usr/local/tau-2.24.1/include)
+  link_directories(/usr/local/tau-2.24.1/x86_64/lib)
+endif()
+
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package("Sqlite3" REQUIRED)

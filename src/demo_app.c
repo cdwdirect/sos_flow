@@ -10,14 +10,14 @@
 #include <string.h>
 #include <pthread.h>
 
-#define MAX_SEND_COUNT 200
+#define MAX_SEND_COUNT 12000
 #define ITERATION_SIZE 100
 #define NUM_VALUES     20
 
 #define JITTER_DELAY   1
 
 #undef SOS_DEBUG
-#define SOS_DEBUG 0
+#define SOS_DEBUG 1
 
 #include "sos.h"
 
@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
     SOS_TIME( time_start );
     int mils = 0;
     int ones = 0;
-    while (ones < MAX_SEND_COUNT) {
+    while ((ones * NUM_VALUES) < MAX_SEND_COUNT) {
         ones += 1;
         if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
