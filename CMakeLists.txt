@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 2.8)
 
 
-option(ENABLE_TAU_WRAPPER           "Compile the codes with tau_cc.sh?" ON)
+option(ENABLE_TAU_WRAPPER           "Compile the codes with tau_cc.sh?" OFF)
 option(SOS_SILENCE_DEBUG            "Disable DEBUG messages?" OFF)
 option(SOSD_DAEMON_LOGGING          "Should the sosd daemon produce a log file?" ON)
 option(SOSD_DAEMON_DETACH           "Have the daemon fork, detach, and get its own session?  (Consider disabling for MPI)" OFF)

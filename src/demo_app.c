@@ -10,8 +10,8 @@
 #include <string.h>
 #include <pthread.h>
 
-#define MAX_SEND_COUNT 12000
-#define ITERATION_SIZE 100
+#define MAX_SEND_COUNT 12000000
+#define ITERATION_SIZE 25
 #define NUM_VALUES     20
 
 #define JITTER_DELAY   1
@@ -112,7 +112,7 @@ int main(int argc, char *argv[]) {
                    (time_now - time_start),
                    ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)),
                    (ones * NUM_VALUES));
-            if (JITTER_DELAY) usleep((random() * 1000)%100000);
+            if (JITTER_DELAY) usleep((random() * 1000)%150000);
             SOS_TIME( time_start);
         }
         if (((ones * NUM_VALUES)%1000000) == 0) {
