@@ -47,5 +47,7 @@ find_package("MPI" REQUIRED)
 find_package("Threads" REQUIRED)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/lib")
 
 subdirs (src)
