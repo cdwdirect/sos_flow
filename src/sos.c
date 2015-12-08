@@ -735,12 +735,12 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
             new_pub->data[i]->time.send = 0.0;
             new_pub->data[i]->time.recv = 0.0;
 
-            new_pub->data[i]->meta.freq     = SOS_VAL_FREQ_DEFAULT;
-            new_pub->data[i]->meta.class    = SOS_VAL_CLASS_DATA;
-            new_pub->data[i]->meta.semantic = SOS_VAL_SEMANTIC_DEFAULT;
-            new_pub->data[i]->meta.pattern  = SOS_VAL_PATTERN_DEFAULT;
-            new_pub->data[i]->meta.compare  = SOS_VAL_COMPARE_SELF;
-            new_pub->data[i]->meta.mood     = SOS_MOOD_GOOD;
+            new_pub->data[i]->meta.freq       = SOS_VAL_FREQ_DEFAULT;
+            new_pub->data[i]->meta.classifier = SOS_VAL_CLASS_DATA;
+            new_pub->data[i]->meta.semantic   = SOS_VAL_SEMANTIC_DEFAULT;
+            new_pub->data[i]->meta.pattern    = SOS_VAL_PATTERN_DEFAULT;
+            new_pub->data[i]->meta.compare    = SOS_VAL_COMPARE_SELF;
+            new_pub->data[i]->meta.mood       = SOS_MOOD_GOOD;
 
     }
     dlog(6, "[%s]:   ... done.\n", whoami);
@@ -1534,7 +1534,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
             pub->data[elem]->type,
             pub->data[elem]->meta.freq,
             pub->data[elem]->meta.semantic,
-            pub->data[elem]->meta.class,
+            pub->data[elem]->meta.classifier,
             pub->data[elem]->meta.pattern,
             pub->data[elem]->meta.compare,
             pub->data[elem]->meta.mood );
@@ -1709,7 +1709,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
             &pub->data[elem]->type,
             &pub->data[elem]->meta.freq,
             &pub->data[elem]->meta.semantic,
-            &pub->data[elem]->meta.class,
+            &pub->data[elem]->meta.classifier,
             &pub->data[elem]->meta.pattern,
             &pub->data[elem]->meta.compare,
             &pub->data[elem]->meta.mood );

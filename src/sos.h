@@ -268,7 +268,7 @@ typedef struct {
 typedef struct {
     SOS_val_freq        freq;
     SOS_val_semantic    semantic;
-    SOS_val_class       class;
+    SOS_val_class       classifier;
     SOS_val_pattern     pattern;
     SOS_val_compare     compare;
     SOS_mood            mood;
@@ -427,7 +427,6 @@ SOS_runtime SOS;
 #ifdef __cplusplus
 extern "C" {
 #endif
-
     void      SOS_init(int *argc, char ***argv, SOS_role role);
     void      SOS_send_to_daemon(unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
     void      SOS_finalize();
