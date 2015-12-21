@@ -10,11 +10,13 @@
 #include <string.h>
 #include <pthread.h>
 
-#define MAX_SEND_COUNT 12000000
-#define ITERATION_SIZE 25
+#define DEFAULT_MAX_SEND_COUNT 2400
+#define DEFAULT_ITERATION_SIZE 25
+
 #define NUM_VALUES     20
 
-#define JITTER_DELAY   1
+#define USAGE "./demo_app --iteration_size <size> --max_send_count <count> [--jitter <time.sec>]"
+
 
 #undef SOS_DEBUG
 #define SOS_DEBUG 1
@@ -23,6 +25,8 @@
 
 int main(int argc, char *argv[]) {
     int i;
+    int elem;
+    int next_elem;
     char pub_title[SOS_DEFAULT_STRING_LEN];
     SOS_pub *pub;
     SOS_pub *pub2;
@@ -30,6 +34,44 @@ int main(int argc, char *argv[]) {
     pthread_t repub_t;
     double time_now;
     double time_start;
+
+    int    MAX_SEND_COUNT;
+    int    ITERATION_SIZE;
+    int    JITTER_ENABLED;
+    double JITTER_INTERVAL;
+
+    /* Process command-line arguments */
+    if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
+
+    MAX_SEND_COUNT  = -1;
+    ITERATION_SIZE  = -1;
+    JITTER_ENABLED  = 0;
+    JITTER_INTERVAL = 0.0;
+
+    for (elem = 1; elem < argc; ) {
+        if ((next_elem = elem + 1) == argc) {
+            fprintf(stderr, "%s\n", USAGE);
+            exit(1);
+        }
+
+        if ( strcmp(argv[elem], "--iteration_size"  ) == 0) {
+            ITERATION_SIZE  = atoi(argv[next_elem]);
+        } else if ( strcmp(argv[elem], "--max_send_count"  ) == 0) {
+            MAX_SEND_COUNT  = atoi(argv[next_elem]);
+        } else if ( strcmp(argv[elem], "--jitter"          ) == 0) {
+            JITTER_INTERVAL = strtod(argv[next_elem], NULL);
+            JITTER_ENABLED = 1;
+        } else {
+            fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
+        }
+        elem = next_elem + 1;
+    }
+
+    if ( (MAX_SEND_COUNT < 1)
+         || (ITERATION_SIZE < 1)
+         || (JITTER_INTERVAL < 0.0) )
+        { fprintf(stderr, "%s\n", USAGE); exit(1); }
+
 
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
@@ -112,7 +154,9 @@ int main(int argc, char *argv[]) {
                    (time_now - time_start),
                    ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)),
                    (ones * NUM_VALUES));
-            if (JITTER_DELAY) usleep((random() * 1000)%150000);
+            if (JITTER_ENABLED) {
+                usleep((random() * 1000000) % (int)(JITTER_INTERVAL * 1000000));
+            }
             SOS_TIME( time_start);
         }
         if (((ones * NUM_VALUES)%1000000) == 0) {
