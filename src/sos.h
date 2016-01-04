@@ -15,6 +15,9 @@
  */
 
 
+#define SOS_VERSION "0.0.1"
+#define SOS_BUILDER "University of Oregon"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
