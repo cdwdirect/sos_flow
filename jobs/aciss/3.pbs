@@ -8,8 +8,8 @@
 ##### requests 3 node and 12 processors per node
 #PBS -l nodes=3:ppn=12
 
-##### requests 15 minutes
-#PBS -l walltime=0:05:00
+##### requests ____ hh:mm:ss time
+#PBS -l walltime=0:15:00
 
 ##### the working directory for your job
 #PBS -d /tmp
@@ -24,54 +24,60 @@
 
 module load sqlite/3.8
 module load gcc/4.9
-# ... module load mpi-tor/openmpi-1.8_gcc-4.9
 module load mpi/mpich-3.1_gcc-4.9
 
 
 # # # # # # #   program   # # # # # # #
 
 proj_path="/home12/cdw/research/sos_flow"
-exec_path="/tmp"
+exec_path="${proj_path}"
+#exec_path="/tmp"
 
 #### sos: ##########
 
-daemon0=" -np 1 ${exec_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${exec_path}/data"
-daemon1=" -np 1 ${exec_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${exec_path}/data"
-daemon2=" -np 1 ${exec_path}/bin/sosd --role SOS_ROLE_DAEMON --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${exec_path}/data"
-db0="     -np 1 ${exec_path}/bin/sosd --role SOS_ROLE_DB     --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir ${exec_path}/data"
+daemon0=" -ppn 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
+db0="     -np  1 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
+
 sosd_programs=""
 sosd_programs="${sosd_programs} ${daemon0} : "
-sosd_programs="${sosd_programs} ${daemon1} : "
-sosd_programs="${sosd_programs} ${daemon2} : "
 sosd_programs="${sosd_programs} ${db0}       "
+
 sosd_mpi_opts=""
-sosd_mpi_opts="${sosd_mpi_opts} --mca btl_tcp_if_include torbr "
-sosd_mpi_opts="${sosd_mpi_opts} -rf ${proj_path}/jobs/aciss/3.rnk "
-sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
+
+# ... OpenMPI stuff:
+# ... sosd_mpi_opts="${sosd_mpi_opts} --mca btl_tcp_if_include torbr "
+# ... sosd_mpi_opts="${sosd_mpi_opts} -rf ${proj_path}/jobs/aciss/3.rnk "
+# ... sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
 
 #### flow: ##########
 
 flow_app="${proj_path}/bin/demo_app"
+flow_app="${flow_app} --iteration_size 200"
+flow_app="${flow_app} --max_send_count 80000"
+#flow_app="${flow_app} --jitter 1.5"
+
 flow_programs=""
-flow_programs="${flow_programs} -np 11 ${flow_app} "
+flow_programs="${flow_programs} -ppn 11 ${flow_app} "
+
 flow_mpi_opts=""
 flow_mpi_opts="${flow_mpi_opts} "
 
 #### finalize: ##########
 
 stop_app="${proj_path}/bin/sosd_stop"
+
 stop_programs=""
-stop_programs="${stop_programs} --npernode 1 ${stop_app}"
+stop_programs="${stop_programs} -ppn 1 ${stop_app}"
+
 stop_mpi_opts=""
-stop_mpi_opts="${stop_mpi_opts} -report-bindings "
 
 #### setup/teardown: ##########
 
 exec_init_mpi=""
-exec_init_mpi="${exec_init_mpi} --npernode 1 bash ${proj_path}/jobs/aciss/3.ini ${exec_path} ${proj_path}"
+exec_init_mpi="${exec_init_mpi} -ppn 1 bash ${proj_path}/jobs/aciss/3.ini"
 
 tear_down_mpi=""
-tear_down_mpi="${tear_down_mpi} --npernode 1 bash ${proj_path}/jobs/aciss/3.fin ${exec_path} ${proj_path}"
+tear_down_mpi="${tear_down_mpi} -ppn 1 bash ${proj_path}/jobs/aciss/3.fin"
 
 
 {
@@ -100,41 +106,50 @@ echo "mpirun ${tear_down_mpi}"
 
 
 # # # # ---- run --- # # # #
+
 echo ""
 echo "Now executing..."
 echo ""
 
-echo "[---] : Running setup script." >> launch.log
+#echo "[---] : Running setup script." >> launch.log
 mpirun ${exec_init_mpi}
-${proj_path}/jobs/aciss/3.ini
-cd log
+
+# -----
+
+cd "${proj_path}/jobs/aciss/log"
 touch launch.log
 echo "[1/7] : Starting daemons." >> launch.log
 mpirun ${sosd_mpi_opts} ${sosd_programs} &
-echo "[2/7] : Waiting 8 seconds." >> launch.log
-sleep 8
+echo "[2/7] : Waiting 4 seconds." >> launch.log
+sleep 4
 echo "[3/7] : Starting demo_app instances." >> launch.log
+
+# -----
 
 echo -n "        ...pass 1: " >> launch.log
 mpirun ${flow_mpi_opts} ${flow_programs}
 echo "complete" >> launch.log
 
-#echo -n "        ...pass 2: " >> launch.log
-#mpirun ${flow_mpi_opts} ${flow_programs}
-#echo "complete" >> launch.log
+echo -n "        ...pass 2: " >> launch.log
+mpirun ${flow_mpi_opts} ${flow_programs}
+echo "complete" >> launch.log
 
-#echo -n "        ...pass 3: " >> launch.log
-#mpirun ${flow_mpi_opts} ${flow_programs}
-#echo "complete" >> launch.log
+echo -n "        ...pass 3: " >> launch.log
+mpirun ${flow_mpi_opts} ${flow_programs}
+echo "complete" >> launch.log
+
+# -----
 
 echo "[4/7] : All demo_app instances are complete." >> launch.log
-echo "[5/7] : Waiting 8 seconds before bringing daemons down." >> launch.log
-sleep 8
+echo "[5/7] : Waiting 4 seconds before bringing daemons down." >> launch.log
+sleep 4
 echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
 echo "[7/7] : All tasks complete." >> launch.log
 sleep 4
-echo "[---] : Running teardown script." >> launch.log
+
+# -----
+
+#echo "[---] : Running teardown script." >> launch.log
 mpirun ${tear_down_mpi}
-${proj_path}/jobs/aciss/3.fin
 
