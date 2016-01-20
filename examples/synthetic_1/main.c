@@ -22,7 +22,7 @@ int main (int argc, char *argv[])
     exit(1);
   }
 
-  worker_a();
+  worker();
 
   MPI_Finalize();
   printf ("Done.\n");

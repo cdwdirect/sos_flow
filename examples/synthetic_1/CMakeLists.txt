@@ -7,13 +7,15 @@ endif()
 include_directories (.)
 include_directories("${MPI_INCLUDE_PATH}")
 
-
-# Add executable called "mpi_test" that is built from the source file
-# "mpi_test.cpp". The extensions are automatically found. 
+# add our executables
 add_executable (worker_a main.c worker_a.c) 
+add_executable (worker_b main.c worker_b.c) 
+add_executable (worker_c main.c worker_c.c) 
 
 # Link the executable to the Apex library. 
 target_link_libraries (worker_a ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
+target_link_libraries (worker_b ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
+target_link_libraries (worker_c ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
 
 INSTALL(TARGETS worker_a
   RUNTIME DESTINATION bin

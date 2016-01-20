@@ -2,6 +2,6 @@
 #include "stdio.h"
 #include "stdlib.h"
 
-int worker_a(void) {
+int worker(void) {
     printf("In worker A\n");
 }
