@@ -20,7 +20,7 @@ else
     cd ..
     cd bin
     cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" --prefix=`pwd` -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
-    make VERBOSE=1
+    make -j
     cd ..
     cd src
 fi;

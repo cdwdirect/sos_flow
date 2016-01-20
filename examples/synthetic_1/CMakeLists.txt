@@ -8,15 +8,18 @@ include_directories (.)
 include_directories("${MPI_INCLUDE_PATH}")
 
 # add our executables
-add_executable (worker_a main.c worker_a.c) 
-add_executable (worker_b main.c worker_b.c) 
-add_executable (worker_c main.c worker_c.c) 
+add_executable (synthetic_worker_a main.c worker_a.c) 
+add_executable (synthetic_worker_b main.c worker_b.c) 
+add_executable (synthetic_worker_c main.c worker_c.c) 
 
 # Link the executable to the Apex library. 
-target_link_libraries (worker_a ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
-target_link_libraries (worker_b ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
-target_link_libraries (worker_c ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
+target_link_libraries (synthetic_worker_a ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
+target_link_libraries (synthetic_worker_b ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
+target_link_libraries (synthetic_worker_c ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES}) 
 
-INSTALL(TARGETS worker_a
+INSTALL(TARGETS 
+  synthetic_worker_a
+  synthetic_worker_b
+  synthetic_worker_c
   RUNTIME DESTINATION bin
 )
