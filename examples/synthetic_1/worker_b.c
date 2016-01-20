@@ -2,6 +2,8 @@
 #include "stdio.h"
 #include "stdlib.h"
 
-int worker(void) {
+int worker(int argc, char* argv[]) {
     printf("In worker B\n");
 }
+
+int compute(int iteration) { return 0; }

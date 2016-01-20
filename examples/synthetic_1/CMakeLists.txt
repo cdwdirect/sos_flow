@@ -8,7 +8,7 @@ include_directories (.)
 include_directories("${MPI_INCLUDE_PATH}")
 
 # add our executables
-add_executable (synthetic_worker_a main.c worker_a.c) 
+add_executable (synthetic_worker_a main.c worker_a.c mandelbrot.c) 
 add_executable (synthetic_worker_b main.c worker_b.c) 
 add_executable (synthetic_worker_c main.c worker_c.c) 
 
