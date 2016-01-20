@@ -36,7 +36,7 @@ exec_path="${proj_path}"
 #### sos: ##########
 
 daemon0=" -npernode 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
-db0="     -np  1 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
+db0="     -np  3 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
 
 sosd_programs=""
 sosd_programs="${sosd_programs} ${daemon0} : "
@@ -52,8 +52,8 @@ sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
 
 flow_app="${proj_path}/bin/demo_app"
 flow_app="${flow_app} --iteration_size 200"
-flow_app="${flow_app} --max_send_count 8000000"
-flow_app="${flow_app} --jitter 2.0"
+flow_app="${flow_app} --max_send_count 800000"
+flow_app="${flow_app} --jitter 3.0"
 
 flow_programs=""
 flow_programs="${flow_programs} -npernode 8 ${flow_app} "
@@ -144,8 +144,8 @@ echo "[5/7] : Waiting 30 seconds before bringing daemons down." >> launch.log
 sleep 30
 echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
+sleep 30
 echo "[7/7] : All tasks complete." >> launch.log
-sleep 4
 
 # -----
 
