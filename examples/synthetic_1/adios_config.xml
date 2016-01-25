@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<adios-config host-language="C">
+  <adios-group name="sample_data" coordination-communicator="adios_comm">
+    <!-- You have to tell ADIOS about the parameter variables you're using
+         here in the .XML file, as well as the variable names that adios will
+         be reading from your application's source code. -->
+    <var name="iterations" type="integer"/>
+    <var name="myrank" type="integer"/>
+    <var name="commsize" type="integer"/>
+
+      <!-- We're establishing an array that contain's the following values,
+           the name of which, in your application's source code, is placed
+           in the grite="..." parameter: -->
+
+    <global-bounds dimensions="commsize,iterations" offsets="myrank,0">
+      <var name="sample_val" gwrite="sample_val" type="double" dimensions="1,iterations"/>
+    </global-bounds>
+
+
+
+    <attribute name="description"
+               path="/sample_val"
+               type="string"
+               value="Sample double-precision value." />
+  </adios-group>
+  
+  <method group="sample_data" method="MPI"/>
+  <buffer size-MB="2" allocate-time="now"/>
+  
+</adios-config>

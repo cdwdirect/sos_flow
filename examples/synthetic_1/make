@@ -1,0 +1,11 @@
+rm -f gread_sample_data.ch
+rm -f gwrite_sample_data.ch
+gpp.py adios_config.xml
+cd ..
+cd ..
+cd src
+./make clean
+./make
+cd ..
+cd examples
+cd synthetic_1
