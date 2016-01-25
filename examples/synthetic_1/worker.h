@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mpi.h"
+#include "adios.h"
 
 /* Global variables */
 extern int commsize;

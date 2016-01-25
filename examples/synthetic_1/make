@@ -1,21 +1,12 @@
 #!/bin/bash -e
-if [ "$1" == "clean" ]
-then
-   echo "Removing all binary objects."
-   cd ../..
-   rm -rf ./bin
-   mkdir bin
-   rm -rf ./lib
-   mkdir lib
-   touch bin/.keep
-   touch lib/.keep
-   cd examples/synthetic_1
-   echo "Wiped the ../bin folder, ../lib folder, and all binary contents.  Type './make' to rebuild."
-else
-    cd ../../bin
-    if [ ! -f CMakeCache.txt ] ; then
-      cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" --prefix=`pwd` -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
-    fi
-    make
-    cd ../examples/synthetic_1
-fi;
+
+rm -f gread_sample_data.ch
+rm -f gwrite_sample_data.ch
+gpp.py adios_config.xml
+
+cd ../../src
+if [ "$1" == "clean" ] ; then
+    ./make clean
+fi
+./make
+cd ../examples/synthetic_1
