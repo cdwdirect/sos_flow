@@ -67,7 +67,7 @@ void do_neighbor_exchange(void) {
 }
 
 int worker(int argc, char* argv[]) {
-    my_printf("In worker A\n");
+    printf("%d of %d In worker A\n", myrank, commsize);
 
     /* validate input */
     validate_input(argc, argv);
@@ -114,7 +114,6 @@ int worker(int argc, char* argv[]) {
         compute(i);
         /* Write output */
         my_printf(".");
-
 
         /* ADIOS: Set the value we wish to output into 'sample_var':
          */

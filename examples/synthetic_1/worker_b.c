@@ -3,7 +3,7 @@
 #include "stdlib.h"
 
 int worker(int argc, char* argv[]) {
-    printf("In worker B\n");
+    printf("%d of %d In worker B\n", myrank, commsize);
 }
 
 int compute(int iteration) { return 0; }
