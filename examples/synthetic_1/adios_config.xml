@@ -19,7 +19,7 @@
         type="string"/>
   </adios-group>
 
-  <method group="restart" method="MPI"/>
+  <method group="restart" method="FLEXPATH"/>
 
   <buffer size-MB="5" allocate-time="now"/>
 

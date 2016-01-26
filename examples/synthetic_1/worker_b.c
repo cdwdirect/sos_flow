@@ -56,7 +56,7 @@ int worker(int argc, char* argv[]) {
     MPI_Comm  adios_comm;
     MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
 
-    enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_BP;
+    enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
     adios_read_init_method(method, adios_comm, "verbose=3");
     if (adios_errno != err_no_error) {
         fprintf (stderr, "rank %d: Error %d at init: %s\n", myrank, adios_errno, adios_errmsg());
