@@ -353,7 +353,7 @@
 % paper title
 % can use linebreaks \\ within to get better formatting as desired
 \title{SOSflow and a Semantic Workflow Performance Model\\
-    for Understanding Variability in Scientific Workflows}
+    for Understanding Variability in Scientific Workflows at Scale}
 
 % \title{SOSflow : Observation, Introspection, Feedback, \\
 %    and Control for Scientific Workflows}
@@ -445,6 +445,9 @@ It will be a good time!
 
 
 \section{Motivations for Tracking Variability}
+\textit{[NOTE: More than simply demonstrating that there are different and 
+possibly incompatible motivations for variability research, this section is 
+setting up the necessity for a new performance model.]}\\
 Due to the novelty of this research area, there will be opportunities to 
 further refine the way in which research is taxonomized, and to establish 
 a set of definitions that provide adequate coverage of the conceptually distinct 
@@ -457,29 +460,66 @@ divergent purposes that are create tensions between the efforts being
 undertaken in this new field, and the anticipated realities of writing 
 infrastructure codes for exascale HPC clusters.
 \subsection{Why Variability is Tracked}
-
-\subsubsection{Awareness of Fine-Grained Jitter}
-[NOTE: This section is purposed with showing that even episodic component 
-analysis at small scales has issues with variability. There are tractible 
-concerns (sensitivity to var.) and inherently intractible concerns (controlling 
-var).]\\
+Many factors have contributed to the emergence of variability studies as an 
+important research topic within the HPC community. At a low-level, HPC node 
+engineering has grown in complexity and sophistication, many on-core processor 
+behaviors that used to be isolated, synchronous, and predictable, are now 
+interrelated, data-driven, asynchronous, and impossible to predict a priori. As 
+core density increases on the nodes of a cluster (TODO: Cite paper showing this 
+is the necessary direction of exascale) the unpredictability and inconsistency 
+of the hardware itself becomes an increasingly significant contributor to 
+observed variability. Hardware is an important source to consider when it comes 
+to variability because there is almost nothing that can be done to control for 
+it, the noise has to be admitted in the results, and therefore is an important 
+part of the output of any performance-related experiment. At higher-levels of 
+description, variability in workflow 
+performance can be introduced by many different sources:
+\begin{itemize}
+    \item Versions of software libraries across can differ across clusters, or 
+    even the same cluster across time.
+    \item Tuning factors to extract maximum 
+    performance from a code can vary across clusters even if the code and the 
+    data do not change. Shared filesystem performance, data transport methods, 
+    available per-process memory, 
+    co-processor presence and architecture, ...and more, all can be responsible 
+    for influencing sensitivity to novel tuning factors.
+    \item Concurrent activity elsewhere on the same cluster, activity that will 
+    necessarily vary between every iteration of the workflow, may be having a 
+    significant impact on observed performance.
+    \item At extreme scales, parts of a simulation are almost guaranteed to 
+    fail due to the marginal failure rates of hardware components approaching 
+    absolute certainty as the number of involved components increases. These 
+    failures cannot 
+    be accurately predicted a priori, and the design constraints that account 
+    for and respond to them introduce performance perturbation and further 
+    complexity.
+    \item ...
+    \item ...
+\end{itemize}
+\subsubsection{Awareness of Fine-Grained Performance Jitter}
+\textit{[NOTE: This section is purposed with showing that even episodic 
+close analysis of individual components at small scale will have issues with 
+significant variability. There are tractible 
+concerns (demonstrating sensitivity to var.) and inherently intractible 
+concerns (controlling var. across runs).]}\\
 Even in cases where nothing can be done to influence the variations in 
 performance, it is important to recognize that performance variability is 
-present and to 
-attempt to both quantify it and render reasonable attributions of its source[s].
-Significant variability between runs is seen (SCHULTZ paper/graph) when 
-tracking a single simple experiment, even if the input data, job queue 
-parameters, and hardware allocation is held constant. At extreme scales, on 
-line detection and attribution of variability of a 
+present and to  attempt to both quantify it and render reasonable attributions 
+of its source[s]. Significant variability between runs is seen (SCHULTZ 
+paper/graph) when tracking a single simple experiment, even if the input data, 
+job queue  parameters, and hardware allocation is held constant. At extreme 
+scales, on line detection and attribution of variability of a 
 scientific workflow will require well-annotated metadata to facilitate "apples 
 to apples" comparisons driven by unsupervised machine learning rather than a 
 priori developer knowledge or offline centralized analysis. It is important to 
 characterize a code's sensitivity to variability, as well as a cluster's 
 propensity for creating performance variability.
 \subsubsection{Accuracy in Performance Research}
-[NOTE: This section is intended to motivate a new model for performance when 
+\textit{[NOTE: This section is intended to motivate a new model for 
+performance when 
 considering scientific workflows on exascale systems. Nail the coffin shut on 
-existing performance research validation tools and techniques.]\\
+existing performance research validation tools and techniques. They are 
+intractible, per the above notes, and irrelevant, per this discussion]}\\
 Performance research is principally concerned with decreasing the resource 
 consumption and compute time required by low-level components and libraries 
 that are used when constructing higher-level scientific workflows. For example: 
@@ -674,7 +714,7 @@ The conclusion goes here. this is more of the conclusion
 % use section* for acknowledgement
 \section*{Acknowledgment}
 Research has been conducted under the following grants:\\
-TODO: INSERT GRANT INFORMATION HERE\\
+\textit{TODO: INSERT GRANT INFORMATION HERE}\\
 \\
 The authors would like to thank:\\
 NAME of Georgia Tech University\\
