@@ -1,6 +1,9 @@
+set(CMAKE_POSITION_INDEPENDENT_CODE True)
+set(POSITION_INDEPENDENT_CODE True)
+
 include_directories("${MPI_INCLUDE_PATH}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
-   link_directories("${sos_flow_SOURCE_DIR}/src")
+   link_directories("${sos_flow_SOURCE_DIR}/lib")
 
 if(EXISTS "$ENV{SQLITE}")
 include_directories("$ENV{SQLITE}/include")
@@ -31,16 +34,16 @@ endif()
 #TARGET ---> sos
 #            (library)
 add_library("sos" SHARED "sos.c" "pack_buffer.c" "qhashtbl.c")
-add_library("sos-static" STATIC "sos.c" "pack_buffer.c" "qhashtbl.c")
+add_library("sos_static" STATIC "sos.c" "pack_buffer.c" "qhashtbl.c")
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sos" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos-static" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos-static" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+  target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
+  target_compile_options(TARGET "sos_static" PROPERTY COMPILE_OPTIONS "-pthread")
+  target_compile_options(TARGET "sos_static" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos" "${CMAKE_THREAD_LIBS_INIT}")
-  target_link_libraries("sos-static" "${CMAKE_THREAD_LIBS_INIT}")
+  target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 

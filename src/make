@@ -6,16 +6,23 @@ then
    cd ..
    rm -rf ./bin
    mkdir bin
+   rm -rf ./lib
+   mkdir lib
    cd bin
    touch .keep
    cd ..
+   cd lib
+   touch .keep
+   cd ..
    cd src
-   echo "Wiped the ../bin folder and all binary contents.  Type './make' to rebuild."
+   echo "Wiped the ../bin folder, ../lib folder, and all binary contents.  Type './make' to rebuild."
 else
     cd ..
     cd bin
-    cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" --prefix=`pwd` ..
-    make
+    if [ ! -f CMakeCache.txt ] ; then
+      cmake -DCMAKE_BUILD_TYPE=Debug -G "Unix Makefiles" --prefix=`pwd` -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++ ..
+    fi
+    make -j
     cd ..
     cd src
 fi;

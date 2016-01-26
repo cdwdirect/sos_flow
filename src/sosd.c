@@ -88,7 +88,21 @@ int main(int argc, char *argv[])  {
     #endif
 
     SOS_SET_WHOAMI(whoami, "main");
-   
+
+    if (SOS.config.comm_rank == 0) {
+        printf("\n");
+        printf("         _/_/_/    _/_/      _/_/_/    )))   Scalable\n");
+        printf("      _/        _/    _/  _/          (((    Observation\n");
+        printf("       _/_/    _/    _/    _/_/        )))   System\n");
+        printf("          _/  _/    _/        _/      (((    for Scientific\n");
+        printf("   _/_/_/      _/_/    _/_/_/          )))   Workflows\n");
+        printf("\n");
+        printf("   Version: %s\n", SOS_VERSION);
+        printf("   Builder: %s\n", SOS_BUILDER);
+        printf("\n");
+        printf("-----------------------------------------------------------\n");
+    }
+
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Initializing SOS:\n", whoami); fflush(stdout); }
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:    ... calling SOSD_init()...\n", whoami); fflush(stdout); }
     SOSD_init();

@@ -448,7 +448,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         const char   *val_type          = SOS_ENUM_STR( pub->data[i]->type, SOS_VAL_TYPE );
         const char   *meta_freq         = SOS_ENUM_STR( pub->data[i]->meta.freq, SOS_VAL_FREQ );
         const char   *meta_semantic     = SOS_ENUM_STR( pub->data[i]->meta.semantic, SOS_VAL_SEMANTIC );
-        const char   *meta_class        = SOS_ENUM_STR( pub->data[i]->meta.class, SOS_VAL_CLASS );
+        const char   *meta_class        = SOS_ENUM_STR( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
         const char   *meta_pattern      = SOS_ENUM_STR( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
         const char   *meta_compare      = SOS_ENUM_STR( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
         const char   *meta_mood         = SOS_ENUM_STR( pub->data[i]->meta.mood, SOS_MOOD );

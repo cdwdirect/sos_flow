@@ -9,8 +9,6 @@ if [ -z $1 ]; then echo "   >>> Launching the sosd daemons..."; fi;
 
 daemon0="-np 1 ../bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 4096000 --listen_backlog 10 --work_dir $(pwd)"
 daemon1="-np 1 ../bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 4096000 --listen_backlog 10 --work_dir $(pwd)"
-
-
 echo ${daemon0}
 echo ${daemon1}
 

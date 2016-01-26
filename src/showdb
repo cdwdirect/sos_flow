@@ -1,1 +1,9 @@
-ls -AblFs *.db ; echo -n "sosd.0.db = " ; sqlite3 sosd.0.db "select max(rowid) from tblvals;" ; echo -n "sosd.1.db = " ; sqlite3 sosd.1.db "select max(rowid) from tblvals;"
+ls -AblFs *.db
+echo -n "sosd.0.db = "
+sqlite3 sosd.0.db "select max(rowid) from tblvals;"
+echo -n "sosd.1.db = "
+sqlite3 sosd.1.db "select max(rowid) from tblvals;"
+echo "sosd.0.db [pubs] = "
+sqlite3 sosd.0.db "select * from tblpubs;"
+echo "sosd.1.db [pubs] = "
+sqlite3 sosd.1.db "select * from tblpubs;"
