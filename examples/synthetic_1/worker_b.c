@@ -14,7 +14,6 @@
 int iterations = 1;
 
 void validate_input(int argc, char* argv[]) {
-/*
     if (argc < 2) {
         my_printf("Usage: %s <num iterations>\n", argv[0]);
         exit(1);
@@ -23,8 +22,7 @@ void validate_input(int argc, char* argv[]) {
         my_printf("%s requires at least 2 processes.\n", argv[0]);
         exit(1);
     }
-    */
-    //iterations = atoi(argv[1]);
+    iterations = atoi(argv[1]);
 }
 
 int worker(int argc, char* argv[]) {
@@ -47,14 +45,19 @@ int worker(int argc, char* argv[]) {
     void * data = NULL;
     uint64_t start[2], count[2];
     int i, j, steps = 0;
+    int NX = 10;
+    int NY = 1;
+    double t[NX];
+    double p[NX];
 
     /* ADIOS: Can duplicate, split the world, whatever.
      *        This allows you to have P writers to N files.
      *        With no splits, everyone shares 1 file, but
      *        can write lock-free by using different areas.
      */
-    MPI_Comm  adios_comm;
+    MPI_Comm  adios_comm, adios_comm_b_to_c;
     MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm_b_to_c);
 
     enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
     adios_read_init_method(method, adios_comm, "verbose=3");
@@ -62,18 +65,20 @@ int worker(int argc, char* argv[]) {
         fprintf (stderr, "rank %d: Error %d at init: %s\n", myrank, adios_errno, adios_errmsg());
         exit(4);
     }
-    adios_init_noxml(adios_comm);
+    adios_init("adios_config.xml", adios_comm);
 
     /* ADIOS: Set up the adios communications and buffers, open the file.
     */
     ADIOS_FILE *fp; // file handler
     ADIOS_VARINFO *vi; // information about one variable 
     ADIOS_SELECTION * sel;
-    char      adios_filename[256];
+    char      adios_filename_a_to_b[256];
+    char      adios_filename_b_to_c[256];
     enum ADIOS_LOCKMODE lock_mode = ADIOS_LOCKMODE_NONE;
     double timeout_sec = 1.0;
-    sprintf(adios_filename, "adios_globaltime.bp");
-    fp = adios_read_open(adios_filename, method, adios_comm, lock_mode, timeout_sec);
+    sprintf(adios_filename_a_to_b, "adios_a_to_b.bp");
+    sprintf(adios_filename_b_to_c, "adios_b_to_c.bp");
+    fp = adios_read_open(adios_filename_a_to_b, method, adios_comm, lock_mode, timeout_sec);
     if (adios_errno == err_file_not_found) {
         fprintf (stderr, "rank %d: Stream not found after waiting %d seconds: %s\n",
         myrank, timeout_sec, adios_errmsg());
@@ -87,7 +92,7 @@ int worker(int argc, char* argv[]) {
         fprintf (stderr, "rank %d: Error %d at opening: %s\n", myrank, adios_errno, adios_errmsg());
         exit(3);
     } else {
-        my_printf("Found file %s\n", adios_filename);
+        my_printf("Found file %s\n", adios_filename_a_to_b);
         my_printf ("File info:\n");
         my_printf ("  current step:   %d\n", fp->current_step);
         my_printf ("  last step:      %d\n", fp->last_step);
@@ -113,7 +118,7 @@ int worker(int argc, char* argv[]) {
         data = malloc (slice_size * vi->dims[1] * 8);
 
         /* Processing loop over the steps (we are already in the first one) */
-        while (adios_errno != err_end_of_stream) {
+        while (adios_errno != err_end_of_stream && steps < iterations) {
             steps++; // steps start counting from 1
 
             sel = adios_selection_boundingbox (vi->ndim, start, count);
@@ -121,10 +126,10 @@ int worker(int argc, char* argv[]) {
             adios_perform_reads (fp, 1);
 
             if (myrank == 0)
-                printf ("--------- Step: %d --------------------------------\n",
+                printf ("--------- B Step: %d --------------------------------\n",
                         fp->current_step);
 
-            printf("myrank=%d: [0:%lld,0:%lld] = [", myrank, vi->dims[0], vi->dims[1]);
+            printf("B rank=%d: [0:%lld,0:%lld] = [", myrank, vi->dims[0], vi->dims[1]);
             for (i = 0; i < slice_size; i++) {
                 printf (" [");
                 for (j = 0; j < vi->dims[1]; j++) {
@@ -138,7 +143,7 @@ int worker(int argc, char* argv[]) {
             adios_advance_step (fp, 0, timeout_sec);
             if (adios_errno == err_step_notready)
             {
-                printf ("myrank %d: No new step arrived within the timeout. Quit. %s\n",
+                printf ("B rank %d: No new step arrived within the timeout. Quit. %s\n",
                         myrank, adios_errmsg());
                 break; // quit while loop
             }
@@ -147,17 +152,42 @@ int worker(int argc, char* argv[]) {
             //do_neighbor_exchange();
             /* "Compute" */
             compute(steps);
-            /* Write output */
-            my_printf("b");
 
+            for (i = 0; i < NX; i++) {
+                t[i] = steps*100.0 + myrank*NX + i;
+            }
+
+            for (i = 0; i < NY; i++) {
+                p[i] = steps*1000.0 + myrank*NY + i;
+            }
+
+            /* ADIOS: write to the next application in the workflow */
+            if (steps == 0) {
+                adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "w", adios_comm_b_to_c);
+            } else {
+                adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "a", adios_comm_b_to_c);
+            }
+            /* ADIOS: Actually write the data out.
+            *        Yes, this is the recommended method, and this way, changes in
+            *        configuration with the .XML file will, even in the worst-case
+            *        scenario, merely require running 'gpp.py adios_config.xml'
+            *        and typing 'make'.
+            */
+            #include "gwrite_b_to_c.ch"
+            /* ADIOS: Close out the file completely and finalize.
+            *        If MPI is being used, this must happen before MPI_Finalize().
+            */
+            adios_close(adios_handle);
+            MPI_Barrier(adios_comm_b_to_c);
         }
+        MPI_Barrier(MPI_COMM_WORLD);
         adios_read_close(fp);
+        /* ADIOS: Close out the file completely and finalize.
+        *        If MPI is being used, this must happen before MPI_Finalize().
+        */
+        adios_read_finalize_method(method);
     }
-
-    /* ADIOS: Close out the file completely and finalize.
-     *        If MPI is being used, this must happen before MPI_Finalize().
-     */
-    adios_read_finalize_method(method);
+    adios_finalize(myrank);
 
     free(data);
 

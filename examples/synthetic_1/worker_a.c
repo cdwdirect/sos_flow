@@ -55,7 +55,7 @@ int worker(int argc, char* argv[]) {
 
     /* ADIOS: Set up the adios communications and buffers, open the file.
      */
-    sprintf(adios_filename, "adios_globaltime.bp");
+    sprintf(adios_filename, "adios_a_to_b.bp");
     adios_init("adios_config.xml", adios_comm);
 
     int index, i;
@@ -76,9 +76,9 @@ int worker(int argc, char* argv[]) {
         }
 
         if (index == 0) {
-            adios_open(&adios_handle, "restart", adios_filename, "w", adios_comm);
+            adios_open(&adios_handle, "a_to_b", adios_filename, "w", adios_comm);
         } else {
-            adios_open(&adios_handle, "restart", adios_filename, "a", adios_comm);
+            adios_open(&adios_handle, "a_to_b", adios_filename, "a", adios_comm);
         }
         /* ADIOS: Set the value we wish to output into 'sample_var':
          */
@@ -90,7 +90,7 @@ int worker(int argc, char* argv[]) {
          *        and typing 'make'.
          */
         //if (myrank == 0) {
-            #include "gwrite_restart.ch"
+            #include "gwrite_a_to_b.ch"
         //}
         /* ADIOS: Close out the file completely and finalize.
         *        If MPI is being used, this must happen before MPI_Finalize().
@@ -101,6 +101,7 @@ int worker(int argc, char* argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     adios_finalize(myrank);
+    my_printf("Worker A exting.\n");
 
     /* exit */
     return 0;

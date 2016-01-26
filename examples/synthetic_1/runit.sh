@@ -2,11 +2,14 @@
 
 rm -f new1.ppm *.bp
 
-A="-np 2 ../../bin/synthetic_worker_a 100"
-B="-np 1 ../../bin/synthetic_worker_b"
-C="-np 2 ../../bin/synthetic_worker_c"
+i=100
+
+A="-np 2 ../../bin/synthetic_worker_a ${i}"
+B="-np 2 ../../bin/synthetic_worker_b ${i}"
+C="-np 2 ../../bin/synthetic_worker_c ${i}"
 
 mpirun ${A} &
 sleep 1
-mpirun ${B}
-# mpirun ${C} &
+mpirun ${B} &
+sleep 1
+mpirun ${C}
