@@ -25,3 +25,48 @@ static inline int get_right_neighbor() {
     if (myrank == (commsize-1)) { return 0; }
     return myrank+1;
 }
+
+static inline void do_neighbor_exchange(void) {
+    int outdata[100] = {1};
+    int indata[100] = {0};
+    int thistag = 1;
+    MPI_Status status;
+    if (myrank % 2 == 0) {
+        // send to left neighbor
+        MPI_Send(outdata,              /* message buffer */
+                 100,               /* one data item */
+                 MPI_INT,           /* data item is an integer */
+                 get_left_neighbor(),              /* destination process rank */
+                 thistag,           /* user chosen message tag */
+                 MPI_COMM_WORLD);   /* default communicator */
+        int thistag = 2;
+        // receive from right neighbor
+        MPI_Recv(indata,            /* message buffer */
+                 100,                 /* one data item */
+                 MPI_INT,        /* of type double real */
+                 get_right_neighbor(),    /* receive from any sender */
+                 thistag,       /* any type of message */
+                 MPI_COMM_WORLD,    /* default communicator */
+                 &status);          /* info about the received message */
+    } else {
+        // receive from right neighbor
+        MPI_Recv(indata,            /* message buffer */
+                 100,                 /* one data item */
+                 MPI_INT,        /* of type double real */
+                 get_right_neighbor(),    /* receive from any sender */
+                 thistag,       /* any type of message */
+                 MPI_COMM_WORLD,    /* default communicator */
+                 &status);          /* info about the received message */
+        int thistag = 2;
+        // send to left neighbor
+        MPI_Send(outdata,              /* message buffer */
+                 100,               /* one data item */
+                 MPI_INT,           /* data item is an integer */
+                 get_left_neighbor(),              /* destination process rank */
+                 thistag,           /* user chosen message tag */
+                 MPI_COMM_WORLD);   /* default communicator */
+    }
+
+}
+
+

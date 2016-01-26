@@ -1,5 +1,6 @@
 #!/bin/bash -e
 
+# DISABLED! SEE https://github.com/ornladios/ADIOS/issues/48
 rm -f gread_sample_data.ch
 rm -f gwrite_sample_data.ch
 gpp.py adios_config.xml
