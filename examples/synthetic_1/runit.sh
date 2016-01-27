@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-rm -f new1.ppm *.bp
+rm -f new1.ppm *.bp *.trc *.edf *.slog2
 
 i=100
 
@@ -13,3 +13,11 @@ sleep 1
 mpirun ${B} &
 sleep 1
 mpirun ${C}
+
+files=(tautrace.*.trc)
+
+if [ -e "${files[0]}" ] ; then
+    tau_treemerge.pl
+    tau2slog2 tau.trc tau.edf -o tau.slog2
+    rm *.trc *.edf
+fi
