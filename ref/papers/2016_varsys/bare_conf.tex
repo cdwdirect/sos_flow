@@ -441,7 +441,11 @@ workflow;
 \section{Introduction}
 % no \IEEEPARstart
 Here we set up the problem space we are addressing.\\
-It will be a good time!
+\\
+It will be a good time!\\
+\\
+\textit{[NOTE: Come back and flesh out the INTRO and ABSTRACT at the end, once 
+we're sure the content we are after is a part of the paper.]}
 
 
 \section{Motivations for Tracking Variability}
@@ -493,8 +497,8 @@ performance can be introduced by many different sources:
     be accurately predicted a priori, and the design constraints that account 
     for and respond to them introduce performance perturbation and further 
     complexity.
-    \item ...
-    \item ...
+    \item \ldots
+    \item \ldots 
 \end{itemize}
 \subsubsection{Awareness of Fine-Grained Performance Jitter}
 \textit{[NOTE: This section is purposed with showing that even episodic 
@@ -573,12 +577,15 @@ being driven.
 Not knowing \textit{a priori} what component or layer of the workflow will be 
 responsible for the introduction of variability, the workflow performance model 
 needs to be populated by a diversity of information sources that provide 
-metrics, metadata, and events from many different layers of an execution 
-environment:
+metrics with tailored metadata and both logical and concrete events, arriving 
+in real-time from many different layers of activity in a workflow:
 \begin{itemize}
+    \item Simulation
+    \item Algorithm
 	\item Application
 	\item Libraries
 	\item Environment
+    \item Developer Tools
 	\item Operating System
 	\item Node Hardware
 	\item Network
@@ -587,23 +594,165 @@ environment:
 	\item Workflow
 	\item Epoch	
 \end{itemize}
+Each of these layers constitutes a \textit{level of description} for workflow 
+performance. If the Simulation layer produced data representing the evolution 
+of a system over N seconds of simulated time, and the Application layer 
+requires M seconds of real-world computation to yield that data, the 
+relationship between N and M should be a valid performance metric to report, 
+compare across runs, and to attempt to generally optimize through parameter 
+convergence.
 \subsection{Semantics}
 All information that is gathered by the monitoring system should be annotated 
-as richly as possible to maximize its usefulness when performing analysis to 
+as richly as possible to maximize its usefulness when performing analytics. 
+Hand-annotated codes will have the most to offer an analytics engine,  
+values that are tracked will be able to carry a full spectrum of high-level 
+tags that express what that data point means and what could be expected of it, 
+in structure preserving a human programmer or user's understanding while also
+being compatible with unsupervised machine-learning tests for significance and 
+other advanced analysis techniques.\\
+\\
+Any episodic performance measurement, such as run-time TAU instrumentation, can 
+also be injected into the SOSflow engine, and the SOSflow runtime will be able to 
+differentiate from information pushed directly by a layer, and information that 
+is being captured by middle-ware tools.\\
+\\
+\textit{[NOTE: Insert table heres of some of the enum values alongside 
+plain-english descriptions.]}\\
+\\
+Semantic information is local to the "publication handle" (pub) 
+created by a source that is contributing to SOSflow.  Sources can create 
+multiple pubs to distinctly represent potential compound or complex roles. Pubs 
+carry their own pub-wide semantic markups, including 
+the origin layer, a role within that layer, and information 
+about the node that the source process is running on. Semantic markups are then 
+nested inside of the pub handle, as each value that is pushed 
+into the SOSflow system through a pub handle also comes with a rich set of 
+high-level semantic tags that stay affiliated with it over time. While deep 
+off-line data analytics 
+can reveal unforseen correlations between various aspects of the workflow or the 
+data set it is operating over, the interest in real-time analytics and 
+performance tuning gives value to expressing "relationship hints" between 
+values tracked by the system. These hints can be used to direct in situ 
+analytics and identify deviations from expectations; anything that can be 
+overtly identified as an expectation for a value can be used to narrow the 
+search spacec when doing unsupervised machine learning over gathered workflow 
+performance data.
 
 \section{SOSflow}
-Applying a semantic workflow performance model to actual run-time environments 
-necessitated the development of new infrastructure software, and so the second 
-contribution to the general challenges of monitoring scientific workflows is the 
-SOSflow software artifact.
+Applying a novel semantic workflow performance model to actual run-time 
+environments necessitated the development of new infrastructure software, and 
+so the second contribution to the general challenges of monitoring scientific 
+workflows is the SOSflow software artifact.\\
+\\
+The initial design goals of SOSflow are:
+\begin{enumerate}
+\item Facilitate capture of scientific workflow performance data and events in 
+situ (i.e. "on node") from a variety of sources and perspectives at the same 
+time.
+\item Annotate the gathered data's semantic meaning with expressive 
+"high-level" 
+tags that facilitate contextualization and introspective analytics.
+\item Store the captured data on node in a way that can be searched with 
+dynamic queries in real-time as well as being suitable for long-term 
+centralized 
+archival.
+\end{enumerate}
+\ldots the SQLite3 open-source DB engine has been selected 
+during the initial development phase for on-node storage, but the API is 
+modularized and a different 
+format/mechanism could be used instead.  On-node storage is logically separated 
+off-node data transport mechanisms, but they could be the same backend if the 
+enabling technology supports that.\\
+\\
+SOSflow is divided into two main parts in it's current incarnation:
+\begin{itemize}
+\item sosd - Daemon process running on each node
+\item libsos - Library of routines for interacting with the daemon
+\end{itemize}
+The sosd daemon launches before a scientific workflow begins, and passively 
+listens on 
+a socket.  The port that is available to all of the sources on any given node 
+is found in the "SOS\_CMD\_PORT" environment 
+variable.  Many programs and layers of programs can connect to the daemon and 
+send information in. Library-to-daemon communication is invisible to the SOSflow 
+user and happens entirely on-node using a simple stateless protocol.  When the 
+workflow is completed, the sosd\_stop tool is executed on each node, it signals 
+the daemon to flush buffers and close down.
 \subsection{Behavior}
+\textit{[NOTE: Here I can introduce a narrative or a figure or both, to explain 
+how a typical SOSflow session should happen on the cluster. I am skipping this 
+for now, to be able to release this document for revision and comment. This 
+section is obvious and easy to both write and edit, but I want to get this out 
+to you guys.]}
 \subsection{Implementation}
-\subsection{Limitations and Concerns}
-\subsection{Results of Initial Benchmarking}
-Tool development is drawing to a close and research related to SOSflow and the 
-cooresponding performance model is now shifting into results gathering mode. 
-Early benchmarks are being gathered by instrumenting 
+\subsubsection{Language}C
+\subsubsection{External Requirements}
+\begin{itemize}
+    \item cmake
+    \item pthreads
+    \item MPI
+    \item Sqlite3 (*May change across implementations)
+\end{itemize}
+\subsubsection{Key Source Files}
+See Table 1.
+% An example of a floating table. Note that, for IEEE style tables, the 
+% \caption command should come BEFORE the table. Table text will default to
+% \footnotesize as IEEE normally uses this smaller font for tables.
+% The \label must come after \caption as always.
+%
+\begin{table}[!t]
+%% increase table row spacing, adjust to taste
+\renewcommand{\arraystretch}{1.3}
+% if using array.sty, it might be a good idea to tweak the value of
+% \extrarowheight as needed to properly center the text within the cells
+\caption{Key Source Files for SOSflow}
+\label{table_example}
+\centering
+%% Some packages, such as MDW tools, offer better commands for making tables
+%% than the plain LaTeX2e tabular which is used here.
+\begin{tabular}{|c|c|}
+\hline
+sos.h / sos.c & Becomes libsos, the core functions of SOSflow\\
+\hline
+sosd.h / sosd.c & SOSflow daemon\\
+\hline
+sos\_debug.h & Debugging off / on (level) knobs\\
+\hline
+demo\_app.c & The "Hello, world." of SOSflow value injection\\
+\hline
+sosd\_cloud\_mpi.c & Off-node transport using simple MPI calls\\
+\hline
+sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
+\hline
+\end{tabular}
+\end{table}
 
+\subsection{Limitations and Concerns}
+The value of SOSflow is directly proportional to the quantity and quality of the 
+sources that are pushing semantically-annotated data into it. At this time the 
+use-case development has centered on the ADIOS scalable I/O library, due to its 
+deep integration with many existing scientific workflows and industry standard 
+tools  like VisIt. ADIOS instrumentation is a source of significant
+observable data and an actionable target for effective feedback and control.\\
+\\
+The more sources that are instrumented with SOSflow the less limited the workflow 
+performance model will be. When only one or two layers are instrumented, the 
+benefits of the semantic annotation and the workflow performance model are 
+naturally limited.\\
+\\
+The SOSflow software artifact is in its initial development cycle and has room 
+for improvement in various software engineering facets:  
+memory subsystem interaction, diversity of storage and transport mechanisms, 
+and quality-of-service guarantees to both producers and consumers of 
+SOSflow data.
+\subsection{Results of Initial Benchmarking}
+\textit{[NOTE: We need to decide what we can put in here (or if we should even 
+have this section at this time) ... it could be something as simple as 
+PERCENTAGE of difference in the execution time of a synthetic workflow when the 
+SOSflow system is activated compared to when it is not activated. I fully 
+expect the perturbation to be EXTREMELY LOW, especially if values are being 
+injected non-continuously and at natural pauses in computation like at the top 
+of loops]}
 \section{Conclusion}
 Given a diverse set of motivations for variability studies, and a seemingly 
 intractable problem space when classical performance models are applied to 
