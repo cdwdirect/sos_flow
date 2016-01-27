@@ -1,11 +1,12 @@
-rm -f gread_sample_data.ch
-rm -f gwrite_sample_data.ch
+#!/bin/bash -e
+
+# DISABLED! SEE https://github.com/ornladios/ADIOS/issues/48
+rm -f *.ch
 gpp.py adios_config.xml
-cd ..
-cd ..
-cd src
-./make clean
+
+cd ../../src
+if [ "$1" == "clean" ] ; then
+    ./make clean
+fi
 ./make
-cd ..
-cd examples
-cd synthetic_1
+cd ../examples/synthetic_1

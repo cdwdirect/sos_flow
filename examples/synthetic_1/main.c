@@ -27,7 +27,7 @@ int main (int argc, char *argv[])
 
     MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
     MPI_Comm_size(MPI_COMM_WORLD, &commsize);
-    my_printf("MPI_Init_thread: provided = %d, MPI_THREAD_MULTIPLE=%d\n", provided, MPI_THREAD_MULTIPLE);
+    //my_printf("MPI_Init_thread: provided = %d, MPI_THREAD_MULTIPLE=%d\n", provided, MPI_THREAD_MULTIPLE);
     my_printf("%s Running with commsize %d\n", argv[0], commsize);
 
     worker(argc, argv);
