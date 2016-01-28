@@ -24,9 +24,9 @@ add_executable (synthetic_worker_b main.c worker_b.c mandelbrot.c)
 add_executable (synthetic_worker_c main.c worker_c.c mandelbrot.c) 
 
 # Link the executable to the correct libraries
-target_link_libraries (synthetic_worker_a ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
-target_link_libraries (synthetic_worker_b ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
-target_link_libraries (synthetic_worker_c ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
+target_link_libraries (synthetic_worker_a sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
+target_link_libraries (synthetic_worker_b sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
+target_link_libraries (synthetic_worker_c sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
 
 INSTALL(TARGETS 
   synthetic_worker_a

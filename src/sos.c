@@ -40,6 +40,8 @@ int   SOS_NULL_STR_LEN  = sizeof(unsigned char);
 unsigned char  SOS_NULL_STR_CHAR = '\0';
 unsigned char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
 
+/* Global data structure */
+SOS_runtime SOS;
 
 /* **************************************** */
 /* [util]                                   */
@@ -1818,10 +1820,10 @@ void SOS_announce( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOS_announce");
 
     unsigned char *buffer;
-    unsigned char  buffer_stack[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char  buffer_stack[SOS_DEFAULT_BUFFER_LEN] = {0};
     int   buffer_len;
     unsigned char *reply;
-    unsigned char  reply_stack[SOS_DEFAULT_REPLY_LEN];
+    unsigned char  reply_stack[SOS_DEFAULT_REPLY_LEN] = {0};
     int   reply_max;
 
     dlog(6, "[%s]: Preparing an announcement message...\n",    whoami);
@@ -1830,10 +1832,10 @@ void SOS_announce( SOS_pub *pub ) {
     dlog(6, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
     dlog(6, "[%s]:   ... pub->elem_max   = %d\n", whoami, pub->elem_max);
 
-    memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
+    //memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
     buffer     = buffer_stack;
     buffer_len = 0;
-    memset(reply_stack,  '\0', SOS_DEFAULT_REPLY_LEN);
+    //memset(reply_stack,  '\0', SOS_DEFAULT_REPLY_LEN);
     reply      = reply_stack;
     reply_max  = SOS_DEFAULT_REPLY_LEN;
 

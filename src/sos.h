@@ -38,9 +38,8 @@
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
-    char __SOS_var_name[SOS_DEFAULT_STRING_LEN];                        \
+    char __SOS_var_name[SOS_DEFAULT_STRING_LEN] = {0};                  \
     {                                                                   \
-        memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
         switch (SOS.role) {                                             \
         case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func); break; \
         case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func); break; \
@@ -53,14 +52,14 @@
 #define SOS_DEFAULT_SERVER_HOST    "localhost"
 #define SOS_DEFAULT_SERVER_PORT    22505
 #define SOS_DEFAULT_MSG_TIMEOUT    2048
-#define SOS_DEFAULT_BUFFER_LEN     2621440
+#define SOS_DEFAULT_BUFFER_LEN     8388608
 #define SOS_DEFAULT_REPLY_LEN      128
 #define SOS_DEFAULT_STRING_LEN     256
 #define SOS_DEFAULT_RING_SIZE      8192
 #define SOS_DEFAULT_TABLE_SIZE     128
 #define SOS_DEFAULT_UID_MAX        LONG_MAX
 #define SOS_DEFAULT_GUID_BLOCK     512
-#define SOS_DEFAULT_ELEM_MAX       64
+#define SOS_DEFAULT_ELEM_MAX       1024
 
 /* ************************************ */
 
@@ -419,7 +418,7 @@ typedef struct {
  *  The root 'global' data structure:
  */
 
-SOS_runtime SOS;
+extern SOS_runtime SOS;
 
 /*
  *
