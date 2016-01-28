@@ -24,6 +24,8 @@ void validate_input(int argc, char* argv[]) {
 }
 
 int worker(int argc, char* argv[]) {
+    TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
+    TAU_PROFILE_START(timer);
     my_printf("%d of %d In worker A\n", myrank, commsize);
 
     /* validate input */
@@ -75,6 +77,8 @@ int worker(int argc, char* argv[]) {
             p[i] = index*1000.0 + myrank*NY + i;
         }
 
+        TAU_PROFILE_TIMER(adiostimer, "ADIOS send", __FILE__, TAU_USER);
+        TAU_PROFILE_START(adiostimer);
         if (index == 0) {
             adios_open(&adios_handle, "a_to_b", adios_filename, "w", adios_comm);
         } else {
@@ -96,13 +100,16 @@ int worker(int argc, char* argv[]) {
         *        If MPI is being used, this must happen before MPI_Finalize().
         */
         adios_close(adios_handle);
+        TAU_PROFILE_STOP(adiostimer);
         MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
 
     adios_finalize(myrank);
     my_printf("Worker A exting.\n");
+    MPI_Comm_free(&adios_comm);
 
+    TAU_PROFILE_STOP(timer);
     /* exit */
     return 0;
 }

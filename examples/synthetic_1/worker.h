@@ -2,6 +2,7 @@
 
 #include "mpi.h"
 #include "adios.h"
+#include "util.h"
 
 /* Global variables */
 extern int commsize;

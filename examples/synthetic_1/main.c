@@ -3,9 +3,9 @@
 ******************************************************************************/
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <mpi.h>
 #include "worker.h"
+#include "util.h"
 
 /* Global variables */
 int commsize = 1;
@@ -13,6 +13,10 @@ int myrank = 0;
 
 int main (int argc, char *argv[]) 
 {
+    TAU_INIT(&argc, &argv);
+    TAU_PROFILE_SET_NODE(0);
+    TAU_PROFILE_TIMER(tautimer, __func__, __FILE__, TAU_USER);
+    TAU_PROFILE_START(tautimer);
 
     int rc = MPI_SUCCESS;
     int provided = 0;
@@ -35,6 +39,7 @@ int main (int argc, char *argv[])
     MPI_Finalize();
     my_printf ("%s Done.\n", argv[0]);
 
+    TAU_PROFILE_STOP(tautimer);
     return 0;
 }
 

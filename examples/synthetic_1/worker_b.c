@@ -26,6 +26,8 @@ void validate_input(int argc, char* argv[]) {
 }
 
 int worker(int argc, char* argv[]) {
+    TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
+    TAU_PROFILE_START(timer);
     my_printf("%d of %d In worker B\n", myrank, commsize);
 
     /* validate input */
@@ -78,6 +80,7 @@ int worker(int argc, char* argv[]) {
     double timeout_sec = 1.0;
     sprintf(adios_filename_a_to_b, "adios_a_to_b.bp");
     sprintf(adios_filename_b_to_c, "adios_b_to_c.bp");
+    my_printf ("rank %d: Worker B opening file: %s\n", myrank, adios_filename_a_to_b);
     fp = adios_read_open(adios_filename_a_to_b, method, adios_comm, lock_mode, timeout_sec);
     if (adios_errno == err_file_not_found) {
         fprintf (stderr, "rank %d: Stream not found after waiting %d seconds: %s\n",
@@ -121,6 +124,8 @@ int worker(int argc, char* argv[]) {
         while (adios_errno != err_end_of_stream && steps < iterations) {
             steps++; // steps start counting from 1
 
+            TAU_PROFILE_TIMER(adios_recv_timer, "ADIOS recv", __FILE__, TAU_USER);
+            TAU_PROFILE_START(adios_recv_timer);
             sel = adios_selection_boundingbox (vi->ndim, start, count);
             adios_schedule_read (fp, sel, "temperature", 0, 1, data);
             adios_perform_reads (fp, 1);
@@ -147,6 +152,7 @@ int worker(int argc, char* argv[]) {
                         myrank, adios_errmsg());
                 break; // quit while loop
             }
+            TAU_PROFILE_STOP(adios_recv_timer);
 
             /* Do some exchanges with neighbors */
             //do_neighbor_exchange();
@@ -161,6 +167,8 @@ int worker(int argc, char* argv[]) {
                 p[i] = steps*1000.0 + myrank*NY + i;
             }
 
+            TAU_PROFILE_TIMER(adios_send_timer, "ADIOS send", __FILE__, TAU_USER);
+            TAU_PROFILE_START(adios_send_timer);
             /* ADIOS: write to the next application in the workflow */
             if (steps == 0) {
                 adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "w", adios_comm_b_to_c);
@@ -178,6 +186,7 @@ int worker(int argc, char* argv[]) {
             *        If MPI is being used, this must happen before MPI_Finalize().
             */
             adios_close(adios_handle);
+            TAU_PROFILE_STOP(adios_send_timer);
             MPI_Barrier(adios_comm_b_to_c);
         }
         MPI_Barrier(MPI_COMM_WORLD);
@@ -190,9 +199,12 @@ int worker(int argc, char* argv[]) {
     adios_finalize(myrank);
 
     free(data);
+    MPI_Comm_free(&adios_comm);
+    MPI_Comm_free(&adios_comm_b_to_c);
 
+    TAU_PROFILE_STOP(timer);
     /* exit */
     return 0;
 }
 
-int compute(int iteration) { return 0; }
+//int compute(int iteration) { return 0; }

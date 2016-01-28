@@ -1,5 +1,7 @@
  // from http://rosettacode.org/wiki/Mandelbrot_set#C
  
+ #include "util.h"
+
  /* 
  c program:
  --------------------------------
@@ -16,6 +18,8 @@
  #include <math.h>
  int compute(int iteration)
  {
+    TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
+    TAU_PROFILE_START(timer);
           /* screen ( integer) coordinate */
         int iX,iY;
         const int iXmax = 800; 
@@ -88,5 +92,6 @@
                 }
         }
         fclose(fp);
+    TAU_PROFILE_STOP(timer);
         return 0;
  }
