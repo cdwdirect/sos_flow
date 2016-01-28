@@ -74,6 +74,7 @@ int worker(int argc, char* argv[]) {
     enum ADIOS_LOCKMODE lock_mode = ADIOS_LOCKMODE_NONE;
     double timeout_sec = 1.0;
     sprintf(adios_filename_b_to_c, "adios_b_to_c.bp");
+    my_printf ("rank %d: Worker C opening file: %s\n", myrank, adios_filename_b_to_c);
     fp = adios_read_open(adios_filename_b_to_c, method, adios_comm, lock_mode, timeout_sec);
     if (adios_errno == err_file_not_found) {
         fprintf (stderr, "rank %d: Stream not found after waiting %d seconds: %s\n",
