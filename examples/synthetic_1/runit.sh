@@ -1,12 +1,12 @@
 #!/bin/bash -e
 
 export SOS_ROOT=$HOME/src/sos_flow
+export SOS_CMD_PORT=22500
 
 # cleanup
-rm -f new1.ppm *.bp *.trc *.edf *.slog2
+rm -f new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock
 
 # start the SOS daemon
-export SOS_CMD_PORT=22500
 ${SOS_ROOT}/src/mpi.start.2 &
 sleep 1
 
@@ -29,5 +29,5 @@ if [ -e "${files[0]}" ] ; then
 fi
 
 # shut down the daemon. DAEMON GET OUT!
-${SOS_ROOT}/bin/sos_stop
+${SOS_ROOT}/bin/sosd_stop
 sleep 1
