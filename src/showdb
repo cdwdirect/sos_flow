@@ -1,9 +1,20 @@
-ls -AblFs *.db
-echo -n "sosd.0.db = "
-sqlite3 sosd.0.db "select max(rowid) from tblvals;"
-echo -n "sosd.1.db = "
-sqlite3 sosd.1.db "select max(rowid) from tblvals;"
-echo "sosd.0.db [pubs] = "
-sqlite3 sosd.0.db "select * from tblpubs;"
-echo "sosd.1.db [pubs] = "
-sqlite3 sosd.1.db "select * from tblpubs;"
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then 
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+ls -AblFs $SOS_ROOT/src/*.db
+echo ""
+echo -n "sosd.0.db (daemon) [val.count] = "
+sqlite3 $SOS_ROOT/src/sosd.0.db "select max(rowid) from tblvals;"
+echo -n "sosd.0.db (daemon) [pub.count] = "
+sqlite3 $SOS_ROOT/src/sosd.0.db "select max(rowid) from tblpubs;"
+echo "sosd.0.db (daemon) [pubs.list] = "
+sqlite3 $SOS_ROOT/src/sosd.0.db "select * from tblpubs;"
+echo ""
+echo -n "sosd.1.db (  db  ) [val.count] = "
+sqlite3 $SOS_ROOT/src/sosd.1.db "select max(rowid) from tblvals;"
+echo -n "sosd.1.db (  db  ) [pub.count] = "
+sqlite3 $SOS_ROOT/src/sosd.1.db "select max(rowid) from tblpubs;"
+echo "sosd.1.db (  db  ) [pubs.list] = "
+sqlite3 $SOS_ROOT/src/sosd.1.db "select * from tblpubs;"

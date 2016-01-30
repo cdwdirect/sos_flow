@@ -39,7 +39,7 @@
 #include "qhashtbl.h"
 #include "pack_buffer.h"
 
-#define USAGE          "usage:   $ sosd --port <number> --buffer_len <bytes> --listen_backlog <len> [--role <role>] [--work_dir <path>]"
+#define USAGE          "usage:   $ sosd  --port <number>  --buffer_len <bytes>  --listen_backlog <len>  --role <role>  --work_dir <path>"
 
 int main(int argc, char *argv[])  {
     int elem, next_elem;

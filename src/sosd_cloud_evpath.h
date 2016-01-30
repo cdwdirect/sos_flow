@@ -5,8 +5,14 @@
 #include "sos_debug.h"
 #include "sosd.h"
 
-int SOSD_cloud_init(int *argc, char ***argv);
-int SOSD_cloud_send(char *msg, int msg_len);
-int SOSD_cloud_finalize();
+
+int   SOSD_cloud_init(int *argc, char ***argv);
+int   SOSD_cloud_send(unsigned char *msg, int msg_len);
+void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len);
+void  SOSD_cloud_fflush(void);
+int   SOSD_cloud_finalize(void);
+void  SOSD_cloud_shutdown_notice(void);
+void  SOSD_cloud_listen_loop(void);
+
 
 #endif

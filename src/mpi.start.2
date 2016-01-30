@@ -3,7 +3,11 @@ if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
 fi
-if [ -z $1 ]; then echo "   >>> BATCH MODE!"; fi;
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+
 if [ -z $1 ]; then echo "   >>> Starting the sosd daemons..."; fi;
 ${SOS_ROOT}/src/mpi.cleanall
 if [ -z $1 ]; then echo "   >>> Launching the sosd daemons..."; fi;

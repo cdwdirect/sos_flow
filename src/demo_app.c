@@ -15,7 +15,7 @@
 
 #define NUM_VALUES     20
 
-#define USAGE "./demo_app --iteration_size <size> --max_send_count <count> [--jitter <time.sec>]"
+#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> [-j <jittertime.sec>]"
 
 
 #undef SOS_DEBUG
@@ -54,11 +54,11 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        if ( strcmp(argv[elem], "--iteration_size"  ) == 0) {
+        if ( strcmp(argv[elem], "-i"  ) == 0) {
             ITERATION_SIZE  = atoi(argv[next_elem]);
-        } else if ( strcmp(argv[elem], "--max_send_count"  ) == 0) {
+        } else if ( strcmp(argv[elem], "-m"  ) == 0) {
             MAX_SEND_COUNT  = atoi(argv[next_elem]);
-        } else if ( strcmp(argv[elem], "--jitter"          ) == 0) {
+        } else if ( strcmp(argv[elem], "-j"  ) == 0) {
             JITTER_INTERVAL = strtod(argv[next_elem], NULL);
             JITTER_ENABLED = 1;
         } else {
