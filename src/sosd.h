@@ -9,9 +9,9 @@
 
 
 /*********************/
-/* [mode]
+/* [SOSD_DAEMON_MODE]
  *    1 = Fork into a new ID/SESSION...
- *    0 = Run interactively, as launched. (Good for certain MPI+MPMD setups)
+ *    0 = Run interactively, as launched. (Good for most MPI+MPMD setups)
  *
 #define SOSD_DAEMON_MODE             0
  *********************/
@@ -127,7 +127,6 @@ extern "C" {
     extern int   SOSD_cloud_finalize(void);
     extern void  SOSD_cloud_shutdown_notice(void);
     extern void  SOSD_cloud_listen_loop(void);
-    extern void* SOSD_THREAD_cloud_flush(void *params);
 #endif
 
     void  SOSD_init(void);

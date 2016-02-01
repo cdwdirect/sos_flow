@@ -3,16 +3,23 @@ if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
 fi
-if [ -z $1 ]; then echo "   >>> BATCH MODE!"; fi;
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+
 if [ -z $1 ]; then echo "   >>> Starting the sosd daemons..."; fi;
 ${SOS_ROOT}/src/mpi.cleanall
 if [ -z $1 ]; then echo "   >>> Launching the sosd daemons..."; fi;
+
 daemon0="-np 1 ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_ROOT}/src"
 daemon1="-np 1 ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_ROOT}/src"
+
 echo ${daemon0}
 echo ${daemon1}
 
-#GOOD:   valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --trace-children=yes mpirun ${daemon0} : ${daemon1}
-#BETTER: valgrind --tool=memcheck --trace-children=yes --track-origins=yes mpirun ${daemon0} : ${daemon1}
-
 mpirun ${daemon0} : ${daemon1}
+
+
+# Example of valgrind launch:
+#  valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --trace-children=yes mpirun ${daemon0} : ${daemon1}

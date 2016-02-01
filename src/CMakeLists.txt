@@ -128,17 +128,6 @@ add_executable("sosd_stop" "sosd_stop.c")
 target_link_libraries("sosd_stop" "sos")
 
 
-#TARGET ---> sos_cmd
-#            (command-line interface)
-add_executable("sos_cmd" "sos_cmd.c")
-target_link_libraries("sos_cmd" "sos")
-
-#TARGET ---> test_ring
-#            (debugging code)
-add_executable("test_ring" "test_ring.c")
-target_link_libraries("test_ring" "sos")
-
-
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "demo_app.c")

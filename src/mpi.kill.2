@@ -1,0 +1,11 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then 
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+echo "Launching the sosd_stop tool..."
+$SOS_ROOT/bin/sosd_stop

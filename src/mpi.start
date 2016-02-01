@@ -1,8 +1,0 @@
-if [ -z $1 ]; then echo "   >>> Starting the sosd daemon...  (MPI SINGLE-INSTANCE VERSION!)"; fi;
-if [ -z $1 ]; then echo "   >>> Clearing the log file."; fi;
-rm -f ./sosd.0.log
-if [ -z $1 ]; then echo "   >>> Clearing the database."; fi;
-rm -f ./sosd.0.db
-rm -rf ./sosd.0.db.lock
-if [ -z $1 ]; then echo "   >>> Launching the sosd daemon...   (port:$SOS_CMD_PORT)" ; fi;
-mpirun -np 1 ../bin/sosd --port 22505 --buffer_len 2048 --listen_backlog 10 --work_dir $(pwd)

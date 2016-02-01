@@ -33,7 +33,7 @@ project(${PROJECT_NAME} C)
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")
-  message(STATUS ">>> TAU:  Building the SOS system with support for TAU monitoring.")
+  message(STATUS ">>> TAU:  Building SOS components with TAU instrumentation (...of SOS itself).")
   message(STATUS ">>> TAU:")
   set (CMAKE_C_COMPILER /usr/local/tau-2.24.1/x86_64/bin/tau_cc.sh)
   add_definitions(-optMemDbg -optTrackPthread -optMpi -optTrackIO -optPDTInst)

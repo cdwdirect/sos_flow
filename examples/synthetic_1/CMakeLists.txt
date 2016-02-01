@@ -24,6 +24,14 @@ add_executable (synthetic_worker_a main.c worker_a.c mandelbrot.c)
 add_executable (synthetic_worker_b main.c worker_b.c mandelbrot.c) 
 add_executable (synthetic_worker_c main.c worker_c.c mandelbrot.c) 
 
+# NOTE: This is commented out because FindADIOS.cmake it likely handling all of it now.
+#
+# Somewhat wonky, hopefully portable ADIOS stuff...
+#  ...should grab the right includes and libs that could be needed
+#     based on how ADIOS itself was configured.
+# exec_program("adios_config -c" OUTPUT_VARIABLE ADIOS_COMPONENT_CFLAGS)
+# exec_program("adios_config -l" OUTPUT_VARIABLE ADIOS_COMPONENT_LDFLAGS)
+
 # Link the executable to the correct libraries
 link_directories("${sos_flow_SOURCE_DIR}/lib")
 target_link_libraries (synthetic_worker_a sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
