@@ -750,6 +750,7 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
 
 
 void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
+
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
     unsigned char reply[SOS_DEFAULT_REPLY_LEN];
