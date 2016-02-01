@@ -128,6 +128,7 @@ int worker(int argc, char* argv[]) {
                 printf ("--------- C Step: %d --------------------------------\n",
                         fp->current_step);
 
+#if 0
             printf("C rank=%d: [0:%lld,0:%lld] = [", myrank, vi->dims[0], vi->dims[1]);
             for (i = 0; i < slice_size; i++) {
                 printf (" [");
@@ -137,6 +138,7 @@ int worker(int argc, char* argv[]) {
                 printf ("]");
             }
             printf (" ]\n\n");
+#endif
 
             // advance to 1) next available step with 2) blocking wait
             adios_advance_step (fp, 0, timeout_sec);

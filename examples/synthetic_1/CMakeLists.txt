@@ -17,6 +17,7 @@ endif()
 include_directories (.)
 include_directories("${MPI_INCLUDE_PATH}")
 include_directories("${ADIOS_INCLUDE_DIRS}")
+include_directories("${sos_flow_SOURCE_DIR}/src")
 
 # add our executables
 add_executable (synthetic_worker_a main.c worker_a.c mandelbrot.c) 
@@ -24,6 +25,7 @@ add_executable (synthetic_worker_b main.c worker_b.c mandelbrot.c)
 add_executable (synthetic_worker_c main.c worker_c.c mandelbrot.c) 
 
 # Link the executable to the correct libraries
+link_directories("${sos_flow_SOURCE_DIR}/lib")
 target_link_libraries (synthetic_worker_a sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
 target_link_libraries (synthetic_worker_b sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
 target_link_libraries (synthetic_worker_c sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
