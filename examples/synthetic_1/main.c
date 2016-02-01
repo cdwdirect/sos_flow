@@ -11,7 +11,7 @@
 /* Global variables */
 int commsize = 1;
 int myrank = 0;
-SOS_pub *pub = NULL; // sos.h is included by main.h
+SOS_pub *example_pub = NULL; // sos.h is included by main.h
 
 int main (int argc, char *argv[]) 
 {

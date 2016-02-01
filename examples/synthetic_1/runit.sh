@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -e
 
 export SOS_ROOT=$HOME/src/sos_flow
 export SOS_CMD_PORT=22500

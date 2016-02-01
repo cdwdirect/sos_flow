@@ -3,19 +3,25 @@ if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
 fi
-ls -AblFs $SOS_ROOT/src/*.db
+if [ "x${SOS_WORK}" == "x" ] ; then 
+  echo "Please set the SOS_WORK environment variable."
+  # kill -INT $$
+  echo "(using SOS_WORK to ${SOS_ROOT}/src as default)"
+  export SOS_WORK=${SOS_ROOT}/src
+fi
+ls -AblFs $SOS_WORK/*.db
 echo ""
 echo -n "sosd.0.db (daemon) [val.count] = "
-sqlite3 $SOS_ROOT/src/sosd.0.db "select max(rowid) from tblvals;"
+sqlite3 $SOS_WORK/sosd.0.db "select max(rowid) from tblvals;"
 echo -n "sosd.0.db (daemon) [pub.count] = "
-sqlite3 $SOS_ROOT/src/sosd.0.db "select max(rowid) from tblpubs;"
+sqlite3 $SOS_WORK/sosd.0.db "select max(rowid) from tblpubs;"
 echo "sosd.0.db (daemon) [pubs.list] = "
-sqlite3 $SOS_ROOT/src/sosd.0.db  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs;"
+sqlite3 $SOS_WORK/sosd.0.db  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs;"
 echo ""
 echo -n "sosd.1.db (  db  ) [val.count] = "
-sqlite3 $SOS_ROOT/src/sosd.1.db "select max(rowid) from tblvals;"
+sqlite3 $SOS_WORK/sosd.1.db "select max(rowid) from tblvals;"
 echo -n "sosd.1.db (  db  ) [pub.count] = "
-sqlite3 $SOS_ROOT/src/sosd.1.db "select max(rowid) from tblpubs;"
+sqlite3 $SOS_WORK/sosd.1.db "select max(rowid) from tblpubs;"
 echo "sosd.1.db (  db  ) [pubs.list] = "
-sqlite3 $SOS_ROOT/src/sosd.1.db  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs;"
+sqlite3 $SOS_WORK/sosd.1.db  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs;"
 
