@@ -1,2 +1,7 @@
 CMakeFiles
 src/go_output/*
+bin
+lib
+rebaseme.sh
+sourceme.sh
+examples/synthetic_1/tau.conf
