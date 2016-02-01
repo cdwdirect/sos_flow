@@ -10,3 +10,5 @@ if [ "$1" == "clean" ] ; then
 fi
 ./make
 cd ../examples/synthetic_1
+
+cp ../../src/showdb ../../bin/.

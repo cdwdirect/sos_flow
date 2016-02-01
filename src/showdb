@@ -10,18 +10,13 @@ if [ "x${SOS_WORK}" == "x" ] ; then
   export SOS_WORK=${SOS_ROOT}/src
 fi
 ls -AblFs $SOS_WORK/*.db
-echo ""
-echo -n "sosd.0.db (daemon) [val.count] = "
-sqlite3 $SOS_WORK/sosd.0.db "select max(rowid) from tblvals;"
-echo -n "sosd.0.db (daemon) [pub.count] = "
-sqlite3 $SOS_WORK/sosd.0.db "select max(rowid) from tblpubs;"
-echo "sosd.0.db (daemon) [pubs.list] = "
-sqlite3 $SOS_WORK/sosd.0.db  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs;"
-echo ""
-echo -n "sosd.1.db (  db  ) [val.count] = "
-sqlite3 $SOS_WORK/sosd.1.db "select max(rowid) from tblvals;"
-echo -n "sosd.1.db (  db  ) [pub.count] = "
-sqlite3 $SOS_WORK/sosd.1.db "select max(rowid) from tblpubs;"
-echo "sosd.1.db (  db  ) [pubs.list] = "
-sqlite3 $SOS_WORK/sosd.1.db  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs;"
+for db in $SOS_WORK/sosd.*.db ; do
+    echo ""
+    echo -n "${db} (daemon) [val.count] = "
+    sqlite3 ${db} "select max(rowid) from tblvals;"
+    echo -n "${db} (daemon) [pub.count] = "
+    sqlite3 ${db} "select max(rowid) from tblpubs;"
+    echo "${db} (daemon) [pubs.list] = "
+    sqlite3 ${db}  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs where row_id in (select max(row_id) from tblpubs group by title, process_id, thread_id) order by prog_name, comm_rank, title;"
+done
 

@@ -15,7 +15,7 @@ if [ ! -f tau.conf ] ; then
 fi
 
 # cleanup
-rm -f new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock
+rm -rf new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock
 
 # start the SOS daemon
 
@@ -33,9 +33,10 @@ sleep 1
 
 # launch our workflow
 i=10
-A="-np 2 ${SOS_ROOT}/bin/synthetic_worker_a ${i}"
-B="-np 2 ${SOS_ROOT}/bin/synthetic_worker_b ${i}"
-C="-np 2 ${SOS_ROOT}/bin/synthetic_worker_c ${i}"
+w=2
+A="-np ${w} ${SOS_ROOT}/bin/synthetic_worker_a ${i}"
+B="-np ${w} ${SOS_ROOT}/bin/synthetic_worker_b ${i}"
+C="-np ${w} ${SOS_ROOT}/bin/synthetic_worker_c ${i}"
 
 mpirun ${A} &
 sleep 1

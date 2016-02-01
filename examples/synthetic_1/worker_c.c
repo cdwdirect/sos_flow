@@ -12,16 +12,19 @@
  */
 
 int iterations = 1;
+//extern SOS_pub *example_pub;
 
 void validate_input(int argc, char* argv[]) {
     if (argc < 2) {
         my_printf("Usage: %s <num iterations>\n", argv[0]);
         exit(1);
     }
+    /*
     if (commsize < 2) {
         my_printf("%s requires at least 2 processes.\n", argv[0]);
         exit(1);
     }
+    */
     iterations = atoi(argv[1]);
 }
 
@@ -55,7 +58,8 @@ int worker(int argc, char* argv[]) {
      *        can write lock-free by using different areas.
      */
     MPI_Comm  adios_comm;
-    MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    adios_comm = MPI_COMM_WORLD;
 
     enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
     adios_read_init_method(method, adios_comm, "verbose=3");
@@ -166,7 +170,7 @@ int worker(int argc, char* argv[]) {
      */
     adios_read_finalize_method(method);
 
-    MPI_Comm_free(&adios_comm);
+    //MPI_Comm_free(&adios_comm);
     free(data);
 
     TAU_PROFILE_STOP(timer);

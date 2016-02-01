@@ -54,6 +54,10 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     long guid_pool_from;
     long guid_pool_to;
 
+    static bool _initialized = false;
+    if (_initialized) return;
+    _initialized = true;
+
     if (role == SOS_ROLE_CLIENT) { memset(&SOS, '\0', sizeof(SOS_runtime)); }
 
     SOS.role = role;

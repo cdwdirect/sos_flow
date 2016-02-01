@@ -24,12 +24,6 @@ int main (int argc, char *argv[])
     TAU_PROFILE_START(tautimer);
 
     /*
-     * Initialize SOS. This will have been done in TAU, but in case we don't 
-     * use TAU, we still want SOS action.
-     */
-    SOS_init_wrapper(&argc, &argv);
-
-    /*
      * Initialize MPI. We don't require threaded support, but with threads
      * we can send the TAU data over SOS asynchronously.
      */
@@ -48,6 +42,12 @@ int main (int argc, char *argv[])
     MPI_Comm_size(MPI_COMM_WORLD, &commsize);
     //my_printf("MPI_Init_thread: provided = %d, MPI_THREAD_MULTIPLE=%d\n", provided, MPI_THREAD_MULTIPLE);
     my_printf("%s Running with commsize %d\n", argv[0], commsize);
+
+    /*
+     * Initialize SOS. This will have been done in TAU, but in case we don't 
+     * use TAU, we still want SOS action.
+     */
+    SOS_init_wrapper(&argc, &argv);
 
     /*
      * Run the worker code.

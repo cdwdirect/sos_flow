@@ -15,7 +15,7 @@ if [ ! -f tau.conf ] ; then
 fi
 
 # cleanup
-rm -f new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock
+rm -rf new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock
 
 # start the SOS daemon
 
@@ -32,10 +32,11 @@ mpirun ${daemon0} : ${daemon1} &
 sleep 1
 
 # launch our workflow
-i=10
+i=20
 A="-np 2 ${SOS_ROOT}/bin/synthetic_worker_a ${i} 0"
 
-mpirun ${A}
+ #mpirun ${A}
+mpirun -np 1 gdb --args ${SOS_ROOT}/bin/synthetic_worker_a ${i} 0
 
 sleep 1
 # post-process TAU files

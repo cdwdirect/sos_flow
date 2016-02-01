@@ -2,6 +2,7 @@
 #include "stdio.h"
 #include "stdlib.h"
 #include "adios.h"
+#include "sos.h"
 
 /* 
  * Worker A is the first application in the workflow.
@@ -11,16 +12,19 @@
 
 int iterations = 1;
 bool send_to_b = true;
+extern SOS_pub *example_pub;
 
 void validate_input(int argc, char* argv[]) {
     if (argc < 2) {
         my_printf("Usage: %s <num iterations> <send to next worker>\n", argv[0]);
         exit(1);
     }
+    /*
     if (commsize < 2) {
         my_printf("%s requires at least 2 processes.\n", argv[0]);
         exit(1);
     }
+    */
     iterations = atoi(argv[1]);
     if (argc > 2) {
         int tmp = atoi(argv[2]);
@@ -33,6 +37,7 @@ void validate_input(int argc, char* argv[]) {
 int worker(int argc, char* argv[]) {
     TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
     TAU_PROFILE_START(timer);
+    static bool announced = false;
     my_printf("%d of %d In worker A\n", myrank, commsize);
 
     /* validate input */
@@ -55,7 +60,8 @@ int worker(int argc, char* argv[]) {
      *        With no splits, everyone shares 1 file, but
      *        can write lock-free by using different areas.
      */
-    MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    adios_comm = MPI_COMM_WORLD;
 
     int NX = 10;
     int NY = 1;
@@ -106,6 +112,16 @@ int worker(int argc, char* argv[]) {
             */
             adios_close(adios_handle);
             TAU_PROFILE_STOP(adiostimer);
+            #if 1
+            if (!announced) {
+                SOS_val foo;
+                foo.i_val = NX;
+                SOS_pack(example_pub, "NX", SOS_VAL_TYPE_INT, foo);
+                SOS_announce(example_pub);
+                SOS_publish(example_pub);
+                announced = true;
+            }
+            #endif
         }
         MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -115,7 +131,7 @@ int worker(int argc, char* argv[]) {
         adios_finalize(myrank);
     }
     my_printf("Worker A exting.\n");
-    MPI_Comm_free(&adios_comm);
+    //MPI_Comm_free(&adios_comm);
 
     TAU_PROFILE_STOP(timer);
     /* exit */

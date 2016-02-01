@@ -3,6 +3,7 @@
 #include "stdlib.h"
 #include "adios_read.h"
 #include <stdbool.h>
+#include "sos.h"
 
 /* 
  * Worker B is the second application in the workflow.
@@ -13,16 +14,19 @@
 
 int iterations = 1;
 bool send_to_c = true;
+extern SOS_pub *example_pub;
 
 void validate_input(int argc, char* argv[]) {
     if (argc < 2) {
         my_printf("Usage: %s <num iterations> <send to next worker>\n", argv[0]);
         exit(1);
     }
+    /*
     if (commsize < 2) {
         my_printf("%s requires at least 2 processes.\n", argv[0]);
         exit(1);
     }
+    */
     iterations = atoi(argv[1]);
     if (argc > 2) {
         int tmp = atoi(argv[2]);
@@ -36,6 +40,7 @@ int worker(int argc, char* argv[]) {
     TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
     TAU_PROFILE_START(timer);
     my_printf("%d of %d In worker B\n", myrank, commsize);
+    static bool announced = false;
 
     /* validate input */
     validate_input(argc, argv);
@@ -65,8 +70,10 @@ int worker(int argc, char* argv[]) {
      *        can write lock-free by using different areas.
      */
     MPI_Comm  adios_comm, adios_comm_b_to_c;
-    MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
-    MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm_b_to_c);
+    adios_comm = MPI_COMM_WORLD;
+    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    adios_comm_b_to_c = MPI_COMM_WORLD;
+    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm_b_to_c);
 
     enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
     adios_read_init_method(method, adios_comm, "verbose=3");
@@ -199,6 +206,16 @@ int worker(int argc, char* argv[]) {
                 */
                 adios_close(adios_handle);
                 TAU_PROFILE_STOP(adios_send_timer);
+            #if 1
+            if (!announced) {
+                SOS_val foo;
+                foo.i_val = NX;
+                SOS_pack(example_pub, "NX", SOS_VAL_TYPE_INT, foo);
+                SOS_announce(example_pub);
+                SOS_publish(example_pub);
+                announced = true;
+            }
+            #endif
             }
             MPI_Barrier(adios_comm_b_to_c);
         }
@@ -214,8 +231,8 @@ int worker(int argc, char* argv[]) {
     }
 
     free(data);
-    MPI_Comm_free(&adios_comm);
-    MPI_Comm_free(&adios_comm_b_to_c);
+    //MPI_Comm_free(&adios_comm);
+    //MPI_Comm_free(&adios_comm_b_to_c);
 
     TAU_PROFILE_STOP(timer);
     /* exit */
