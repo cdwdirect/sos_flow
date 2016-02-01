@@ -12,10 +12,11 @@
  */
 
 int iterations = 1;
+bool send_to_c = true;
 
 void validate_input(int argc, char* argv[]) {
     if (argc < 2) {
-        my_printf("Usage: %s <num iterations>\n", argv[0]);
+        my_printf("Usage: %s <num iterations> <send to next worker>\n", argv[0]);
         exit(1);
     }
     if (commsize < 2) {
@@ -23,6 +24,12 @@ void validate_input(int argc, char* argv[]) {
         exit(1);
     }
     iterations = atoi(argv[1]);
+    if (argc > 2) {
+        int tmp = atoi(argv[2]);
+        if (tmp == 0) {
+            send_to_c = false;
+        }
+    }
 }
 
 int worker(int argc, char* argv[]) {
@@ -67,7 +74,9 @@ int worker(int argc, char* argv[]) {
         fprintf (stderr, "rank %d: Error %d at init: %s\n", myrank, adios_errno, adios_errmsg());
         exit(4);
     }
-    adios_init("adios_config.xml", adios_comm);
+    if (send_to_c) {
+        adios_init("adios_config.xml", adios_comm);
+    }
 
     /* ADIOS: Set up the adios communications and buffers, open the file.
     */
@@ -134,6 +143,7 @@ int worker(int argc, char* argv[]) {
                 printf ("--------- B Step: %d --------------------------------\n",
                         fp->current_step);
 
+#if 0
             printf("B rank=%d: [0:%lld,0:%lld] = [", myrank, vi->dims[0], vi->dims[1]);
             for (i = 0; i < slice_size; i++) {
                 printf (" [");
@@ -143,6 +153,7 @@ int worker(int argc, char* argv[]) {
                 printf ("]");
             }
             printf (" ]\n\n");
+#endif
 
             // advance to 1) next available step with 2) blocking wait
             adios_advance_step (fp, 0, timeout_sec);
@@ -167,26 +178,28 @@ int worker(int argc, char* argv[]) {
                 p[i] = steps*1000.0 + myrank*NY + i;
             }
 
-            TAU_PROFILE_TIMER(adios_send_timer, "ADIOS send", __FILE__, TAU_USER);
-            TAU_PROFILE_START(adios_send_timer);
-            /* ADIOS: write to the next application in the workflow */
-            if (steps == 0) {
-                adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "w", adios_comm_b_to_c);
-            } else {
-                adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "a", adios_comm_b_to_c);
+            if (send_to_c) {
+                TAU_PROFILE_TIMER(adios_send_timer, "ADIOS send", __FILE__, TAU_USER);
+                TAU_PROFILE_START(adios_send_timer);
+                /* ADIOS: write to the next application in the workflow */
+                if (steps == 0) {
+                    adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "w", adios_comm_b_to_c);
+                } else {
+                    adios_open(&adios_handle, "b_to_c", adios_filename_b_to_c, "a", adios_comm_b_to_c);
+                }
+                /* ADIOS: Actually write the data out.
+                *        Yes, this is the recommended method, and this way, changes in
+                *        configuration with the .XML file will, even in the worst-case
+                *        scenario, merely require running 'gpp.py adios_config.xml'
+                *        and typing 'make'.
+                */
+                #include "gwrite_b_to_c.ch"
+                /* ADIOS: Close out the file completely and finalize.
+                *        If MPI is being used, this must happen before MPI_Finalize().
+                */
+                adios_close(adios_handle);
+                TAU_PROFILE_STOP(adios_send_timer);
             }
-            /* ADIOS: Actually write the data out.
-            *        Yes, this is the recommended method, and this way, changes in
-            *        configuration with the .XML file will, even in the worst-case
-            *        scenario, merely require running 'gpp.py adios_config.xml'
-            *        and typing 'make'.
-            */
-            #include "gwrite_b_to_c.ch"
-            /* ADIOS: Close out the file completely and finalize.
-            *        If MPI is being used, this must happen before MPI_Finalize().
-            */
-            adios_close(adios_handle);
-            TAU_PROFILE_STOP(adios_send_timer);
             MPI_Barrier(adios_comm_b_to_c);
         }
         MPI_Barrier(MPI_COMM_WORLD);
@@ -196,7 +209,9 @@ int worker(int argc, char* argv[]) {
         */
         adios_read_finalize_method(method);
     }
-    adios_finalize(myrank);
+    if (send_to_c) {
+        adios_finalize(myrank);
+    }
 
     free(data);
     MPI_Comm_free(&adios_comm);

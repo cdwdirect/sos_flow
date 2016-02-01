@@ -1,4 +1,4 @@
-#!/bin/bash -x
+#!/bin/bash -e
 
 export SOS_ROOT=$HOME/src/sos_flow
 export SOS_CMD_PORT=22500
@@ -33,17 +33,14 @@ sleep 1
 
 # launch our workflow
 i=10
-A="-np 2 ${SOS_ROOT}/bin/synthetic_worker_a ${i}"
-B="-np 2 ${SOS_ROOT}/bin/synthetic_worker_b ${i}"
-C="-np 2 ${SOS_ROOT}/bin/synthetic_worker_c ${i}"
+A="-np 2 ${SOS_ROOT}/bin/synthetic_worker_a ${i} 1"
+B="-np 2 ${SOS_ROOT}/bin/synthetic_worker_b ${i} 0"
 
 mpirun ${A} &
 sleep 1
-mpirun ${B} &
+mpirun ${B}
 sleep 1
-mpirun ${C}
 
-sleep 1
 # post-process TAU files
 files=(tautrace.*.trc)
 if [ -e "${files[0]}" ] ; then

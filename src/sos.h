@@ -15,8 +15,8 @@
  */
 
 
-#define SOS_VERSION "0.0.1"
-#define SOS_BUILDER "University of Oregon"
+#define SOS_VERSION "0.0.0"
+#define SOS_BUILDER "user@some.edu"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,14 +27,6 @@
 #include <netdb.h>
 
 #include "qhashtbl.h"
-
-/* SOS Configuration Switches... */
-
-/*
- *   TODO: { VMPI } Merge in the capability of the former SOS project...
- */
-
-#define SOS_CONFIG_USE_THREAD_POOL     1
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
@@ -49,17 +41,20 @@
         }                                                               \
     }
 
-#define SOS_DEFAULT_SERVER_HOST    "localhost"
-#define SOS_DEFAULT_SERVER_PORT    22505
-#define SOS_DEFAULT_MSG_TIMEOUT    2048
-#define SOS_DEFAULT_BUFFER_LEN     8388608
-#define SOS_DEFAULT_REPLY_LEN      128
-#define SOS_DEFAULT_STRING_LEN     256
-#define SOS_DEFAULT_RING_SIZE      8192
-#define SOS_DEFAULT_TABLE_SIZE     128
-#define SOS_DEFAULT_UID_MAX        LONG_MAX
-#define SOS_DEFAULT_GUID_BLOCK     512
-#define SOS_DEFAULT_ELEM_MAX       1024
+/* SOS Configuration Switches... */
+
+#define SOS_CONFIG_USE_THREAD_POOL  0
+#define SOS_DEFAULT_SERVER_HOST     "localhost"
+#define SOS_DEFAULT_SERVER_PORT     22505
+#define SOS_DEFAULT_MSG_TIMEOUT     2048
+#define SOS_DEFAULT_BUFFER_LEN      2097152
+#define SOS_DEFAULT_REPLY_LEN       128
+#define SOS_DEFAULT_STRING_LEN      256
+#define SOS_DEFAULT_RING_SIZE       8192
+#define SOS_DEFAULT_TABLE_SIZE      128
+#define SOS_DEFAULT_UID_MAX         LONG_MAX
+#define SOS_DEFAULT_GUID_BLOCK      512
+#define SOS_DEFAULT_ELEM_MAX        1024
 
 /* ************************************ */
 
@@ -245,7 +240,7 @@ typedef union {
 } SOS_val;
 
 typedef struct {
-    unsigned char                data[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char       data[SOS_DEFAULT_BUFFER_LEN];
     int                 len;
     int                 max;
     int                 entry_count;
