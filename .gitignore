@@ -1,2 +1,4 @@
 CMakeFiles
 src/go_output/*
+bin
+lib
