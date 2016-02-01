@@ -33,7 +33,7 @@ else
          -DTAU_OPTIONS=-mpi-pthread \
          ..
     fi
-    make VERBOSE=1
+    make -j
     cd ..
     cd src
 fi;
