@@ -7,10 +7,8 @@ sosd.*.db
 sosd.*.log
 demo_app
 sos_cmd
-./libs/*
 ../output/*
 ../bin/*
-*~
 *.lo
 *.so
 *.o

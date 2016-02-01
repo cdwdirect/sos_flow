@@ -686,7 +686,7 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
     new_pub->node_id      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->process_id   = 0;
     new_pub->thread_id    = 0;
-    new_pub->comm_rank    = 0;
+    new_pub->comm_rank    = SOS.config.comm_rank;
     new_pub->prog_name    = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->prog_ver     = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->pragma_len   = 0;
