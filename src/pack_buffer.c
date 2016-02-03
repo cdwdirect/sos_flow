@@ -14,6 +14,8 @@
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
+#include <stdint.h>
+#include <inttypes.h>
 
 #include "sos.h"
 #include "sos_debug.h"
@@ -30,38 +32,53 @@
 ** pack754() -- pack a floating point number into IEEE-754 format
 */ 
 
-unsigned long SOS_buffer_pack754(double f, int bits, int expbits) {
-    double fnorm;
+uint64_t SOS_buffer_pack754(double f, unsigned bits, unsigned expbits)
+{
+    /* TODO: Hack as heck. */
+
+    return (uint64_t)(f);
+
+    //----------
+    long double fnorm;
     int shift;
-    long sign, exp, significand;
+    long long sign, exp, significand;
     unsigned significandbits = bits - expbits - 1; // -1 for sign bit
-    
+
     if (f == 0.0) return 0; // get this special case out of the way
-    
+
     // check sign and begin normalization
     if (f < 0) { sign = 1; fnorm = -f; }
     else { sign = 0; fnorm = f; }
-    
+
     // get the normalized form of f and track the exponent
     shift = 0;
     while(fnorm >= 2.0) { fnorm /= 2.0; shift++; }
     while(fnorm < 1.0) { fnorm *= 2.0; shift--; }
     fnorm = fnorm - 1.0;
-    
+
     // calculate the binary form (non-float) of the significand data
-    significand = fnorm * ((1L<<significandbits) + 0.5f);
-    
+    significand = fnorm * ((1LL<<significandbits) + 0.5f);
+
     // get the biased exponent
     exp = shift + ((1<<(expbits-1)) - 1); // shift + bias
-    
+
     // return the final answer
     return (sign<<(bits-1)) | (exp<<(bits-expbits-1)) | significand;
 }
 
+
 /*
 ** SOS_buffer_unpack754() -- unpack a floating point number from IEEE-754 format
-*/ 
-double SOS_buffer_unpack754(unsigned long i, unsigned bits, unsigned expbits) {
+*/
+
+double SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits)
+{
+
+    /* TODO: Hack as heck. */
+    return (double)(i);
+
+    //----------
+
     long double result;
     long long shift;
     unsigned bias;
@@ -70,13 +87,13 @@ double SOS_buffer_unpack754(unsigned long i, unsigned bits, unsigned expbits) {
     if (i == 0) return 0.0;
 
     // pull the significand
-    result = (i&((1L<<significandbits)-1)); // mask
-    result /= (1L<<significandbits); // convert back to float
+    result = (i&((1LL<<significandbits)-1)); // mask
+    result /= (1LL<<significandbits); // convert back to float
     result += 1.0f; // add the one back on
 
     // deal with the exponent
     bias = (1<<(expbits-1)) - 1;
-    shift = ((i>>significandbits)&((1L<<expbits)-1)) - bias;
+    shift = ((i>>significandbits)&((1LL<<expbits)-1)) - bias;
     while(shift > 0) { result *= 2.0; shift--; }
     while(shift < 0) { result /= 2.0; shift++; }
 
@@ -127,8 +144,9 @@ int SOS_buffer_unpacki32(unsigned char *buf)
 
 /*
 ** unpacki64() -- unpack a 64-bit int from a char buffer (like ntohl())
-*/ 
-long SOS_buffer_unpacki64(unsigned char *buf)
+*/
+
+int64_t SOS_buffer_unpacki64(unsigned char *buf)
 {
     unsigned long i2 = ((unsigned long)buf[0]<<56) |
         ((unsigned long)buf[1]<<48) |
@@ -151,7 +169,7 @@ long SOS_buffer_unpacki64(unsigned char *buf)
 /*
 ** unpacku64() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
 */ 
-unsigned long SOS_buffer_unpacku64(unsigned char *buf)
+uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 {
     return ((unsigned long long int)buf[0]<<56) |
         ((unsigned long long int)buf[1]<<48) |
@@ -178,10 +196,10 @@ int SOS_buffer_pack(unsigned char *buf, char *format, ...)
 
     va_list ap;
 
-    int   i;           // 32-bit
-    long  l;           // 64-bit
-    float d;           // double
-    unsigned long long int fhold;
+    int      i;           // 32-bit
+    long     l;           // 64-bit
+    float    d;           // double
+    uint64_t fhold;
 
     char *s;           // strings
     int len;
@@ -257,7 +275,7 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
     int    *i;       // 32-bit
     long   *l;       // 64-bit
     double *d;       // double (64-bit)
-    unsigned long long int fhold;
+    uint64_t fhold;
 
     char *s;
     unsigned int len, maxstrlen=0, count;
@@ -323,6 +341,74 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
 
     return packed_bytes;
 }
+
+
+
+
+
+
+
+
+/*
+ *  Old stuff...
+ *
+ *
+
+uint64_t OLD_SOS_buffer_pack754(long double f, unsigned int bits, unsigned int expbits) {
+    long double fnorm;
+    int shift;
+    long sign, exp, significand;
+    unsigned significandbits = bits - expbits - 1; // -1 for sign bit
+    
+    if (f == 0.0) return 0; // get this special case out of the way
+    
+    // check sign and begin normalization
+    if (f < 0) { sign = 1; fnorm = -f; }
+    else { sign = 0; fnorm = f; }
+    
+    // get the normalized form of f and track the exponent
+    shift = 0;
+    while(fnorm >= 2.0) { fnorm /= 2.0; shift++; }
+    while(fnorm < 1.0) { fnorm *= 2.0; shift--; }
+    fnorm = fnorm - 1.0;
+    
+    // calculate the binary form (non-float) of the significand data
+    significand = fnorm * ((1L<<significandbits) + 0.5f);
+    
+    // get the biased exponent
+    exp = shift + ((1<<(expbits-1)) - 1); // shift + bias
+    
+    // return the final answer
+    return (sign<<(bits-1)) | (exp<<(bits-expbits-1)) | significand;
+}
+
+
+
+long double OLD_SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits) {
+    long double result;
+    long long shift;
+    unsigned bias;
+    unsigned significandbits = bits - expbits - 1; // -1 for sign bit
+
+    if (i == 0) return 0.0;
+
+    // pull the significand
+    result = (i&((1L<<significandbits)-1)); // mask
+    result /= (1L<<significandbits); // convert back to float
+    result += 1.0f; // add the one back on
+
+    // deal with the exponent
+    bias = (1<<(expbits-1)) - 1;
+    shift = ((i>>significandbits)&((1L<<expbits)-1)) - bias;
+    while(shift > 0) { result *= 2.0; shift--; }
+    while(shift < 0) { result /= 2.0; shift++; }
+
+    // sign it
+    result *= (i>>(bits-1))&1? -1.0: 1.0;
+
+    return result;
+}
+*/
 
 
 

@@ -839,6 +839,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
                 if (strcmp(pub_str_ptr, new_str_ptr) == 0) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
+                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+
                     return i;
                 }
 
@@ -860,10 +862,12 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
                 if (pack_type == SOS_VAL_TYPE_INT && (pub->data[i]->val.i_val == pack_val.i_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
+                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
                     return i;
                 } else if (pack_type == SOS_VAL_TYPE_LONG && (pub->data[i]->val.l_val == pack_val.l_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
+                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
                     return i;
                 } else if (pack_type == SOS_VAL_TYPE_DOUBLE) {
                     /*
@@ -879,6 +883,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             pub->data[i]->type = pack_type;
             pub->data[i]->state = SOS_VAL_STATE_DIRTY;
             SOS_TIME(pub->data[i]->time.pack);
+
+            dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
             switch (pack_type) {
             case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -947,6 +953,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
+        dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+
         switch (pack_type) {
         case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
         case SOS_VAL_TYPE_LONG:   pub->data[i]->val_len = sizeof(long);   break;
@@ -1004,6 +1012,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
+
+        dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
         switch (pack_type) {
         case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1074,6 +1084,8 @@ void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
     }
 
     data->state = SOS_VAL_STATE_DIRTY;
+
+    dlog(1, "[%s]:    ... pub->data[%d]->time.pack == %lf\n", whoami, index, data->time.pack);
 
     return;
 }
@@ -1414,6 +1426,12 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
         }
         ptr = (buffer + offset);
         SOS_val_snap_push_down(queue, pub_guid_str, snap, 0);
+
+        /* TODO: 
+         *   Do we want to make sure the pub[elem]->... stuff is updated
+         *   with the value from this snapshot as well?
+         */
+
     }
 
     dlog(7, "[%s]:      ... UNLOCK queue->lock\n", whoami);
@@ -1597,6 +1615,13 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
         
         pub->data[elem]->state = SOS_VAL_STATE_CLEAN;
         pub->data[elem]->time.send = send_time;
+
+        dlog(1, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
+             whoami,
+             elem,
+             pub->data[elem]->time.pack,
+             elem,
+             pub->data[elem]->time.send);
 
         buffer_len += SOS_buffer_pack(ptr, "iddi",
             elem,
@@ -1782,7 +1807,15 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
             &pub->data[elem]->val_len);
         ptr = (buffer + buffer_pos);
 
-        switch (pub->data[elem]->type) {
+        dlog(1, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
+             whoami,
+             elem,
+             pub->data[elem]->time.pack,
+             elem,
+             pub->data[elem]->time.send);
+ 
+
+       switch (pub->data[elem]->type) {
         case SOS_VAL_TYPE_INT:    buffer_pos += SOS_buffer_unpack(ptr, "i", &pub->data[elem]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   buffer_pos += SOS_buffer_unpack(ptr, "l", &pub->data[elem]->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: buffer_pos += SOS_buffer_unpack(ptr, "d", &pub->data[elem]->val.d_val); break;
