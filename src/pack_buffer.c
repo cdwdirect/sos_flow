@@ -34,12 +34,8 @@
 
 uint64_t SOS_buffer_pack754(double f, unsigned bits, unsigned expbits)
 {
-    /* TODO: Hack as heck. */
-
-    return (uint64_t)(f);
-
     //----------
-    long double fnorm;
+    double fnorm;
     int shift;
     long long sign, exp, significand;
     unsigned significandbits = bits - expbits - 1; // -1 for sign bit
@@ -73,13 +69,9 @@ uint64_t SOS_buffer_pack754(double f, unsigned bits, unsigned expbits)
 
 double SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits)
 {
-
-    /* TODO: Hack as heck. */
-    return (double)(i);
-
     //----------
 
-    long double result;
+    double result;
     long long shift;
     unsigned bias;
     unsigned significandbits = bits - expbits - 1; // -1 for sign bit
