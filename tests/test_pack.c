@@ -5,6 +5,7 @@
 #include "test.h"
 #include "test_pack.h"
 
+#define ATTEMPT_MAX   20000
 
 
 int SOS_test_pack() {
@@ -23,49 +24,96 @@ int SOS_test_pack() {
     return error_total;
 }
 
+
 SOS_test_pack_int() {
     unsigned char buffer[1024] = {0};
     int input = 0;
     int output = 0;
 
-    input = random();
+    int attempt = 0;
 
-    SOS_buffer_pack(buffer, "i", input);
-    SOS_buffer_unpack(buffer, "i", &output);
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        input = random();
+        SOS_buffer_pack(buffer, "i", input);
+        SOS_buffer_unpack(buffer, "i", &output);
+        if (input != output) {
+            return FAIL;
+        }
+    }
 
-    if (input == output)
-        return PASS;
-    else
-        return FAIL;
+    return PASS;
 }
 
 SOS_test_pack_long() {
-    sleep(1);
-    return NOTEST;
+    unsigned char buffer[1024] = {0};
+    long input = 0;
+    long output = 0;
+
+    int attempt = 0;
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        input = (long)random();
+        SOS_buffer_pack(buffer, "l", input);
+        SOS_buffer_unpack(buffer, "l", &output);
+        if (input != output) {
+            return FAIL;
+        }
+    }
+
+    return PASS;
 }
 
 SOS_test_pack_double() {
-    unsigned char buffer[1024] = {0};
+    char buffer[1024] = {0};
     double input = 0.0;
     double output = 0.0;
     double diff = 0.0;
 
-    input = (double)((double)random() / (double)random());
+    int attempt = 0;
 
-    SOS_buffer_pack(buffer, "d", input);
-    SOS_buffer_unpack(buffer, "d", &output);
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
 
-    diff = input - output;
-    if (diff < 1) { diff *= -1; }
+        /* Make a random floating point value for 'input' */
+        output = (double)random();
+        diff   = (double)random();
+        input  = output / diff;
+        diff   = (double)random();
+        input  = input * diff;
+        diff   = (double)random();
+        input  = (input * random())  / diff;
 
-    if (diff < 0.000000001L) {
-        return PASS;
-    } else {
-        return FAIL;
+        output = diff = 0.0;
+
+        SOS_buffer_pack(buffer, "d", input);
+        SOS_buffer_unpack(buffer, "d", &output);
+
+        diff = input - output;
+        if (diff < 0) { diff *= -1; }
+        if (diff > 0.000000000001L) {
+            return FAIL;
+        }
     }
+
+    return PASS;
 }
 
 SOS_test_pack_string() {
-    sleep(1);
-    return NOTEST;
+    unsigned char buffer[1024] = {0};
+    char input[512] = {0};
+    char output[512] = {0};
+
+    int attempt = 0;
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+
+        random_string(input, 512);
+
+        SOS_buffer_pack(buffer, "s", input);
+        SOS_buffer_unpack(buffer, "s", output);
+        if (strncmp(input, output, 512) != 0) {
+            return FAIL;
+        }
+    }
+
+    return PASS;
 }

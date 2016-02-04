@@ -23,7 +23,7 @@ else
       cmake \
          -G "Unix Makefiles" \
          -DCMAKE_BUILD_TYPE=Debug \
-         -DCMAKE_C_FLAGS=-O0 \
+         -DCMAKE_C_FLAGS=-O0 -m64\
          --prefix=`pwd` \
          -DCMAKE_C_COMPILER=gcc \
          -DCMAKE_CXX_COMPILER=g++ \
@@ -36,4 +36,8 @@ else
     make -j
     cd ..
     cd src
+    echo ""
+    echo "Running test suite..."
+    ../bin/test
+    echo ""
 fi;

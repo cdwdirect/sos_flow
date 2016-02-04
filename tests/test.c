@@ -41,3 +41,23 @@ int SOS_test_all() {
     return total_errors;
 }
     
+
+
+void random_string(char *dest_str, size_t size) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*<>()[]{};:/,.-_=+";
+    int charset_len = 0;
+    int key;
+    int n;
+
+    charset_len = (strlen(charset) - 1);
+
+    if (size) {
+        --size;
+        for (n = 0; n < size; n++) {
+            key = rand() % charset_len;
+            dest_str[n] = charset[key];
+        }
+        dest_str[size] = '\0';
+    }
+    return;
+}

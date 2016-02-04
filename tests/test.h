@@ -24,6 +24,7 @@
 #define NOTEST 2
 
 extern int SOS_TEST_RUN_SILENT;
+extern void random_string(char *dest_str, size_t size);
 
 
 #define SOS_test_result(level, module_name, pass_fail);         \
