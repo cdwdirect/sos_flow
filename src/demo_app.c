@@ -22,6 +22,7 @@
 #define SOS_DEBUG 1
 
 #include "sos.h"
+#include "pack_buffer.h"
 
 int main(int argc, char *argv[]) {
     int i;
@@ -85,9 +86,25 @@ int main(int argc, char *argv[]) {
 
     srandom(SOS.my_guid);
 
+    /* Cheap hack to test MPI rank propagation... */
+    SOS.config.comm_rank = 999;
+
     printf("[%s]: demo_app starting...\n", whoami); fflush(stdout);
     
     if (SOS_DEBUG) printf("[%s]: Creating a pub...\n", whoami);
+
+    if (SOS_DEBUG) {
+        char   dblval_buffer[1024] = {0};
+        double dblval_in  = 123456789.987654321;
+        double dblval_out = 0.0;
+        printf("[%s]: Testing the pack()/unpack() functions for floating point values...\n", whoami);
+        SOS_buffer_pack(dblval_buffer, "d", dblval_in);
+        SOS_buffer_unpack(dblval_buffer, "d", &dblval_out);
+        printf("[%s]:   in: %lf\n", whoami, dblval_in);
+        printf("[%s]:  out: %lf\n", whoami, dblval_out);
+    }
+
+
     pub = SOS_pub_create("demo");
     if (SOS_DEBUG) printf("[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
 

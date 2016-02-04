@@ -64,6 +64,7 @@
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_DB)                           \
     ROLE(SOS_ROLE_CONTROL)                      \
+    ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)
 
 #define FOREACH_TARGET(TARGET)                  \
@@ -361,6 +362,7 @@ typedef struct {
     int                 comm_support;
     int                 process_id;
     int                 thread_id;
+    bool                offline_test_mode;
 } SOS_config;
 
 typedef struct {
