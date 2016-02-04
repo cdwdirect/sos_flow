@@ -11,6 +11,9 @@ cd ${working}
 # cleanup
 rm -rf new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock profile.*
 
+if [ ! -f arrays.xml ] ; then
+    ln -s ${cwd}/arrays.xml .
+fi
 if [ ! -f tau.conf ] ; then
     ln -s ${cwd}/tau.conf .
 fi
@@ -45,6 +48,7 @@ launch_workflow()
     # launch our workflow
     i=1
     w=2
+    s=0.1
     A="-np ${w} ${SOS_ROOT}/bin/generic_node --name A --iterations ${i} --writeto B --writeto D"
     B="-np ${w} ${SOS_ROOT}/bin/generic_node --name B --readfrom A --writeto C"
     C="-np ${w} ${SOS_ROOT}/bin/generic_node --name C --readfrom B --writeto E"
@@ -52,13 +56,13 @@ launch_workflow()
     E="-np ${w} ${SOS_ROOT}/bin/generic_node --name E --readfrom C --readfrom D"
 
     mpirun ${A} &
-    sleep 1
+    sleep ${s}
     mpirun ${B} &
-    sleep 1
+    sleep ${s}
     mpirun ${C} &
-    sleep 1
+    sleep ${s}
     mpirun ${D} &
-    sleep 1
+    sleep ${s}
     mpirun ${E}
 }
 
@@ -66,15 +70,16 @@ launch_debug_workflow()
 {
     i=1
     w=1
-    A="-np ${w} gdb --args ${SOS_ROOT}/bin/generic_node --name A --iterations ${i} --writeto B"
+    A="-np ${w} ${SOS_ROOT}/bin/generic_node --name A --iterations ${i} --writeto B"
     B="-np ${w} ${SOS_ROOT}/bin/generic_node --name B --readfrom A"
-    mpirun ${B} &
+    mpirun ${A} &
     sleep 1
-    mpirun ${A}
+    mpirun ${B}
 }
 
 post_process_tau()
 {
+    sleep 3
     # post-process TAU files
     files=(tautrace.*.trc)
     if [ -e "${files[0]}" ] ; then

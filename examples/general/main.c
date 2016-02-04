@@ -19,8 +19,8 @@ int num_sinks = 0;
 char ** sources;
 char ** sinks;
 
-int writer(MPI_Comm adios_comm, char * sink);
-int reader(MPI_Comm adios_comm, char * source);
+int mpi_writer(MPI_Comm adios_comm, char * sink);
+int mpi_reader(MPI_Comm adios_comm, char * source);
 
 void validate_input(int argc, char* argv[]) {
     if (argc == 1) {
@@ -104,19 +104,23 @@ int main (int argc, char *argv[])
      * Loop and do the things
      */
     int index;
-    for (index = 0 ; index < num_sinks ; index++) {
-        adios_init_noxml (adios_comm);
-        writer(adios_comm, sinks[index]);
-        adios_finalize (myrank);
-    }
     for (index = 0 ; index < num_sources ; index++) {
-        //enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
-        enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_BP;
-        adios_read_init_method (method, adios_comm, "verbose=3");
-        reader(adios_comm, sources[index]);
-        adios_read_finalize_method (method);
+        TAU_PROFILE_TIMER(tautimer2, "ADIOS READING", my_name, TAU_USER);
+        TAU_PROFILE_START(tautimer2);
+        //mpi_reader(adios_comm, sources[index]);
+        flexpath_reader(adios_comm, sources[index]);
+        TAU_PROFILE_STOP(tautimer2);
     }
-
+    /*
+     * "compute"
+     */
+    for (index = 0 ; index < num_sinks ; index++) {
+        TAU_PROFILE_TIMER(tautimer2, "ADIOS WRITING", my_name, TAU_USER);
+        TAU_PROFILE_START(tautimer2);
+        //mpi_writer(adios_comm, sinks[index]);
+        flexpath_writer(adios_comm, sinks[index]);
+        TAU_PROFILE_STOP(tautimer2);
+    }
 
     /*
      * Finalize MPI

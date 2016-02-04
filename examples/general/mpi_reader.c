@@ -25,7 +25,7 @@
 #include "adios_read.h"
 #include "main.h"
 
-int reader (MPI_Comm adios_comm, char* source)
+int mpi_reader (MPI_Comm adios_comm, char* source)
 {
     int         i, j, npl, token;
     MPI_Status  status;
@@ -37,6 +37,7 @@ int reader (MPI_Comm adios_comm, char* source)
     char file_name[256] = {0};
     sprintf(file_name, "adios_%s_%s.bp", source, my_name);
 
+    adios_read_init_method (method, adios_comm, "verbose=3");
     ADIOS_FILE * f = adios_read_open (file_name, method, 
                                       adios_comm, ADIOS_LOCKMODE_NONE, 0);
     if (f == NULL)
@@ -90,5 +91,6 @@ int reader (MPI_Comm adios_comm, char* source)
 
     adios_read_close (f);
     MPI_Barrier (adios_comm);
+    adios_read_finalize_method (method);
     return 0;
 }

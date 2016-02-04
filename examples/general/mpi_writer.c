@@ -30,7 +30,7 @@
 #include "dmalloc.h"
 #endif
 
-int writer (MPI_Comm adios_comm, char* sink) 
+int mpi_writer (MPI_Comm adios_comm, char* sink) 
 {
     char    file_name [256] = {0};
     char    group_name [256] = {0};
@@ -47,6 +47,7 @@ int writer (MPI_Comm adios_comm, char* sink)
     sprintf(file_name, "adios_%s_%s.bp", my_name, sink);
     sprintf(group_name, "%s_%s", my_name, sink);
 
+    adios_init_noxml (adios_comm);
     adios_allocate_buffer (ADIOS_BUFFER_ALLOC_NOW, 10);
 
     int64_t       m_adios_group;
@@ -100,6 +101,7 @@ int writer (MPI_Comm adios_comm, char* sink)
     adios_close (m_adios_file);
 
     MPI_Barrier (adios_comm);
+    adios_finalize (myrank);
 
     return 0;
 }
