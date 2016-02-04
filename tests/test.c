@@ -4,9 +4,7 @@
 
 #include "sos.h"
 #include "test.h"
-
-
-#include "pack.h"
+#include "test_pack.h"
 
 
 
@@ -15,7 +13,9 @@ int SOS_TEST_RUN_SILENT;
 
 
 int main(int argc, char *argv[]) {
-    int total_errors = 0;
+    int error_total = 0;
+
+    srandom(getpid());
 
     if ((argc > 1) && (strcmp(argv[1], "silent") == 0)) {
         SOS_TEST_RUN_SILENT = 1;
@@ -25,11 +25,11 @@ int main(int argc, char *argv[]) {
 
     SOS_test_section_start(0, "all unit tests");
 
-    total_errors = SOS_test_all();
+    error_total = SOS_test_all();
 
-    SOS_test_report_summary(0, "all unit tests", total_errors);
+    SOS_test_section_report(0, "all unit tests", error_total);
 
-    return (total_errors);
+    return (error_total);
 }
 
 int SOS_test_all() {

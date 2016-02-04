@@ -1,7 +1,8 @@
+#ifndef SOS_TEST_H
+#define SOS_TEST_H
 
 #include <stdio.h>
 #include <unistd.h>
-#include <ctypes.h>
 #include <string.h>
 
 /*
@@ -20,6 +21,7 @@
 
 #define PASS   0
 #define FAIL   1
+#define NOTEST 2
 
 extern int SOS_TEST_RUN_SILENT;
 
@@ -30,20 +32,37 @@ extern int SOS_TEST_RUN_SILENT;
         while ( indent_spaces-- ) { printf(" "); }              \
         if (pass_fail == PASS) {                                \
             printf("[  " colorGreen "OK" colorNormal "  ]");    \
-        else {                                                  \
+        } else if (pass_fail == FAIL) {                         \
             printf("[ " colorRed "FAIL" colorNormal " ]");      \
+        } else {                                                \
+            printf("[" colorYellow "NOTEST" colorNormal "]");   \
         }                                                       \
         printf(" : %s\n", module_name);                         \
      }
+
+
+#define SOS_test_run(level, title, TEST_FUNCTION, errvar, errtot);      \
+    {                                                                   \
+        int indent_spaces; indent_spaces = (level * 2);                 \
+        while ( indent_spaces-- ) { printf(" "); }                      \
+        printf("[" colorBlue " wait " colorNormal "]");                 \
+        printf(" : %s (testing) ", title); fflush(stdout);              \
+        errvar = 0; errvar = TEST_FUNCTION;                             \
+        if (errvar == FAIL) { errtot += 1; }                            \
+        indent_spaces = 0;                                              \
+        indent_spaces += strlen(title);                                 \
+        indent_spaces += (level * 2) + 30;                              \
+        while ( indent_spaces-- ) { printf(colorNormal "\b \b"); }      \
+        SOS_test_result(level, title, errvar);                          \
+    }
 
 
 #define SOS_test_section_start(level, section_name);                    \
     {                                                                   \
         int indent_spaces; indent_spaces = (level * 2);                 \
         while ( indent_spaces-- ) { printf(" "); }                      \
-        printf("[" colorWhite ">>>>>>" colorNormal "]");                \
-        printf(" : Checking %s ...\n",                                  \
-            err_count, ((err_count != 1) ? "s " : " "), section_name);  \
+        printf("[" colorCyan ">>>>>>" colorNormal "]");                 \
+        printf(" " colorYellow "%s" colorNormal "\n", section_name);    \
     }
 
 
@@ -51,8 +70,17 @@ extern int SOS_TEST_RUN_SILENT;
     {                                                                   \
         int indent_spaces; indent_spaces = (level * 2);                 \
         while ( indent_spaces-- ) { printf(" "); }                      \
-        printf("[" colorWhite "<<<<<<" colorNormal "]");                \
-        printf(" :   %d error%sdetected in %s.\n",                      \
-            err_count, ((err_count != 1) ? "s " : " "), section_name);  \
+        if (err_count > 0) {                                            \
+            printf("[" colorRed "######" colorNormal "]");              \
+        } else {                                                        \
+            printf("[" colorCyan "<<<<<<" colorNormal "]");             \
+        }                                                               \
+        printf(" " colorYellow "%s" colorNormal, section_name);         \
+        if (err_count > 0) {                                            \
+            printf(" -- [" colorRed "%d" colorNormal "]\n", err_count); \
+        } else {                                                        \
+            printf("\n");                                               \
+        }                                                               \
     }
 
+#endif
