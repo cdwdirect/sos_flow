@@ -1,15 +1,18 @@
 #pragma once
 
+#include <stdlib.h>
 #include <stdbool.h>
 /* make sure only rank 0 prints output */
-#define my_printf(...) if (myrank == 0) { printf(__VA_ARGS__); fflush(stdout); }
+#define my_printf(...) if (my_rank == 0) { printf(__VA_ARGS__); fflush(stdout); }
 
-extern int myrank;
-extern int commsize;
+extern int my_rank;
+extern int comm_size;
 extern int iterations;
-typedef enum {READER, WRITER, BOTH} role;
-extern role my_role;
 extern char * my_name;
+extern int num_sources;
+extern int num_sinks;
+extern char ** sources;
+extern char ** sinks;
 
 #ifdef SOS_HAVE_TAU
 
@@ -29,6 +32,8 @@ extern char * my_name;
  */
 #define TAU_USER 0
 #define TAU_DEFAULT 0
+#define TAU_START(...)                  // do nothing
+#define TAU_STOP(...)                   // do nothing
 #define TAU_INIT(...)                   // do nothing
 #define TAU_PROFILE_TIMER(...)          // do nothing
 #define TAU_PROFILE_START(...)          // do nothing
