@@ -34,3 +34,5 @@ echo ""
 sleep 2
 $SOS_ROOT/src/showdb
 echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""

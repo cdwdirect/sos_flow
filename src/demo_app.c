@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
-    SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
+    SOS_init( &argc, &argv, SOS_ROLE_OFFLINE_TEST_MODE );
     SOS_SET_WHOAMI(whoami, "demo_app.main");
 
     srandom(SOS.my_guid);
@@ -93,7 +93,7 @@ int main(int argc, char *argv[]) {
     
     if (SOS_DEBUG) printf("[%s]: Creating a pub...\n", whoami);
 
-    if (SOS_DEBUG) {
+    if (false) {
         char   dblval_buffer[1024] = {0};
         double dblval_in  = 123456789.987654321;
         double dblval_out = 0.0;

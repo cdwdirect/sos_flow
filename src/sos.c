@@ -58,16 +58,18 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     if (_initialized) return;
     _initialized = true;
 
-    if (role == SOS_ROLE_OFFLINE_TEST_MODE) {
-        SOS.config.offline_test_mode = true;
-        role = SOS_ROLE_CLIENT;
-    } else {
-        SOS.config.offline_test_mode = false;
+    if ((role == SOS_ROLE_CLIENT) || (role == SOS_ROLE_OFFLINE_TEST_MODE)) {
+        memset(&SOS, '\0', sizeof(SOS_runtime));
     }
 
-    if (role == SOS_ROLE_CLIENT) { memset(&SOS, '\0', sizeof(SOS_runtime)); }
+    if (role == SOS_ROLE_OFFLINE_TEST_MODE) {
+        SOS.config.offline_test_mode = true;
+        SOS.role = SOS_ROLE_CLIENT;
+    } else {
+        SOS.config.offline_test_mode = false;
+        SOS.role = role;
+    }
 
-    SOS.role = role;
     SOS.status = SOS_STATUS_INIT;
 
     SOS_SET_WHOAMI(whoami, "SOS_init");
@@ -491,6 +493,11 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
 
     /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
 
+    if (SOS.config.offline_test_mode == true) {
+        dlog(1, "[%s]: Suppressing a send to the daemon.  (OFFLINE_TEST_MODE)\n", whoami);
+        return;
+    }
+
     retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
     if ( retval < 0 ) { dlog(0, "[%s]: ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
     
@@ -669,8 +676,12 @@ long SOS_uid_next( SOS_uid *id ) {
             msg.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
             msg.pub_guid = 0;
             SOS_send_to_daemon((unsigned char *) &msg, sizeof(SOS_msg_header), buffer, SOS_DEFAULT_REPLY_LEN);
-            memcpy(&id->next, buffer, sizeof(long));
-            memcpy(&id->last, (buffer + sizeof(long)), sizeof(long));
+            if (SOS.config.offline_test_mode == true) {
+                /* NOTE: In OFFLINE_TEST_MODE there is zero chance of exhausting GUID's... seriously. */
+            } else {
+                memcpy(&id->next, buffer, sizeof(long));
+                memcpy(&id->last, (buffer + sizeof(long)), sizeof(long));
+            }
             dlog(1, "[%s]:   ... recieved a new guid block from %ld to %ld.\n", whoami, id->next, id->last);
         }
     }
@@ -1051,7 +1062,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         return i;
     }
 
-    //shouln't ever get here.
+    //shouldn't ever get here.
     return -1;
 }
 
