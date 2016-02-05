@@ -72,17 +72,11 @@ SOS_test_pack_double() {
     int attempt = 0;
 
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        input  = 0.0;
+        output = 0.0;
+        diff   = 0.0;
 
-        /* Make a random floating point value for 'input' */
-        output = (double)random();
-        diff   = (double)random();
-        input  = output / diff;
-        diff   = (double)random();
-        input  = input * diff;
-        diff   = (double)random();
-        input  = (input * random())  / diff;
-
-        output = diff = 0.0;
+        random_double(&input);
 
         SOS_buffer_pack(buffer, "d", input);
         SOS_buffer_unpack(buffer, "d", &output);

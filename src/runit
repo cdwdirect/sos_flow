@@ -1,0 +1,36 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then 
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+echo ""
+echo ""
+echo "*** Terminating any prior daemons using [sosd_stop]..."
+echo ""
+echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo "*** Starting [sosd] daemon..."
+echo ""
+echo ""
+$SOS_ROOT/src/mpi.start.2 &
+sleep 3
+echo ""
+echo ""
+echo "*** Running [demo_app]...   params:  -i 150 -m 40,000"
+echo ""
+echo ""
+$SOS_ROOT/bin/demo_app -i 200 -m 40000
+echo ""
+echo ""
+echo "*** Pausing with [sleep 2] and displaying [showdb] results..."
+echo ""
+echo ""
+sleep 2
+$SOS_ROOT/src/showdb
+echo ""

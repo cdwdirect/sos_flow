@@ -40,7 +40,24 @@ int SOS_test_all() {
 
     return total_errors;
 }
-    
+
+
+void random_double(double *dest_dbl) {
+    double a;
+    double b;
+    double c;
+
+    /* Make a random floating point value for 'input' */
+    a = (double)random();
+    b = (double)random();
+    c = a / b;
+    a = (double)random();
+    c = c * a;
+    a = (double)random();
+    *dest_dbl = (c * random()) / a;
+
+    return;
+}
 
 
 void random_string(char *dest_str, size_t size) {
