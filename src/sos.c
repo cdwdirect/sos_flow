@@ -538,6 +538,8 @@ void SOS_finalize() {
     dlog(0, "[%s]: SOS.status = SOS_STATUS_SHUTDOWN\n", whoami);
     SOS.status = SOS_STATUS_SHUTDOWN;
 
+    free(SOS.config.node_id);
+
     #if (SOS_CONFIG_USE_THREAD_POOL > 0)
     dlog(0, "[%s]:   ... Joining threads...\n", whoami);
     pthread_join( *SOS.task.post, NULL );
@@ -779,6 +781,50 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
     dlog(6, "[%s]:   ... done.\n", whoami);
 
     return new_pub;
+}
+
+
+void SOS_pub_destroy(SOS_pub *pub) {
+    SOS_SET_WHOAMI(whoami, "SOS_pub_destroy");
+    int elem;
+    int guid_str[60] = {0};
+
+    if (SOS.config.offline_test_mode != true) {
+        /* TODO: { PUB DESTROY } Right now this only works in offline test mode. */
+        return;
+    }
+
+    if (pub == NULL) { return; }
+
+    dlog(1, "[%s]: Freeing element data...\n", whoami);
+    for (elem = 0; elem < pub->elem_max; elem++) {
+        if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
+            if (pub->data[elem]->val.c_val != NULL) {
+                 free(pub->data[elem]->val.c_val);
+            }
+        }
+        if (pub->data[elem]->name != NULL) { free(pub->data[elem]->name); }
+        if (pub->data[elem] != NULL) { free(pub->data[elem]); }
+    }
+    dlog(1, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
+    dlog(1, "[%s]: Freeing pub data element pointer array.\n", whoami);
+    if (pub->data != NULL) { free(pub->data); }
+    dlog(1, "[%s]: Freeing strings...\n", whoami);
+    dlog(1, "[%s]:    ...node_id\n", whoami);
+    if (pub->node_id != NULL) { free(pub->node_id); }
+    dlog(1, "[%s]:    ...prog_name\n", whoami);
+    if (pub->prog_name != NULL) { free(pub->prog_name); }
+    dlog(1, "[%s]:    ...prog_ver\n", whoami);
+    if (pub->prog_ver != NULL) { free(pub->prog_ver); }
+    dlog(1, "[%s]:    ...pragma_msg\n", whoami);
+    if (pub->pragma_msg != NULL) { free(pub->pragma_msg); }
+    dlog(1, "[%s]:    ...title\n", whoami);
+    if (pub->title != NULL) { free(pub->title); }
+    dlog(1, "[%s]:    ...done.\n", whoami);
+    dlog(1, "[%s]: Freeing pub handle itself.\n", whoami);
+    if (pub != NULL) { free(pub); pub = NULL; }
+
+    return;
 }
 
 
@@ -1146,12 +1192,6 @@ SOS_sub* SOS_new_sub() {
     return new_sub;
 }
 
-void SOS_free_pub(SOS_pub *pub) {
-
-    /* TODO:{ FREE_PUB, CHAD } */
-  
-    return;
-}
 
 void SOS_free_sub(SOS_sub *sub) {
 

@@ -476,7 +476,7 @@ extern "C" {
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
     SOS_val   SOS_get_val(SOS_pub *pub, char *name);
-    void      SOS_free_pub(SOS_pub *pub);
+    void      SOS_pub_destroy(SOS_pub *pub);
     void      SOS_free_sub(SOS_sub *sub);
     void      SOS_unannounce(SOS_pub *pub);
     SOS_sub*  SOS_new_sub(void);
