@@ -13,7 +13,7 @@
 /* Global variables */
 int comm_size = 1;
 int my_rank = 0;
-int iterations = 1;
+int iterations = 1000000000;
 char * my_name = NULL;
 int num_sources = 0;
 int num_sinks = 0;
@@ -111,17 +111,22 @@ int main (int argc, char *argv[])
      */
     int iter = 0;
     char tmpstr[256] = {0};
+    int * return_codes = (int *)(calloc(num_sources,sizeof(int)));
     while (iter < iterations) {
         int index;
         /*
          * Read upstream input
          */
         for (index = 0 ; index < num_sources ; index++) {
+            if (return_codes[index] > 0) {
+                my_printf("%s source is gone\n", sources[index]);
+                continue; // this input is gone
+            }
             my_printf ("%s reading from %s.\n", my_name, sources[index]);
             sprintf(tmpstr,"%s READING FROM %s", my_name, sources[index]);
             TAU_START(tmpstr);
             //mpi_reader(adios_comm, sources[index]);
-            flexpath_reader(adios_comm, index);
+            return_codes[index] = flexpath_reader(adios_comm, index);
             TAU_STOP(tmpstr);
         }
         /*
@@ -129,12 +134,13 @@ int main (int argc, char *argv[])
         */
         my_printf ("%s computing.\n", my_name);
         compute(iter);
-        /*
-        if (num_sources == 0) {
-        my_printf ("%s computing.\n", my_name);
-            compute(iter); // compute again, if first process in workflow
+        bool time_to_go = (num_sources == 0) ? (iter == (iterations-1)) : true;
+        for (index = 0 ; index < num_sources ; index++) {
+            if (return_codes[index] == 0) {
+                time_to_go = false;
+                break; // out of this for loop
+            }
         }
-        */
         /*
          * Send output downstream
          */
@@ -143,20 +149,50 @@ int main (int argc, char *argv[])
             sprintf(tmpstr,"%s WRITING TO %s", my_name, sinks[index]);
             TAU_START(tmpstr);
             //mpi_writer(adios_comm, sinks[index]);
-            flexpath_writer(adios_comm, index, (iter > 0), (iter == (iterations-1)));
+            flexpath_writer(adios_comm, index, (iter > 0), time_to_go);
             TAU_STOP(tmpstr);
         }
+        if (time_to_go) {
+            break; // out of the while loop
+        }
+        my_printf ("%s not time to go...\n", my_name);
         iter++;
     }
 
     /*
      * Finalize ADIOS
      */
+    const char const * dot_filename = ".finished";
     if (num_sources > 0) {
         adios_read_finalize_method(ADIOS_READ_METHOD_FLEXPATH);
+    #if 0
+    } else {
+        while (true) {
+            // assume this is the main process. It can't exit until 
+            // the last process is done.
+            if( access( dot_filename, F_OK ) != -1 ) {
+                // file exists
+                unlink(dot_filename);
+                break;
+            } else {
+                // file doesn't exist
+                sleep(1);
+            }
+        }
+    #endif
     }
     if (num_sinks > 0) {
         adios_finalize (my_rank);
+    #if 0
+    } else {
+        // assume this is the last process. 
+        // Tell the main process we are done.
+        FILE *file;
+        if (file = fopen(dot_filename, "w")) {
+            fprintf(file, "done.\n");
+            fclose(file);
+        }
+    #endif
     }
 
     /*

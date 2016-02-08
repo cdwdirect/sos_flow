@@ -35,5 +35,5 @@ post_process_tau()
     fi
 }
 
-${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/fancy.json
+${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5nodes.json
 post_process_tau

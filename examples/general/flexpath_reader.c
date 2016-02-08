@@ -224,11 +224,12 @@ int flexpath_reader (MPI_Comm adios_comm, int source_index)
         }
         printf("]\n\n");
         */
-        adios_release_step(am->afile);
+        //adios_release_step(am->afile);
 
     if(adios_errno == err_end_of_stream || shutdown > 0){
         printf("%s Rank=%d: closing file: %d step: %d\n", my_name, my_rank, shutdown, ii);
         adios_read_close(am->afile);
+        return 1;
     }
     return 0;
 }
