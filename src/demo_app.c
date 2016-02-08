@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
-    SOS_init( &argc, &argv, SOS_ROLE_OFFLINE_TEST_MODE );
+    SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
     SOS_SET_WHOAMI(whoami, "demo_app.main");
 
     srandom(SOS.my_guid);

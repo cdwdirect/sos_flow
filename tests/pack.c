@@ -3,7 +3,7 @@
 
 #include "sos.h"
 #include "test.h"
-#include "test_pack.h"
+#include "pack.h"
 
 #define ATTEMPT_MAX   20000
 
@@ -12,14 +12,14 @@ int SOS_test_pack() {
     int error_total = 0;
     int pass_fail = 0;
 
-    SOS_test_section_start(1, "pack/unpack serialization");
+    SOS_test_section_start(1, "SOS_buffer_pack");
 
     SOS_test_run(2, "pack_int", SOS_test_pack_int(), pass_fail, error_total);
     SOS_test_run(2, "pack_long", SOS_test_pack_long(), pass_fail, error_total);
     SOS_test_run(2, "pack_double", SOS_test_pack_double(), pass_fail, error_total);
     SOS_test_run(2, "pack_string", SOS_test_pack_string(), pass_fail, error_total);
 
-    SOS_test_section_report(1, "pack/unpack serialization", error_total);
+    SOS_test_section_report(1, "SOS_buffer_pack", error_total);
 
     return error_total;
 }

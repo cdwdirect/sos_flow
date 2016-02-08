@@ -4,12 +4,13 @@
 
 #include "sos.h"
 #include "test.h"
-#include "test_pack.h"
-
+#include "pack.h"
+#include "pub.h"
 
 
 int SOS_test_all();
 int SOS_TEST_RUN_SILENT;
+
 
 
 int main(int argc, char *argv[]) {
@@ -23,11 +24,11 @@ int main(int argc, char *argv[]) {
         SOS_TEST_RUN_SILENT = 0;
     }
 
-    SOS_test_section_start(0, "all unit tests");
+    SOS_test_section_start(0, "SOS (all)");
 
     error_total = SOS_test_all();
 
-    SOS_test_section_report(0, "all unit tests", error_total);
+    SOS_test_section_report(0, "SOS (all)", error_total);
 
     return (error_total);
 }
@@ -36,6 +37,8 @@ int SOS_test_all() {
     int total_errors = 0;
 
     total_errors += SOS_test_pack();
+    total_errors += SOS_test_pub();
+
     /* ... */
 
     return total_errors;

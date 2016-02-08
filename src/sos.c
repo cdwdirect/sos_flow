@@ -1750,6 +1750,15 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
     dlog(6, "[%s]: pub->meta.scope_hint = %d\n", whoami, pub->meta.scope_hint);
     dlog(6, "[%s]: pub->meta.retain_hint = %d\n", whoami, pub->meta.retain_hint);
 
+    if (SOS.role == SOS_ROLE_DAEMON) {
+        dlog(4, "[%s]: AUTOGROW --\n", whoami);
+        dlog(4, "[%s]: AUTOGROW --\n", whoami);
+        dlog(4, "[%s]: AUTOGROW -- Announced pub size: %d", whoami, elem);
+        dlog(4, "[%s]: AUTOGROW -- In-memory pub size: %d", whoami, pub->elem_max);
+        dlog(4, "[%s]: AUTOGROW --\n", whoami);
+        dlog(4, "[%s]: AUTOGROW --\n", whoami);
+    }
+
     /* Ensure there is room in this pub to handle incoming data definitions. */
     while(pub->elem_max < elem) {
         dlog(6, "[%s]:   ... doubling pub->elem_max from %d to handle %d elements...\n", whoami, pub->elem_max, elem);

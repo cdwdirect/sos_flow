@@ -19,6 +19,8 @@
 #define colorCyan    "\x1B[36m"
 #define colorWhite   "\x1B[37m"
 
+#define INDENT 4
+
 #define PASS   0
 #define FAIL   1
 #define NOTEST 2
@@ -29,7 +31,7 @@ extern void random_double(double *dest_dbl);
 
 #define SOS_test_result(level, module_name, pass_fail);         \
     {                                                           \
-        int indent_spaces; indent_spaces = (level * 2);         \
+        int indent_spaces; indent_spaces = (level * INDENT);    \
         while ( indent_spaces-- ) { printf(" "); }              \
         if (pass_fail == PASS) {                                \
             printf("[  " colorGreen "OK" colorNormal "  ]");    \
@@ -44,7 +46,7 @@ extern void random_double(double *dest_dbl);
 
 #define SOS_test_run(level, title, TEST_FUNCTION, errvar, errtot);      \
     {                                                                   \
-        int indent_spaces; indent_spaces = (level * 2);                 \
+        int indent_spaces; indent_spaces = (level * INDENT);            \
         while ( indent_spaces-- ) { printf(" "); }                      \
         printf("[" colorBlue " wait " colorNormal "]");                 \
         printf(" : %s (testing) ", title); fflush(stdout);              \
@@ -60,7 +62,7 @@ extern void random_double(double *dest_dbl);
 
 #define SOS_test_section_start(level, section_name);                    \
     {                                                                   \
-        int indent_spaces; indent_spaces = (level * 2);                 \
+        int indent_spaces; indent_spaces = (level * INDENT);            \
         while ( indent_spaces-- ) { printf(" "); }                      \
         printf("[" colorCyan ">>>>>>" colorNormal "]");                 \
         printf(" " colorYellow "%s" colorNormal "\n", section_name);    \
@@ -69,7 +71,7 @@ extern void random_double(double *dest_dbl);
 
 #define SOS_test_section_report(level, section_name, err_count);        \
     {                                                                   \
-        int indent_spaces; indent_spaces = (level * 2);                 \
+        int indent_spaces; indent_spaces = (level * INDENT);            \
         while ( indent_spaces-- ) { printf(" "); }                      \
         if (err_count > 0) {                                            \
             printf("[" colorRed "######" colorNormal "]");              \

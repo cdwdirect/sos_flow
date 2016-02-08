@@ -2,14 +2,4 @@
 #+AUTHOR: Chad Wood
 
 * BUGS
-** [comm_rank] and [node_id] are the same in the database
-*** FIXED
-** [pack_time] other stamps in the tblvals in the database are not unique
-*** pack
-*** publish
-*** snap_enqueue
-*** snap_to_buffer
-*** snap_from_buffer
-*** inject to db
-
 ** expansion of the pub on the daemon-side during a reannounce is not triggering.
