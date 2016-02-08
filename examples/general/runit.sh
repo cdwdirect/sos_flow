@@ -1,5 +1,8 @@
 #!/bin/bash -e
 
+# just in case
+killall -9 mpirun || true
+
 export SOS_ROOT=$HOME/src/sos_flow
 export SOS_CMD_PORT=22500
 cwd=`pwd`
@@ -12,7 +15,7 @@ cd ${working}
 rm -rf new1.ppm *.bp *.trc *.edf *.slog2 *info.txt *ready.txt *.db *.log *.lock profile.*
 
 if [ ! -f arrays.xml ] ; then
-    ln -s ${cwd}/arrays.xml .
+    ln -s ${cwd}/*.xml .
 fi
 if [ ! -f tau.conf ] ; then
     ln -s ${cwd}/tau.conf .
@@ -46,14 +49,14 @@ stop_sos_daemon()
 launch_workflow()
 {
     # launch our workflow
-    i=1
+    i=10
     w=2
     s=0.1
     A="-np ${w} ${SOS_ROOT}/bin/generic_node --name A --iterations ${i} --writeto B --writeto D"
-    B="-np ${w} ${SOS_ROOT}/bin/generic_node --name B --readfrom A --writeto C"
-    C="-np ${w} ${SOS_ROOT}/bin/generic_node --name C --readfrom B --writeto E"
-    D="-np ${w} ${SOS_ROOT}/bin/generic_node --name D --readfrom A --writeto E"
-    E="-np ${w} ${SOS_ROOT}/bin/generic_node --name E --readfrom C --readfrom D"
+    B="-np ${w} ${SOS_ROOT}/bin/generic_node --name B --iterations ${i} --readfrom A --writeto C"
+    C="-np ${w} ${SOS_ROOT}/bin/generic_node --name C --iterations ${i} --readfrom B --writeto E"
+    D="-np ${w} ${SOS_ROOT}/bin/generic_node --name D --iterations ${i} --readfrom A --writeto E"
+    E="-np ${w} ${SOS_ROOT}/bin/generic_node --name E --iterations ${i} --readfrom C --readfrom D"
 
     mpirun ${A} &
     sleep ${s}
@@ -68,13 +71,18 @@ launch_workflow()
 
 launch_debug_workflow()
 {
-    i=1
+    i=10
     w=1
+    #A="-np ${w} ${SOS_ROOT}/bin/generic_node --name A --iterations ${i} --writeto B --writeto C"
     A="-np ${w} ${SOS_ROOT}/bin/generic_node --name A --iterations ${i} --writeto B"
-    B="-np ${w} ${SOS_ROOT}/bin/generic_node --name B --readfrom A"
+    B="-np ${w} ${SOS_ROOT}/bin/generic_node --name B --iterations ${i} --readfrom A"
+    #C="-np ${w} ${SOS_ROOT}/bin/generic_node --name C --readfrom A"
     mpirun ${A} &
     sleep 1
     mpirun ${B}
+    #mpirun ${B} &
+    #sleep 1
+    #mpirun ${C}
 }
 
 post_process_tau()

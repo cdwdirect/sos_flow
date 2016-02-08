@@ -42,7 +42,7 @@ int mpi_writer (MPI_Comm adios_comm, char* sink)
     /* ADIOS variables declarations for matching gwrite_temperature.ch */
     uint64_t    adios_groupsize, adios_totalsize;
 
-    Global_bounds = sub_blocks * NX * commsize;
+    Global_bounds = sub_blocks * NX * comm_size;
 
     sprintf(file_name, "adios_%s_%s.bp", my_name, sink);
     sprintf(group_name, "%s_%s", my_name, sink);
@@ -88,7 +88,7 @@ int mpi_writer (MPI_Comm adios_comm, char* sink)
 /* now we will write the data for each sub block */
     for (block=0;block<sub_blocks;block++) {
 
-       Offsets = myrank * sub_blocks * NX + block*NX;
+       Offsets = my_rank * sub_blocks * NX + block*NX;
        adios_write(m_adios_file, "Offsets", (void *) &Offsets);
 
        for (i = 0; i < NX; i++)
@@ -101,7 +101,7 @@ int mpi_writer (MPI_Comm adios_comm, char* sink)
     adios_close (m_adios_file);
 
     MPI_Barrier (adios_comm);
-    adios_finalize (myrank);
+    adios_finalize (my_rank);
 
     return 0;
 }
