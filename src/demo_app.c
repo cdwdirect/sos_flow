@@ -15,13 +15,14 @@
 
 #define NUM_VALUES     20
 
-#define USAGE "./demo_app --iteration_size <size> --max_send_count <count> [--jitter <time.sec>]"
+#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> [-j <jittertime.sec>]"
 
 
 #undef SOS_DEBUG
 #define SOS_DEBUG 1
 
 #include "sos.h"
+#include "pack_buffer.h"
 
 int main(int argc, char *argv[]) {
     int i;
@@ -54,11 +55,11 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
 
-        if ( strcmp(argv[elem], "--iteration_size"  ) == 0) {
+        if ( strcmp(argv[elem], "-i"  ) == 0) {
             ITERATION_SIZE  = atoi(argv[next_elem]);
-        } else if ( strcmp(argv[elem], "--max_send_count"  ) == 0) {
+        } else if ( strcmp(argv[elem], "-m"  ) == 0) {
             MAX_SEND_COUNT  = atoi(argv[next_elem]);
-        } else if ( strcmp(argv[elem], "--jitter"          ) == 0) {
+        } else if ( strcmp(argv[elem], "-j"  ) == 0) {
             JITTER_INTERVAL = strtod(argv[next_elem], NULL);
             JITTER_ENABLED = 1;
         } else {
@@ -85,9 +86,25 @@ int main(int argc, char *argv[]) {
 
     srandom(SOS.my_guid);
 
+    /* Cheap hack to test MPI rank propagation... */
+    SOS.config.comm_rank = 999;
+
     printf("[%s]: demo_app starting...\n", whoami); fflush(stdout);
     
     if (SOS_DEBUG) printf("[%s]: Creating a pub...\n", whoami);
+
+    if (false) {
+        char   dblval_buffer[1024] = {0};
+        double dblval_in  = 123456789.987654321;
+        double dblval_out = 0.0;
+        printf("[%s]: Testing the pack()/unpack() functions for floating point values...\n", whoami);
+        SOS_buffer_pack(dblval_buffer, "d", dblval_in);
+        SOS_buffer_unpack(dblval_buffer, "d", &dblval_out);
+        printf("[%s]:   in: %lf\n", whoami, dblval_in);
+        printf("[%s]:  out: %lf\n", whoami, dblval_out);
+    }
+
+
     pub = SOS_pub_create("demo");
     if (SOS_DEBUG) printf("[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
 

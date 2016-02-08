@@ -32,17 +32,11 @@ mpirun ${daemon0} : ${daemon1} &
 sleep 1
 
 # launch our workflow
-i=10
-w=2
-A="-np ${w} ${SOS_ROOT}/bin/synthetic_worker_a ${i}"
-B="-np ${w} ${SOS_ROOT}/bin/synthetic_worker_b ${i}"
-C="-np ${w} ${SOS_ROOT}/bin/synthetic_worker_c ${i}"
+i=20
+A="-np 2 ${SOS_ROOT}/bin/synthetic_worker_a ${i} 0"
 
-mpirun ${A} &
-sleep 1
-mpirun ${B} &
-sleep 1
-mpirun ${C}
+ #mpirun ${A}
+mpirun -np 1 gdb --args ${SOS_ROOT}/bin/synthetic_worker_a ${i} 0
 
 sleep 1
 # post-process TAU files

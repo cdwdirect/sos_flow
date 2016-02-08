@@ -128,17 +128,6 @@ add_executable("sosd_stop" "sosd_stop.c")
 target_link_libraries("sosd_stop" "sos")
 
 
-#TARGET ---> sos_cmd
-#            (command-line interface)
-add_executable("sos_cmd" "sos_cmd.c")
-target_link_libraries("sos_cmd" "sos")
-
-#TARGET ---> test_ring
-#            (debugging code)
-add_executable("test_ring" "test_ring.c")
-target_link_libraries("test_ring" "sos")
-
-
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "demo_app.c")
@@ -162,3 +151,8 @@ endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("mpi_to_sos" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
+
+INSTALL(FILES showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+  PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
+  OWNER_READ GROUP_EXECUTE GROUP_READ
+  WORLD_EXECUTE WORLD_READ)

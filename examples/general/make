@@ -1,0 +1,10 @@
+#!/bin/bash -e
+
+cd ../../src
+if [ "$1" == "clean" ] ; then
+    ./make clean
+fi
+./make
+cd ../examples/general
+
+cp ../../src/showdb ../../bin/.

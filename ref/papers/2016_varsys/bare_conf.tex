@@ -460,7 +460,7 @@ purpose here, it is a  useful  exercise to consider some of the different
 purposes behind current studies of performance variability. The design choices 
 made for the SOSflow system and its inherent workflow performance model emerged 
 from reflecting on the general nature of variability studies, the 
-divergent purposes that are create tensions between the efforts being 
+divergent purposes that create tensions between the efforts being 
 undertaken in this new field, and the anticipated realities of writing 
 infrastructure codes for exascale HPC clusters.
 \subsection{Why Variability is Tracked}
@@ -470,13 +470,14 @@ engineering has grown in complexity and sophistication, many on-core processor
 behaviors that used to be isolated, synchronous, and predictable, are now 
 interrelated, data-driven, asynchronous, and impossible to predict a priori. As 
 core density increases on the nodes of a cluster (TODO: Cite paper showing this 
-is the necessary direction of exascale) the unpredictability and inconsistency 
+is the necessary direction of exascale, HANK has it) the unpredictability and inconsistency 
 of the hardware itself becomes an increasingly significant contributor to 
 observed variability. Hardware is an important source to consider when it comes 
 to variability because there is almost nothing that can be done to control for 
 it, the noise has to be admitted in the results, and therefore is an important 
-part of the output of any performance-related experiment. At higher-levels of 
-description, variability in workflow 
+part of the output of any performance-related experiment.\\
+\\
+Using higher-levels of  description, variability in workflow 
 performance can be introduced by many different sources:
 \begin{itemize}
     \item Versions of software libraries across can differ across clusters, or 
@@ -497,8 +498,8 @@ performance can be introduced by many different sources:
     be accurately predicted a priori, and the design constraints that account 
     for and respond to them introduce performance perturbation and further 
     complexity.
-    \item \ldots
-    \item \ldots 
+    \item \ldots \textit{[NOTE]}
+    \item \ldots \textit{[NOTE]}
 \end{itemize}
 \subsubsection{Awareness of Fine-Grained Performance Jitter}
 \textit{[NOTE: This section is purposed with showing that even episodic 
@@ -584,17 +585,17 @@ in real-time from many different layers of activity in a workflow:
 \begin{itemize}
     \item Simulation
     \item Algorithm
-	\item Application
-	\item Libraries
-	\item Environment
+    \item Application
+    \item Libraries
+    \item Environment
     \item Developer Tools
-	\item Operating System
-	\item Node Hardware
-	\item Network
-	\item Enclave
-	\item Cluster
-	\item Workflow
-	\item Epoch	
+    \item Operating System
+    \item Node Hardware
+    \item Network
+    \item Enclave
+    \item Cluster
+    \item Workflow
+    \item Epoch	
 \end{itemize}
 Each of these layers constitutes a \textit{level of description} for workflow 
 performance. If the Simulation layer produced data representing the evolution 
@@ -637,7 +638,7 @@ performance tuning gives value to expressing "relationship hints" between
 values tracked by the system. These hints can be used to direct in situ 
 analytics and identify deviations from expectations; anything that can be 
 overtly identified as an expectation for a value can be used to narrow the 
-search spacec when doing unsupervised machine learning over gathered workflow 
+search space when doing unsupervised machine learning over gathered workflow 
 performance data.
 
 \section{SOSflow}
@@ -697,21 +698,13 @@ to you guys.]}
 \end{itemize}
 \subsubsection{Key Source Files}
 See Table 1.
-% An example of a floating table. Note that, for IEEE style tables, the 
-% \caption command should come BEFORE the table. Table text will default to
-% \footnotesize as IEEE normally uses this smaller font for tables.
-% The \label must come after \caption as always.
-%
+
 \begin{table}[!t]
 %% increase table row spacing, adjust to taste
 \renewcommand{\arraystretch}{1.3}
-% if using array.sty, it might be a good idea to tweak the value of
-% \extrarowheight as needed to properly center the text within the cells
 \caption{Key Source Files for SOSflow}
 \label{table_example}
 \centering
-%% Some packages, such as MDW tools, offer better commands for making tables
-%% than the plain LaTeX2e tabular which is used here.
 \begin{tabular}{|c|c|}
 \hline
 sos.h / sos.c & Becomes libsos, the core functions of SOSflow\\
@@ -774,6 +767,30 @@ and do not only apply to smaller sample test runs where the workflow's behavior
 has been heavily perturbed by invasive monitoring technologies.
 The conclusion goes here. this is more of the conclusion
 \subsection{Future Work}
+
+% use section* for acknowledgement
+\section*{Acknowledgment}
+Research has been conducted under the following grants:\\
+\textit{TODO: INSERT GRANT INFORMATION HERE}\\
+\\
+The authors would like to thank:\\
+NAME of Georgia Tech University\\
+Hasan Abassi of Argonne National Lab\\
+Todd Gamblin of Lawrence Livermore National Lab
+
+\begin{thebibliography}{1}
+
+\bibitem{IEEEhowto:kopka}
+H.~Kopka and P.~W. Daly, \emph{A Guide to \LaTeX}, 3rd~ed.\hskip 1em plus
+  0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
+
+\end{thebibliography}
+
+% that's all folks
+\end{document}
+
+
+
 
 % An example of a floating figure using the graphicx package.
 % Note that \label must occur AFTER (or within) \caption.
@@ -862,17 +879,6 @@ The conclusion goes here. this is more of the conclusion
 % conference papers do not normally have an appendix
 
 
-% use section* for acknowledgement
-\section*{Acknowledgment}
-Research has been conducted under the following grants:\\
-\textit{TODO: INSERT GRANT INFORMATION HERE}\\
-\\
-The authors would like to thank:\\
-NAME of Georgia Tech University\\
-Hasan Abassi of Argonne National Lab\\
-Todd Gamblin of Lawrence Livermore National Lab
-
-
 % trigger a \newpage just before the given reference
 % number - used to balance the columns on the last page
 % adjust value as needed - may need to be readjusted if
@@ -895,18 +901,3 @@ Todd Gamblin of Lawrence Livermore National Lab
 % <OR> manually copy in the resultant .bbl file
 % set second argument of \begin to the number of references
 % (used to reserve space for the reference number labels box)
-\begin{thebibliography}{1}
-
-\bibitem{IEEEhowto:kopka}
-H.~Kopka and P.~W. Daly, \emph{A Guide to \LaTeX}, 3rd~ed.\hskip 1em plus
-  0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
-
-\end{thebibliography}
-
-
-
-
-% that's all folks
-\end{document}
-
-

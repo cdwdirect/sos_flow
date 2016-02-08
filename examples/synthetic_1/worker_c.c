@@ -12,21 +12,26 @@
  */
 
 int iterations = 1;
+//extern SOS_pub *example_pub;
 
 void validate_input(int argc, char* argv[]) {
     if (argc < 2) {
         my_printf("Usage: %s <num iterations>\n", argv[0]);
         exit(1);
     }
+    /*
     if (commsize < 2) {
         my_printf("%s requires at least 2 processes.\n", argv[0]);
         exit(1);
     }
+    */
     iterations = atoi(argv[1]);
 }
 
 
 int worker(int argc, char* argv[]) {
+    TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
+    TAU_PROFILE_START(timer);
     my_printf("%d of %d In worker C\n", myrank, commsize);
 
     /* validate input */
@@ -53,7 +58,8 @@ int worker(int argc, char* argv[]) {
      *        can write lock-free by using different areas.
      */
     MPI_Comm  adios_comm;
-    MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+    adios_comm = MPI_COMM_WORLD;
 
     enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
     adios_read_init_method(method, adios_comm, "verbose=3");
@@ -72,6 +78,7 @@ int worker(int argc, char* argv[]) {
     enum ADIOS_LOCKMODE lock_mode = ADIOS_LOCKMODE_NONE;
     double timeout_sec = 1.0;
     sprintf(adios_filename_b_to_c, "adios_b_to_c.bp");
+    my_printf ("rank %d: Worker C opening file: %s\n", myrank, adios_filename_b_to_c);
     fp = adios_read_open(adios_filename_b_to_c, method, adios_comm, lock_mode, timeout_sec);
     if (adios_errno == err_file_not_found) {
         fprintf (stderr, "rank %d: Stream not found after waiting %d seconds: %s\n",
@@ -115,6 +122,8 @@ int worker(int argc, char* argv[]) {
         while (adios_errno != err_end_of_stream && steps < iterations) {
             steps++; // steps start counting from 1
 
+            TAU_PROFILE_TIMER(adios_recv_timer, "ADIOS recv", __FILE__, TAU_USER);
+            TAU_PROFILE_START(adios_recv_timer);
             sel = adios_selection_boundingbox (vi->ndim, start, count);
             adios_schedule_read (fp, sel, "temperature", 0, 1, data);
             adios_perform_reads (fp, 1);
@@ -123,6 +132,7 @@ int worker(int argc, char* argv[]) {
                 printf ("--------- C Step: %d --------------------------------\n",
                         fp->current_step);
 
+#if 0
             printf("C rank=%d: [0:%lld,0:%lld] = [", myrank, vi->dims[0], vi->dims[1]);
             for (i = 0; i < slice_size; i++) {
                 printf (" [");
@@ -132,6 +142,7 @@ int worker(int argc, char* argv[]) {
                 printf ("]");
             }
             printf (" ]\n\n");
+#endif
 
             // advance to 1) next available step with 2) blocking wait
             adios_advance_step (fp, 0, timeout_sec);
@@ -141,6 +152,7 @@ int worker(int argc, char* argv[]) {
                         myrank, adios_errmsg());
                 break; // quit while loop
             }
+            TAU_PROFILE_STOP(adios_recv_timer);
 
             /* Do some exchanges with neighbors */
             //do_neighbor_exchange();
@@ -158,10 +170,12 @@ int worker(int argc, char* argv[]) {
      */
     adios_read_finalize_method(method);
 
+    //MPI_Comm_free(&adios_comm);
     free(data);
 
+    TAU_PROFILE_STOP(timer);
     /* exit */
     return 0;
 }
 
-int compute(int iteration) { return 0; }
+// int compute(int iteration) { return 0; }

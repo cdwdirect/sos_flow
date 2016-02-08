@@ -2,6 +2,7 @@
 
 #include "mpi.h"
 #include "adios.h"
+#include "util.h"
 
 /* Global variables */
 extern int commsize;
@@ -30,6 +31,7 @@ static inline void do_neighbor_exchange(void) {
     int outdata[100] = {1};
     int indata[100] = {0};
     int thistag = 1;
+    if (commsize < 2) return;
     MPI_Status status;
     if (myrank % 2 == 0) {
         // send to left neighbor

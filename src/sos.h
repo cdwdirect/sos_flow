@@ -15,8 +15,8 @@
  */
 
 
-#define SOS_VERSION "0.0.1"
-#define SOS_BUILDER "University of Oregon"
+#define SOS_VERSION "0.0.0"
+#define SOS_BUILDER "user@some.edu"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -28,19 +28,10 @@
 
 #include "qhashtbl.h"
 
-/* SOS Configuration Switches... */
-
-/*
- *   TODO: { VMPI } Merge in the capability of the former SOS project...
- */
-
-#define SOS_CONFIG_USE_THREAD_POOL     1
-
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
-    char __SOS_var_name[SOS_DEFAULT_STRING_LEN];                        \
+    char __SOS_var_name[SOS_DEFAULT_STRING_LEN] = {0};                  \
     {                                                                   \
-        memset(whoami, '\0', SOS_DEFAULT_STRING_LEN);                   \
         switch (SOS.role) {                                             \
         case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func); break; \
         case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func); break; \
@@ -50,17 +41,20 @@
         }                                                               \
     }
 
-#define SOS_DEFAULT_SERVER_HOST    "localhost"
-#define SOS_DEFAULT_SERVER_PORT    22505
-#define SOS_DEFAULT_MSG_TIMEOUT    2048
-#define SOS_DEFAULT_BUFFER_LEN     2621440
-#define SOS_DEFAULT_REPLY_LEN      128
-#define SOS_DEFAULT_STRING_LEN     256
-#define SOS_DEFAULT_RING_SIZE      8192
-#define SOS_DEFAULT_TABLE_SIZE     128
-#define SOS_DEFAULT_UID_MAX        LONG_MAX
-#define SOS_DEFAULT_GUID_BLOCK     512
-#define SOS_DEFAULT_ELEM_MAX       64
+/* SOS Configuration Switches... */
+
+#define SOS_CONFIG_USE_THREAD_POOL  0
+#define SOS_DEFAULT_SERVER_HOST     "localhost"
+#define SOS_DEFAULT_SERVER_PORT     22505
+#define SOS_DEFAULT_MSG_TIMEOUT     2048
+#define SOS_DEFAULT_BUFFER_LEN      2097152
+#define SOS_DEFAULT_REPLY_LEN       128
+#define SOS_DEFAULT_STRING_LEN      256
+#define SOS_DEFAULT_RING_SIZE       8192
+#define SOS_DEFAULT_TABLE_SIZE      128
+#define SOS_DEFAULT_UID_MAX         LONG_MAX
+#define SOS_DEFAULT_GUID_BLOCK      512
+#define SOS_DEFAULT_ELEM_MAX        1024
 
 /* ************************************ */
 
@@ -70,6 +64,7 @@
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_DB)                           \
     ROLE(SOS_ROLE_CONTROL)                      \
+    ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)
 
 #define FOREACH_TARGET(TARGET)                  \
@@ -246,7 +241,7 @@ typedef union {
 } SOS_val;
 
 typedef struct {
-    unsigned char                data[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char       data[SOS_DEFAULT_BUFFER_LEN];
     int                 len;
     int                 max;
     int                 entry_count;
@@ -367,6 +362,7 @@ typedef struct {
     int                 comm_support;
     int                 process_id;
     int                 thread_id;
+    bool                offline_test_mode;
 } SOS_config;
 
 typedef struct {
@@ -419,7 +415,7 @@ typedef struct {
  *  The root 'global' data structure:
  */
 
-SOS_runtime SOS;
+extern SOS_runtime SOS;
 
 /*
  *
@@ -480,7 +476,7 @@ extern "C" {
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
     SOS_val   SOS_get_val(SOS_pub *pub, char *name);
-    void      SOS_free_pub(SOS_pub *pub);
+    void      SOS_pub_destroy(SOS_pub *pub);
     void      SOS_free_sub(SOS_sub *sub);
     void      SOS_unannounce(SOS_pub *pub);
     SOS_sub*  SOS_new_sub(void);
