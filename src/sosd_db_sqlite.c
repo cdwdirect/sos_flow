@@ -362,6 +362,9 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         time_recv         = snap->time.recv;
         frame             = snap->frame;
 
+        /* TODO: Think about how we want to use this.  Turning it into "time injected into DB" for now... */
+        SOS_TIME( time_recv );
+
         if (pub->data[snap->elem]->type != SOS_VAL_TYPE_STRING) {
             val = val_alloc;
             memset(val, '\0', SOS_DEFAULT_STRING_LEN);

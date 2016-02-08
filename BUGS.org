@@ -2,6 +2,4 @@
 #+AUTHOR: Chad Wood
 
 * BUGS
-** [comm_rank] and [node_id] are the same in the database
-** [pack_time] other stamps in the tblvals in the database are not unique
 ** expansion of the pub on the daemon-side during a reannounce is not triggering.

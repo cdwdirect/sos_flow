@@ -13,12 +13,18 @@
 #include <stdarg.h>
 #include <string.h>
 
-unsigned long          SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
-double                 SOS_buffer_unpack754(unsigned long long int i, unsigned bits, unsigned expbits);
-void                   SOS_buffer_packi32(unsigned char *buf, int i);
-void                   SOS_buffer_packi64(unsigned char *buf, long i);
-int                    SOS_buffer_unpacki32(unsigned char *buf);
-long                   SOS_buffer_unpacki64(unsigned char *buf);
-unsigned long          SOS_buffer_unpacku64(unsigned char *buf);
-int                    SOS_buffer_pack(unsigned char *buf, char *format, ...);
-int                    SOS_buffer_unpack(unsigned char *buf, char *format, ...);
+//uint64_t    SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
+//double      SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits);
+
+uint64_t    SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
+long double SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits);
+
+
+void        SOS_buffer_packi32(unsigned char *buf, int i);
+void        SOS_buffer_packi64(unsigned char *buf, long i);
+int         SOS_buffer_unpacki32(unsigned char *buf);
+long        SOS_buffer_unpacki64(unsigned char *buf);
+uint64_t    SOS_buffer_unpacku64(unsigned char *buf);
+int         SOS_buffer_pack(unsigned char *buf, char *format, ...);
+int         SOS_buffer_unpack(unsigned char *buf, char *format, ...);
+
