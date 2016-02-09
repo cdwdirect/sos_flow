@@ -49,10 +49,10 @@ int mpi_reader (MPI_Comm adios_comm, char* source)
     ADIOS_VARINFO * v = adios_inq_var (f, "temperature");
 
     /* Using less readers to read the global array back, i.e., non-uniform */
-    uint64_t slice_size = v->dims[0]/commsize;
-    start[0] = slice_size * myrank;
-    if (myrank == commsize-1) /* last rank may read more lines */
-        slice_size = slice_size + v->dims[0]%commsize;
+    uint64_t slice_size = v->dims[0]/comm_size;
+    start[0] = slice_size * my_rank;
+    if (my_rank == comm_size-1) /* last rank may read more lines */
+        slice_size = slice_size + v->dims[0]%comm_size;
     count[0] = slice_size;
 
     data = malloc (slice_size * sizeof (double));
@@ -67,14 +67,14 @@ int mpi_reader (MPI_Comm adios_comm, char* source)
     adios_schedule_read (f, sel, "temperature", 0, 1, data);
     adios_perform_reads (f, 1);
 
-    if (myrank > 0) {
-        MPI_Recv (&token, 1, MPI_INT, myrank-1, 0, adios_comm, &status);
+    if (my_rank > 0) {
+        MPI_Recv (&token, 1, MPI_INT, my_rank-1, 0, adios_comm, &status);
     }
 
-    printf (" ======== Rank %d of %s from %s ========== \n", myrank, my_name, source);
+    printf (" ======== Rank %d of %s from %s ========== \n", my_rank, my_name, source);
     npl = 10;
     for (i = 0; i < slice_size; i+=npl) {
-        printf ("[%4.4lld]  ", myrank*slice_size+i);
+        printf ("[%4.4lld]  ", my_rank*slice_size+i);
         for (j= 0; j < npl; j++) {
             printf (" %6.6g", * ((double *)data + i + j));
         }
@@ -83,8 +83,8 @@ int mpi_reader (MPI_Comm adios_comm, char* source)
     fflush(stdout);
     //sleep(1);
 
-    if (myrank < commsize-1) {
-        MPI_Send (&token, 1, MPI_INT, myrank+1, 0, adios_comm);
+    if (my_rank < comm_size-1) {
+        MPI_Send (&token, 1, MPI_INT, my_rank+1, 0, adios_comm);
     }
 
     free (data);

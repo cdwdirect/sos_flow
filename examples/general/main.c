@@ -7,13 +7,14 @@
 #include <mpi.h>
 #include "main.h"
 #include "adios_read.h"
+#include <sys/types.h>
+#include <unistd.h>
 
 /* Global variables */
-int commsize = 1;
-int myrank = 0;
-int iterations = 1;
+int comm_size = 1;
+int my_rank = 0;
+int iterations = 1000000000;
 char * my_name = NULL;
-role my_role = READER;
 int num_sources = 0;
 int num_sinks = 0;
 char ** sources;
@@ -21,6 +22,9 @@ char ** sinks;
 
 int mpi_writer(MPI_Comm adios_comm, char * sink);
 int mpi_reader(MPI_Comm adios_comm, char * source);
+int flexpath_writer(MPI_Comm adios_comm, int sink_index, bool append, bool shutdown);
+int flexpath_reader(MPI_Comm adios_comm, int source_index);
+int compute(int iteration);
 
 void validate_input(int argc, char* argv[]) {
     if (argc == 1) {
@@ -94,32 +98,101 @@ int main (int argc, char *argv[])
         exit(99);
     }
 
-    MPI_Comm_rank(MPI_COMM_WORLD, &myrank);
-    MPI_Comm_size(MPI_COMM_WORLD, &commsize);
-    my_printf("%s Running with commsize %d\n", argv[0], commsize);
+    MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+    my_printf("%s %s %d Running with comm_size %d\n", argv[0], my_name, getpid(), comm_size);
     MPI_Comm adios_comm;
     MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
+
+    adios_init ("arrays.xml", adios_comm);
 
     /*
      * Loop and do the things
      */
-    int index;
-    for (index = 0 ; index < num_sources ; index++) {
-        TAU_PROFILE_TIMER(tautimer2, "ADIOS READING", my_name, TAU_USER);
-        TAU_PROFILE_START(tautimer2);
-        //mpi_reader(adios_comm, sources[index]);
-        flexpath_reader(adios_comm, sources[index]);
-        TAU_PROFILE_STOP(tautimer2);
+    int iter = 0;
+    char tmpstr[256] = {0};
+    int * return_codes = (int *)(calloc(num_sources,sizeof(int)));
+    while (iter < iterations) {
+        int index;
+        /*
+         * Read upstream input
+         */
+        for (index = 0 ; index < num_sources ; index++) {
+            if (return_codes[index] > 0) {
+                my_printf("%s source is gone\n", sources[index]);
+                continue; // this input is gone
+            }
+            my_printf ("%s reading from %s.\n", my_name, sources[index]);
+            sprintf(tmpstr,"%s READING FROM %s", my_name, sources[index]);
+            TAU_START(tmpstr);
+            //mpi_reader(adios_comm, sources[index]);
+            return_codes[index] = flexpath_reader(adios_comm, index);
+            TAU_STOP(tmpstr);
+        }
+        /*
+        * "compute"
+        */
+        my_printf ("%s computing.\n", my_name);
+        compute(iter);
+        bool time_to_go = (num_sources == 0) ? (iter == (iterations-1)) : true;
+        for (index = 0 ; index < num_sources ; index++) {
+            if (return_codes[index] == 0) {
+                time_to_go = false;
+                break; // out of this for loop
+            }
+        }
+        /*
+         * Send output downstream
+         */
+        for (index = 0 ; index < num_sinks ; index++) {
+            my_printf ("%s writing to %s.\n", my_name, sinks[index]);
+            sprintf(tmpstr,"%s WRITING TO %s", my_name, sinks[index]);
+            TAU_START(tmpstr);
+            //mpi_writer(adios_comm, sinks[index]);
+            flexpath_writer(adios_comm, index, (iter > 0), time_to_go);
+            TAU_STOP(tmpstr);
+        }
+        if (time_to_go) {
+            break; // out of the while loop
+        }
+        my_printf ("%s not time to go...\n", my_name);
+        iter++;
     }
+
     /*
-     * "compute"
+     * Finalize ADIOS
      */
-    for (index = 0 ; index < num_sinks ; index++) {
-        TAU_PROFILE_TIMER(tautimer2, "ADIOS WRITING", my_name, TAU_USER);
-        TAU_PROFILE_START(tautimer2);
-        //mpi_writer(adios_comm, sinks[index]);
-        flexpath_writer(adios_comm, sinks[index]);
-        TAU_PROFILE_STOP(tautimer2);
+    const char const * dot_filename = ".finished";
+    if (num_sources > 0) {
+        adios_read_finalize_method(ADIOS_READ_METHOD_FLEXPATH);
+    #if 0
+    } else {
+        while (true) {
+            // assume this is the main process. It can't exit until 
+            // the last process is done.
+            if( access( dot_filename, F_OK ) != -1 ) {
+                // file exists
+                unlink(dot_filename);
+                break;
+            } else {
+                // file doesn't exist
+                sleep(1);
+            }
+        }
+    #endif
+    }
+    if (num_sinks > 0) {
+        adios_finalize (my_rank);
+    #if 0
+    } else {
+        // assume this is the last process. 
+        // Tell the main process we are done.
+        FILE *file;
+        if (file = fopen(dot_filename, "w")) {
+            fprintf(file, "done.\n");
+            fclose(file);
+        }
+    #endif
     }
 
     /*
@@ -127,7 +200,7 @@ int main (int argc, char *argv[])
      */
     MPI_Comm_free(&adios_comm);
     MPI_Finalize();
-    my_printf ("%s Done.\n", argv[0]);
+    my_printf ("%s Done.\n", my_name);
 
     TAU_PROFILE_STOP(tautimer);
     return 0;

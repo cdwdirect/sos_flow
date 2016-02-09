@@ -16,69 +16,74 @@
 /*                                                           */
 /*        Similar example is manual/2_adios_write.c          */
 /*************************************************************/
-int flexpath_writer (MPI_Comm adios_comm, char * sink) 
+int flexpath_writer (MPI_Comm adios_comm, int sink_index, bool append, bool shutdown_flag) 
 {
-    int         rank, size, i, j, offset, size_y;
+    int         i, j, offset, size_y;
     int         NX = 5; 
     int         NY = 2;
     int         NZ = 2;
     double      t[NX*NY*NZ];
-    MPI_Comm    comm = adios_comm;
 
-    int64_t     adios_handle;
-    rank = myrank;
-    size = commsize;
+    // this is our array of handles that we are writing to.
+    static int64_t * adios_handles = 0;
+    // this is our "current" handle, for convenience.
+    int64_t * adios_handle = 0;
 
-    char file_name[256] = {0};
-    sprintf(file_name, "adios_%s_%s", my_name, sink);
-    adios_init ("arrays.xml", comm);
-    
-    int total = NX * NY * NZ * size;
-    int test_scalar = rank * 1000;
+    // how much total data is there to transfer in the array?
+    int total = NX * NY * NZ * comm_size;
+    // this flag tells the workflow to shutdown.
+    int shutdown = shutdown_flag ? 1 : 0;
 
-    offset = rank*NY;
-    size_y = size*NY;
+    // offsets into the array for each MPI rank.
+    offset = my_rank*NY;
+    size_y = comm_size*NY;
 
-    int start = 0;
+    // Each MPI rank only writes part of the array.
     int myslice = NX * NY * NZ;
-
-    for (i = 0; i<5; i++) {       
 	for (j=0; j<NY*NX*NZ; j++) {       
-	    t[j] = rank*myslice + (start + j);
+	    t[j] = my_rank*myslice + (j);
 	}
 
-	int s;
-	for (s = 0; s<size; s++) {
-	    if (s == rank) {
-		fprintf(stderr, "%s rank %d: step: %d [", my_name, rank, i);
-		int z;
-		for(z=0; z<NX*NY*NZ;z++){
-		    fprintf(stderr, "%lf, ", t[z]);
-		}
-		fprintf(stderr, "]\n");
-	    }
-	    fprintf(stderr, "\n");
-	    fflush(stderr);
-	    //MPI_Barrier(MPI_COMM_WORLD);
-	}
-
-	start += total;
-        //prints the array.
-	adios_open (&adios_handle, "temperature", file_name, "w", comm);
-	
-	adios_write (adios_handle, "/scalar/dim/NX", &NX);
-	adios_write (adios_handle, "/scalar/dim/NY", &NY);
-	adios_write (adios_handle, "/scalar/dim/NZ", &NZ);
-	adios_write (adios_handle, "test_scalar", &test_scalar);
-	adios_write (adios_handle, "size", &size);
-	adios_write (adios_handle, "rank", &rank);
-	adios_write (adios_handle, "offset", &offset);
-	adios_write (adios_handle, "size_y", &size_y);
-	adios_write (adios_handle, "var_2d_array", t);
-	
-	adios_close (adios_handle);
+    // if we haven't allocated space for handles, do it.
+    if (adios_handles == 0) {
+        adios_handles = (int64_t*)(calloc(num_sinks, sizeof(int64_t)));
     }
+    // if this file isn't open, open it.
+    adios_handle = &(adios_handles[sink_index]);
+    //if((*adios_handle) == 0) {
+        char file_name[256] = {0};
+        char group_name[256] = {0};
+        sprintf(file_name, "adios_%s_%s", my_name, sinks[sink_index]);
+        sprintf(group_name, "%s_to_%s", my_name, sinks[sink_index]);
+        printf("Opening %s for write\n", file_name); fflush(stdout);
+        if(append) {
+	        adios_open (adios_handle, group_name, file_name, "a", adios_comm);
+        } else {
+	        adios_open (adios_handle, group_name, file_name, "w", adios_comm);
+        }
+    //}
 
-    adios_finalize (rank);
+    /*
+     * Write our variables.
+     */
+    uint64_t  adios_totalsize;
+    uint64_t  adios_groupsize = 4 + 4 + 4 + 4 + 4 + 4 + 4 + 4 + 8 * (NZ) * (NY) * (NX);
+    adios_group_size ((*adios_handle), adios_groupsize, &adios_totalsize);
+	adios_write ((*adios_handle), "/scalar/dim/NX", &NX);
+	adios_write ((*adios_handle), "/scalar/dim/NY", &NY);
+	adios_write ((*adios_handle), "/scalar/dim/NZ", &NZ);
+	adios_write ((*adios_handle), "shutdown", &shutdown);
+	adios_write ((*adios_handle), "size", &comm_size);
+	adios_write ((*adios_handle), "rank", &my_rank);
+	adios_write ((*adios_handle), "offset", &offset);
+	adios_write ((*adios_handle), "size_y", &size_y);
+	adios_write ((*adios_handle), "var_2d_array", t);
+
+    //if (shutdown_flag) {
+        printf("Closing file for write\n"); fflush(stdout);
+	    adios_close (*adios_handle);
+        adios_handle = 0;
+    //}
+
     return 0;
 }
