@@ -1,6 +1,5 @@
 cmake_minimum_required (VERSION 2.8)
 
-
 option(ENABLE_ADIOS_EXAMPLES        "Build the examples that require the presence of ADIOS?" ON)
 option(ENABLE_TAU_WRAPPER           "Compile the codes with tau_cc.sh?" OFF)
 option(SOS_SILENCE_DEBUG            "Disable DEBUG messages?" OFF)
@@ -19,6 +18,7 @@ if((SOSD_CLOUD_SYNC_WITH_MPI OR SOSD_CLOUD_SYNC_WITH_EVPATH) AND NOT SOSD_CLOUD_
   message(FATAL_ERROR "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
 endif()
 
+#set(RULE_MESSAGES OFF)
 set(CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 set(PROJECT_NAME sos_flow)
