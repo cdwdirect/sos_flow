@@ -1,13 +1,15 @@
 #!/bin/bash
-if [ "x${SOS_ROOT}" == "x" ] ; then 
+if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
 fi
-if [ "x${SOS_WORK}" == "x" ] ; then 
+if [ "x${SOS_WORK}" == "x" ] ; then
   echo "Please set the SOS_WORK environment variable."
-  # kill -INT $$
-  echo "(using SOS_WORK to ${SOS_ROOT}/src as default)"
-  export SOS_WORK=${SOS_ROOT}/src
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
 fi
 ls -AblFs $SOS_WORK/*.db
 for db in $SOS_WORK/sosd.*.db ; do

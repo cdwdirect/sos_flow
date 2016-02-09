@@ -1819,6 +1819,11 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
+        if (pub->data[elem]->name == NULL) {
+            pub->data[elem]->name = (char *) malloc(SOS_DEFAULT_STRING_LEN * sizeof(char));
+            memset(pub->data[elem]->name, '\0', SOS_DEFAULT_STRING_LEN);
+        }
+
         buffer_pos += SOS_buffer_unpack(ptr, "lsiiiiiii",
             &pub->data[elem]->guid,
             pub->data[elem]->name,
