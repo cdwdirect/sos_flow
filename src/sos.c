@@ -760,8 +760,8 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
             new_pub->data[i]->guid      = 0;
-            new_pub->data[i]->name      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-            memset(new_pub->data[i]->name, '\0', SOS_DEFAULT_STRING_LEN);
+            new_pub->data[i]->name      = NULL; /* REM: (char *) malloc( SOS_DEFAULT_STRING_LEN );
+                                                   memset(new_pub->data[i]->name, '\0', SOS_DEFAULT_STRING_LEN);*/
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
@@ -836,6 +836,8 @@ void SOS_expand_data( SOS_pub *pub ) {
     SOS_data **expanded_data;
 
     expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
+    memset(expanded_data, '\0', ((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *)));
+
     memcpy(expanded_data, pub->data, (pub->elem_max * sizeof(SOS_data *)));
     for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_MAX); n++) {
         expanded_data[n] = malloc(sizeof(SOS_data));
@@ -902,6 +904,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
     //try to find the name in the existing pub schema:
     for (i = 0; i < pub->elem_count; i++) {
+        if (pub->data[i]->state == SOS_VAL_STATE_EMPTY) { continue; }
+        if (pub->data[i]->name == NULL) { continue; }
         if (strcmp(pub->data[i]->name, name) == 0) {
 
             dlog(6, "[%s]: (%s) name located at position %d.\n", whoami, name, i);
@@ -1024,7 +1028,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         dlog(6, "[%s]: (%s) data copied in successfully.\n", whoami, name);
 
+        if (pub->data[i]->name != NULL) { free(pub->data[i]->name); }
         pub->data[i]->name   = new_name;
+
         pub->data[i]->type   = pack_type;
         pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
@@ -1052,6 +1058,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         SOS_expand_data(pub);
         pub->elem_count++;
+        i = pub->elem_count;
 
         dlog(6, "[%s]: (%s) data object has been expanded successfully.  (pub->elem_max=%d)\n", whoami, name, pub->elem_max);
 
@@ -1084,7 +1091,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         dlog(6, "[%s]: ALMOST DONE....\n", whoami);
 
+        /* REM: if (pub->data[i]->name != NULL) { free(pub->data[i]->name); } */
         pub->data[i]->name   = new_name;
+
         pub->data[i]->type   = pack_type;
         pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
