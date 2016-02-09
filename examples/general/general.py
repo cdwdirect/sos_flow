@@ -9,17 +9,48 @@ import shlex
 import time
 import sys, traceback
 
-#filename = "5nodes.json"
-filename = "2nodes.json"
+filename = "not-specified.json"
 commands = []
 sos_root = ""
 
+"""
+This script expects a JSON file with a format something like this:
+{
+    "nodes": [{
+        "name": "a",
+        "mpi_ranks": "1",
+        "children": ["b"],
+        "parents": [],
+        "iterations": 10
+    }, {
+        "name": "b",
+        "mpi_ranks": "1",
+        "children": [],
+        "parents": ["a"]
+    }],
+    "sos_root": "/home3/khuck/src/sos_flow",
+    "sos_num_daemons": "1",
+    "sos_cmd_port": "22500",
+    "sos_cmd_buffer_len": "8388608",
+    "sos_num_dbs": "1",
+    "sos_db_port": "22503",
+    "sos_db_buffer_len": "8388608",
+    "sos_working_dir": "/tmp/sos_flow_working"
+}
+"""
+
+# This method will parse the arguments, of which there is one - the JSON file.
 def parse_arguments():
     parser = argparse.ArgumentParser(description='Generate and execute a generic workflow example.')
     parser.add_argument('filename', metavar='filename', type=str, help='a JSON input config file')
     args = parser.parse_args()
     return args.filename
 
+# this method will generate the ADIOS XML file for the FLEXPATH writer. 
+# Unfortunately, we need the XML file for ADIOS to work correctly.
+# The code will replace the string REPLACEME with the name of the communication
+# relationship, something like a_to_b or foo_to_bar - the same thing that the
+# flexpath_writer.c and flexpath_reader.c source code expects.
 def generate_xml(data):
     header = """<?xml version="1.0"?>\n    <adios-config host-language="C">\n"""
     footer = """<buffer size-MB="20" allocate-time="now"/>\n</adios-config>\n"""
@@ -39,10 +70,14 @@ def generate_xml(data):
     group_method = """    <method group="REPLACEME" method="FLEXPATH">QUEUE_SIZE=4</method>\n"""
     f = open('arrays.xml', 'w')
     f.write(header)
+    # iterate over the nodes, and for each one, iterate over its children
+    # to generate the adios-group node in the XML
     for node in data["nodes"]:
         for child in node["children"]:
             replacement = node["name"] + "_to_" + child
             f.write(group_data.replace("REPLACEME", replacement))
+    # iterate over the nodes, and for each one, iterate over its children
+    # to generate the adios method node in the XML
     for node in data["nodes"]:
         for child in node["children"]:
             replacement = node["name"] + "_to_" + child
@@ -50,12 +85,36 @@ def generate_xml(data):
     f.write(footer)
     f.close()
 
-def generate_commands(data):
+# This method will parse the PBS node file in order to get a list of hostnames
+# and a set of unique hostnames in order to generate an openmpi hostfile for
+# each node in the workflow.  If we are using a different queue (like slurm) or
+# a different MPI (like mpich) then we will have to add additional support.
+def parse_nodefile():
+    filename = os.environ['PBS_NODEFILE']
+    f = open(filename, 'r')
+    hostnames = []
+    unique_hostnames = set()
+    for line in f:
+        hostnames.append(line.strip())
+        unique_hostnames.add(line.strip())
+    f.close()
+    return hostnames, unique_hostnames
+
+# This method will generate the mpirun commands for each node in the workflow
+# graph. It should generate something like this:
+# "mpirun -np 1 --hostfile hostfile_a /sos_flow/bin/generic_node --name a --iterations 10 --writeto b"
+def generate_commands(data, hostnames):
     commands = []
     global sos_root
     sos_root = data["sos_root"]
+    index = 0
     for node in data["nodes"]:
-        command = "mpirun -np " + node["mpi_ranks"] + " " + sos_root + "/bin/generic_node --name " + node["name"]
+        hostfile = "hostfile_" + node["name"]
+        f = open (hostfile, 'w')
+        for i in range(int(node["mpi_ranks"])):
+            f.write(hostnames[index] + "\n")
+        f.close()
+        command = "mpirun -np " + node["mpi_ranks"] + " --hostfile " + hostfile + " " + sos_root + "/bin/generic_node --name " + node["name"]
         if "iterations" in node:
             command = command + " --iterations " + str(node["iterations"])
         #command = command + " --iterations " + str(data["iterations"])
@@ -66,7 +125,12 @@ def generate_commands(data):
         commands.append(command)
     return commands
     
-def execute_commands(commands, data):
+# this method will use the environment variables and JSON config settings to
+# launch the SOS daemons (one per node) and the SOS database (at least one), as
+# well as each of the nodes in the workflow. All system calls are done in the
+# background, with the exception of the last one - this script will wait for
+# that one to finish before continuing.
+def execute_commands(commands, data, unique_hostnames):
     sos_root = data["sos_root"]
     sos_num_daemons = data["sos_num_daemons"]
     sos_cmd_port = data["sos_cmd_port"]
@@ -79,12 +143,22 @@ def execute_commands(commands, data):
     os.environ['SOS_CMD_PORT'] = sos_cmd_port
     os.environ['SOS_DB_PORT'] = sos_db_port
     daemon = sos_root + "/bin/sosd"
-    arguments = "mpirun -np " + sos_num_daemons + " " + daemon + " --role SOS_ROLE_DAEMON --port " + sos_cmd_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_working_dir + " : -np " + sos_num_dbs + " " +  daemon + " --role SOS_ROLE_DB --port " + sos_db_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_working_dir 
+    sos_num_daemons = len(unique_hostnames)
+    """
+    hostfile = "hostfile_sos"
+    f = open (hostfile, 'w')
+    for i in unique_hostnames:
+        f.write(i + "\n")
+    f.close()
+    """
+    # launch the SOS daemon(s) and SOS database(s)
+    arguments = "mpirun -pernode -np " + str(sos_num_daemons) + " " + daemon + " --role SOS_ROLE_DAEMON --port " + sos_cmd_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_working_dir + " : -np " + sos_num_dbs + " " +  daemon + " --role SOS_ROLE_DB --port " + sos_db_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_working_dir 
     print arguments
     args = shlex.split(arguments)
     subprocess.Popen(args)
     time.sleep(1)
     index = 0
+    # launch all of the nodes in the workflow
     for command in commands:
         index = index + 1
         print command
@@ -95,7 +169,7 @@ def execute_commands(commands, data):
             subprocess.Popen(args)
         time.sleep(0.1)
 
-    # shut down
+    # shut down - wait for a bit so we can shutdown the database server cleanly.
     print "Waiting for all processes to finish..."
     time.sleep(2)
     print "Stopping the database..."
@@ -103,6 +177,7 @@ def execute_commands(commands, data):
     args = shlex.split(arguments)
     subprocess.call(args)
 
+# main, baby - main!
 def main():
     global sos_root
     filename = parse_arguments()
@@ -110,9 +185,10 @@ def main():
         data = json.load(data_file)
     #pprint(data)
     generate_xml(data)
-    commands = generate_commands(data)
+    hostnames, unique_hostnames = parse_nodefile()
+    commands = generate_commands(data, hostnames)
     try:
-        execute_commands(commands, data)
+        execute_commands(commands, data, unique_hostnames)
     except:
         print "failed!"
         traceback.print_exc(file=sys.stderr)
