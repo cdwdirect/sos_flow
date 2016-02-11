@@ -50,9 +50,9 @@
         const double EscapeRadius=2;
         double ER2=EscapeRadius*EscapeRadius;
         /*create new file,give it a name and open it in binary mode  */
-        fp= fopen(filename,"wb"); /* b -  binary mode */
+        // fp= fopen(filename,"wb"); /* b -  binary mode */
         /*write ASCII header to the file*/
-        fprintf(fp,"P6\n %s\n %d\n %d\n %d\n",comment,iXmax,iYmax,MaxColorComponentValue);
+        // fprintf(fp,"P6\n %s\n %d\n %d\n %d\n",comment,iXmax,iYmax,MaxColorComponentValue);
         /* compute and write image data bytes to the file*/
         for(iY=0;iY<iYmax;iY++)
         {
@@ -88,10 +88,10 @@
                              color[2]=255;/* Blue */
                         };
                         /*write color to the file*/
-                        fwrite(color,1,3,fp);
+                        // fwrite(color,1,3,fp);
                 }
         }
-        fclose(fp);
+        // fclose(fp);
     TAU_PROFILE_STOP(timer);
         return 0;
  }

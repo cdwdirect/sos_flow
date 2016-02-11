@@ -35,7 +35,8 @@ This script expects a JSON file with a format something like this:
     "sos_num_dbs": "1",
     "sos_db_port": "22503",
     "sos_db_buffer_len": "8388608",
-    "sos_working_dir": "/tmp/sos_flow_working"
+    "sos_cmd_working_dir": "/tmp/sos_flow_working",
+    "sos_db_working_dir": "/tmp/sos_flow_working"
 }
 """
 
@@ -67,7 +68,7 @@ def generate_xml(data):
             <var name="var_2d_array" gwrite="t" type="double" dimensions="/scalar/dim/NZ,/scalar/dim/NY,/scalar/dim/NX"/>
         </global-bounds>
     </adios-group>\n"""
-    group_method = """    <method group="REPLACEME" method="FLEXPATH">QUEUE_SIZE=4</method>\n"""
+    group_method = """    <method group="REPLACEME" method="FLEXPATH">QUEUE_SIZE=10</method>\n"""
     f = open('arrays.xml', 'w')
     f.write(header)
     # iterate over the nodes, and for each one, iterate over its children
@@ -105,6 +106,7 @@ def parse_nodefile():
 # "mpirun -np 1 --hostfile hostfile_a /sos_flow/bin/generic_node --name a --iterations 10 --writeto b"
 def generate_commands(data, hostnames):
     commands = []
+    logfiles = []
     global sos_root
     sos_root = data["sos_root"]
     index = 0
@@ -113,6 +115,7 @@ def generate_commands(data, hostnames):
         f = open (hostfile, 'w')
         for i in range(int(node["mpi_ranks"])):
             f.write(hostnames[index] + "\n")
+            index = index + 1
         f.close()
         command = "mpirun -np " + node["mpi_ranks"] + " --hostfile " + hostfile + " " + sos_root + "/bin/generic_node --name " + node["name"]
         if "iterations" in node:
@@ -123,14 +126,16 @@ def generate_commands(data, hostnames):
         for parent in node["parents"]:
             command = command + " --readfrom " + parent
         commands.append(command)
-    return commands
+        logfile = node["name"] + ".log"
+        logfiles.append(logfile)
+    return commands,logfiles
     
 # this method will use the environment variables and JSON config settings to
 # launch the SOS daemons (one per node) and the SOS database (at least one), as
 # well as each of the nodes in the workflow. All system calls are done in the
 # background, with the exception of the last one - this script will wait for
 # that one to finish before continuing.
-def execute_commands(commands, data, unique_hostnames):
+def execute_commands(commands, logfiles, data, unique_hostnames):
     sos_root = data["sos_root"]
     sos_num_daemons = data["sos_num_daemons"]
     sos_cmd_port = data["sos_cmd_port"]
@@ -138,7 +143,9 @@ def execute_commands(commands, data, unique_hostnames):
     sos_num_dbs = data["sos_num_dbs"]
     sos_db_port = data["sos_db_port"]
     sos_db_buffer_len = data["sos_db_buffer_len"]
-    sos_working_dir = data["sos_working_dir"]
+    sos_cmd_working_dir = data["sos_cmd_working_dir"]
+    sos_db_working_dir = data["sos_db_working_dir"]
+    os.environ['SOS_WORKING'] = sos_cmd_working_dir
     os.environ['SOS_ROOT'] = sos_root
     os.environ['SOS_CMD_PORT'] = sos_cmd_port
     os.environ['SOS_DB_PORT'] = sos_db_port
@@ -152,22 +159,30 @@ def execute_commands(commands, data, unique_hostnames):
     f.close()
     """
     # launch the SOS daemon(s) and SOS database(s)
-    arguments = "mpirun -pernode -np " + str(sos_num_daemons) + " " + daemon + " --role SOS_ROLE_DAEMON --port " + sos_cmd_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_working_dir + " : -np " + sos_num_dbs + " " +  daemon + " --role SOS_ROLE_DB --port " + sos_db_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_working_dir 
+    arguments = "mpirun -pernode -np " + str(sos_num_daemons) + " " + daemon + " --role SOS_ROLE_DAEMON --port " + sos_cmd_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_cmd_working_dir + " : -np " + sos_num_dbs + " " +  daemon + " --role SOS_ROLE_DB --port " + sos_db_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_db_working_dir 
     print arguments
     args = shlex.split(arguments)
     subprocess.Popen(args)
     time.sleep(1)
     index = 0
+    openfiles = []
     # launch all of the nodes in the workflow
-    for command in commands:
+    for command,logfile in zip(commands,logfiles):
         index = index + 1
         print command
         args = shlex.split(command)
+        #lf = open(logfile,'w')
+        #openfiles.append(lf)
         if index == len(commands):
-            subprocess.check_call(args)
+            #subprocess.check_call(args, stdout=lf, stderr=subprocess.STDOUT)
+            subprocess.check_call(args, stderr=subprocess.STDOUT)
         else:
-            subprocess.Popen(args)
-        time.sleep(0.1)
+            #subprocess.Popen(args, stdout=lf, stderr=subprocess.STDOUT)
+            subprocess.Popen(args, stderr=subprocess.STDOUT)
+        time.sleep(1)
+    # close the log files
+    for lf in openfiles:
+        lf.close()
 
     # shut down - wait for a bit so we can shutdown the database server cleanly.
     print "Waiting for all processes to finish..."
@@ -186,9 +201,9 @@ def main():
     #pprint(data)
     generate_xml(data)
     hostnames, unique_hostnames = parse_nodefile()
-    commands = generate_commands(data, hostnames)
+    commands,logfiles = generate_commands(data, hostnames)
     try:
-        execute_commands(commands, data, unique_hostnames)
+        execute_commands(commands, logfiles, data, unique_hostnames)
     except:
         print "failed!"
         traceback.print_exc(file=sys.stderr)
