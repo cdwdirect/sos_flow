@@ -111,13 +111,18 @@ def generate_commands(data, hostnames):
     sos_root = data["sos_root"]
     index = 0
     for node in data["nodes"]:
-        hostfile = "hostfile_" + node["name"]
-        f = open (hostfile, 'w')
-        for i in range(int(node["mpi_ranks"])):
-            f.write(hostnames[index] + "\n")
-            index = index + 1
-        f.close()
-        command = "mpirun -np " + node["mpi_ranks"] + " --hostfile " + hostfile + " " + sos_root + "/bin/generic_node --name " + node["name"]
+        hostfile_arg = ""
+        if data["oversubscribe"]:
+            hostfile_arg = " "
+        else:
+            hostfile = "hostfile_" + node["name"]
+            f = open (hostfile, 'w')
+            for i in range(int(node["mpi_ranks"])):
+                f.write(hostnames[index] + "\n")
+                index = index + 1
+            f.close()
+            hostfile_arg = " --hostfile " + hostfile
+        command = "mpirun -np " + node["mpi_ranks"] + hostfile_arg + " " + sos_root + "/bin/generic_node --name " + node["name"]
         if "iterations" in node:
             command = command + " --iterations " + str(node["iterations"])
         #command = command + " --iterations " + str(data["iterations"])

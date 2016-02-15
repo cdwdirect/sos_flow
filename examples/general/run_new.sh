@@ -3,10 +3,12 @@
 # just in case
 killall -9 mpirun || true
 
+cwd=`pwd`
+#working=/tmp/sos_flow_working
+working=${cwd}/sos_flow_working
+
 export SOS_ROOT=$HOME/src/sos_flow
 export SOS_CMD_PORT=22500
-cwd=`pwd`
-working=/tmp/sos_flow_working
 
 mkdir -p ${working}
 cd ${working}
@@ -35,5 +37,5 @@ post_process_tau()
     fi
 }
 
-${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5nodes.json
+${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5apps.json
 post_process_tau

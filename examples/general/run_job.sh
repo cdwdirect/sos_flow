@@ -41,5 +41,5 @@ post_process_tau()
     fi
 }
 
-${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5nodes-5ranks.json
+${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5apps-multinode.json
 post_process_tau

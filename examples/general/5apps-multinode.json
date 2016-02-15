@@ -27,6 +27,7 @@
         "parents": ["d"]
     }],
     "iterations": 5,
+    "oversubscribe": false,
     "sos_root": "/home3/khuck/src/sos_flow",
     "sos_num_daemons": "1",
     "sos_cmd_port": "22500",
