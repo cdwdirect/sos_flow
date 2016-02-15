@@ -84,10 +84,14 @@ int flexpath_reader (MPI_Comm adios_comm, int source_index)
         sprintf(file_name, "adios_%s_%s", sources[source_index], my_name);
         double timeout_seconds = 1.0;
         // Enter this "loop" to wait for the file.
+        my_printf("%s %d: Opening stream: %s\n", my_name, my_rank, file_name);
         am->afile = adios_read_open(file_name, ADIOS_READ_METHOD_FLEXPATH, 
                                     adios_comm, ADIOS_LOCKMODE_ALL, timeout_seconds);
         while (adios_errno == err_file_not_found) {
             my_printf("%s %d: Waiting on stream: %s\n", my_name, my_rank, adios_errmsg());
+            sleep(1);
+            adios_clear_error(); // reset the error
+            my_printf("%s %d: Trying stream again: %s\n", my_name, my_rank, adios_errmsg());
             am->afile = adios_read_open(file_name, ADIOS_READ_METHOD_FLEXPATH, 
                                         adios_comm, ADIOS_LOCKMODE_ALL, timeout_seconds);
         }

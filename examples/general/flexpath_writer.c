@@ -80,7 +80,7 @@ int flexpath_writer (MPI_Comm adios_comm, int sink_index, bool append, bool shut
 	adios_write ((*adios_handle), "var_2d_array", t);
 
     //if (shutdown_flag) {
-        printf("Closing file for write\n"); fflush(stdout);
+        printf("Closing %s for write\n", file_name); fflush(stdout);
 	    adios_close (*adios_handle);
         adios_handle = 0;
     //}
