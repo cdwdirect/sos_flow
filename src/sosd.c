@@ -841,11 +841,13 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
             function_name);
         ptr = (feedback_msg + offset);
 
+        /* Go back and set the message length to the actual length. */
+        SOS_buffer_pack(feedback_msg, "i", offset);
+
         i = send( SOSD.net.client_socket_fd, (void *) feedback_msg, offset, 0 );
         if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     }
-
 
     return;
 }
