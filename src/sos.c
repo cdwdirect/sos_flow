@@ -604,6 +604,8 @@ void* SOS_THREAD_feedback( void *args ) {
     SOS_msg_header header;
     SOS_feedback feedback;
 
+    if ( SOS.config.offline_test_mode == true ) return;
+
     check_in_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
     feedback_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
 
