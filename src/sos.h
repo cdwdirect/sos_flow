@@ -43,7 +43,7 @@
 
 /* SOS Configuration Switches... */
 
-#define SOS_CONFIG_USE_THREAD_POOL  1
+#define SOS_CONFIG_USE_THREAD_POOL  0
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048

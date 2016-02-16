@@ -604,7 +604,7 @@ void* SOS_THREAD_feedback( void *args ) {
     SOS_msg_header header;
     SOS_feedback feedback;
 
-    if ( SOS.config.offline_test_mode == true ) return;
+    if ( SOS.config.offline_test_mode == true ) { return; }
 
     check_in_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
     feedback_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
@@ -680,7 +680,7 @@ void* SOS_THREAD_feedback( void *args ) {
         case SOS_FEEDBACK_EXEC_FUNCTION: 
         case SOS_FEEDBACK_SET_PARAMETER: 
         case SOS_FEEDBACK_EFFECT_CHANGE:
-            SOS_handle_feedback(feedback, ptr, (header.msg_size - ptr_offset));
+            SOS_handle_feedback(feedback, feedback_msg, header.msg_size);
             break;
 
         default: break;
@@ -689,7 +689,7 @@ void* SOS_THREAD_feedback( void *args ) {
         /* Set the timer to 2 seconds in the future. */
         gettimeofday(&tp, NULL);
         ts.tv_sec  = (tp.tv_sec + 2);
-        ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
+        ts.tv_nsec = (1000 * tp.tv_usec);
     }
 
     free(check_in_msg);
@@ -700,18 +700,40 @@ void* SOS_THREAD_feedback( void *args ) {
 }
 
 
-void SOS_handle_feedback(SOS_feedback feedback, unsigned char *buffer, int buffer_length) {
+void SOS_handle_feedback(SOS_feedback feedback, unsigned char *msg, int msg_length) {
     SOS_SET_WHOAMI(whoami, "SOS_handle_feedback");
+    int  function_code;
     char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
+
+    SOS_msg_header header;
+
+    char *ptr;
+    int ptr_offset;
 
     /* TODO: { FEEDBACK } Ponder the thread-safety of all this jazz... */
 
+    ptr = msg;
+    ptr_offset = 0;
+
+    ptr_offset += SOS_buffer_unpack(ptr, "iill",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+    ptr = (msg + ptr_offset);
+    
     switch (feedback) {
     case SOS_FEEDBACK_EXEC_FUNCTION:
         /* Read in the function signature from the buffer. */
         /* Check if that function is supported by this libsos client. */
         /* Launch the SOS_feedback_exec(...) routine for that function. */
-        dlog(0, "[%s]: EXEC_FUNCTION(%s) triggered.\n", whoami, function_sig);
+
+        ptr_offset += SOS_buffer_unpack(ptr, "is",
+            &function_code,
+            &function_sig);
+        ptr = (msg + ptr_offset);
+
+        dlog(0, "[%s]: SOS_feedback #%d called --> EXEC_FUNCTION(%s) triggered.\n", whoami, function_code, function_sig);
 
     case SOS_FEEDBACK_SET_PARAMETER: break;
     case SOS_FEEDBACK_EFFECT_CHANGE: break;
