@@ -25,7 +25,7 @@
 
 /* Private functions (not in the header file) */
 void*  SOS_THREAD_feedback( void *arg );
-void   SOS_handle_feedback(SOS_feedback feedback, unsigned char *buffer, int buffer_length);
+void   SOS_handle_feedback(unsigned char *buffer, int buffer_length);
 
 void   SOS_expand_data( SOS_pub *pub );
 
@@ -609,6 +609,8 @@ void* SOS_THREAD_feedback( void *args ) {
     check_in_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
     feedback_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
 
+    sleep(2);
+
     /* Set the wakeup time (ts) to 2 seconds in the future. */
     gettimeofday(&tp, NULL);
     ts.tv_sec  = (tp.tv_sec + 2);
@@ -618,12 +620,6 @@ void* SOS_THREAD_feedback( void *args ) {
     pthread_mutex_lock(SOS.task.feedback_lock);
 
     while (SOS.status != SOS_STATUS_SHUTDOWN) {
-        /* Go to sleep until the wakeup time (ts) is reached. */
-        wake_type = pthread_cond_timedwait(SOS.task.feedback_cond, SOS.task.feedback_lock, &ts);
-        if (wake_type == ETIMEDOUT) {
-            /* ...any special actions that need to happen if timed-out vs. explicitly triggered */
-        }
-
         /* Build a checkin message. */
         memset(check_in_msg, '\0', SOS_DEFAULT_FEEDBACK_LEN);
         memset(feedback_msg, '\0', SOS_DEFAULT_FEEDBACK_LEN);
@@ -649,7 +645,6 @@ void* SOS_THREAD_feedback( void *args ) {
         /* Ping the daemon to see if there is anything to do. */
         SOS_send_to_daemon((unsigned char *) check_in_msg, ptr_offset, feedback_msg, SOS_DEFAULT_FEEDBACK_LEN);
 
-        /* TODO: Process the daemon reply. */
         memset(&header, '\0', sizeof(SOS_msg_header));
         ptr = feedback_msg;
         ptr_offset = 0;
@@ -672,15 +667,13 @@ void* SOS_THREAD_feedback( void *args ) {
             &feedback);
         ptr = (feedback_msg + ptr_offset);
 
-        /* Whatever you unpack here will not get passed to handle_feedback(...) ...*/
-
         switch (feedback) {
         case SOS_FEEDBACK_CONTINUE: break;
 
         case SOS_FEEDBACK_EXEC_FUNCTION: 
         case SOS_FEEDBACK_SET_PARAMETER: 
         case SOS_FEEDBACK_EFFECT_CHANGE:
-            SOS_handle_feedback(feedback, feedback_msg, header.msg_size);
+            SOS_handle_feedback(feedback_msg, header.msg_size);
             break;
 
         default: break;
@@ -690,6 +683,11 @@ void* SOS_THREAD_feedback( void *args ) {
         gettimeofday(&tp, NULL);
         ts.tv_sec  = (tp.tv_sec + 2);
         ts.tv_nsec = (1000 * tp.tv_usec);
+        /* Go to sleep until the wakeup time (ts) is reached. */
+        wake_type = pthread_cond_timedwait(SOS.task.feedback_cond, SOS.task.feedback_lock, &ts);
+        if (wake_type == ETIMEDOUT) {
+            /* ...any special actions that need to happen if timed-out vs. explicitly triggered */
+        }
     }
 
     free(check_in_msg);
@@ -700,9 +698,9 @@ void* SOS_THREAD_feedback( void *args ) {
 }
 
 
-void SOS_handle_feedback(SOS_feedback feedback, unsigned char *msg, int msg_length) {
+void SOS_handle_feedback(unsigned char *msg, int msg_length) {
     SOS_SET_WHOAMI(whoami, "SOS_handle_feedback");
-    int  function_code;
+    int  activity_code;
     char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
 
     SOS_msg_header header;
@@ -721,22 +719,26 @@ void SOS_handle_feedback(SOS_feedback feedback, unsigned char *msg, int msg_leng
         &header.msg_from,
         &header.pub_guid);
     ptr = (msg + ptr_offset);
+
+    ptr_offset += SOS_buffer_unpack(ptr, "i",
+        &activity_code);
+    ptr = (msg + ptr_offset);
     
-    switch (feedback) {
+    
+    switch (activity_code) {
     case SOS_FEEDBACK_EXEC_FUNCTION:
         /* Read in the function signature from the buffer. */
         /* Check if that function is supported by this libsos client. */
         /* Launch the SOS_feedback_exec(...) routine for that function. */
 
-        ptr_offset += SOS_buffer_unpack(ptr, "is",
-            &function_code,
-            &function_sig);
+        ptr_offset += SOS_buffer_unpack(ptr, "s", function_sig);
         ptr = (msg + ptr_offset);
-
-        dlog(0, "[%s]: SOS_feedback #%d called --> EXEC_FUNCTION(%s) triggered.\n", whoami, function_code, function_sig);
+        dlog(0, "[%s]: SOS_feedback code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", whoami, activity_code, function_sig);
 
     case SOS_FEEDBACK_SET_PARAMETER: break;
     case SOS_FEEDBACK_EFFECT_CHANGE: break;
+
+
     default: break;
     }
 
