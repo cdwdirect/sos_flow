@@ -10,8 +10,8 @@
 
 int SOS_test_all();
 int SOS_test_show_ok() { return PASS; }
-int SOS_TEST_RUN_SILENT;
 
+int SOS_RUN_MODE;
 
 
 int main(int argc, char *argv[]) {
@@ -20,15 +20,16 @@ int main(int argc, char *argv[]) {
 
     srandom(getpid());
 
-    if ((argc > 1) && (strcmp(argv[1], "silent") == 0)) {
-        SOS_TEST_RUN_SILENT = 1;
+
+    if ((argc > 1) && (strcmp(argv[1], "online") == 0)) {
+        SOS_RUN_MODE = SOS_ROLE_CLIENT;
     } else {
-        SOS_TEST_RUN_SILENT = 0;
+        SOS_RUN_MODE = SOS_ROLE_OFFLINE_TEST_MODE;
     }
 
     SOS_test_section_start(0, "SOS");
     
-    SOS_init(&argc, &argv, SOS_ROLE_OFFLINE_TEST_MODE);
+    SOS_init(&argc, &argv, SOS_RUN_MODE);
     SOS_test_run(1, "SOS_init", SOS_test_show_ok(), error_ignore, error_ignore);
 
     error_total = SOS_test_all();

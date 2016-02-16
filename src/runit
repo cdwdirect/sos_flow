@@ -29,7 +29,7 @@ echo ""
 echo "*** Running [demo_app]...   params:  -i 150 -m 40,000 -jitter 2.0"
 echo ""
 echo ""
-$SOS_ROOT/bin/demo_app -i 200 -m 2000000
+$SOS_ROOT/bin/demo_app -i 200 -m 400000
 echo ""
 echo ""
 echo "*** Pausing with [sleep 2] and displaying [showdb] results..."

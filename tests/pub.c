@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <time.h>
 
 #include "sos.h"
 #include "test.h"
@@ -57,10 +58,21 @@ int SOS_test_pub_growth() {
     SOS_pub *pub;
     pub = SOS_pub_create("test_pub_growth");
 
+    struct timespec ts;
+    ts.tv_sec  = 0;
+    ts.tv_nsec = 62500000;
+
     for (attempt = 0; attempt < (ATTEMPT_MAX / 2); attempt++) {
         random_string(some_string, 25);
         snprintf(val_name, 512, "%d%s", attempt, some_string);
         SOS_pack(pub, val_name, SOS_VAL_TYPE_INT, (SOS_val) attempt);
+        if (SOS_RUN_MODE == SOS_ROLE_CLIENT) {
+            SOS_announce(pub);
+            SOS_publish(pub);
+            printf("  %10d\b\b\b\b\b\b\b\b\b\b\b\b", attempt);
+            nanosleep(&ts, NULL);
+        }
+
     }
 
     if (pub->elem_count != (ATTEMPT_MAX / 2)) {
