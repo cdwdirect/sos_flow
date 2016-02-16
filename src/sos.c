@@ -496,7 +496,10 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
     int server_socket_fd;
     int retval;
 
-    /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
+    if (SOS.status == SOS_STATUS_SHUTDOWN) {
+        dlog(1, "[%s]: Suppressing a send to the daemon.  (SOS_STATUS_SHUTDOWN)\n", whoami);
+        return;
+    }
 
     if (SOS.config.offline_test_mode == true) {
         dlog(1, "[%s]: Suppressing a send to the daemon.  (OFFLINE_TEST_MODE)\n", whoami);
