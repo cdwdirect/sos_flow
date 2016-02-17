@@ -800,7 +800,7 @@ void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
 void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
-    unsigned char feedback_msg[SOS_DEFAULT_FEEDBACK_LEN];
+    unsigned char feedback_msg[SOS_DEFAULT_FEEDBACK_LEN] = {0};
     unsigned char *ptr;
     unsigned char function_name[SOS_DEFAULT_STRING_LEN] = {0};
     int offset = 0;
@@ -816,7 +816,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
 
     if (SOS.role == SOS_ROLE_DAEMON) {
         /* Build a reply: */
-        memset(&header, '\0', SOS_DEFAULT_FEEDBACK_LEN);
+        memset(&header, '\0', sizeof(SOS_msg_header));
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_FEEDBACK;
         header.msg_from = 0;
