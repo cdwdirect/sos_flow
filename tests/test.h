@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <time.h>
 
 /*
  *  Should work fine in most linux terminals.
@@ -25,7 +26,8 @@
 #define FAIL   1
 #define NOTEST 2
 
-extern int SOS_TEST_RUN_SILENT;
+extern int SOS_RUN_MODE;
+
 extern void random_string(char *dest_str, size_t size);
 extern void random_double(double *dest_dbl);
 

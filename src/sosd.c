@@ -832,7 +832,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
             header.pub_guid);
         ptr = (feedback_msg + offset);
 
-        /* TODO: { FEEDBACK } Hard-coded 'exec function' case. */
+        /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
         memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 

@@ -609,7 +609,10 @@ void* SOS_THREAD_feedback( void *args ) {
     check_in_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
     feedback_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
 
-    sleep(2);
+    sleep(1);
+    if (SOS.status != SOS_STATUS_SHUTDOWN) {
+      sleep(4 + (random() % 5));
+    }
 
     /* Set the wakeup time (ts) to 2 seconds in the future. */
     gettimeofday(&tp, NULL);
