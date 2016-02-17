@@ -659,7 +659,7 @@ void* SOS_THREAD_feedback( void *args ) {
             &header.pub_guid);
         ptr = (feedback_msg + ptr_offset);
         if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
-            dlog(0, "[%s]: WARNING! --- Daemon responded to a checkin message with a malformed reply!\n", whoami);
+            dlog(0, "[%s]: WARNING! --- sosd (daemon) responded to a CHECK_IN msg malformed FEEDBACK!\n", whoami);
             gettimeofday(&tp, NULL);
             ts.tv_sec  = (tp.tv_sec + 2);
             ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
@@ -729,19 +729,20 @@ void SOS_handle_feedback(unsigned char *msg, int msg_length) {
     
     
     switch (activity_code) {
+    case SOS_FEEDBACK_CONTINUE: break;
+
     case SOS_FEEDBACK_EXEC_FUNCTION:
+        /* TODO: { HANDLE_FEEDACK } Add in more robust / variable handlers. (hardcoded right now) */
         /* Read in the function signature from the buffer. */
         /* Check if that function is supported by this libsos client. */
         /* Launch the SOS_feedback_exec(...) routine for that function. */
 
         ptr_offset += SOS_buffer_unpack(ptr, "s", function_sig);
         ptr = (msg + ptr_offset);
-        dlog(0, "[%s]: SOS_feedback code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", whoami, activity_code, function_sig);
+        dlog(5, "[%s]: FEEDBACK activity_code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", whoami, activity_code, function_sig);
 
     case SOS_FEEDBACK_SET_PARAMETER: break;
     case SOS_FEEDBACK_EFFECT_CHANGE: break;
-
-
     default: break;
     }
 

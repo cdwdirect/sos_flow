@@ -798,9 +798,9 @@ void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
 
 
 void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
-    SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
+    SOS_SET_WHOAMI(whoami, "daemon_handle_check_in");
     SOS_msg_header header;
-    unsigned char feedback_msg[SOS_DEFAULT_FEEDBACK_LEN];
+    unsigned char feedback_msg[SOS_DEFAULT_FEEDBACK_LEN] = {0};
     unsigned char *ptr;
     unsigned char function_name[SOS_DEFAULT_STRING_LEN] = {0};
     int offset = 0;
@@ -816,7 +816,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
 
     if (SOS.role == SOS_ROLE_DAEMON) {
         /* Build a reply: */
-        memset(&header, '\0', SOS_DEFAULT_FEEDBACK_LEN);
+        memset(&header, '\0', sizeof(SOS_msg_header));
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_FEEDBACK;
         header.msg_from = 0;
@@ -844,11 +844,14 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
         /* Go back and set the message length to the actual length. */
         SOS_buffer_pack(feedback_msg, "i", offset);
 
+        dlog(1, "[%s]: Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", whoami, function_name);
+
         i = send( SOSD.net.client_socket_fd, (void *) feedback_msg, offset, 0 );
         if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
         else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
     }
 
+    dlog(5, "[%s]: Done!\n", whoami);
     return;
 }
 

@@ -23,6 +23,7 @@ echo ${daemon1}
 
 valgrind_cmd=""
 #valgrind_cmd="valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --trace-children=yes "
+#valgrind_cmd="valgrind --tool=memcheck --leak-check=full --track-origins=yes --trace-children=yes "
 
 ${valgrind_cmd} mpirun ${daemon0} : ${daemon1}
 
