@@ -120,12 +120,35 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     }
 
     if (SOS.role == SOS_ROLE_CLIENT) {
+        /* NOTE: This is only used for clients.  Daemons handle their own. */
+        char *env_rank;
+        char *env_size;
+
+        env_rank = getenv("PMI_RANK");
+        env_size = getenv("PMI_SIZE");
+        if ((env_rank!= NULL) && (env_size != NULL)) {
+            /* MPICH_ */
+            SOS.config.comm_rank = atoi(env_rank);
+            SOS.config.comm_size = atoi(env_size);
+            dlog(1, "[%s]:   ... MPICH environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
+        } else {
+            env_rank = getenv("OMPI_COMM_WORLD_RANK");
+            env_size = getenv("OMPI_COMM_WORLD_SIZE");
+            if ((env_rank != NULL) && (env_size != NULL)) {
+                /* OpenMPI */
+                SOS.config.comm_rank = atoi(env_rank);
+                SOS.config.comm_size = atoi(env_size);
+                dlog(1, "[%s]:   ... OpenMPI environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
+            }
+        }
+    }
+
+    if (SOS.role == SOS_ROLE_CLIENT) {
         /*
          *
          *  CLIENT / CONTROL
          *
          */
-
         dlog(1, "[%s]:   ... setting up socket communications with the daemon.\n", whoami );
 
         SOS.net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
@@ -377,7 +400,7 @@ void SOS_ring_init(SOS_ring_queue **ring_var) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_init");
     SOS_ring_queue *ring;
 
-    dlog(1, "[%s]:   ... initializing ring_var @ %ld\n", whoami, (long) ring_var);
+    dlog(5, "[%s]:   ... initializing ring_var @ %ld\n", whoami, (long) ring_var);
     ring = *ring_var = (SOS_ring_queue *) malloc(sizeof(SOS_ring_queue));
     ring->read_elem  = ring->write_elem  = 0;
     ring->elem_count = 0;
@@ -385,11 +408,11 @@ void SOS_ring_init(SOS_ring_queue **ring_var) {
     ring->elem_size  = sizeof(long);
     ring->heap       = (long *) malloc( ring->elem_max * ring->elem_size );
     memset( ring->heap, '\0', (ring->elem_max * ring->elem_size) );
-    dlog(1, "[%s]:      ... successfully initialized ring queue.\n", whoami);
-    dlog(1, "[%s]:      ... initializing mutex.\n", whoami);
+    dlog(5, "[%s]:      ... successfully initialized ring queue.\n", whoami);
+    dlog(5, "[%s]:      ... initializing mutex.\n", whoami);
     ring->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(ring->lock, NULL);
-    dlog(1, "[%s]:   ... done.\n", whoami);
+    dlog(5, "[%s]:   ... done.\n", whoami);
     return;
 }
 
@@ -757,13 +780,13 @@ void SOS_uid_init( SOS_uid **id_var, long set_from, long set_to ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_init");
     SOS_uid *id;
 
-    dlog(1, "[%s]:   ... allocating uid sets\n", whoami);
+    dlog(5, "[%s]:   ... allocating uid sets\n", whoami);
     id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
     id->next = (set_from > 0) ? set_from : 1;
     id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
-    dlog(1, "[%s]:      ... default set for uid range (%ld -> %ld).\n", whoami, id->next, id->last);
+    dlog(5, "[%s]:      ... default set for uid range (%ld -> %ld).\n", whoami, id->next, id->last);
 
-    dlog(1, "[%s]:      ... initializing uid mutex.\n", whoami);
+    dlog(5, "[%s]:      ... initializing uid mutex.\n", whoami);
     id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(id->lock, NULL );
 
@@ -775,11 +798,11 @@ void SOS_uid_destroy( SOS_uid *id ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_destroy");
 
 
-    dlog(1, "[%s]:   ... destroying uid mutex     &(%ld)\n", whoami, (long) &id->lock );
+    dlog(5, "[%s]:   ... destroying uid mutex     &(%ld)\n", whoami, (long) &id->lock );
     pthread_mutex_destroy( id->lock );
-    dlog(1, "[%s]:   ... freeing uid mutex space  &(%ld)\n", whoami, (long) &id->lock );
+    dlog(5, "[%s]:   ... freeing uid mutex space  &(%ld)\n", whoami, (long) &id->lock );
     free(id->lock);
-    dlog(1, "[%s]:   ... freeing uid memory       &(%ld)\n", whoami, (long) id);
+    dlog(5, "[%s]:   ... freeing uid memory       &(%ld)\n", whoami, (long) id);
     memset(id, '\0', sizeof(SOS_uid));
     free(id);
 
@@ -937,7 +960,7 @@ void SOS_pub_destroy(SOS_pub *pub) {
 
     if (pub == NULL) { return; }
 
-    dlog(1, "[%s]: Freeing element data...\n", whoami);
+    dlog(6, "[%s]: Freeing element data...\n", whoami);
     for (elem = 0; elem < pub->elem_max; elem++) {
         if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
             if (pub->data[elem]->val.c_val != NULL) {
@@ -947,22 +970,22 @@ void SOS_pub_destroy(SOS_pub *pub) {
         if (pub->data[elem]->name != NULL) { free(pub->data[elem]->name); }
         if (pub->data[elem] != NULL) { free(pub->data[elem]); }
     }
-    dlog(1, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
-    dlog(1, "[%s]: Freeing pub data element pointer array.\n", whoami);
+    dlog(6, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
+    dlog(6, "[%s]: Freeing pub data element pointer array.\n", whoami);
     if (pub->data != NULL) { free(pub->data); }
-    dlog(1, "[%s]: Freeing strings...\n", whoami);
-    dlog(1, "[%s]:    ...node_id\n", whoami);
+    dlog(6, "[%s]: Freeing strings...\n", whoami);
+    dlog(6, "[%s]:    ...node_id\n", whoami);
     if (pub->node_id != NULL) { free(pub->node_id); }
-    dlog(1, "[%s]:    ...prog_name\n", whoami);
+    dlog(6, "[%s]:    ...prog_name\n", whoami);
     if (pub->prog_name != NULL) { free(pub->prog_name); }
-    dlog(1, "[%s]:    ...prog_ver\n", whoami);
+    dlog(6, "[%s]:    ...prog_ver\n", whoami);
     if (pub->prog_ver != NULL) { free(pub->prog_ver); }
-    dlog(1, "[%s]:    ...pragma_msg\n", whoami);
+    dlog(6, "[%s]:    ...pragma_msg\n", whoami);
     if (pub->pragma_msg != NULL) { free(pub->pragma_msg); }
-    dlog(1, "[%s]:    ...title\n", whoami);
+    dlog(6, "[%s]:    ...title\n", whoami);
     if (pub->title != NULL) { free(pub->title); }
-    dlog(1, "[%s]:    ...done.\n", whoami);
-    dlog(1, "[%s]: Freeing pub handle itself.\n", whoami);
+    dlog(6, "[%s]:    ...done.\n", whoami);
+    dlog(6, "[%s]: Freeing pub handle itself.\n", whoami);
     if (pub != NULL) { free(pub); pub = NULL; }
 
     return;
@@ -976,6 +999,12 @@ void SOS_expand_data( SOS_pub *pub ) {
     int n;
     SOS_data **expanded_data;
 
+    dlog(2, "[%s]: Growing pub(\"%s\")->elem_max from %d to %d...\n",
+            whoami,
+            pub->title,
+            pub->elem_max,
+            (pub->elem_max + SOS_DEFAULT_ELEM_MAX));
+
     expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
     memset(expanded_data, '\0', ((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *)));
 
@@ -986,6 +1015,8 @@ void SOS_expand_data( SOS_pub *pub ) {
     free(pub->data);
     pub->data = expanded_data;
     pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
+
+    dlog(2, "[%s]:   ... done.\n", whoami);
 
     return;
 }
@@ -1042,7 +1073,6 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
     char *new_name;
 
 
-
     //try to find the name in the existing pub schema:
     for (i = 0; i < pub->elem_count; i++) {
         if (pub->data[i]->state == SOS_VAL_STATE_EMPTY) { continue; }
@@ -1061,7 +1091,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
                 if (strcmp(pub_str_ptr, new_str_ptr) == 0) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
-                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
                     return i;
                 }
@@ -1084,12 +1114,12 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
                 if (pack_type == SOS_VAL_TYPE_INT && (pub->data[i]->val.i_val == pack_val.i_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
-                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
                     return i;
                 } else if (pack_type == SOS_VAL_TYPE_LONG && (pub->data[i]->val.l_val == pack_val.l_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
-                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
                     return i;
                 } else if (pack_type == SOS_VAL_TYPE_DOUBLE) {
                     /*
@@ -1106,7 +1136,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             pub->data[i]->state = SOS_VAL_STATE_DIRTY;
             SOS_TIME(pub->data[i]->time.pack);
 
-            dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+            dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
             switch (pack_type) {
             case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1177,7 +1207,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
-        dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+        dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
         switch (pack_type) {
         case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1240,7 +1270,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
-        dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+        dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
         switch (pack_type) {
         case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1837,7 +1867,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
         pub->data[elem]->state = SOS_VAL_STATE_CLEAN;
         pub->data[elem]->time.send = send_time;
 
-        dlog(1, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
+        dlog(7, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
              whoami,
              elem,
              pub->data[elem]->time.pack,
@@ -2042,7 +2072,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
             &pub->data[elem]->val_len);
         ptr = (buffer + buffer_pos);
 
-        dlog(1, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
+        dlog(7, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
              whoami,
              elem,
              pub->data[elem]->time.pack,
@@ -2072,7 +2102,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
          * NOTE: Flushing *this* queue is triggered by the sync thread
          *       encounting this pub handle in the to-do queue. */
         if (opt_queue != NULL) {
-            dlog(2, "[%s]: Enqueing a val_snap for \"%s\"\n", whoami, pub->data[elem]->name);
+            dlog(7, "[%s]: Enqueing a val_snap for \"%s\"\n", whoami, pub->data[elem]->name);
             SOS_val_snap_enqueue(opt_queue, pub, elem);
         }
 

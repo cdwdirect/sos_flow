@@ -12,13 +12,20 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
   kill -INT $$
 fi
 ls -AblFs $SOS_WORK/*.db
+
+PUBLIST_SQL=""
+PUBLIST_SQL="${PUBLIST_SQL}  SELECT    row_id, guid, title, process_id, comm_rank, node_id, prog_name "
+PUBLIST_SQL="${PUBLIST_SQL}  FROM      tblpubs "
+PUBLIST_SQL="${PUBLIST_SQL}  WHERE     row_id IN (SELECT MAX(row_id) FROM tblpubs GROUP BY title, process_id, thread_id) "
+PUBLIST_SQL="${PUBLIST_SQL}  ORDER BY  prog_name, comm_rank, title;"
+
 for db in $SOS_WORK/sosd.*.db ; do
     echo ""
-    echo -n "${db} (daemon) [val.count] = "
+    echo -n "${db} [val.COUNT] = "
     sqlite3 ${db} "select max(rowid) from tblvals;"
-    echo -n "${db} (daemon) [pub.count] = "
-    sqlite3 ${db} "select max(rowid) from tblpubs;"
-    echo "${db} (daemon) [pubs.list] = "
-    sqlite3 ${db}  -column -header "select row_id, guid, title, process_id, thread_id, comm_rank, node_id, prog_name from tblpubs where row_id in (select max(row_id) from tblpubs group by title, process_id, thread_id) order by prog_name, comm_rank, title;"
+    echo -n "${db} [pub.COUNT] = "
+    sqlite3 ${db} "select count(distinct guid) from tblpubs;"
+    echo    "${db} [pubs.LIST] = "
+    sqlite3 ${db} -column -header "${PUBLIST_SQL}"
 done
 

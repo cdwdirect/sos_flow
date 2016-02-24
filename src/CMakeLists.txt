@@ -72,7 +72,7 @@ if(SOSD_CLOUD_SYNC)
         target_link_libraries("sosd" "rt")
     endif()
 
-if(MPI_COMPILE_FLAGS)
+    if(MPI_COMPILE_FLAGS)
       set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
     endif()
     if(MPI_LINK_FLAGS)
@@ -131,7 +131,13 @@ target_link_libraries("sosd_stop" "sos")
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "demo_app.c")
-target_link_libraries("demo_app" "sos")
+target_link_libraries("demo_app" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
 
 
 #TARGET ---> mpi_to_sos
