@@ -1,16 +1,19 @@
 #!/bin/bash
-if [ "x${SOS_ROOT}" == "x" ] ; then 
+if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
 fi
-if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+if [ "x${SOS_WORK}" == "x" ] ; then
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
   echo "Please set the SOS_CMD_PORT environment variable."
   kill -INT $$
 fi
-
-if [ -z $1 ]; then echo "   >>> Starting the sosd daemons..."; fi;
+if [ -z $1 ]; then echo ""; echo "*** Removing any files left by previous sosd daemons..."; echo ""; fi;
 ${SOS_ROOT}/src/mpi.cleanall
-if [ -z $1 ]; then echo "   >>> Launching the sosd daemons..."; fi;
+if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; fi;
 
 daemon0="-np 1 ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_ROOT}/src"
 daemon1="-np 1 ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_ROOT}/src"
@@ -18,8 +21,11 @@ daemon1="-np 1 ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer
 echo ${daemon0}
 echo ${daemon1}
 
-mpirun ${daemon0} : ${daemon1}
+valgrind_cmd=""
+#valgrind_cmd="valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --trace-children=yes "
+#valgrind_cmd="valgrind --tool=memcheck --leak-check=full --track-origins=yes --trace-children=yes "
+
+${valgrind_cmd} mpirun ${daemon0} : ${daemon1}
 
 
-# Example of valgrind launch:
-#  valgrind --tool=memcheck --leak-check=full --show-leak-kinds=all --track-origins=yes --trace-children=yes mpirun ${daemon0} : ${daemon1}
+

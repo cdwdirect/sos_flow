@@ -376,6 +376,9 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
             packed_bytes += 4;
             if (maxstrlen > 0 && len > maxstrlen) count = maxstrlen - 1;
             else count = len;
+            if (s == NULL) {
+                s = (char *) malloc((count + 1) * sizeof(char));
+            }
             memcpy(s, buf, count);
             s[count] = '\0';
             dlog(20, "[%s]:   ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", whoami, packed_bytes, s, len);

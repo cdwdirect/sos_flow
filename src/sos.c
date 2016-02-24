@@ -24,12 +24,10 @@
 #include "qhashtbl.h"
 
 /* Private functions (not in the header file) */
-void*  SOS_THREAD_post( void *arg );
-void*  SOS_THREAD_read( void *arg );
-void*  SOS_THREAD_scan( void *arg );
+void*  SOS_THREAD_feedback( void *arg );
+void   SOS_handle_feedback(unsigned char *buffer, int buffer_length);
 
 void   SOS_expand_data( SOS_pub *pub );
-
 
 /* Doesn't lock the queue, for use within queue functions. */
 void   SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub);
@@ -88,22 +86,28 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS_ring_init(&SOS.ring.send);
     SOS_ring_init(&SOS.ring.recv);
 
-    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
-    SOS.task.post = (pthread_t *) malloc(sizeof(pthread_t));
-    SOS.task.read = (pthread_t *) malloc(sizeof(pthread_t));
-    SOS.task.scan = (pthread_t *) malloc(sizeof(pthread_t));
-    dlog(1, "[%s]:   ... launching data migration threads.\n", whoami);
-    retval = pthread_create( SOS.task.post, NULL, (void *) SOS_THREAD_post, NULL );
-    if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.post thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_create( SOS.task.read, NULL, (void *) SOS_THREAD_read, NULL );
-    if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.read thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_create( SOS.task.scan, NULL, (void *) SOS_THREAD_scan, NULL );
-    if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.scan thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
-    #endif
-
     /* The CLIENT doesn't do pack-granularity queueing (yet)... */
     SOS.task.val_intake = NULL;
     SOS.task.val_outlet = NULL;
+
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+        SOS.task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
+        SOS.task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        SOS.task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+        dlog(1, "[%s]:   ... launching libsos runtime threads.\n", whoami);
+        retval = pthread_create( SOS.task.feedback, NULL, (void *) SOS_THREAD_feedback, NULL );
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) launching SOS.task.feedback thread!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+        retval = pthread_mutex_init(SOS.task.feedback_lock, NULL);
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) creating SOS.task.feedback_lock!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+        retval = pthread_cond_init(SOS.task.feedback_cond, NULL);
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) creating SOS.task.feedback_cond!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+
+        SOS.net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        retval = pthread_mutex_init(SOS.net.send_lock, NULL);
+        if (retval != 0) { dlog(0, "[%s]:  ... ERROR (%d) creating SOS.net.send_lock!  (%s)\n", whoami, retval, strerror(errno)); exit(EXIT_FAILURE); }
+        #endif
+    }
 
     if (SOS.config.offline_test_mode == true) {
         /* Here, the offline mode finishes up any non-networking initialization and bails out. */
@@ -113,6 +117,30 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS.status = SOS_STATUS_RUNNING;
         dlog(1, "[%s]:   ... done with SOS_init().  [OFFLINE_TEST_MODE]\n", whoami);
         return;
+    }
+
+    if (SOS.role == SOS_ROLE_CLIENT) {
+        /* NOTE: This is only used for clients.  Daemons handle their own. */
+        char *env_rank;
+        char *env_size;
+
+        env_rank = getenv("PMI_RANK");
+        env_size = getenv("PMI_SIZE");
+        if ((env_rank!= NULL) && (env_size != NULL)) {
+            /* MPICH_ */
+            SOS.config.comm_rank = atoi(env_rank);
+            SOS.config.comm_size = atoi(env_size);
+            dlog(1, "[%s]:   ... MPICH environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
+        } else {
+            env_rank = getenv("OMPI_COMM_WORLD_RANK");
+            env_size = getenv("OMPI_COMM_WORLD_SIZE");
+            if ((env_rank != NULL) && (env_size != NULL)) {
+                /* OpenMPI */
+                SOS.config.comm_rank = atoi(env_rank);
+                SOS.config.comm_size = atoi(env_size);
+                dlog(1, "[%s]:   ... OpenMPI environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
+            }
+        }
     }
 
     if (SOS.role == SOS_ROLE_CLIENT) {
@@ -372,7 +400,7 @@ void SOS_ring_init(SOS_ring_queue **ring_var) {
     SOS_SET_WHOAMI(whoami, "SOS_ring_init");
     SOS_ring_queue *ring;
 
-    dlog(1, "[%s]:   ... initializing ring_var @ %ld\n", whoami, (long) ring_var);
+    dlog(5, "[%s]:   ... initializing ring_var @ %ld\n", whoami, (long) ring_var);
     ring = *ring_var = (SOS_ring_queue *) malloc(sizeof(SOS_ring_queue));
     ring->read_elem  = ring->write_elem  = 0;
     ring->elem_count = 0;
@@ -380,11 +408,11 @@ void SOS_ring_init(SOS_ring_queue **ring_var) {
     ring->elem_size  = sizeof(long);
     ring->heap       = (long *) malloc( ring->elem_max * ring->elem_size );
     memset( ring->heap, '\0', (ring->elem_max * ring->elem_size) );
-    dlog(1, "[%s]:      ... successfully initialized ring queue.\n", whoami);
-    dlog(1, "[%s]:      ... initializing mutex.\n", whoami);
+    dlog(5, "[%s]:      ... successfully initialized ring queue.\n", whoami);
+    dlog(5, "[%s]:      ... initializing mutex.\n", whoami);
     ring->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(ring->lock, NULL);
-    dlog(1, "[%s]:   ... done.\n", whoami);
+    dlog(5, "[%s]:   ... done.\n", whoami);
     return;
 }
 
@@ -491,12 +519,19 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
     int server_socket_fd;
     int retval;
 
-    /* TODO: { SEND_TO_DAEMON } Perhaps this should be made thread safe. */
+    if (SOS.status == SOS_STATUS_SHUTDOWN) {
+        dlog(1, "[%s]: Suppressing a send to the daemon.  (SOS_STATUS_SHUTDOWN)\n", whoami);
+        return;
+    }
 
     if (SOS.config.offline_test_mode == true) {
         dlog(1, "[%s]: Suppressing a send to the daemon.  (OFFLINE_TEST_MODE)\n", whoami);
         return;
     }
+
+    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+    pthread_mutex_lock(SOS.net.send_lock);
+    #endif
 
     retval = getaddrinfo(SOS.net.server_host, SOS.net.server_port, &SOS.net.server_hint, &SOS.net.result_list );
     if ( retval < 0 ) { dlog(0, "[%s]: ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", whoami, SOS.net.server_host, SOS.net.server_port ); exit(1); }
@@ -526,6 +561,10 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
 
     close( server_socket_fd );
 
+    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+    pthread_mutex_unlock(SOS.net.send_lock);
+    #endif
+
     return;
 }
 
@@ -534,20 +573,30 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
 void SOS_finalize() {
     SOS_SET_WHOAMI(whoami, "SOS_finalize");
     
-    /* This will 'notify' any SOS threads to break out of their loops. */
+    /* This will cause any SOS threads to leave their loops next time they wake up. */
     dlog(0, "[%s]: SOS.status = SOS_STATUS_SHUTDOWN\n", whoami);
     SOS.status = SOS_STATUS_SHUTDOWN;
 
     free(SOS.config.node_id);
 
-    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
-    dlog(0, "[%s]:   ... Joining threads...\n", whoami);
-    pthread_join( *SOS.task.post, NULL );
-    pthread_join( *SOS.task.read, NULL );
-    pthread_join( *SOS.task.scan, NULL );
-    #endif
-
     if (SOS.role == SOS_ROLE_CLIENT) {
+        #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+        dlog(0, "[%s]:   ... Joining threads...\n", whoami);
+        pthread_cond_signal(SOS.task.feedback_cond);
+        pthread_join(*SOS.task.feedback, NULL);
+        pthread_cond_destroy(SOS.task.feedback_cond);
+        pthread_mutex_lock(SOS.task.feedback_lock);
+        pthread_mutex_destroy(SOS.task.feedback_lock);
+        free(SOS.task.feedback_lock);
+        free(SOS.task.feedback_cond);
+        free(SOS.task.feedback);
+
+        dlog(0, "[%s]:   ... Removing send lock...\n", whoami);
+        pthread_mutex_lock(SOS.net.send_lock);
+        pthread_mutex_destroy(SOS.net.send_lock);
+        free(SOS.net.send_lock);
+        #endif
+
         dlog(0, "[%s]:   ... Releasing uid objects...\n", whoami);
         SOS_uid_destroy(SOS.uid.local_serial);
         SOS_uid_destroy(SOS.uid.my_guid_pool);
@@ -563,52 +612,167 @@ void SOS_finalize() {
 
 
 
-void* SOS_THREAD_post( void *args ) {
-    SOS_SET_WHOAMI(whoami, "SOS_THREAD_post");
+
+void* SOS_THREAD_feedback( void *args ) {
+    SOS_SET_WHOAMI(whoami, "SOS_THREAD_feedback");
+    struct timespec ts;
+    struct timeval  tp;
+    int wake_type;
+
+    unsigned char *ptr;
+    unsigned char *check_in_msg;
+    unsigned char *feedback_msg;
+    int ptr_offset;
+
+    SOS_msg_header header;
+    SOS_feedback feedback;
+
+    if ( SOS.config.offline_test_mode == true ) { return; }
+
+    check_in_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
+    feedback_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
+
+    sleep(1);
+    if (SOS.status != SOS_STATUS_SHUTDOWN) {
+      sleep(4 + (random() % 5));
+    }
+
+    /* Set the wakeup time (ts) to 2 seconds in the future. */
+    gettimeofday(&tp, NULL);
+    ts.tv_sec  = (tp.tv_sec + 2);
+    ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
+
+    /* Grab the lock that the wakeup condition is bound to. */
+    pthread_mutex_lock(SOS.task.feedback_lock);
+
+    while (SOS.status != SOS_STATUS_SHUTDOWN) {
+        /* Build a checkin message. */
+        memset(check_in_msg, '\0', SOS_DEFAULT_FEEDBACK_LEN);
+        memset(feedback_msg, '\0', SOS_DEFAULT_FEEDBACK_LEN);
+
+        header.msg_size = -1;
+        header.msg_from = SOS.my_guid;
+        header.msg_type = SOS_MSG_TYPE_CHECK_IN;
+        header.pub_guid = 0;
+
+        ptr = check_in_msg;
+        ptr_offset = 0;
+
+        ptr_offset += SOS_buffer_pack(ptr, "iill",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+        ptr = (check_in_msg + ptr_offset);
+
+        header.msg_size = ptr_offset;
+        SOS_buffer_pack(check_in_msg, "i", header.msg_size);
+
+        /* Ping the daemon to see if there is anything to do. */
+        SOS_send_to_daemon((unsigned char *) check_in_msg, ptr_offset, feedback_msg, SOS_DEFAULT_FEEDBACK_LEN);
+
+        memset(&header, '\0', sizeof(SOS_msg_header));
+        ptr = feedback_msg;
+        ptr_offset = 0;
+
+        ptr_offset += SOS_buffer_unpack(ptr, "iill",
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.pub_guid);
+        ptr = (feedback_msg + ptr_offset);
+        if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
+            dlog(0, "[%s]: WARNING! --- sosd (daemon) responded to a CHECK_IN msg malformed FEEDBACK!\n", whoami);
+            gettimeofday(&tp, NULL);
+            ts.tv_sec  = (tp.tv_sec + 2);
+            ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
+            continue;
+        }
+
+        ptr_offset += SOS_buffer_unpack(ptr, "i",
+            &feedback);
+        ptr = (feedback_msg + ptr_offset);
+
+        switch (feedback) {
+        case SOS_FEEDBACK_CONTINUE: break;
+
+        case SOS_FEEDBACK_EXEC_FUNCTION: 
+        case SOS_FEEDBACK_SET_PARAMETER: 
+        case SOS_FEEDBACK_EFFECT_CHANGE:
+            SOS_handle_feedback(feedback_msg, header.msg_size);
+            break;
+
+        default: break;
+        }
+
+        /* Set the timer to 2 seconds in the future. */
+        gettimeofday(&tp, NULL);
+        ts.tv_sec  = (tp.tv_sec + 2);
+        ts.tv_nsec = (1000 * tp.tv_usec);
+        /* Go to sleep until the wakeup time (ts) is reached. */
+        wake_type = pthread_cond_timedwait(SOS.task.feedback_cond, SOS.task.feedback_lock, &ts);
+        if (wake_type == ETIMEDOUT) {
+            /* ...any special actions that need to happen if timed-out vs. explicitly triggered */
+        }
+    }
+
+    free(check_in_msg);
+    free(feedback_msg);
+
+    pthread_mutex_unlock(SOS.task.feedback_lock);
+    return NULL;
+}
+
+
+void SOS_handle_feedback(unsigned char *msg, int msg_length) {
+    SOS_SET_WHOAMI(whoami, "SOS_handle_feedback");
+    int  activity_code;
+    char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
+
+    SOS_msg_header header;
+
+    char *ptr;
+    int ptr_offset;
+
+    /* TODO: { FEEDBACK } Ponder the thread-safety of all this jazz... */
+
+    ptr = msg;
+    ptr_offset = 0;
+
+    ptr_offset += SOS_buffer_unpack(ptr, "iill",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+    ptr = (msg + ptr_offset);
+
+    ptr_offset += SOS_buffer_unpack(ptr, "i",
+        &activity_code);
+    ptr = (msg + ptr_offset);
     
-    while (SOS.status != SOS_STATUS_SHUTDOWN) {
-        /*
-         *  Transmit messages to the daemon.
-         * ...
-         *
-         */
-        usleep(250000);
+    
+    switch (activity_code) {
+    case SOS_FEEDBACK_CONTINUE: break;
+
+    case SOS_FEEDBACK_EXEC_FUNCTION:
+        /* TODO: { HANDLE_FEEDACK } Add in more robust / variable handlers. (hardcoded right now) */
+        /* Read in the function signature from the buffer. */
+        /* Check if that function is supported by this libsos client. */
+        /* Launch the SOS_feedback_exec(...) routine for that function. */
+
+        ptr_offset += SOS_buffer_unpack(ptr, "s", function_sig);
+        ptr = (msg + ptr_offset);
+        dlog(5, "[%s]: FEEDBACK activity_code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", whoami, activity_code, function_sig);
+
+    case SOS_FEEDBACK_SET_PARAMETER: break;
+    case SOS_FEEDBACK_EFFECT_CHANGE: break;
+    default: break;
     }
-    return NULL;
+
+    return;
 }
 
 
-
-void* SOS_THREAD_read( void *args ) {
-    SOS_SET_WHOAMI(whoami, "SOS_THREAD_read");
-
-    while (SOS.status != SOS_STATUS_SHUTDOWN) {
-        /*
-         *  Read the char* messages we've received and unpack into data structures.
-         * ...
-         *
-         */
-        usleep(250000);
-    }    
-    return NULL;
-}
-
-
-
-
-void* SOS_THREAD_scan( void *args ) {
-    SOS_SET_WHOAMI(whoami, "SOS_THREAD_scan");
-
-    while (SOS.status == SOS_STATUS_SHUTDOWN) {
-        /*
-         *  Check out the dirty data and package it for sending.
-         * ...
-         *
-         */
-        sleep(250000);
-    }
-    return NULL;
-}
 
 
 
@@ -616,13 +780,13 @@ void SOS_uid_init( SOS_uid **id_var, long set_from, long set_to ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_init");
     SOS_uid *id;
 
-    dlog(1, "[%s]:   ... allocating uid sets\n", whoami);
+    dlog(5, "[%s]:   ... allocating uid sets\n", whoami);
     id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
     id->next = (set_from > 0) ? set_from : 1;
     id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
-    dlog(1, "[%s]:      ... default set for uid range (%ld -> %ld).\n", whoami, id->next, id->last);
+    dlog(5, "[%s]:      ... default set for uid range (%ld -> %ld).\n", whoami, id->next, id->last);
 
-    dlog(1, "[%s]:      ... initializing uid mutex.\n", whoami);
+    dlog(5, "[%s]:      ... initializing uid mutex.\n", whoami);
     id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(id->lock, NULL );
 
@@ -634,11 +798,11 @@ void SOS_uid_destroy( SOS_uid *id ) {
     SOS_SET_WHOAMI(whoami, "SOS_uid_destroy");
 
 
-    dlog(1, "[%s]:   ... destroying uid mutex     &(%ld)\n", whoami, (long) &id->lock );
+    dlog(5, "[%s]:   ... destroying uid mutex     &(%ld)\n", whoami, (long) &id->lock );
     pthread_mutex_destroy( id->lock );
-    dlog(1, "[%s]:   ... freeing uid mutex space  &(%ld)\n", whoami, (long) &id->lock );
+    dlog(5, "[%s]:   ... freeing uid mutex space  &(%ld)\n", whoami, (long) &id->lock );
     free(id->lock);
-    dlog(1, "[%s]:   ... freeing uid memory       &(%ld)\n", whoami, (long) id);
+    dlog(5, "[%s]:   ... freeing uid memory       &(%ld)\n", whoami, (long) id);
     memset(id, '\0', sizeof(SOS_uid));
     free(id);
 
@@ -760,8 +924,8 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
             new_pub->data[i]->guid      = 0;
-            new_pub->data[i]->name      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-            memset(new_pub->data[i]->name, '\0', SOS_DEFAULT_STRING_LEN);
+            new_pub->data[i]->name      = NULL; /* REM: (char *) malloc( SOS_DEFAULT_STRING_LEN );
+                                                   memset(new_pub->data[i]->name, '\0', SOS_DEFAULT_STRING_LEN);*/
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
@@ -796,7 +960,7 @@ void SOS_pub_destroy(SOS_pub *pub) {
 
     if (pub == NULL) { return; }
 
-    dlog(1, "[%s]: Freeing element data...\n", whoami);
+    dlog(6, "[%s]: Freeing element data...\n", whoami);
     for (elem = 0; elem < pub->elem_max; elem++) {
         if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
             if (pub->data[elem]->val.c_val != NULL) {
@@ -806,22 +970,22 @@ void SOS_pub_destroy(SOS_pub *pub) {
         if (pub->data[elem]->name != NULL) { free(pub->data[elem]->name); }
         if (pub->data[elem] != NULL) { free(pub->data[elem]); }
     }
-    dlog(1, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
-    dlog(1, "[%s]: Freeing pub data element pointer array.\n", whoami);
+    dlog(6, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
+    dlog(6, "[%s]: Freeing pub data element pointer array.\n", whoami);
     if (pub->data != NULL) { free(pub->data); }
-    dlog(1, "[%s]: Freeing strings...\n", whoami);
-    dlog(1, "[%s]:    ...node_id\n", whoami);
+    dlog(6, "[%s]: Freeing strings...\n", whoami);
+    dlog(6, "[%s]:    ...node_id\n", whoami);
     if (pub->node_id != NULL) { free(pub->node_id); }
-    dlog(1, "[%s]:    ...prog_name\n", whoami);
+    dlog(6, "[%s]:    ...prog_name\n", whoami);
     if (pub->prog_name != NULL) { free(pub->prog_name); }
-    dlog(1, "[%s]:    ...prog_ver\n", whoami);
+    dlog(6, "[%s]:    ...prog_ver\n", whoami);
     if (pub->prog_ver != NULL) { free(pub->prog_ver); }
-    dlog(1, "[%s]:    ...pragma_msg\n", whoami);
+    dlog(6, "[%s]:    ...pragma_msg\n", whoami);
     if (pub->pragma_msg != NULL) { free(pub->pragma_msg); }
-    dlog(1, "[%s]:    ...title\n", whoami);
+    dlog(6, "[%s]:    ...title\n", whoami);
     if (pub->title != NULL) { free(pub->title); }
-    dlog(1, "[%s]:    ...done.\n", whoami);
-    dlog(1, "[%s]: Freeing pub handle itself.\n", whoami);
+    dlog(6, "[%s]:    ...done.\n", whoami);
+    dlog(6, "[%s]: Freeing pub handle itself.\n", whoami);
     if (pub != NULL) { free(pub); pub = NULL; }
 
     return;
@@ -835,7 +999,15 @@ void SOS_expand_data( SOS_pub *pub ) {
     int n;
     SOS_data **expanded_data;
 
+    dlog(2, "[%s]: Growing pub(\"%s\")->elem_max from %d to %d...\n",
+            whoami,
+            pub->title,
+            pub->elem_max,
+            (pub->elem_max + SOS_DEFAULT_ELEM_MAX));
+
     expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
+    memset(expanded_data, '\0', ((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *)));
+
     memcpy(expanded_data, pub->data, (pub->elem_max * sizeof(SOS_data *)));
     for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_MAX); n++) {
         expanded_data[n] = malloc(sizeof(SOS_data));
@@ -843,6 +1015,8 @@ void SOS_expand_data( SOS_pub *pub ) {
     free(pub->data);
     pub->data = expanded_data;
     pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
+
+    dlog(2, "[%s]:   ... done.\n", whoami);
 
     return;
 }
@@ -899,9 +1073,10 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
     char *new_name;
 
 
-
     //try to find the name in the existing pub schema:
     for (i = 0; i < pub->elem_count; i++) {
+        if (pub->data[i]->state == SOS_VAL_STATE_EMPTY) { continue; }
+        if (pub->data[i]->name == NULL) { continue; }
         if (strcmp(pub->data[i]->name, name) == 0) {
 
             dlog(6, "[%s]: (%s) name located at position %d.\n", whoami, name, i);
@@ -916,7 +1091,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
                 if (strcmp(pub_str_ptr, new_str_ptr) == 0) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
-                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
                     return i;
                 }
@@ -939,12 +1114,12 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
                 if (pack_type == SOS_VAL_TYPE_INT && (pub->data[i]->val.i_val == pack_val.i_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
-                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
                     return i;
                 } else if (pack_type == SOS_VAL_TYPE_LONG && (pub->data[i]->val.l_val == pack_val.l_val)) {
                     dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
                     SOS_TIME(pub->data[i]->time.pack);
-                    dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
                     return i;
                 } else if (pack_type == SOS_VAL_TYPE_DOUBLE) {
                     /*
@@ -961,7 +1136,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             pub->data[i]->state = SOS_VAL_STATE_DIRTY;
             SOS_TIME(pub->data[i]->time.pack);
 
-            dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+            dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
             switch (pack_type) {
             case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1024,13 +1199,15 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         dlog(6, "[%s]: (%s) data copied in successfully.\n", whoami, name);
 
+        if (pub->data[i]->name != NULL) { free(pub->data[i]->name); }
         pub->data[i]->name   = new_name;
+
         pub->data[i]->type   = pack_type;
         pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
-        dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+        dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
         switch (pack_type) {
         case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1052,6 +1229,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         SOS_expand_data(pub);
         pub->elem_count++;
+        i = pub->elem_count;
 
         dlog(6, "[%s]: (%s) data object has been expanded successfully.  (pub->elem_max=%d)\n", whoami, name, pub->elem_max);
 
@@ -1084,13 +1262,15 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         dlog(6, "[%s]: ALMOST DONE....\n", whoami);
 
+        /* REM: if (pub->data[i]->name != NULL) { free(pub->data[i]->name); } */
         pub->data[i]->name   = new_name;
+
         pub->data[i]->type   = pack_type;
         pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
         pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
         SOS_TIME(pub->data[i]->time.pack);
 
-        dlog(1, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
+        dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
 
         switch (pack_type) {
         case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
@@ -1687,7 +1867,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
         pub->data[elem]->state = SOS_VAL_STATE_CLEAN;
         pub->data[elem]->time.send = send_time;
 
-        dlog(1, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
+        dlog(7, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
              whoami,
              elem,
              pub->data[elem]->time.pack,
@@ -1810,6 +1990,11 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
+        if (pub->data[elem]->name == NULL) {
+            pub->data[elem]->name = (char *) malloc(SOS_DEFAULT_STRING_LEN * sizeof(char));
+            memset(pub->data[elem]->name, '\0', SOS_DEFAULT_STRING_LEN);
+        }
+
         buffer_pos += SOS_buffer_unpack(ptr, "lsiiiiiii",
             &pub->data[elem]->guid,
             pub->data[elem]->name,
@@ -1887,7 +2072,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
             &pub->data[elem]->val_len);
         ptr = (buffer + buffer_pos);
 
-        dlog(1, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
+        dlog(7, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
              whoami,
              elem,
              pub->data[elem]->time.pack,
@@ -1917,7 +2102,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
          * NOTE: Flushing *this* queue is triggered by the sync thread
          *       encounting this pub handle in the to-do queue. */
         if (opt_queue != NULL) {
-            dlog(2, "[%s]: Enqueing a val_snap for \"%s\"\n", whoami, pub->data[elem]->name);
+            dlog(7, "[%s]: Enqueing a val_snap for \"%s\"\n", whoami, pub->data[elem]->name);
             SOS_val_snap_enqueue(opt_queue, pub, elem);
         }
 

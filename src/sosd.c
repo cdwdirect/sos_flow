@@ -307,6 +307,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_PUBLISH:    dlog(5, "[%s]:   ... msg_type = PUBLISH (%d)\n", whoami, header.msg_type); break;
         case SOS_MSG_TYPE_ECHO:       dlog(5, "[%s]:   ... msg_type = ECHO (%d)\n", whoami, header.msg_type); break;
         case SOS_MSG_TYPE_SHUTDOWN:   dlog(5, "[%s]:   ... msg_type = SHUTDOWN (%d)\n", whoami, header.msg_type); break;
+        case SOS_MSG_TYPE_CHECK_IN:   dlog(5, "[%s]:   ... msg_type = CHECK_IN (%d)\n", whoami, header.msg_type); break;
         default:                      dlog(1, "[%s]:   ... msg_type = UNKNOWN (%d)\n", whoami, header.msg_type); break;
         }
 
@@ -317,6 +318,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer, byte_count); break;
         case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (buffer, byte_count); break;
         case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer, byte_count); break;
+        case SOS_MSG_TYPE_CHECK_IN:   SOSD_handle_check_in   (buffer, byte_count); break;
         default:                      SOSD_handle_unknown    (buffer, byte_count); break;
         }
 
@@ -793,6 +795,65 @@ void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
     return;
 }
 
+
+
+void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
+    SOS_SET_WHOAMI(whoami, "daemon_handle_check_in");
+    SOS_msg_header header;
+    unsigned char feedback_msg[SOS_DEFAULT_FEEDBACK_LEN] = {0};
+    unsigned char *ptr;
+    unsigned char function_name[SOS_DEFAULT_STRING_LEN] = {0};
+    int offset = 0;
+    int i      = 0;
+
+    dlog(1, "[%s]: header.msg_type = SOS_MSG_TYPE_CHECK_IN\n", whoami);
+
+    ptr += SOS_buffer_unpack(msg, "iill",
+                             &header.msg_size,
+                             &header.msg_type,
+                             &header.msg_from,
+                             &header.pub_guid);
+
+    if (SOS.role == SOS_ROLE_DAEMON) {
+        /* Build a reply: */
+        memset(&header, '\0', sizeof(SOS_msg_header));
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_FEEDBACK;
+        header.msg_from = 0;
+        header.pub_guid = 0;
+
+        ptr = feedback_msg;
+        offset = 0;
+
+        offset += SOS_buffer_pack(ptr, "iill",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+        ptr = (feedback_msg + offset);
+
+        /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
+        memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
+        snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
+
+        offset += SOS_buffer_pack(ptr, "is",
+            SOS_FEEDBACK_EXEC_FUNCTION,
+            function_name);
+        ptr = (feedback_msg + offset);
+
+        /* Go back and set the message length to the actual length. */
+        SOS_buffer_pack(feedback_msg, "i", offset);
+
+        dlog(1, "[%s]: Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", whoami, function_name);
+
+        i = send( SOSD.net.client_socket_fd, (void *) feedback_msg, offset, 0 );
+        if (i == -1) { dlog(0, "[%s]: Error sending a response.  (%s)\n", whoami, strerror(errno)); }
+        else { dlog(5, "[%s]:   ... send() returned the following bytecount: %d\n", whoami, i); }
+    }
+
+    dlog(5, "[%s]: Done!\n", whoami);
+    return;
+}
 
 
 void SOSD_handle_unknown(unsigned char *msg, int msg_size) {

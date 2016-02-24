@@ -151,6 +151,7 @@ extern "C" {
     void  SOSD_handle_echo(unsigned char *msg_data, int msg_size);
     void  SOSD_handle_val_snaps(unsigned char *msg, int msg_size);
     void  SOSD_handle_shutdown(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_check_in(unsigned char *msg, int msg_size);
     void  SOSD_handle_unknown(unsigned char *msg_data, int msg_size);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, long *pool_from, long *pool_to );

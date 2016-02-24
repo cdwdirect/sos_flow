@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
+#include <mpi.h>
+
 
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
@@ -18,11 +20,11 @@
 #define USAGE "./demo_app -i <iteration_size> -m <max_send_count> [-j <jittertime.sec>]"
 
 
-#undef SOS_DEBUG
-#define SOS_DEBUG 1
+//#undef SOS_DEBUG
+//#define SOS_DEBUG 1
 
 #include "sos.h"
-#include "pack_buffer.h"
+#include "sos_debug.h"
 
 int main(int argc, char *argv[]) {
     int i;
@@ -40,6 +42,8 @@ int main(int argc, char *argv[]) {
     int    ITERATION_SIZE;
     int    JITTER_ENABLED;
     double JITTER_INTERVAL;
+
+    MPI_Init(&argc, &argv);
 
     /* Process command-line arguments */
     if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -86,24 +90,9 @@ int main(int argc, char *argv[]) {
 
     srandom(SOS.my_guid);
 
-    /* Cheap hack to test MPI rank propagation... */
-    SOS.config.comm_rank = 999;
-
     printf("[%s]: demo_app starting...\n", whoami); fflush(stdout);
     
     if (SOS_DEBUG) printf("[%s]: Creating a pub...\n", whoami);
-
-    if (false) {
-        char   dblval_buffer[1024] = {0};
-        double dblval_in  = 123456789.987654321;
-        double dblval_out = 0.0;
-        printf("[%s]: Testing the pack()/unpack() functions for floating point values...\n", whoami);
-        SOS_buffer_pack(dblval_buffer, "d", dblval_in);
-        SOS_buffer_unpack(dblval_buffer, "d", &dblval_out);
-        printf("[%s]:   in: %lf\n", whoami, dblval_in);
-        printf("[%s]:  out: %lf\n", whoami, dblval_out);
-    }
-
 
     pub = SOS_pub_create("demo");
     if (SOS_DEBUG) printf("[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
@@ -207,7 +196,10 @@ int main(int argc, char *argv[]) {
     if (SOS_DEBUG) printf("[%s]:   ... done.\n", whoami);
     
     printf("[%s]: demo_app finished successfully!\n", whoami); fflush(stdout);
+
     SOS_finalize();
+
+    MPI_Finalize();
     
     return (EXIT_SUCCESS);
 }

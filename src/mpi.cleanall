@@ -1,3 +1,16 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
 if [ -z $1 ]; then echo "   >>> Clearing the log file[s]."; fi;
 rm -rf ${SOS_ROOT}/src/sosd.*.log
 if [ -z $1 ]; then echo "   >>> Clearing the lock file[s]."; fi;

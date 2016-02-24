@@ -1,11 +1,15 @@
 #!/bin/bash -e
+#PBS -q short
+#PBS -l nodes=5:ppn=12
+#PBS -l walltime=00:30:00
 
-# just in case
-killall -9 mpirun || true
+source /usr/local/packages/Modules/current/init/bash
 
-cwd=`pwd`
-#working=/tmp/sos_flow_working
+cd $PBS_O_WORKDIR
+source ../../sourceme.sh
+cwd=$PBS_O_WORKDIR
 working=${cwd}/sos_flow_working
+# working=/tmp/sos_flow_working
 
 export SOS_ROOT=$HOME/src/sos_flow
 export SOS_CMD_PORT=22500
@@ -37,5 +41,5 @@ post_process_tau()
     fi
 }
 
-${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5apps.json
+${SOS_ROOT}/examples/general/general.py ${SOS_ROOT}/examples/general/5apps-multinode.json
 post_process_tau

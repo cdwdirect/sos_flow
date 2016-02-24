@@ -43,12 +43,13 @@
 
 /* SOS Configuration Switches... */
 
-#define SOS_CONFIG_USE_THREAD_POOL  0
+#define SOS_CONFIG_USE_THREAD_POOL  1
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
 #define SOS_DEFAULT_BUFFER_LEN      2097152
 #define SOS_DEFAULT_REPLY_LEN       128
+#define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256
 #define SOS_DEFAULT_RING_SIZE       8192
 #define SOS_DEFAULT_TABLE_SIZE      128
@@ -87,7 +88,16 @@
     MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
     MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
     MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
+    MSG_TYPE(SOS_MSG_TYPE_CHECK_IN)             \
+    MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
+
+#define FOREACH_FEEDBACK(FEEDBACK)              \
+    FEEDBACK(SOS_FEEDBACK_CONTINUE)             \
+    FEEDBACK(SOS_FEEDBACK_EXEC_FUNCTION)        \
+    FEEDBACK(SOS_FEEDBACK_SET_PARAMETER)        \
+    FEEDBACK(SOS_FEEDBACK_EFFECT_CHANGE)        \
+    FEEDBACK(SOS_FEEDBACK___MAX)
     
 #define FOREACH_PRI(PRI)                        \
     PRI(SOS_PRI_DEFAULT)                        \
@@ -193,6 +203,7 @@ typedef enum { FOREACH_ROLE(GENERATE_ENUM)         } SOS_role;
 typedef enum { FOREACH_TARGET(GENERATE_ENUM)       } SOS_target;
 typedef enum { FOREACH_STATUS(GENERATE_ENUM)       } SOS_status;
 typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)     } SOS_msg_type;
+typedef enum { FOREACH_FEEDBACK(GENERATE_ENUM)     } SOS_feedback;
 typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
 typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
 typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
@@ -211,6 +222,7 @@ static const char *SOS_ROLE_string[] =         { FOREACH_ROLE(GENERATE_STRING)  
 static const char *SOS_TARGET_string[] =       { FOREACH_TARGET(GENERATE_STRING)       };
 static const char *SOS_STATUS_string[] =       { FOREACH_STATUS(GENERATE_STRING)       };
 static const char *SOS_MSG_TYPE_string[] =     { FOREACH_MSG_TYPE(GENERATE_STRING)     };
+static const char *SOS_FEEDBACK_string[] =     { FOREACH_FEEDBACK(GENERATE_STRING)     };
 static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
 static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
 static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
@@ -344,6 +356,7 @@ typedef struct {
     struct addrinfo    *client_addr;          /* used by [sosd] */
     int                 timeout;
     int                 buffer_len;
+    pthread_mutex_t    *send_lock;            /* used by [libsos] */
 } SOS_socket_set;
 
 typedef struct {                              /* no pointers, headers might get used raw */
@@ -392,9 +405,9 @@ typedef struct {
 } SOS_ring_set;
 
 typedef struct {
-    pthread_t          *post;
-    pthread_t          *read;
-    pthread_t          *scan;
+    pthread_t          *feedback;
+    pthread_mutex_t    *feedback_lock;
+    pthread_cond_t     *feedback_cond;
     SOS_val_snap_queue *val_intake;
     SOS_val_snap_queue *val_outlet;
 } SOS_task_set;

@@ -55,7 +55,7 @@ int flexpath_writer (MPI_Comm adios_comm, int sink_index, bool append, bool shut
         char group_name[256] = {0};
         sprintf(file_name, "adios_%s_%s", my_name, sinks[sink_index]);
         sprintf(group_name, "%s_to_%s", my_name, sinks[sink_index]);
-        printf("Opening %s for write\n", file_name); fflush(stdout);
+        //printf("Opening %s for write\n", file_name); fflush(stdout);
         if(append) {
 	        adios_open (adios_handle, group_name, file_name, "a", adios_comm);
         } else {
@@ -80,7 +80,7 @@ int flexpath_writer (MPI_Comm adios_comm, int sink_index, bool append, bool shut
 	adios_write ((*adios_handle), "var_2d_array", t);
 
     //if (shutdown_flag) {
-        printf("Closing file for write\n"); fflush(stdout);
+        //printf("Closing %s for write\n", file_name); fflush(stdout);
 	    adios_close (*adios_handle);
         adios_handle = 0;
     //}

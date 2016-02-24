@@ -3,6 +3,10 @@ if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
 fi
+if [ "x${SOS_WORK}" == "x" ] ; then 
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
 if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
   echo "Please set the SOS_CMD_PORT environment variable."
   kill -INT $$
@@ -22,17 +26,23 @@ $SOS_ROOT/src/mpi.start.2 &
 sleep 3
 echo ""
 echo ""
-echo "*** Running [demo_app]...   params:  -i 150 -m 40,000"
+SOS_DEMO_APP_CMD="-np 3 ${SOS_ROOT}/bin/demo_app -i 200 -m 20000 -j 1.5"
+echo "*** Running [demo_app]...   mpirun ${SOS_DEMO_APP_CMD}"
+mpirun ${SOS_DEMO_APP_CMD}
+sleep 1
 echo ""
 echo ""
-$SOS_ROOT/bin/demo_app -i 200 -m 40000
+echo ""
+echo "*** Shutting down the daemon..."
 echo ""
 echo ""
-echo "*** Pausing with [sleep 2] and displaying [showdb] results..."
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo ""
+echo "*** Pausing for I/O flush (sleep 2) and displaying [showdb] results..."
 echo ""
 echo ""
 sleep 2
 $SOS_ROOT/src/showdb
-echo ""
-$SOS_ROOT/bin/sosd_stop
 echo ""

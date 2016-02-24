@@ -1,0 +1,39 @@
+{
+    "nodes": [{
+        "name": "a",
+        "mpi_ranks": "1",
+        "children": ["b", "d"],
+        "parents": [],
+        "iterations": 5
+    }, {
+        "name": "b",
+        "mpi_ranks": "1",
+        "children": ["c"],
+        "parents": ["a"]
+    }, {
+        "name": "c",
+        "mpi_ranks": "1",
+        "children": ["d"],
+        "parents": ["b"]
+    }, {
+        "name": "d",
+        "mpi_ranks": "1",
+        "children": ["e"],
+        "parents": ["a", "c"]
+    }, {
+        "name": "e",
+        "mpi_ranks": "1",
+        "children": [],
+        "parents": ["d"]
+    }],
+    "oversubscribe": false,
+    "sos_root": "/home3/khuck/src/sos_flow",
+    "sos_num_daemons": "1",
+    "sos_cmd_port": "22500",
+    "sos_cmd_buffer_len": "8388608",
+    "sos_num_dbs": "1",
+    "sos_db_port": "22503",
+    "sos_db_buffer_len": "8388608",
+    "sos_cmd_working_dir": "/home3/khuck/src/sos_flow/examples/general/sos_flow_working",
+    "sos_db_working_dir": "/home3/khuck/src/sos_flow/examples/general/sos_flow_working"
+}
