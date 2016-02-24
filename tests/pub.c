@@ -1,4 +1,4 @@
-
+A
 #include <stdio.h>
 
 #include "sos.h"
@@ -57,13 +57,13 @@ int SOS_test_pub_growth() {
     SOS_pub *pub;
     pub = SOS_pub_create("test_pub_growth");
 
-    for (attempt = 0; attempt < (ATTEMPT_MAX * 2); attempt++) {
+    for (attempt = 0; attempt < (ATTEMPT_MAX / 2); attempt++) {
         random_string(some_string, 25);
         snprintf(val_name, 512, "%d%s", attempt, some_string);
         SOS_pack(pub, val_name, SOS_VAL_TYPE_INT, (SOS_val) attempt);
     }
 
-    if (pub->elem_count != (ATTEMPT_MAX * 2)) {
+    if (pub->elem_count != (ATTEMPT_MAX / 2)) {
         SOS_pub_destroy(pub);
         return FAIL;
     }

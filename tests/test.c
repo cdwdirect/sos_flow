@@ -85,7 +85,7 @@ void random_string(char *dest_str, size_t size) {
             key = rand() % charset_len;
             dest_str[n] = charset[key];
         }
-        dest_str[size] = '\0';
+        dest_str[size - 1] = '\0';
     }
     return;
 }
