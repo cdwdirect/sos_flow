@@ -10,6 +10,7 @@
         
 * IMMEDIATE
    - DOCUMENTATION :: Write technical description and user's guide.
+   - Instructions :: Provide guidance for GTech on EVPATH connector.
 
 * MEDIUM
 ** DAEMON
@@ -34,25 +35,23 @@
     - Internal error handling mechanism similar to event logs.
     - Refactor for C++ compatibiliy.
 
-
-
-
 * RESEARCH MEETING NOTES
 ** SOSflow is the layer for observation
    - Add back-end for EVPATH
    - Layer WOWMON API on top of SOSflow
-   -  On Workflow side, get them (GTech) engaged for more interesting experiments
+
 ** MONA
-   - Get MONA project engagement happening with everyone lined up for targeting a resubmission of new WOWMON paper.
+   - Get MONA project engagement lined up for targeting Cluster resubmission of new WOWMON paper.
    - PAPER :: Focus on ~1 month out from now, Mar 15, 2016
    - FlexPath :: SET UP/ EMAIL ABOUT  up conference call with FlexPath developer
-
-                 
 
 * PAPER NOTES
 ** SOSflow standalone paper
 ** MONA
     - WOWMON :: re-implementation of the paper using SOSflow, API concept.
-    - Workflow Examples :: get better workflows from MONA people, who should this person be?
+    - Workflow Examples :: get better workflows for MONA
+** Deadlines
+   - Cluster :: March 25th
+   - SC :: March 27th
 
-  
+
