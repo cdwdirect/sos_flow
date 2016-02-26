@@ -5,7 +5,7 @@
 ** DAEMON
    - Reannounce :: expansion of the pub on the daemon-side during a reannounce
         is not triggering.
-   - SOSD_cloud_send :: off-node SOS cloud transport is sometimes eating data
+   - SOSD_cloud_send :: off-node SOS cloud transport is sometimes eating data,
         usually under heavy loads
         
 * IMMEDIATE
@@ -55,3 +55,4 @@
    - SC :: March 27th
 
 
+   

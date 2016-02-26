@@ -51,6 +51,7 @@ endif()
 #            (daemon)
 if(SOSD_CLOUD_SYNC)
   add_definitions("-DSOSD_CLOUD_SYNC")
+
   if(SOSD_CLOUD_SYNC_WITH_MPI)
     message(STATUS ">>> CLOUD_SYNC:")
     message(STATUS ">>> CLOUD_SYNC:  Building the daemon using SOSD_CLOUD_SYNC_WITH_MPI enabled...")
@@ -78,11 +79,12 @@ if(SOSD_CLOUD_SYNC)
     if(MPI_LINK_FLAGS)
       set_target_properties("sosd" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
     endif()
+
+
   elseif(SOSD_CLOUD_SYNC_WITH_EVPATH)
-    message(AUTHOR_WARNING ">>> CLOUD_SYNC:")
-    message(AUTHOR_WARNING ">>> CLOUD_SYNC:  SOSD_CLOUD_SYNC_WITH_EVPATH was requested... this is NOT SUPPORTED at present!")
-    message(AUTHOR_WARNING ">>> CLOUD_SYNC:     ... data will not migrate off-node.")  
-    message(AUTHOR_WARNING ">>> CLOUD_SYNC:")
+    message(STATUS ">>> CLOUD_SYNC:")
+    message(STATUS ">>> CLOUD_SYNC:  SOSD_CLOUD_SYNC_WITH_EVPATH was requested...")
+    message(STATUS ">>> CLOUD_SYNC:")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_evpath.c"
@@ -93,7 +95,13 @@ if(SOSD_CLOUD_SYNC)
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_EVPATH")
-    target_link_libraries("sosd" "sos" "rt" "${SQLITE3_LIBRARY}")
+    target_link_libraries("sosd" "sos" "${SQLITE3_LIBRARY}")
+    if(APPLE)
+        # Apple does no support the '-lrt' compiler option.
+    else()
+        target_link_libraries("sosd" "rt")
+    endif()
+
   else()
     message(FATAL_ERROR "You have specified that cloud_sync is activated, but not specified a supported method.")  
   endif()
@@ -111,7 +119,13 @@ else()
     "pack_buffer.c")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_STUBS")
-  target_link_libraries("sosd" "sos" "rt" "${SQLITE3_LIBRARY}")
+  target_link_libraries("sosd" "sos" "${SQLITE3_LIBRARY}")
+  if(APPLE)
+    # Apple does no support the '-lrt' compiler option.
+  else()
+    target_link_libraries("sosd" "rt")
+  endif()
+
 endif()
 
 if(THREADS_HAVE_PTHREAD_ARG)

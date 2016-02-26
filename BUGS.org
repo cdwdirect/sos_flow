@@ -1,5 +1,0 @@
-#+TITLE: sos_flow master 'to-do' list
-#+AUTHOR: Chad Wood
-
-* BUGS
-** expansion of the pub on the daemon-side during a reannounce is not triggering.
