@@ -26,8 +26,8 @@
  *    The SOSD.daemon.cloud_sync stuff can likely change here, if EVPATH
  *    is going to handle it's business differently.  The sync_target refers
  *    to the centralized store (here, stone?) that this daemon is pointing to
- *    for off-node transport.  The system allows for multiple "backplane
- *    data stores" to be launched alongside the daemons, to provide reasonable
+ *    for off-node transport.  The general system allows for multiple "back-
+ *    plane stores" launched alongside the daemons, to provide reasonable
  *    scalability and throughput.
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
@@ -61,6 +61,7 @@ void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
 
 /* name.......: SOSD_cloud_fflush
  * description: Force the send-queue to flush and transmit.
+ * note.......: With EVPath, this might be totally unnecessary.  (i.e. "Let EVPath handle it...")
  */
 void  SOSD_cloud_fflush(void) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_fflush.EVPATH");
@@ -90,11 +91,14 @@ void  SOSD_cloud_shutdown_notice(void) {
 
 
 /* name.......: SOSD_cloud_listen_loop
- * description: When there is a feedback/control mechanism in place,
- *              this will be the loop that is monitoring incoming messages.
+ * description: When there is a feedback/control mechanism in place
+ *              between the daemons and a heirarchical authority / policy
+ *              enactment chain, this will be the loop that is monitoring
+ *              incoming messages from other sosd daemon instances.
  */
 void  SOSD_cloud_listen_loop(void) {
     SOS_SET_WHOAMI(whoami, "SOSD_cloud_listen_loop");
+
     return;
 }
 
