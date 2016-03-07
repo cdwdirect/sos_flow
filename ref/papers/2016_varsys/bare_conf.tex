@@ -63,7 +63,7 @@
 % should be used if it is desired that the figures are to be displayed in
 % draft mode.
 %
-\documentclass[10pt, conference, compsocconf]{IEEEtran}
+\documentclass[12pt, conference, compsocconf]{IEEEtran}
 % Add the compsocconf option for Computer Society conferences.
 %
 % If IEEEtran.cls has not been installed into the LaTeX system files,
@@ -325,7 +325,7 @@
 
 % *** PDF, URL AND HYPERLINK PACKAGES ***
 %
-%\usepackage{url}
+\usepackage{url}
 % url.sty was written by Donald Arseneau. It provides better support for
 % handling and breaking URLs. url.sty is already installed on most LaTeX
 % systems. The latest version can be obtained at:
@@ -343,6 +343,7 @@
 % (Unless specifically asked to do so by the journal or conference you plan
 % to submit to, of course. )
 
+\usepackage{todonotes}
 
 % correct bad hyphenation here
 % \hyphenation{op-tical net-works semi-conduc-tor}
@@ -353,7 +354,8 @@
 % paper title
 % can use linebreaks \\ within to get better formatting as desired
 \title{SOSflow and a Semantic Workflow Performance Model\\
-    for Understanding Variability in Scientific Workflows at Scale}
+    for Understanding Variability in Scientific Workflows at Scale
+\todo[inline]{Need a new title} }
 
 % \title{SOSflow : Observation, Introspection, Feedback, \\
 %    and Control for Scientific Workflows}
@@ -369,7 +371,7 @@
 \IEEEauthorblockA{Department of Computer and Information Science\\
 University of Oregon\\
 Eugene, OR United States\\
-Email: cdw@cs.uoregon.edu}
+Email: \{cdw,khuck,malony\}@cs.uoregon.edu}
 % \and
 % \IEEEauthorblockN{Kevin Huck}
 % \IEEEauthorblockA{Department of Computer and Information Science\\
