@@ -4,6 +4,7 @@
 #include "sos.h"
 #include "test.h"
 #include "pack.h"
+#include "pack_buffer.h"
 
 #define ATTEMPT_MAX   20000
 
@@ -25,7 +26,7 @@ int SOS_test_pack() {
 }
 
 
-SOS_test_pack_int() {
+int SOS_test_pack_int() {
     unsigned char buffer[1024] = {0};
     int input = 0;
     int output = 0;
@@ -44,7 +45,7 @@ SOS_test_pack_int() {
     return PASS;
 }
 
-SOS_test_pack_long() {
+int SOS_test_pack_long() {
     unsigned char buffer[1024] = {0};
     long input = 0;
     long output = 0;
@@ -63,7 +64,7 @@ SOS_test_pack_long() {
     return PASS;
 }
 
-SOS_test_pack_double() {
+int SOS_test_pack_double() {
     char buffer[1024] = {0};
     double input = 0.0;
     double output = 0.0;
@@ -91,7 +92,7 @@ SOS_test_pack_double() {
     return PASS;
 }
 
-SOS_test_pack_string() {
+int SOS_test_pack_string() {
     unsigned char buffer[1024] = {0};
     char input[512] = {0};
     char output[512] = {0};

@@ -12,7 +12,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#include <sqlite3.h>
+#include "sqlite3.h"
 
 #include "sos.h"
 #include "sos_debug.h"
