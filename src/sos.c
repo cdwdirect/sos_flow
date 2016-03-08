@@ -553,10 +553,10 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
 
     /* TODO: { SEND_TO_DAEMON } Make this a loop that ensures all data was sent. */
     retval = send(server_socket_fd, msg, msg_len, 0 );
-    if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
+    if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n %s", whoami, strerror(errno)); }
 
     retval = recv(server_socket_fd, reply, reply_max, 0);
-    if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
+    if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n %s", whoami, strerror(errno)); }
     else { dlog(6, "[%s]: Server sent a (%d) byte reply.\n", whoami, retval); }
 
     close( server_socket_fd );
