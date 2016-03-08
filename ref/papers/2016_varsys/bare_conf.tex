@@ -63,7 +63,7 @@
 % should be used if it is desired that the figures are to be displayed in
 % draft mode.
 %
-\documentclass[10pt, conference, compsocconf]{IEEEtran}
+\documentclass[12pt, conference, compsocconf]{IEEEtran}
 % Add the compsocconf option for Computer Society conferences.
 %
 % If IEEEtran.cls has not been installed into the LaTeX system files,
@@ -127,22 +127,22 @@
 % *** GRAPHICS RELATED PACKAGES ***
 %
 \ifCLASSINFOpdf
-    % \usepackage[pdftex]{graphicx}
-    % declare the path(s) where your graphic files are
-    % \graphicspath{{../pdf/}{../jpeg/}}
-    % and their extensions so you won't have to specify these with
-    % every instance of \includegraphics
-    % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
+  % \usepackage[pdftex]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../pdf/}{../jpeg/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.pdf,.jpeg,.png}
 \else
-    % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
-    % will default to the driver specified in the system graphics.cfg if no
-    % driver is specified.
-    % \usepackage[dvips]{graphicx}
-    % declare the path(s) where your graphic files are
-    % \graphicspath{{../eps/}}
-    % and their extensions so you won't have to specify these with
-    % every instance of \includegraphics
-    % \DeclareGraphicsExtensions{.eps}
+  % or other class option (dvipsone, dvipdf, if not using dvips). graphicx
+  % will default to the driver specified in the system graphics.cfg if no
+  % driver is specified.
+  % \usepackage[dvips]{graphicx}
+  % declare the path(s) where your graphic files are
+  % \graphicspath{{../eps/}}
+  % and their extensions so you won't have to specify these with
+  % every instance of \includegraphics
+  % \DeclareGraphicsExtensions{.eps}
 \fi
 % graphicx was written by David Carlisle and Sebastian Rahtz. It is
 % required if you want graphics, photos, etc. graphicx.sty is already
@@ -325,7 +325,7 @@
 
 % *** PDF, URL AND HYPERLINK PACKAGES ***
 %
-%\usepackage{url}
+\usepackage{url}
 % url.sty was written by Donald Arseneau. It provides better support for
 % handling and breaking URLs. url.sty is already installed on most LaTeX
 % systems. The latest version can be obtained at:
@@ -343,6 +343,7 @@
 % (Unless specifically asked to do so by the journal or conference you plan
 % to submit to, of course. )
 
+\usepackage{todonotes}
 
 % correct bad hyphenation here
 % \hyphenation{op-tical net-works semi-conduc-tor}
@@ -353,7 +354,8 @@
 % paper title
 % can use linebreaks \\ within to get better formatting as desired
 \title{SOSflow and a Semantic Workflow Performance Model\\
-        for Understanding Variability in Scientific Workflows at Scale}
+    for Understanding Variability in Scientific Workflows at Scale
+\todo[inline]{Need a new title} }
 
 % \title{SOSflow : Observation, Introspection, Feedback, \\
 %    and Control for Scientific Workflows}
@@ -364,12 +366,12 @@
 % affiliations
 
 \author{\IEEEauthorblockN{Chad Wood}
-    \IEEEauthorblockN{Kevin Huck}
-    \IEEEauthorblockN{Allen Malony}
+	\IEEEauthorblockN{Kevin Huck}
+	\IEEEauthorblockN{Allen Malony}
 \IEEEauthorblockA{Department of Computer and Information Science\\
 University of Oregon\\
 Eugene, OR United States\\
-Email: cdw@cs.uoregon.edu}
+Email: \{cdw,khuck,malony\}@cs.uoregon.edu}
 % \and
 % \IEEEauthorblockN{Kevin Huck}
 % \IEEEauthorblockA{Department of Computer and Information Science\\
@@ -480,26 +482,26 @@ part of the output of any performance-related experiment.\\
 Using higher-levels of  description, variability in workflow 
 performance can be introduced by many different sources:
 \begin{itemize}
-        \item Versions of software libraries across can differ across clusters, or 
-        even the same cluster across time.
-        \item Tuning factors to extract maximum 
-        performance from a code can vary across clusters even if the code and the 
-        data do not change. Shared filesystem performance, data transport methods, 
-        available per-process memory, 
-        co-processor presence and architecture, ...and more, all can be responsible 
-        for influencing sensitivity to novel tuning factors.
-        \item Concurrent activity elsewhere on the same cluster, activity that will 
-        necessarily vary between every iteration of the workflow, may be having a 
-        significant impact on observed performance.
-        \item At extreme scales, parts of a simulation are almost guaranteed to 
-        fail due to the marginal failure rates of hardware components approaching 
-        absolute certainty as the number of involved components increases. These 
-        failures cannot 
-        be accurately predicted a priori, and the design constraints that account 
-        for and respond to them introduce performance perturbation and further 
-        complexity.
-        \item \ldots \textit{[NOTE]}
-        \item \ldots \textit{[NOTE]}
+    \item Versions of software libraries across can differ across clusters, or 
+    even the same cluster across time.
+    \item Tuning factors to extract maximum 
+    performance from a code can vary across clusters even if the code and the 
+    data do not change. Shared filesystem performance, data transport methods, 
+    available per-process memory, 
+    co-processor presence and architecture, ...and more, all can be responsible 
+    for influencing sensitivity to novel tuning factors.
+    \item Concurrent activity elsewhere on the same cluster, activity that will 
+    necessarily vary between every iteration of the workflow, may be having a 
+    significant impact on observed performance.
+    \item At extreme scales, parts of a simulation are almost guaranteed to 
+    fail due to the marginal failure rates of hardware components approaching 
+    absolute certainty as the number of involved components increases. These 
+    failures cannot 
+    be accurately predicted a priori, and the design constraints that account 
+    for and respond to them introduce performance perturbation and further 
+    complexity.
+    \item \ldots \textit{[NOTE]}
+    \item \ldots \textit{[NOTE]}
 \end{itemize}
 \subsubsection{Awareness of Fine-Grained Performance Jitter}
 \textit{[NOTE: This section is purposed with showing that even episodic 
@@ -583,19 +585,19 @@ needs to be populated by a diversity of information sources that provide
 metrics with tailored metadata and both logical and concrete events, arriving 
 in real-time from many different layers of activity in a workflow:
 \begin{itemize}
-        \item Simulation
-        \item Algorithm
-        \item Application
-        \item Libraries
-        \item Environment
-        \item Developer Tools
-        \item Operating System
-        \item Node Hardware
-        \item Network
-        \item Enclave
-        \item Cluster
-        \item Workflow
-        \item Epoch 
+    \item Simulation
+    \item Algorithm
+    \item Application
+    \item Libraries
+    \item Environment
+    \item Developer Tools
+    \item Operating System
+    \item Node Hardware
+    \item Network
+    \item Enclave
+    \item Cluster
+    \item Workflow
+    \item Epoch	
 \end{itemize}
 Each of these layers constitutes a \textit{level of description} for workflow 
 performance. If the Simulation layer produced data representing the evolution 
@@ -691,10 +693,10 @@ to you guys.]}
 \subsubsection{Language}C
 \subsubsection{External Requirements}
 \begin{itemize}
-        \item cmake
-        \item pthreads
-        \item MPI
-        \item Sqlite3 (*May change across implementations)
+    \item cmake
+    \item pthreads
+    \item MPI
+    \item Sqlite3 (*May change across implementations)
 \end{itemize}
 \subsubsection{Key Source Files}
 See Table 1.
@@ -782,7 +784,7 @@ Todd Gamblin of Lawrence Livermore National Lab
 
 \bibitem{IEEEhowto:kopka}
 H.~Kopka and P.~W. Daly, \emph{A Guide to \LaTeX}, 3rd~ed.\hskip 1em plus
-    0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
+  0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
 
 \end{thebibliography}
 

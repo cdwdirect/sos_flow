@@ -1,0 +1,35 @@
+
+
+# Link into the two databases...
+
+attach database "sosd.0.db" as db0;
+attach database "sosd.1.db" as db1;
+
+
+
+# Find Missing Records between db0 and db1...
+
+SELECT v0.rowid, v0.guid, v0.val
+FROM db0.tblvals AS v0
+WHERE NOT EXISTS (
+   SELECT v1.rowid, v1.guid, v1.val
+   FROM db1.tblvals AS v1
+   WHERE v1.guid = v0.guid AND v1.time_pack = v0.time_pack);
+
+
+
+
+# ----------
+# TEMPLATES to Find all values not present in the second database:
+
+SELECT A.ABC_ID, A.VAL WHERE NOT EXISTS 
+   (SELECT * FROM B WHERE B.ABC_ID = A.ABC_ID AND B.VAL = A.VAL)
+or
+
+SELECT A.ABC_ID, A.VAL WHERE VAL NOT IN 
+    (SELECT VAL FROM B WHERE B.ABC_ID = A.ABC_ID)
+or
+
+SELECT A.ABC_ID, A.VAL LEFT OUTER JOIN B 
+    ON A.ABC_ID = B.ABC_ID AND A.VAL = B.VAL WHERE B.VAL IS NULL
+    

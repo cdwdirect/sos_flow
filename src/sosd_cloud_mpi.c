@@ -49,7 +49,7 @@ void SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_pack(shutdown_msg, "ii", count, header.msg_size);
 
         dlog(1, "[%s]:   ... sending notice\n", whoami);
-        MPI_Send((void *) shutdown_msg, header.msg_size, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+        MPI_Ssend((void *) shutdown_msg, header.msg_size, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
         dlog(1, "[%s]:   ... sent successfully\n", whoami);
     }
     
@@ -181,7 +181,7 @@ int SOSD_cloud_send(unsigned char *msg, int msg_len) {
     dlog(5, "[%s]: ---------------> ---------> --------------> ----> -----> -->\n", whoami);
 
     /* At this point, it's pretty simple: */
-    MPI_Send((void *) msg, msg_len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+    MPI_Ssend((void *) msg, msg_len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
 
     return 0;
 }
