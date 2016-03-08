@@ -1,0 +1,57 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then 
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then 
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+echo ""
+echo ""
+echo "*** Terminating any prior daemons using [sosd_stop]..."
+echo ""
+echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo "*** Starting [sosd] daemon..."
+echo ""
+echo ""
+# $SOS_ROOT/src/mpi.start.2 &
+
+if [ -z $1 ]; then echo ""; echo "*** Removing any files left by previous sosd daemons..."; echo ""; fi;
+${SOS_ROOT}/src/mpi.cleanall
+if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; fi;
+
+daemon0="srun -n 2 -l --multi-prog srun.multi.conf"
+
+${daemon0} &
+
+sleep 3
+echo ""
+echo ""
+SOS_DEMO_APP_CMD="srun -n 3 ${SOS_ROOT}/bin/demo_app -i 200 -m 20000 -j 1.5"
+echo "*** Running [demo_app]...   ${SOS_DEMO_APP_CMD}"
+${SOS_DEMO_APP_CMD}
+sleep 1
+echo ""
+echo ""
+echo ""
+echo "*** Shutting down the daemon..."
+echo ""
+echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo ""
+echo "*** Pausing for I/O flush (sleep 2) and displaying [showdb] results..."
+echo ""
+echo ""
+sleep 2
+$SOS_ROOT/src/showdb
+echo ""

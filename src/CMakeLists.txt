@@ -33,17 +33,18 @@ endif()
 
 #TARGET ---> sos
 #            (library)
-add_library("sos" SHARED "sos.c" "pack_buffer.c" "qhashtbl.c")
-add_library("sos_static" STATIC "sos.c" "pack_buffer.c" "qhashtbl.c")
+#add_library("sos" SHARED "sos.c" "pack_buffer.c" "qhashtbl.c")
+add_library("sos" "sos.c" "pack_buffer.c" "qhashtbl.c")
+# add_library("sos_static" STATIC "sos.c" "pack_buffer.c" "qhashtbl.c")
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sos" PROPERTY COMPILE_OPTIONS "-pthread")
   target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
-  target_compile_options(TARGET "sos_static" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos_static" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+  # target_compile_options(TARGET "sos_static" PROPERTY COMPILE_OPTIONS "-pthread")
+  # target_compile_options(TARGET "sos_static" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos" "${CMAKE_THREAD_LIBS_INIT}")
-  target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
+  # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
 
