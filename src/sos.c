@@ -556,7 +556,7 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
     if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
 
     retval = recv(server_socket_fd, reply, reply_max, 0);
-    if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.\n", whoami); }
+    if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n", whoami, retval, errno, strerror(errno)); }
     else { dlog(6, "[%s]: Server sent a (%d) byte reply.\n", whoami, retval); }
 
     close( server_socket_fd );
