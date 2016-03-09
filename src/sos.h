@@ -28,7 +28,7 @@
 
 #include "qhashtbl.h"
 
-#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = t.tv_sec + t.tv_usec/1000000.0; }
+#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
 #define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
     char __SOS_var_name[SOS_DEFAULT_STRING_LEN] = {0};                  \
     {                                                                   \
@@ -47,7 +47,7 @@
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
-#define SOS_DEFAULT_BUFFER_LEN      2097152
+#define SOS_DEFAULT_BUFFER_LEN      1048576
 #define SOS_DEFAULT_REPLY_LEN       128
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256

@@ -45,12 +45,12 @@
 
 
 typedef struct {
-    pthread_t          *extract_t;
-    pthread_cond_t     *extract_cond;
-    pthread_mutex_t    *extract_lock;
-    pthread_t          *commit_t;
-    pthread_cond_t     *commit_cond;
-    pthread_mutex_t    *commit_lock;
+    pthread_t          extract_t;
+    pthread_cond_t     extract_cond;
+    pthread_mutex_t    extract_lock;
+    pthread_t          commit_t;
+    pthread_cond_t     commit_cond;
+    pthread_mutex_t    commit_lock;
     long               *commit_list;
     int                 commit_count;
     SOS_target          commit_target;

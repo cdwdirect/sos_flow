@@ -967,18 +967,6 @@ void SOS_pub_destroy(SOS_pub *pub) {
     dlog(6, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
     dlog(6, "[%s]: Freeing pub data element pointer array.\n", whoami);
     if (pub->data != NULL) { free(pub->data); }
-    dlog(6, "[%s]: Freeing strings...\n", whoami);
-    dlog(6, "[%s]:    ...node_id\n", whoami);
-    if (pub->node_id != NULL) { free(pub->node_id); }
-    dlog(6, "[%s]:    ...prog_name\n", whoami);
-    if (pub->prog_name != NULL) { free(pub->prog_name); }
-    dlog(6, "[%s]:    ...prog_ver\n", whoami);
-    if (pub->prog_ver != NULL) { free(pub->prog_ver); }
-    dlog(6, "[%s]:    ...pragma_msg\n", whoami);
-    if (pub->pragma_msg != NULL) { free(pub->pragma_msg); }
-    dlog(6, "[%s]:    ...title\n", whoami);
-    if (pub->title != NULL) { free(pub->title); }
-    dlog(6, "[%s]:    ...done.\n", whoami);
     dlog(6, "[%s]: Freeing pub handle itself.\n", whoami);
     if (pub != NULL) { free(pub); pub = NULL; }
 
