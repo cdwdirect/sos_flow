@@ -137,10 +137,10 @@ void SOSD_db_init_database() {
 
     flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
-    #ifdef SOSD_CLOUD_SYNC
+    #if (SOSD_CLOUD_SYNC > 0)
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS.config.comm_rank);
     #else
-    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.db", SOSD.daemon.work_dir, SOSD.daemon.name);
+    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
     /*
