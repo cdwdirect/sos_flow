@@ -9,8 +9,10 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
-#include <mpi.h>
 
+#if (SOSD_CLOUD_SYNC > 0)
+#include <mpi.h>
+#endif
 
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
@@ -43,7 +45,9 @@ int main(int argc, char *argv[]) {
     int    JITTER_ENABLED;
     double JITTER_INTERVAL;
 
+    #if (SOSD_CLOUD_SYNC > 0)
     MPI_Init(&argc, &argv);
+    #endif
 
     /* Process command-line arguments */
     if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -199,7 +203,9 @@ int main(int argc, char *argv[]) {
 
     SOS_finalize();
 
+    #if (SOSD_CLOUD_SYNC > 0)
     MPI_Finalize();
+    #endif
     
     return (EXIT_SUCCESS);
 }
