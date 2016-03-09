@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
     if (SOS_DEBUG) printf("[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
 
     if (SOS_DEBUG) printf("[%s]: Manually configuring some pub metadata...\n", whoami);
-    pub->prog_ver         = str_prog_ver;
+    strcpy (pub->prog_ver, str_prog_ver);
     pub->meta.channel     = 1;
     pub->meta.nature      = SOS_NATURE_EXEC_WORK;
     pub->meta.layer       = SOS_LAYER_APP;

@@ -139,6 +139,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
                 SOS.config.comm_rank = atoi(env_rank);
                 SOS.config.comm_size = atoi(env_size);
                 dlog(1, "[%s]:   ... OpenMPI environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
+            } else {
+                /* non-MPI client. */
+                SOS.config.comm_rank = 0;
+                SOS.config.comm_size = 1;
+                dlog(1, "[%s]:   ... Non-MPI environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
             }
         }
     }
@@ -880,17 +885,11 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
 
     dlog(6, "[%s]:   ... setting default values, allocating space for strings.\n", whoami);
 
-    new_pub->node_id      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->process_id   = 0;
     new_pub->thread_id    = 0;
     new_pub->comm_rank    = SOS.config.comm_rank;
-    new_pub->prog_name    = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-    new_pub->prog_ver     = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->pragma_len   = 0;
-    new_pub->pragma_msg   = (unsigned char *) malloc( SOS_DEFAULT_STRING_LEN );
-    new_pub->title = (char *) malloc(strlen(title) + 1);
-        memset(new_pub->title, '\0', (strlen(title) + 1));
-        strcpy(new_pub->title, title);
+    strcpy(new_pub->title, title);
     new_pub->announced           = 0;
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
@@ -902,11 +901,6 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
     dlog(6, "[%s]:   ... zero-ing out the strings.\n", whoami);
-
-    memset(new_pub->node_id,    '\0', SOS_DEFAULT_STRING_LEN);
-    memset(new_pub->prog_name,  '\0', SOS_DEFAULT_STRING_LEN);
-    memset(new_pub->prog_ver,   '\0', SOS_DEFAULT_STRING_LEN);
-    memset(new_pub->pragma_msg, '\0', SOS_DEFAULT_STRING_LEN);
 
     /* Set some defaults for the SOS_ROLE_CLIENT's */
     if (SOS.role == SOS_ROLE_CLIENT) {

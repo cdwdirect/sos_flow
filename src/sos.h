@@ -329,11 +329,11 @@ typedef struct {
     int                 elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
     int                 elem_count;   /* default: 0                     */
     int                 pragma_len;   /* default: -1                    */
-    unsigned char      *pragma_msg;   /* default: (null)                */
-    char               *node_id;      /* default: SOS.config.node_id    */
-    char               *prog_name;    /* default: argv[0] / manual      */
-    char               *prog_ver;     /* default: (null)                */
-    char               *title;        /* default: (null)                */
+    unsigned char       pragma_msg[SOS_DEFAULT_STRING_LEN];   /* default: ""                    */
+    char                node_id[SOS_DEFAULT_STRING_LEN];      /* default: SOS.config.node_id    */
+    char                prog_name[SOS_DEFAULT_STRING_LEN];    /* default: argv[0] / manual      */
+    char                prog_ver[SOS_DEFAULT_STRING_LEN];     /* default: ""                    */
+    char                title[SOS_DEFAULT_STRING_LEN];        /* default: ""                    */
     SOS_data          **data;
 } SOS_pub;
 

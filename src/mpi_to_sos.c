@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     SOS_TIME(ts_start);
     pub = SOS_pub_create("demo");
     dlog(6, "[%s]: Manually configuring some pub metadata...\n", whoami);
-    pub->prog_ver         = str_prog_ver;
+    strcpy(pub->prog_ver, str_prog_ver);
     pub->meta.channel     = 1;
     pub->meta.nature      = SOS_NATURE_EXEC_WORK;
     /* Totally optional metadata, the defaults are usually right. */

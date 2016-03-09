@@ -23,6 +23,7 @@ echo "*** Starting [sosd] daemon..."
 echo ""
 echo ""
 ${SOS_ROOT}/src/mpi.cleanall
+#valgrind --max-stackframe=4728552 --leak-check=full ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_WORK} &
 ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_WORK} &
 sleep 3
 echo ""

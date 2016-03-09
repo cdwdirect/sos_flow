@@ -46,13 +46,9 @@ int main(int argc, char *argv[])  {
     int retval;
 
     SOSD.daemon.work_dir    = (char *) &SOSD_DEFAULT_DIR;
-    SOSD.daemon.name        = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-    SOSD.daemon.lock_file   = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-    SOSD.daemon.log_file    = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-
-    memset(SOSD.daemon.name,      '\0', SOS_DEFAULT_STRING_LEN);
-    memset(SOSD.daemon.lock_file, '\0', SOS_DEFAULT_STRING_LEN);
-    memset(SOSD.daemon.log_file,  '\0', SOS_DEFAULT_STRING_LEN);
+    SOSD.daemon.name        = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
+    SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
+    SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
 
     SOS.role = SOS_ROLE_DAEMON; /* ...this can be overridden by command line parameter. */
 
@@ -356,8 +352,7 @@ void SOSD_listen_loop() {
 
 void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
-    char func_name[SOS_DEFAULT_STRING_LEN];
-    memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
+    char func_name[SOS_DEFAULT_STRING_LEN] = {0};
     sprintf(func_name, "SOSD_THREAD_pub_ring_extractor(%s)", my->name);
     SOS_SET_WHOAMI(whoami, func_name);
 
@@ -402,8 +397,7 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
 
 void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
-    char func_name[SOS_DEFAULT_STRING_LEN];
-    memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
+    char func_name[SOS_DEFAULT_STRING_LEN] = {0};
     sprintf(func_name, "SOSD_THREAD_pub_ring_storage_injector(%s)", my->name);
     SOS_SET_WHOAMI(whoami, func_name);
 
@@ -572,7 +566,6 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
     unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
-    //memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     if (header.msg_from == 0) {
@@ -621,7 +614,6 @@ void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
 
     unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
-    //memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
@@ -667,7 +659,6 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    //memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
@@ -693,7 +684,6 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]:   ... pub(%ld)->elem_count = %d\n", whoami, pub->guid, pub->elem_count);
 
-    //memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     SOSD_pack_ack(reply, &reply_len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
@@ -726,7 +716,6 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
                              &header.msg_from,
                              &header.pub_guid);
 
-    //memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
@@ -758,7 +747,6 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    //memset (reply, '\0', SOS_DEFAULT_REPLY_LEN);
     SOSD_pack_ack(reply, &reply_len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
@@ -856,7 +844,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
         ptr = (feedback_msg + offset);
 
         /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
-        memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
+        //memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         offset += SOS_buffer_pack(ptr, "is",
@@ -902,8 +890,6 @@ void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    //memset (reply, '\0', SOS_DEFAULT_REPLY_LEN );
-    
     SOSD_pack_ack(reply, &reply_len);
 
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );
