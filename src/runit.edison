@@ -39,13 +39,13 @@ if [ -z $1 ]; then echo ""; echo "*** Removing any files left by previous sosd d
 ${SOS_ROOT}/src/mpi.cleanall
 if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; fi;
 
-srun -n 2 -N 1 --gres=craynetwork:1 --mem=25600 -l --multi-prog srun.multi.conf &
+srun -n 2 -N 1 -c 4 --hint=multithread --gres=craynetwork:1 --mem=25600 -l --multi-prog srun.multi.conf &
 
 sleep 3
 echo ""
 echo ""
 echo "*** Running [demo_app]...   ${SOS_DEMO_APP_CMD}"
-srun -n 3 -N 1 --gres=craynetwork:1 --mem=25600 -l ${SOS_ROOT}/bin/demo_app -i 200 -m 20000 -j 1.5 &
+srun -n 1 -N 1 --hint=multithread --gres=craynetwork:1 --mem=25600 -l ${SOS_ROOT}/bin/demo_app -i 200 -m 20000 -j 1.5 &
 wait
 echo ""
 echo ""
