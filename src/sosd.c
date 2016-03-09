@@ -130,11 +130,15 @@ int main(int argc, char *argv[])  {
     SOS_val_snap_queue_init(&SOS.task.val_intake);
     SOS_val_snap_queue_init(&SOS.task.val_outlet);
     dlog(0, "[%s]: Creating ring queue monitors to track 'to-do' list for pubs...\n", whoami);
-    SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, SOS.task.val_outlet, SOS_TARGET_LOCAL_SYNC);
     #ifdef SOSD_CLOUD_SYNC
+    /* Start LOCAL and CLOUD sync threads... */
+    SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, SOS.task.val_outlet, SOS_TARGET_LOCAL_SYNC);
     SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS.task.val_outlet, NULL, SOS_TARGET_CLOUD_SYNC);
     dlog(0, "[%s]: Releasing the cloud_sync (flush) thread to begin operation...\n", whoami);
     pthread_cond_signal(SOSD.cloud_bp->flush_cond);
+    #else
+    /*   ...or, start only a LOCAL sync thread. */
+    SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, NULL, SOS_TARGET_LOCAL_SYNC);
     #endif
 
     dlog(0, "[%s]: Entering listening loop...\n", whoami);
@@ -163,7 +167,7 @@ int main(int argc, char *argv[])  {
 
     dlog(0, "[%s]:   ... destroying the ring monitors...\n", whoami);
     SOSD_pub_ring_monitor_destroy(SOSD.local_sync);
-#if (SOSD_CLOUD_SYNC > 0)
+    #if (SOSD_CLOUD_SYNC > 0)
     SOSD_pub_ring_monitor_destroy(SOSD.cloud_sync);
     #endif
 
@@ -200,7 +204,13 @@ int main(int argc, char *argv[])  {
 
 
 
-void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var, char *name_var, SOS_ring_queue *ring_var, SOS_val_snap_queue *val_source, SOS_val_snap_queue *val_target, SOS_target target) {
+void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
+                                char *name_var,
+                                SOS_ring_queue *ring_var,
+                                SOS_val_snap_queue *val_source,
+                                SOS_val_snap_queue *val_target,
+                                SOS_target target )
+{
     SOS_SET_WHOAMI(whoami, "SOSD_pub_ring_monitor_init");
     SOSD_pub_ring_mon *mon;
     int retval;
@@ -356,7 +366,7 @@ void SOSD_listen_loop() {
 
 void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
-    char func_name[SOS_DEFAULT_STRING_LEN];
+    char func_name[SOS_DEFAULT_STRING_LEN] = {0};
     memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(func_name, "SOSD_THREAD_pub_ring_extractor(%s)", my->name);
     SOS_SET_WHOAMI(whoami, func_name);
@@ -400,13 +410,13 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
 
 void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
-    char func_name[SOS_DEFAULT_STRING_LEN];
+    char func_name[SOS_DEFAULT_STRING_LEN] = {0};
     memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(func_name, "SOSD_THREAD_pub_ring_storage_injector(%s)", my->name);
     SOS_SET_WHOAMI(whoami, func_name);
 
     int       list_index;
-    char      guid_str[SOS_DEFAULT_STRING_LEN];
+    char      guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_pub  *pub;
 
     unsigned char     *buffer;
@@ -569,7 +579,7 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
     memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
@@ -618,7 +628,7 @@ void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
 
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
     memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
@@ -647,7 +657,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     int   i;
 
     SOS_pub *pub;
-    char     guid_str[SOS_DEFAULT_STRING_LEN];
+    char     guid_str[SOS_DEFAULT_STRING_LEN] = {0};
 
     ptr        = msg;
     buffer_pos = 0;
@@ -712,8 +722,8 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
     int   i   = 0;
 
     SOS_pub *pub;
-    char     guid_str[SOS_DEFAULT_STRING_LEN];
-    unsigned char     reply[SOS_DEFAULT_REPLY_LEN];
+    char     guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    unsigned char     reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int      reply_len;
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
@@ -776,7 +786,7 @@ void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
 
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int reply_len = 0;
     int ptr = 0;
     int i   = 0;
@@ -880,7 +890,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
 void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "SOSD_handle_unknown");
     SOS_msg_header header;
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int reply_len = 0;
     int ptr = 0;
     int i   = 0;

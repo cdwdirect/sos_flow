@@ -47,7 +47,7 @@ SOS_runtime SOS;
 
 void SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS_msg_header header;
-    unsigned char buffer[SOS_DEFAULT_REPLY_LEN];
+    unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
     long guid_pool_from;
     long guid_pool_to;
@@ -834,7 +834,7 @@ long SOS_uid_next( SOS_uid *id ) {
         } else {
             /* Acquire a fresh block of GUIDs from the DAEMON... */
             SOS_msg_header msg;
-            unsigned char buffer[SOS_DEFAULT_REPLY_LEN];
+            unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
             
             dlog(1, "[%s]: The last guid has been used from SOS.uid.my_guid_pool!  Requesting a new block...\n", whoami);
             msg.msg_size = sizeof(SOS_msg_header);
@@ -1452,7 +1452,7 @@ void SOS_val_snap_queue_init(SOS_val_snap_queue **queue_var) {
 
 void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_enqueue");
-    char pub_id_str[SOS_DEFAULT_STRING_LEN];
+    char pub_id_str[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_val_snap *new_snap;
     SOS_val val_copy;
 
@@ -1517,7 +1517,7 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
 void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsigned char **buf_ptr, int *buf_len, bool drain) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_to_buffer");
     SOS_msg_header header;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN];
+    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     unsigned char *buffer;
     unsigned char *ptr;
     int   buffer_len;
@@ -1604,7 +1604,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
 void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, unsigned char *buffer, int buffer_size) {
     SOS_SET_WHOAMI(whoami, "SOS_val_snap_queue_from_buffer");
     SOS_msg_header header;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN];
+    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     unsigned char *ptr;
     int   offset;
     SOS_val_snap *snap;
@@ -1711,7 +1711,7 @@ void SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_v
  void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
     SOS_val_snap *snap;
     SOS_val_snap *next_snap;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN];
+    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
 
     memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
@@ -2155,7 +2155,7 @@ void SOS_publish( SOS_pub *pub ) {
     unsigned char    buffer_stack[SOS_DEFAULT_BUFFER_LEN];
     int     buffer_len;
     unsigned char   *reply;
-    unsigned char    reply_stack[SOS_DEFAULT_REPLY_LEN];
+    unsigned char    reply_stack[SOS_DEFAULT_REPLY_LEN] = {0};
     int     reply_max;
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
