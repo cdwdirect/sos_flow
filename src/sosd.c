@@ -386,7 +386,9 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
         }
         pthread_mutex_unlock(my->commit_lock);
         pthread_cond_signal(my->commit_cond);
-        gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
+        gettimeofday(&tp, NULL); 
+        ts.tv_sec  = tp.tv_sec; 
+        ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
     }
     pthread_mutex_unlock(my->extract_lock);
 
@@ -569,8 +571,8 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
-    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
+    //memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     if (header.msg_from == 0) {
@@ -618,8 +620,8 @@ void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
 
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
-    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
+    //memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
@@ -641,13 +643,13 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
     unsigned char  *ptr;
-    unsigned char  reply[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char  reply[SOS_DEFAULT_BUFFER_LEN] = {0};
     int   reply_len;
     int   buffer_pos;
     int   i;
 
     SOS_pub *pub;
-    char     guid_str[SOS_DEFAULT_STRING_LEN];
+    char     guid_str[SOS_DEFAULT_STRING_LEN] = {0};
 
     ptr        = msg;
     buffer_pos = 0;
@@ -665,7 +667,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+    //memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
@@ -691,7 +693,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]:   ... pub(%ld)->elem_count = %d\n", whoami, pub->guid, pub->elem_count);
 
-    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    //memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     SOSD_pack_ack(reply, &reply_len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
@@ -712,8 +714,8 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
     int   i   = 0;
 
     SOS_pub *pub;
-    char     guid_str[SOS_DEFAULT_STRING_LEN];
-    unsigned char     reply[SOS_DEFAULT_REPLY_LEN];
+    char     guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    unsigned char     reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int      reply_len;
 
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_PUBLISH\n", whoami);
@@ -724,7 +726,7 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
                              &header.msg_from,
                              &header.pub_guid);
 
-    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+    //memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
@@ -756,7 +758,7 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    memset (reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    //memset (reply, '\0', SOS_DEFAULT_REPLY_LEN);
     SOSD_pack_ack(reply, &reply_len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
@@ -776,7 +778,7 @@ void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
 
     SOS_SET_WHOAMI(whoami, "daemon_handle_shutdown");
     SOS_msg_header header;
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int reply_len = 0;
     int ptr = 0;
     int i   = 0;
@@ -880,7 +882,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
 void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "SOSD_handle_unknown");
     SOS_msg_header header;
-    unsigned char reply[SOS_DEFAULT_REPLY_LEN];
+    unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int reply_len = 0;
     int ptr = 0;
     int i   = 0;
@@ -900,7 +902,7 @@ void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    memset (reply, '\0', SOS_DEFAULT_REPLY_LEN );
+    //memset (reply, '\0', SOS_DEFAULT_REPLY_LEN );
     
     SOSD_pack_ack(reply, &reply_len);
 
