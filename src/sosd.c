@@ -81,6 +81,15 @@ int main(int argc, char *argv[])  {
          || (SOSD.net.listen_backlog < 1) )
         { fprintf(stderr, "%s\n", USAGE); exit(1); }
 
+    #ifndef SOSD_CLOUD_SYNC
+    if (SOS.role != SOS_ROLE_DAEMON) {
+        printf("NOTE: Terminating an instance of sosd with pid: %d\n", getpid());
+        printf("NOTE: SOSD_CLOUD_SYNC is disabled but this instance is not a SOS_ROLE_DAEMON!\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
+    }
+    #endif
+
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
     #ifdef SOSD_CLOUD_SYNC
@@ -122,16 +131,22 @@ int main(int argc, char *argv[])  {
     SOS_val_snap_queue_init(&SOS.task.val_outlet);
     dlog(0, "[%s]: Creating ring queue monitors to track 'to-do' list for pubs...\n", whoami);
     SOSD_pub_ring_monitor_init(&SOSD.local_sync, "local_sync", NULL, SOS.task.val_intake, SOS.task.val_outlet, SOS_TARGET_LOCAL_SYNC);
+    #ifdef SOSD_CLOUD_SYNC
     SOSD_pub_ring_monitor_init(&SOSD.cloud_sync, "cloud_sync", NULL, SOS.task.val_outlet, NULL, SOS_TARGET_CLOUD_SYNC);
     dlog(0, "[%s]: Releasing the cloud_sync (flush) thread to begin operation...\n", whoami);
     pthread_cond_signal(SOSD.cloud_bp->flush_cond);
+    #endif
 
     dlog(0, "[%s]: Entering listening loop...\n", whoami);
 
     /* Go! */
     switch (SOS.role) {
     case SOS_ROLE_DAEMON:   SOSD_listen_loop(); break;
-    case SOS_ROLE_DB:       SOSD_cloud_listen_loop(); break;
+    case SOS_ROLE_DB:       
+        #ifdef SOSD_CLOUD_SYNC
+        SOSD_cloud_listen_loop();
+        #endif
+        break;
     case SOS_ROLE_CONTROL:  break;
     default: break;
     }
@@ -140,12 +155,18 @@ int main(int argc, char *argv[])  {
     dlog(0, "[%s]: Ending the pub_ring monitors:\n", whoami);
     dlog(0, "[%s]:   ... waiting for the pub_ring monitor to iterate and exit.\n", whoami);
     pthread_join( *(SOSD.local_sync->extract_t), NULL);
-    pthread_join( *(SOSD.cloud_sync->extract_t), NULL);
     pthread_join( *(SOSD.local_sync->commit_t), NULL);
+    #if (SOSD_CLOUD_SYNC > 0)
+    pthread_join( *(SOSD.cloud_sync->extract_t), NULL);
     pthread_join( *(SOSD.cloud_sync->commit_t), NULL);
+    #endif
+
     dlog(0, "[%s]:   ... destroying the ring monitors...\n", whoami);
     SOSD_pub_ring_monitor_destroy(SOSD.local_sync);
+#if (SOSD_CLOUD_SYNC > 0)
     SOSD_pub_ring_monitor_destroy(SOSD.cloud_sync);
+    #endif
+
     dlog(0, "[%s]:   ... destroying the val_snap queues...\n", whoami);
     SOS_val_snap_queue_destroy(SOS.task.val_intake);
     SOS_val_snap_queue_destroy(SOS.task.val_outlet);
@@ -158,7 +179,7 @@ int main(int argc, char *argv[])  {
         dlog(0, "[%s]: Closing the socket.\n", whoami);
         shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     }
-    #ifdef SOSD_CLOUD_SYNC
+    #if (SOSD_CLOUD_SYNC > 0)
     dlog(0, "[%s]: Detaching from the cloud of sosd daemons.\n", whoami);
     SOSD_cloud_finalize();
     #endif
@@ -421,26 +442,26 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                     SOSD_db_insert_vals(pub, my->val_intake, NULL);
                 } else {
                     SOSD_db_insert_vals(pub, my->val_intake, my->val_outlet);
+                    #if (SOSD_CLOUD_SYNC > 0)
                     SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
+                    #endif
                 }
                 break;
 
             case SOS_TARGET_CLOUD_SYNC:
+                #if (SOSD_CLOUD_SYNC > 0)
                 if (SOS.role == SOS_ROLE_DB) { break; }
                 if (pub->announced == SOSD_PUB_ANN_LOCAL) {
                     buffer = buffer_static;
                     buffer_len = SOS_DEFAULT_BUFFER_LEN;
                     memset(buffer, '\0', buffer_len);
                     SOS_announce_to_buffer( pub, &buffer, &buffer_len );
-                    #if (SOSD_CLOUD_SYNC > 0)
                     SOSD_cloud_enqueue( buffer, buffer_len );
-                    #endif
                     pub->announced = SOSD_PUB_ANN_CLOUD;
                 }
                 buffer     = buffer_static;
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
-                #if (SOSD_CLOUD_SYNC > 0)
                 SOS_val_snap_queue_to_buffer(my->val_intake, pub, &buffer, &buffer_len, true);
                 if (buffer_len > 0) { SOSD_cloud_enqueue(buffer, buffer_len); }
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
@@ -984,10 +1005,10 @@ void SOSD_init() {
     /* [lock file]
      *     create and hold lock file to prevent multiple daemon spawn
      */
-    #ifdef SOSD_CLOUD_SYNC
+    #if (SOSD_CLOUD_SYNC > 0)
     snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS.config.comm_rank);
     #else
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
     sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) {
@@ -1007,14 +1028,14 @@ void SOSD_init() {
     /* [log file]
      *      system logging initialize
      */
-    #ifdef SOSD_CLOUD_SYNC
+    #if (SOSD_CLOUD_SYNC > 0)
     snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.%d.log", SOSD.daemon.name, SOS.config.comm_rank);
     #else
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.log", SOSD.daemon.name);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.local.log", SOSD.daemon.name);
     #endif
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Opening log file: %s\n", whoami, SOSD.daemon.log_file); fflush(stdout); }
     sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w"); /* Open a log file, even if we don't use it... */
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... done.\n", SOSD.daemon.name); fflush(stdout); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]:   ... done.\n", whoami); fflush(stdout); }
 
 
 
@@ -1091,6 +1112,8 @@ void SOSD_init() {
         long guid_my_first   = (long) SOS.config.comm_rank * guid_block_size;
         SOS_uid_init(&SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
+        dlog(1, "[%s]: DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n", whoami);
+        dlog(1, "[%s]: DATA NOTE:  GUID values are unique only to this node.\n", whoami);
         SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
     #endif
     dlog(1, "[%s]:   ... (%ld ---> %ld)\n", whoami, SOSD.guid->next, SOSD.guid->last);

@@ -1,0 +1,64 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then 
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then 
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+echo ""
+echo ""
+echo "*** Terminating any prior daemons using [sosd_stop]..."
+echo ""
+echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo "*** Starting [sosd] daemon..."
+echo ""
+echo ""
+${SOS_ROOT}/src/mpi.cleanall
+${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8388608 --listen_backlog 10 --work_dir ${SOS_WORK} &
+sleep 3
+echo ""
+echo ""
+echo "*** Running [demo_app]..."
+${SOS_ROOT}/bin/demo_app -i 200 -m 20000 -j 1.5
+sleep 1
+echo ""
+echo "*** Shutting down the daemon..."
+echo ""
+echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo ""
+echo "*** Pausing for I/O flush (sleep 2) and displaying [showdb] results..."
+echo ""
+echo ""
+sleep 2
+
+ls -AblFs $SOS_WORK/*.db
+
+PUBLIST_SQL=""
+PUBLIST_SQL="${PUBLIST_SQL}  SELECT    row_id, guid, title, process_id, comm_rank, node_id, prog_name "
+PUBLIST_SQL="${PUBLIST_SQL}  FROM      tblpubs "
+PUBLIST_SQL="${PUBLIST_SQL}  WHERE     row_id IN (SELECT MAX(row_id) FROM tblpubs GROUP BY title, process_id, thread_id) "
+PUBLIST_SQL="${PUBLIST_SQL}  ORDER BY  prog_name, comm_rank, title;"
+
+db="sosd.local.db"
+echo ""
+echo -n "${db} [val.COUNT] = "
+sqlite3 ${db} "select max(rowid) from tblvals;"
+echo -n "${db} [pub.COUNT] = "
+sqlite3 ${db} "select count(distinct guid) from tblpubs;"
+echo    "${db} [pubs.LIST] = "
+sqlite3 ${db} -column -header "${PUBLIST_SQL}"
+echo ""
+
+
