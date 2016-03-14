@@ -45,19 +45,19 @@
 
 
 typedef struct {
-    char               *name;
-    SOS_ring_queue     *ring;
-    pthread_t          *extract_t;
-    pthread_cond_t     *extract_cond;
-    pthread_mutex_t    *extract_lock;
-    pthread_t          *commit_t;
-    pthread_cond_t     *commit_cond;
-    pthread_mutex_t    *commit_lock;
+    pthread_t          extract_t;
+    pthread_cond_t     extract_cond;
+    pthread_mutex_t    extract_lock;
+    pthread_t          commit_t;
+    pthread_cond_t     commit_cond;
+    pthread_mutex_t    commit_lock;
     long               *commit_list;
     int                 commit_count;
     SOS_target          commit_target;
     SOS_val_snap_queue *val_intake;
     SOS_val_snap_queue *val_outlet;
+    char               *name;
+    SOS_ring_queue     *ring;
 } SOSD_pub_ring_mon;
 
 typedef struct {

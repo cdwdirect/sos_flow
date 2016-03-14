@@ -17,7 +17,7 @@ SOS_init_wrapper(int* argc, char** argv[]) {
     SOS.config.comm_size    = commsize;
     // ...but it has to be done before the pub creation.
     example_pub = SOS_pub_create(pub_name);
-    example_pub->prog_ver           = strdup(app_version);
+    strcpy (example_pub->prog_ver, app_version);
     example_pub->meta.channel       = 1;
     example_pub->meta.nature        = SOS_NATURE_EXEC_WORK;
     example_pub->meta.layer         = SOS_LAYER_FLOW;
