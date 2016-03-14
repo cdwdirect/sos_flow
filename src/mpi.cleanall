@@ -12,10 +12,11 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
   kill -INT $$
 fi
 if [ -z $1 ]; then echo "   >>> Clearing the log file[s]."; fi;
-rm -rf ${SOS_ROOT}/src/sosd.*.log
+rm -rf ${SOS_WORK}/sosd.*.log
 if [ -z $1 ]; then echo "   >>> Clearing the lock file[s]."; fi;
-rm -rf ${SOS_ROOT}/src/sosd.*.lock
+rm -rf ${SOS_WORK}/sosd.*.lock
 if [ -z $1 ]; then echo "   >>> Clearing the database[s]."; fi;
-rm -rf ${SOS_ROOT}/src/sosd.*.db
-rm -rf ${SOS_ROOT}/src/sosd.*.db.lock
-rm -rf ${SOS_ROOT}/src/sosd.*.db-journal
+rm -rf ${SOS_WORK}/sosd.*.db
+rm -rf ${SOS_WORK}/sosd.*.db.lock
+rm -rf ${SOS_WORK}/sosd.*.db-journal
+rm -rf ${SOS_WORK}/sosd.valgrind.log

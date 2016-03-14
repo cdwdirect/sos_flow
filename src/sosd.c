@@ -41,6 +41,8 @@
 
 #define USAGE          "usage:   $ sosd  --port <number>  --buffer_len <bytes>  --listen_backlog <len>  --role <role>  --work_dir <path>"
 
+void SOSD_display_logo(void);
+
 int main(int argc, char *argv[])  {
     int elem, next_elem;
     int retval;
@@ -95,17 +97,7 @@ int main(int argc, char *argv[])  {
     SOS_SET_WHOAMI(whoami, "main");
 
     if (SOS.config.comm_rank == 0) {
-        printf("\n");
-        printf("         _/_/_/    _/_/      _/_/_/    )))   Scalable\n");
-        printf("      _/        _/    _/  _/          (((    Observation\n");
-        printf("       _/_/    _/    _/    _/_/        )))   System\n");
-        printf("          _/  _/    _/        _/      (((    for Scientific\n");
-        printf("   _/_/_/      _/_/    _/_/_/          )))   Workflows\n");
-        printf("\n");
-        printf("   Version: %s\n", SOS_VERSION);
-        printf("   Builder: %s\n", SOS_BUILDER);
-        printf("\n");
-        printf("-----------------------------------------------------------\n");
+        SOSD_display_logo();
     }
 
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("[%s]: Initializing SOS:\n", whoami); fflush(stdout); }
@@ -1175,3 +1167,94 @@ void SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len ) {
     return;
 }
 
+
+
+
+
+void SOSD_display_logo(void) {
+    int choice = 0;
+    choice = random() % 5;
+
+    switch (choice) {
+    case 0:
+        printf("\n");
+        printf("         _/_/_/    _/_/      _/_/_/    )))   Scalable\n");
+        printf("      _/        _/    _/  _/          (((    Observation\n");
+        printf("       _/_/    _/    _/    _/_/        )))   System\n");
+        printf("          _/  _/    _/        _/      (((    for Scientific\n");
+        printf("   _/_/_/      _/_/    _/_/_/          )))   Workflows\n");
+        printf("\n");
+        break;
+
+    case 1:
+        printf(" @@@@@@    @@@@@@    @@@@@@   @@@@@@@@  @@@        @@@@@@   @@@  @@@  @@@\n");
+        printf("@@@@@@@   @@@@@@@@  @@@@@@@   @@@@@@@@  @@@       @@@@@@@@  @@@  @@@  @@@\n");
+        printf("!@@       @@!  @@@  !@@       @@!       @@!       @@!  @@@  @@!  @@!  @@!\n");
+        printf("!@!       !@!  @!@  !@!       !@!       !@!       !@!  @!@  !@!  !@!  !@!\n");
+        printf("!!@@!!    @!@  !@!  !!@@!!    @!!!:!    @!!       @!@  !@!  @!!  !!@  @!@\n");
+        printf(" !!@!!!   !@!  !!!   !!@!!!   !!!!!:    !!!       !@!  !!!  !@!  !!!  !@!\n");
+        printf("     !:!  !!:  !!!       !:!  !!:       !!:       !!:  !!!  !!:  !!:  !!:\n");
+        printf("    !:!   :!:  !:!      !:!   :!:        :!:      :!:  !:!  :!:  :!:  :!:\n");
+        printf(":::: ::   ::::: ::  :::: ::    ::        :: ::::  ::::: ::   :::: :: ::: \n");
+        printf(":: : :     : :  :   :: : :     :        : :: : :   : :  :     :: :  : :  \n");
+        printf(" [  --+--  Scalable Observation System for Scientific Workflows  --+--  ]\n");
+        printf("\n");
+        break;
+
+    case 2:
+        printf("  {__ __      {____       {__ __      {__ {__                      \n");
+        printf("{__    {__  {__    {__  {__    {__  {_    {__                      \n");
+        printf(" {__      {__        {__ {__      {_{_ {_ {__   {__    {__     {___\n");
+        printf("   {__    {__        {__   {__      {__   {__ {__  {__  {__  _  {__\n");
+        printf("      {__ {__        {__      {__   {__   {__{__    {__ {__ {_  {__\n");
+        printf("{__    {__  {__     {__ {__    {__  {__   {__ {__  {__  {_ {_ {_{__\n");
+        printf("  {__ __      {____       {__ __    {__  {___   {__    {___    {___\n");
+        printf("\n");
+        break;
+
+    case 3:
+        printf("\n");
+        printf("      ___/\\/\\/\\/\\/\\____/\\/\\/\\/\\______/\\/\\/\\/\\/\\____/\\/\\/\\__/\\/\\_______________________________\n");
+        printf("     _/\\/\\__________/\\/\\____/\\/\\__/\\/\\__________/\\/\\______/\\/\\______/\\/\\/\\____/\\/\\______/\\/\\_ \n");
+        printf("    ___/\\/\\/\\/\\____/\\/\\____/\\/\\____/\\/\\/\\/\\____/\\/\\/\\____/\\/\\____/\\/\\__/\\/\\__/\\/\\__/\\__/\\/\\_  \n");
+        printf("   _________/\\/\\__/\\/\\____/\\/\\__________/\\/\\__/\\/\\______/\\/\\____/\\/\\__/\\/\\__/\\/\\/\\/\\/\\/\\/\\_   \n");
+        printf("  _/\\/\\/\\/\\/\\______/\\/\\/\\/\\____/\\/\\/\\/\\/\\____/\\/\\______/\\/\\/\\____/\\/\\/\\______/\\/\\__/\\/\\___    \n");
+        printf(" ________________________________________________________________________________________     \n");    
+        printf("Scalable observation system for scientific workflows.... . . .   .    .\n");
+        printf("\n");
+        break;
+
+
+    case 4:
+        printf("\n");
+        printf("__  ___/_  __ \\_  ___/__  __/__  /________      __    )))  \n");
+        printf("_____ \\_  / / /____ \\__  /_ __  /_  __ \\_ | /| / /   (((   Scalable Observation\n");
+        printf("____/ // /_/ /____/ /_  __/ _  / / /_/ /_ |/ |/ /     )))  System for Scientific\n");
+        printf("/____/ \\____/ /____/ /_/    /_/  \\____/____/|__/     (((   Workflows\n");
+        printf("\n");
+        break;
+
+    case 5:
+        printf("\n");
+        printf("  O)) O)      O))))       O)) O)      O)) O))                      \n");
+        printf("O))    O))  O))    O))  O))    O))  O)    O))                      \n");
+        printf(" O))      O))        O)) O))      O)O) O) O))   O))    O))     O)))\n");
+        printf("   O))    O))        O))   O))      O))   O)) O))  O))  O))  )  O))\n");
+        printf("      O)) O))        O))      O))   O))   O))O))    O)) O)) O)  O))\n");
+        printf("O))    O))  O))     O)) O))    O))  O))   O)) O))  O))  O) O) O)O))\n");
+        printf("  O)) O)      O))))       O)) O)    O))  O)))   O))    O)))    O)))\n");
+        printf("\n");
+        printf("    +------------------------------------------------------+\n");
+        printf("    | Scalable Observation System for Scientific Workflows |\n");
+        printf("    +------------------------------------------------------+\n");
+        printf("\n");
+        break;
+    }
+
+    printf("   Version: %s\n", SOS_VERSION);
+    printf("   Builder: %s\n", SOS_BUILDER);
+    printf("\n");
+    printf("-----------------------------------------------------------\n");
+
+    return;
+}
