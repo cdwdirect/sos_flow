@@ -377,7 +377,7 @@ int SOS_buffer_unpack(unsigned char *buf, char *format, ...)
             if (maxstrlen > 0 && len > maxstrlen) count = maxstrlen - 1;
             else count = len;
             if (s == NULL) {
-                s = (char *) malloc((count + 1) * sizeof(char));
+                s = (char *) calloc((count + 1), sizeof(char));
             }
             memcpy(s, buf, count);
             s[count] = '\0';

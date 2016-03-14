@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
@@ -47,6 +47,7 @@ export MPI_C_LIBRARIES="-L$CRAY_MPICH2_DIR/lib -lmpi"
          -DTAU_ROOT=$HOME/src/tau2 \
          -DTAU_ARCH=x86_64 \
          -DTAU_OPTIONS=-mpi-pthread \
+         -DSOSD_CLOUD_SYNC=TRUE \
          -DSOSD_CLOUD_SYNC_WITH_MPI=TRUE \
 -DMPI_C_INCLUDE_PATH=$MPI_C_INCLUDE_PATH \
 -DMPI_CXX_INCLUDE_PATH=$MPI_C_INCLUDE_PATH \
@@ -65,6 +66,7 @@ export MPI_C_LIBRARIES="-L$CRAY_MPICH2_DIR/lib -lmpi"
     echo "Running test suite..."
     echo "    --> For detailed memory tests: ${SOS_ROOT}/tests/grindit"
     echo ""
+    #valgrind --max-stackframe=4728552 ../bin/test
     ../bin/test
     echo ""
 fi;

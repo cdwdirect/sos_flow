@@ -48,13 +48,9 @@ int main(int argc, char *argv[])  {
     int retval;
 
     SOSD.daemon.work_dir    = (char *) &SOSD_DEFAULT_DIR;
-    SOSD.daemon.name        = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-    SOSD.daemon.lock_file   = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-    SOSD.daemon.log_file    = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-
-    memset(SOSD.daemon.name,      '\0', SOS_DEFAULT_STRING_LEN);
-    memset(SOSD.daemon.lock_file, '\0', SOS_DEFAULT_STRING_LEN);
-    memset(SOSD.daemon.log_file,  '\0', SOS_DEFAULT_STRING_LEN);
+    SOSD.daemon.name        = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
+    SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
+    SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
 
     SOS.role = SOS_ROLE_DAEMON; /* ...this can be overridden by command line parameter. */
 
@@ -150,11 +146,11 @@ int main(int argc, char *argv[])  {
     /* Done!  Cleanup and shut down. */
     dlog(0, "[%s]: Ending the pub_ring monitors:\n", whoami);
     dlog(0, "[%s]:   ... waiting for the pub_ring monitor to iterate and exit.\n", whoami);
-    pthread_join( *(SOSD.local_sync->extract_t), NULL);
-    pthread_join( *(SOSD.local_sync->commit_t), NULL);
+    pthread_join( (SOSD.local_sync->extract_t), NULL);
+    pthread_join( (SOSD.local_sync->commit_t), NULL);
     #if (SOSD_CLOUD_SYNC > 0)
-    pthread_join( *(SOSD.cloud_sync->extract_t), NULL);
-    pthread_join( *(SOSD.cloud_sync->commit_t), NULL);
+    pthread_join( (SOSD.cloud_sync->extract_t), NULL);
+    pthread_join( (SOSD.cloud_sync->commit_t), NULL);
     #endif
 
     dlog(0, "[%s]:   ... destroying the ring monitors...\n", whoami);
@@ -216,29 +212,31 @@ void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
     } else {
         mon->ring = ring_var;
     }
-    mon->extract_t     = (pthread_t *) malloc(sizeof(pthread_t));
-    mon->extract_cond  = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-    mon->extract_lock  = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    mon->commit_t      = (pthread_t *) malloc(sizeof(pthread_t));
-    mon->commit_cond   = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-    mon->commit_lock   = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    /*
+    mon->extract_t     = (pthread_t *) calloc(sizeof(pthread_t),1);
+    mon->extract_cond  = (pthread_cond_t *) calloc(sizeof(pthread_cond_t),1);
+    mon->extract_lock  = (pthread_mutex_t *) calloc(sizeof(pthread_mutex_t),1);
+    mon->commit_t      = (pthread_t *) calloc(sizeof(pthread_t),1);
+    mon->commit_cond   = (pthread_cond_t *) calloc(sizeof(pthread_cond_t),1);
+    mon->commit_lock   = (pthread_mutex_t *) calloc(sizeof(pthread_mutex_t),1);
+    */
     mon->commit_list   = NULL;
     mon->commit_count  = 0;
     mon->commit_target = target;
     mon->val_intake    = val_source;
     mon->val_outlet    = val_target;
 
-    retval = pthread_cond_init(mon->extract_cond, NULL); 
+    retval = pthread_cond_init(&(mon->extract_cond), NULL); 
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_cond pthread_cond_t variable.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); } 
-    retval = pthread_cond_init(mon->commit_cond, NULL);
+    retval = pthread_cond_init(&(mon->commit_cond), NULL);
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->commit_cond pthread_cond_t variable.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_mutex_init(mon->extract_lock, NULL);
+    retval = pthread_mutex_init(&(mon->extract_lock), NULL);
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_lock mutex.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_mutex_init(mon->commit_lock, NULL);
+    retval = pthread_mutex_init(&(mon->commit_lock), NULL);
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->commit_lock mutex.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_create( mon->extract_t, NULL, (void *) SOSD_THREAD_pub_ring_list_extractor, mon );
+    retval = pthread_create( &(mon->extract_t), NULL, (void *) SOSD_THREAD_pub_ring_list_extractor, mon );
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->extract_t thread.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_create( mon->commit_t, NULL, (void *) SOSD_THREAD_pub_ring_storage_injector, mon );
+    retval = pthread_create( &(mon->commit_t), NULL, (void *) SOSD_THREAD_pub_ring_storage_injector, mon );
     if (retval != 0) { dlog(0, "[%s]: ERROR!  Could not initialize the mon(%s)->commit_t thread.  (%s)\n", whoami, mon->name, strerror(errno)); exit(EXIT_FAILURE); }
 
     return;
@@ -247,17 +245,19 @@ void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
 void SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon) {
     SOS_SET_WHOAMI(whoami, "SOSD_pub_ring_monitor_destroy");
 
-    pthread_mutex_destroy( mon->extract_lock );
-    pthread_mutex_destroy( mon->commit_lock );
-    pthread_cond_destroy( mon->extract_cond );
-    pthread_cond_destroy( mon->commit_cond );
+    pthread_mutex_destroy( &(mon->extract_lock) );
+    pthread_mutex_destroy( &(mon->commit_lock) );
+    pthread_cond_destroy( &(mon->extract_cond) );
+    pthread_cond_destroy( &(mon->commit_cond) );
 
+    /*
     free(mon->extract_lock);
     free(mon->extract_cond);
     free(mon->extract_t);
     free(mon->commit_lock);
     free(mon->commit_cond);
     free(mon->commit_t);
+    */
     SOS_ring_destroy(mon->ring);
     free(mon);
 
@@ -359,7 +359,7 @@ void SOSD_listen_loop() {
 void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
     char func_name[SOS_DEFAULT_STRING_LEN] = {0};
-    memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
+
     sprintf(func_name, "SOSD_THREAD_pub_ring_extractor(%s)", my->name);
     SOS_SET_WHOAMI(whoami, func_name);
 
@@ -367,9 +367,9 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
     struct timeval  tp;
     int wake_type;
     gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
-    pthread_mutex_lock(my->extract_lock);
+    pthread_mutex_lock(&my->extract_lock);
     while (SOSD.daemon.running) {
-        wake_type = pthread_cond_timedwait(my->extract_cond, my->extract_lock, &ts);
+        wake_type = pthread_cond_timedwait(&my->extract_cond, &my->extract_lock, &ts);
         if (wake_type == ETIMEDOUT) {
             /* ...any special actions that need to happen if timed-out vs. called-explicitly */
             if (my->ring->elem_count == 0) {
@@ -379,22 +379,24 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
             }
             dlog(6, "[%s]: Checking ring...  (%d entries)\n", whoami, my->ring->elem_count);
         }
-        pthread_mutex_lock(my->commit_lock);  /* This will block until the current commit-list is cleared. */
+        pthread_mutex_lock(&my->commit_lock);  /* This will block until the current commit-list is cleared. */
         my->commit_count = 0;
         my->commit_list = SOS_ring_get_all(my->ring, &my->commit_count);
         int z;
         for (z = 0; z < my->commit_count; z++) {
             dlog(6, "[%s]:   ... %ld\n", whoami, my->commit_list[z]);
         }
-        pthread_mutex_unlock(my->commit_lock);
-        pthread_cond_signal(my->commit_cond);
-        gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
+        pthread_mutex_unlock(&my->commit_lock);
+        pthread_cond_signal(&my->commit_cond);
+        gettimeofday(&tp, NULL); 
+        ts.tv_sec  = tp.tv_sec; 
+        ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
     }
-    pthread_mutex_unlock(my->extract_lock);
+    pthread_mutex_unlock(&my->extract_lock);
 
     /* Free up the commit/inject thread to close down, too... */
-    pthread_mutex_unlock(my->commit_lock);
-    pthread_cond_signal(my->commit_cond);
+    pthread_mutex_unlock(&my->commit_lock);
+    pthread_cond_signal(&my->commit_cond);
     dlog(6, "[%s]: Leaving thread safely.\n", whoami);
     pthread_exit(NULL);
 }
@@ -403,7 +405,7 @@ void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
 void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
     char func_name[SOS_DEFAULT_STRING_LEN] = {0};
-    memset(func_name, '\0', SOS_DEFAULT_STRING_LEN);
+
     sprintf(func_name, "SOSD_THREAD_pub_ring_storage_injector(%s)", my->name);
     SOS_SET_WHOAMI(whoami, func_name);
 
@@ -415,9 +417,9 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
     unsigned char      buffer_static[SOS_DEFAULT_BUFFER_LEN];
     int       buffer_len;
 
-    pthread_mutex_lock(my->commit_lock);
+    pthread_mutex_lock(&my->commit_lock);
     while (SOSD.daemon.running) {
-        pthread_cond_wait(my->commit_cond, my->commit_lock);
+        pthread_cond_wait(&my->commit_cond, &my->commit_lock);
         if (my->commit_count == 0) { continue; }
 
         if (my->commit_target == SOS_TARGET_LOCAL_SYNC) {
@@ -492,7 +494,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
         free(my->commit_list);
         my->commit_count = 0;
     }
-    pthread_mutex_unlock(my->commit_lock);
+    pthread_mutex_unlock(&my->commit_lock);
     dlog(6, "[%s]: Leaving thread safely.\n", whoami);
     pthread_exit(NULL);
 }
@@ -572,7 +574,6 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_REGISTER\n", whoami);
 
     unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
-    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     if (header.msg_from == 0) {
@@ -621,7 +622,6 @@ void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
     dlog(5, "[%s]: header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n", whoami);
 
     unsigned char reply[SOS_DEFAULT_REPLY_LEN] = {0};
-    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     reply_len = 0;
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
@@ -643,7 +643,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
     unsigned char  *ptr;
-    unsigned char  reply[SOS_DEFAULT_BUFFER_LEN];
+    unsigned char  reply[SOS_DEFAULT_BUFFER_LEN] = {0};
     int   reply_len;
     int   buffer_pos;
     int   i;
@@ -667,7 +667,6 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
@@ -693,7 +692,6 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
 
     dlog(5, "[%s]:   ... pub(%ld)->elem_count = %d\n", whoami, pub->guid, pub->elem_count);
 
-    memset(reply, '\0', SOS_DEFAULT_REPLY_LEN);
     SOSD_pack_ack(reply, &reply_len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
@@ -726,7 +724,6 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
                              &header.msg_from,
                              &header.pub_guid);
 
-    memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(guid_str, "%ld", header.pub_guid);
 
     /* Check the table for this pub ... */
@@ -751,14 +748,13 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
     SOS_ring_put(SOSD.local_sync->ring, pub->guid);
 
     if (SOSD_check_sync_saturation(SOSD.local_sync)) {
-        pthread_cond_signal(SOSD.local_sync->extract_cond);
+        pthread_cond_signal(&SOSD.local_sync->extract_cond);
     }
 
     dlog(5, "[%s]:   ... done.   (SOSD.pub_ring->elem_count == %d)\n", whoami, SOSD.local_sync->ring->elem_count);
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    memset (reply, '\0', SOS_DEFAULT_REPLY_LEN);
     SOSD_pack_ack(reply, &reply_len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0);
@@ -856,7 +852,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
         ptr = (feedback_msg + offset);
 
         /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
-        memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
+        //memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         offset += SOS_buffer_pack(ptr, "is",
@@ -902,8 +898,6 @@ void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
 
     if (SOS.role == SOS_ROLE_DB) { return; }
 
-    memset (reply, '\0', SOS_DEFAULT_REPLY_LEN );
-    
     SOSD_pack_ack(reply, &reply_len);
 
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );

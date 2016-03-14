@@ -139,6 +139,11 @@ void SOS_init( int *argc, char ***argv, SOS_role role ) {
                 SOS.config.comm_rank = atoi(env_rank);
                 SOS.config.comm_size = atoi(env_size);
                 dlog(1, "[%s]:   ... OpenMPI environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
+            } else {
+                /* non-MPI client. */
+                SOS.config.comm_rank = 0;
+                SOS.config.comm_size = 1;
+                dlog(1, "[%s]:   ... Non-MPI environment detected. (rank: %d/ size:%d)\n", whoami, SOS.config.comm_rank, SOS.config.comm_size);
             }
         }
     }
@@ -553,7 +558,7 @@ void SOS_send_to_daemon( unsigned char *msg, int msg_len, unsigned char *reply, 
 
     /* TODO: { SEND_TO_DAEMON } Make this a loop that ensures all data was sent. */
     retval = send(server_socket_fd, msg, msg_len, 0 );
-    if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n", whoami); }
+    if (retval == -1) { dlog(0, "[%s]: Error sending message to daemon.\n %s", whoami, strerror(errno)); }
 
     retval = recv(server_socket_fd, reply, reply_max, 0);
     if (retval == -1) { dlog(0, "[%s]: Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n", whoami, retval, errno, strerror(errno)); }
@@ -880,17 +885,11 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
 
     dlog(6, "[%s]:   ... setting default values, allocating space for strings.\n", whoami);
 
-    new_pub->node_id      = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->process_id   = 0;
     new_pub->thread_id    = 0;
     new_pub->comm_rank    = SOS.config.comm_rank;
-    new_pub->prog_name    = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-    new_pub->prog_ver     = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     new_pub->pragma_len   = 0;
-    new_pub->pragma_msg   = (unsigned char *) malloc( SOS_DEFAULT_STRING_LEN );
-    new_pub->title = (char *) malloc(strlen(title) + 1);
-        memset(new_pub->title, '\0', (strlen(title) + 1));
-        strcpy(new_pub->title, title);
+    strcpy(new_pub->title, title);
     new_pub->announced           = 0;
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
@@ -902,11 +901,6 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
     dlog(6, "[%s]:   ... zero-ing out the strings.\n", whoami);
-
-    memset(new_pub->node_id,    '\0', SOS_DEFAULT_STRING_LEN);
-    memset(new_pub->prog_name,  '\0', SOS_DEFAULT_STRING_LEN);
-    memset(new_pub->prog_ver,   '\0', SOS_DEFAULT_STRING_LEN);
-    memset(new_pub->pragma_msg, '\0', SOS_DEFAULT_STRING_LEN);
 
     /* Set some defaults for the SOS_ROLE_CLIENT's */
     if (SOS.role == SOS_ROLE_CLIENT) {
@@ -973,18 +967,6 @@ void SOS_pub_destroy(SOS_pub *pub) {
     dlog(6, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
     dlog(6, "[%s]: Freeing pub data element pointer array.\n", whoami);
     if (pub->data != NULL) { free(pub->data); }
-    dlog(6, "[%s]: Freeing strings...\n", whoami);
-    dlog(6, "[%s]:    ...node_id\n", whoami);
-    if (pub->node_id != NULL) { free(pub->node_id); }
-    dlog(6, "[%s]:    ...prog_name\n", whoami);
-    if (pub->prog_name != NULL) { free(pub->prog_name); }
-    dlog(6, "[%s]:    ...prog_ver\n", whoami);
-    if (pub->prog_ver != NULL) { free(pub->prog_ver); }
-    dlog(6, "[%s]:    ...pragma_msg\n", whoami);
-    if (pub->pragma_msg != NULL) { free(pub->pragma_msg); }
-    dlog(6, "[%s]:    ...title\n", whoami);
-    if (pub->title != NULL) { free(pub->title); }
-    dlog(6, "[%s]:    ...done.\n", whoami);
     dlog(6, "[%s]: Freeing pub handle itself.\n", whoami);
     if (pub != NULL) { free(pub); pub = NULL; }
 

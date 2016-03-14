@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/bash -e
 if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
