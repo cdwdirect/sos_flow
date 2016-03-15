@@ -38,7 +38,7 @@ FILE   *sos_daemon_log_fptr;
 #if (SOS_DEBUG < 0)
 
     /* Nullify the variadic debugging macros wherever they are in code: */
-    #define dlog(level, ...)
+    #define dlog(level, ...)   
 
 #else
     /* Set the behavior of the debugging macros: */

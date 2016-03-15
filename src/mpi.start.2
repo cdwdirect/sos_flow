@@ -21,8 +21,8 @@ daemon1=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 
 echo ${daemon0}
 echo ${daemon1}
 
-#valgrind_cmd=""
-valgrind_cmd="valgrind --tool=memcheck --leak-check=full --max-stackframe=3097792 --show-reachable=yes --error-limit=no --log-file=sosd.valgrind.log --show-leak-kinds=all --track-origins=yes --trace-children=yes "
+valgrind_cmd=""
+#valgrind_cmd="valgrind --tool=memcheck --leak-check=full --max-stackframe=3097792 --show-reachable=yes --error-limit=no --log-file=sosd.valgrind.log --show-leak-kinds=all --track-origins=yes --trace-children=yes "
 #valgrind_cmd="valgrind --tool=memcheck --leak-check=full --track-origins=yes --trace-children=yes "
 
 if [ "x${valgrind_cmd}" == "x" ] ; then
