@@ -250,14 +250,6 @@ void SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon) {
     pthread_cond_destroy( &(mon->extract_cond) );
     pthread_cond_destroy( &(mon->commit_cond) );
 
-    /*
-    free(mon->extract_lock);
-    free(mon->extract_cond);
-    free(mon->extract_t);
-    free(mon->commit_lock);
-    free(mon->commit_cond);
-    free(mon->commit_t);
-    */
     SOS_ring_destroy(mon->ring);
     free(mon);
 
@@ -456,6 +448,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                 #if (SOSD_CLOUD_SYNC > 0)
                 if (SOS.role == SOS_ROLE_DB) { break; }
                 if (pub->announced == SOSD_PUB_ANN_LOCAL) {
+                    /* Announce to the CLOUD if it hasn't happened yet... */
                     buffer = buffer_static;
                     buffer_len = SOS_DEFAULT_BUFFER_LEN;
                     memset(buffer, '\0', buffer_len);
@@ -463,6 +456,7 @@ void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
                     SOSD_cloud_enqueue( buffer, buffer_len );
                     pub->announced = SOSD_PUB_ANN_CLOUD;
                 }
+                /* Push any enqueued VALUES for this pub out to the CLOUD */
                 buffer     = buffer_static;
                 buffer_len = SOS_DEFAULT_BUFFER_LEN;
                 memset(buffer, '\0', buffer_len);
@@ -643,7 +637,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     SOS_SET_WHOAMI(whoami, "daemon_handle_announce");
     SOS_msg_header header;
     unsigned char  *ptr;
-    unsigned char  reply[SOS_DEFAULT_BUFFER_LEN] = {0};
+    unsigned char  reply[SOS_DEFAULT_REPLY_LEN] = {0};
     int   reply_len;
     int   buffer_pos;
     int   i;
@@ -1072,6 +1066,17 @@ void SOSD_init() {
             dlog(0, "[%s]: ERROR!  Unable to start daemon (%s): Could not change to working directory: %s\n", whoami, SOSD_DAEMON_NAME, SOSD.daemon.work_dir);
             exit(EXIT_FAILURE);
         }
+
+        /* [file handles]
+         *     close unused IO handles
+         */
+        if (SOS_DEBUG < 1) {
+            dlog(1, "[%s]: Closing traditional I/O for the daemon...\n", whoami);
+            close(STDIN_FILENO);
+            close(STDOUT_FILENO);
+            close(STDERR_FILENO);
+        }
+
         
         dlog(1, "[%s]:   ... session(%d) successfully split off from parent(%d).\n", whoami, getpid(), ppid);
     }
@@ -1088,16 +1093,6 @@ void SOSD_init() {
     rc = write(sos_daemon_lock_fptr, SOSD.daemon.pid_str, strlen(SOSD.daemon.pid_str));
 
 
-    /* [file handles]
-     *     close unused IO handles
-     */
-
-    if (SOS_DEBUG < 1) {
-        dlog(1, "[%s]: Closing traditional I/O for the daemon...\n", whoami);
-        close(STDIN_FILENO);
-        close(STDOUT_FILENO);
-        close(STDERR_FILENO);
-    }
 
     /* [guid's]
      *     configure the issuer of guids for this daemon
