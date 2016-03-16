@@ -16,6 +16,7 @@ int SOS_test_pub() {
 
     SOS_test_run(2, "pub_create", SOS_test_pub_create(), pass_fail, error_total);
     SOS_test_run(2, "pub_growth", SOS_test_pub_growth(), pass_fail, error_total);
+    SOS_test_run(2, "pub_duplicates", SOS_test_pub_growth(), pass_fail, error_total);
 
     SOS_test_section_report(1, "SOS_pub", error_total);
 
@@ -80,6 +81,40 @@ int SOS_test_pub_growth() {
     }
 
     if (pub->elem_max < pub->elem_count) {
+        SOS_pub_destroy(pub);
+        return FAIL;
+    }
+
+    SOS_pub_destroy(pub);
+    return PASS;
+}
+
+
+int SOS_test_pub_duplicates() {
+    int attempt = 0;
+    SOS_pub *pub;
+
+    int    i_val = 0;
+    long   l_val = 0;
+    double d_val = 0.0;
+    char   c_val[60] = {0};
+    
+
+    pub = SOS_pub_create("test_pub_duplicates");
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        i_val = (int) rand();
+        l_val = (long) rand();
+        random_double(&d_val);
+        random_string(c_val, 60);
+
+        SOS_pack(pub, "name0", SOS_VAL_TYPE_INT, (SOS_val) i_val);
+        SOS_pack(pub, "name1", SOS_VAL_TYPE_LONG, (SOS_val) l_val);
+        SOS_pack(pub, "name2", SOS_VAL_TYPE_DOUBLE, (SOS_val) d_val);
+        SOS_pack(pub, "name3", SOS_VAL_TYPE_STRING, (SOS_val) c_val);
+    }
+
+    if (pub->elem_count != 4) {
         SOS_pub_destroy(pub);
         return FAIL;
     }

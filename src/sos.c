@@ -918,8 +918,7 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
             new_pub->data[i]->guid      = 0;
-            new_pub->data[i]->name      = NULL; /* REM: (char *) malloc( SOS_DEFAULT_STRING_LEN );
-                                                   memset(new_pub->data[i]->name, '\0', SOS_DEFAULT_STRING_LEN);*/
+            new_pub->data[i]->name      = {0};
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
@@ -936,6 +935,11 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
             new_pub->data[i]->meta.mood       = SOS_MOOD_GOOD;
 
     }
+
+    /* Configure the name hash table and the val_snap queues... */
+    new_pub->name_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOS_val_snap_queue_init(&new_pub->snap_queue);
+
     dlog(6, "[%s]:   ... done.\n", whoami);
 
     return new_pub;
@@ -961,12 +965,15 @@ void SOS_pub_destroy(SOS_pub *pub) {
                  free(pub->data[elem]->val.c_val);
             }
         }
-        if (pub->data[elem]->name != NULL) { free(pub->data[elem]->name); }
         if (pub->data[elem] != NULL) { free(pub->data[elem]); }
     }
     dlog(6, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
     dlog(6, "[%s]: Freeing pub data element pointer array.\n", whoami);
     if (pub->data != NULL) { free(pub->data); }
+    dlog(6, "[%s]: Freeing the name table and snap queue...\n", whoami);
+    pub->name_table->free(pub->name_table);
+    SOS_val_snap_queue_destroy(pub->snap_queue);
+
     dlog(6, "[%s]: Freeing pub handle itself.\n", whoami);
     if (pub != NULL) { free(pub); pub = NULL; }
 
@@ -1043,235 +1050,51 @@ int SOS_define_value( SOS_pub *pub, const char *name, SOS_val_type val_type, SOS
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_WHOAMI(whoami, "SOS_pack");
 
-    /* TODO:{ PACK } This is due for a re-write, eventually.
-     *               Add hashtable lookup to improve search time in linear array. */
+    int       pos;
+    SOS_data *val;
 
-    //counter variables
-    int i, n;
-    //variables for working with adding pack_val SOS_VAL_TYPE_STRINGs
-    int new_str_len;
-    char *new_str_ptr;
-    char *pub_str_ptr;
-    char *new_name;
+    /* The hash table will return NULL if a value is not present.
+     * The pub->data[elem] index is zero-indexed, so indices are stored +1, to
+     *   differentiate between empty and the first position.
+     */
+    pos = (int) pub->name_table->get(pub, name);
+    pos--;
 
-
-    //try to find the name in the existing pub schema:
-    for (i = 0; i < pub->elem_count; i++) {
-        if (pub->data[i]->state == SOS_VAL_STATE_EMPTY) { continue; }
-        if (pub->data[i]->name == NULL) { continue; }
-        if (strcmp(pub->data[i]->name, name) == 0) {
-
-            dlog(6, "[%s]: (%s) name located at position %d.\n", whoami, name, i);
-
-            switch (pack_type) {
-
-            case SOS_VAL_TYPE_STRING :
-                pub_str_ptr = pub->data[i]->val.c_val;
-                new_str_ptr = pack_val.c_val;
-                new_str_len = strlen(new_str_ptr);
-
-                if (strcmp(pub_str_ptr, new_str_ptr) == 0) {
-                    dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
-                    SOS_TIME(pub->data[i]->time.pack);
-                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
-
-                    return i;
-                }
-
-                free(pub_str_ptr);
-                pub_str_ptr = malloc(new_str_len + 1);
-                strncpy(pub_str_ptr, new_str_ptr, new_str_len);
-                pub_str_ptr[new_str_len + 1] = '\0';
-
-                dlog(6, "[%s]: assigning a new string.   \"%s\"   (updating)\n", whoami, pack_val.c_val);
-                pub->data[i]->val = (SOS_val) pub_str_ptr;
-                break;
-
-            case SOS_VAL_TYPE_INT :
-            case SOS_VAL_TYPE_LONG :
-            case SOS_VAL_TYPE_DOUBLE :
-
-                /* Test if the values are equal, otherwise fall through to the non-string assignment. */
-
-                if (pack_type == SOS_VAL_TYPE_INT && (pub->data[i]->val.i_val == pack_val.i_val)) {
-                    dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
-                    SOS_TIME(pub->data[i]->time.pack);
-                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
-                    return i;
-                } else if (pack_type == SOS_VAL_TYPE_LONG && (pub->data[i]->val.l_val == pack_val.l_val)) {
-                    dlog(5, "[%s]: Packed value is identical to existing value.  Updating timestamp and skipping.\n", whoami);
-                    SOS_TIME(pub->data[i]->time.pack);
-                    dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
-                    return i;
-                } else if (pack_type == SOS_VAL_TYPE_DOUBLE) {
-                    /*
-                     *  TODO:{ PACK } Insert proper floating-point comparator here.
-                     */
-                }
-
-            default :
-                dlog(6, "[%s]: assigning a new value.   \"%ld\"   (updating)\n", whoami, pack_val.l_val);
-                pub->data[i]->val = pack_val;
-                break;
-            }
-            pub->data[i]->type = pack_type;
-            pub->data[i]->state = SOS_VAL_STATE_DIRTY;
-            SOS_TIME(pub->data[i]->time.pack);
-
-            dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
-
-            switch (pack_type) {
-            case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
-            case SOS_VAL_TYPE_LONG:   pub->data[i]->val_len = sizeof(long);   break;
-            case SOS_VAL_TYPE_DOUBLE: pub->data[i]->val_len = sizeof(double); break;
-            case SOS_VAL_TYPE_STRING: pub->data[i]->val_len = strlen(pub->data[i]->val.c_val); break;
-            default:
-                dlog(6, "[%s]: WARNING! Invalid type (%d) at index %d in pub->guid == %ld.\n", whoami, pack_type, i, pub->guid);
-                break;
-            }
-
-            dlog(6, "[%s]: (%s) successfully updated [%s] at position %d.\n", whoami, name, pub->data[i]->name, i);
-            dlog(6, "[%s]: --------------------------------------------------------------\n", whoami);
-
-            return i;
+    if (pos < 0) {
+        /* Value does not exist in the pub. */
+        /* Check if we need to expand the pub */
+        if (pub->elem_count == pub->elem_max) {
+            SOS_expand_data(pub);
         }
-    }
 
-    dlog(6, "[%s]: (%s) name does not exist in schema yet, attempting to add it.\n", whoami, name);
-
-    //name does not exist in the existing schema, add it:
-    pub->announced = 0;
-    new_str_len = strlen(name);
-    new_name = malloc(new_str_len + 1);
-    memset(new_name, '\0', (new_str_len + 1));
-    strncpy(new_name, name, new_str_len);
-    new_name[new_str_len] = '\0';
-
-    if (pub->elem_count < pub->elem_max) {
-        i = pub->elem_count;
+        /* Insert the value */
+        pos = pub->elem_count;
         pub->elem_count++;
+        pub->name_table->add(pub->name_table, name, (void *) (pos + 1));
 
-        dlog(6, "[%s]: (%s) inserting into position %d\n", whoami, name, i);
+        val = pub->data[pos];
 
-        switch (pack_type) {
+        val->guid = SOS_uid_next(SOS.uid.my_guid_pool);
+        val->val  = pack_val;
+        val->type = pack_type;
+        val->state = SOS_VAL_STATE_DIRTY;
+        strncpy(val->name, name, SOS_DEFAULT_STRING_LEN);
+        SOS_TIME( val->time.pack_time );
 
-        case SOS_VAL_TYPE_STRING :
-            new_str_ptr = pack_val.c_val;
-            new_str_len = strlen(new_str_ptr);
-            pub_str_ptr = malloc(new_str_len + 1);
-            memset(pub_str_ptr, '\0', (new_str_len + 1));
-            strncpy(pub_str_ptr, new_str_ptr, new_str_len);
-            pub_str_ptr[new_str_len + 1] = '\0';
-            dlog(6, "[%s]: (%s) assigning a new string.   \"%s\"   (insert)\n", whoami, name, pub_str_ptr);
-            pub->data[i]->val = (SOS_val) pub_str_ptr;
-            break;
-
-        case SOS_VAL_TYPE_DOUBLE:
-            dlog(6, "[%s]: (%s) assigning a new double.   \"%lF\"   (insert)\n", whoami, name, pack_val.d_val);
-            pub->data[i]->val = pack_val;
-            break;
-        
-        case SOS_VAL_TYPE_INT:
-        case SOS_VAL_TYPE_LONG:
-        default :
-            dlog(6, "[%s]: (%s) assigning a new value.   \"%ld\"   (insert)\n", whoami, name, pack_val.l_val);
-            pub->data[i]->val = pack_val;
-            break;
-        }
-
-        dlog(6, "[%s]: (%s) data copied in successfully.\n", whoami, name);
-
-        if (pub->data[i]->name != NULL) { free(pub->data[i]->name); }
-        pub->data[i]->name   = new_name;
-
-        pub->data[i]->type   = pack_type;
-        pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
-        pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
-        SOS_TIME(pub->data[i]->time.pack);
-
-        dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
-
-        switch (pack_type) {
-        case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
-        case SOS_VAL_TYPE_LONG:   pub->data[i]->val_len = sizeof(long);   break;
-        case SOS_VAL_TYPE_DOUBLE: pub->data[i]->val_len = sizeof(double); break;
-        case SOS_VAL_TYPE_STRING: pub->data[i]->val_len = strlen(pub->data[i]->val.c_val); break;
-        default:
-            dlog(6, "[%s]: Invalid type (%d) at index %d in pub->guid == %ld.\n", whoami, pack_type, i, pub->guid);
-        }
-
-        dlog(6, "[%s]: (%s) successfully inserted [%s] at position %d. (DONE)\n", whoami, name, pub->data[i]->name, i);
-        dlog(6, "[%s]: --------------------------------------------------------------\n", whoami);
-
-        return i;
+        /* Place the new index into the hashtable (+1) */
 
     } else {
+        /* Value is already in the pub. */
 
-        dlog(6, "[%s]: (%s) the data object is full, expanding it.  (pub->elem_max=%d)\n", whoami, name, pub->elem_max);
-
-        SOS_expand_data(pub);
-        pub->elem_count++;
-        i = pub->elem_count;
-
-        dlog(6, "[%s]: (%s) data object has been expanded successfully.  (pub->elem_max=%d)\n", whoami, name, pub->elem_max);
-
-        //[step 2/2]: insert the new name
-        switch (pack_type) {
-
-        case SOS_VAL_TYPE_STRING :
-            new_str_ptr = pack_val.c_val;
-            new_str_len = strlen(new_str_ptr);
-            pub_str_ptr = malloc(new_str_len + 1);
-            strncpy(pub_str_ptr, new_str_ptr, new_str_len);
-            pub_str_ptr[new_str_len + 1] = '\0';
-            dlog(6, "[%s]: (%s) assigning a new string.   \"%s\"   (expanded)\n", whoami, name, pack_val.c_val);
-            pub->data[i]->val = (SOS_val) pub_str_ptr;
-            break;
-
-        case SOS_VAL_TYPE_DOUBLE :
-            dlog(6, "[%s]: (%s) assigning a new double.   \"%lF\"   (expanded)\n", whoami, name, pack_val.d_val);
-            pub->data[i]->val = pack_val;
-            break;
-            
-        case SOS_VAL_TYPE_INT :
-        case SOS_VAL_TYPE_LONG :
-        default :
-            dlog(6, "[%s]: (%s) assigning a new value.   \"%ld\"   (expanded)\n", whoami, name, pack_val.l_val);
-            pub->data[i]->val = pack_val;
-            break;
-
-        }
-
-        dlog(6, "[%s]: ALMOST DONE....\n", whoami);
-
-        /* REM: if (pub->data[i]->name != NULL) { free(pub->data[i]->name); } */
-        pub->data[i]->name   = new_name;
-
-        pub->data[i]->type   = pack_type;
-        pub->data[i]->state  = SOS_VAL_STATE_DIRTY;
-        pub->data[i]->guid   = SOS_uid_next( SOS.uid.my_guid_pool );
-        SOS_TIME(pub->data[i]->time.pack);
-
-        dlog(5, "[%s]: (%s)    ... pub->data[%d]->time.pack == %lf\n", whoami, name, i, pub->data[i]->time.pack);
-
-        switch (pack_type) {
-        case SOS_VAL_TYPE_INT:    pub->data[i]->val_len = sizeof(int);    break;
-        case SOS_VAL_TYPE_LONG:   pub->data[i]->val_len = sizeof(long);   break;
-        case SOS_VAL_TYPE_DOUBLE: pub->data[i]->val_len = sizeof(double); break;
-        case SOS_VAL_TYPE_STRING: pub->data[i]->val_len = strlen(pub->data[i]->val.c_val); break;
-        default:
-            dlog(6, "[%s]: Invalid type (%d) at index %d of pub->guid == %ld.\n", whoami, pack_type, i, pub->guid);
-            break;
-        }
-
-        dlog(6, "[%s]: (%s) successfully inserted [%s] at position %d. (DONE)\n", whoami, name, pub->data[i]->name, i);
-        dlog(6, "[%s]: --------------------------------------------------------------\n", whoami);
-
-        return i;
+        /* If the value is dirty, smash it down into the queue. */
+        /* Update the value in the pub->data[elem] position. */        
     }
 
-    //shouldn't ever get here.
-    return -1;
+
+    // 2: If YES && DIRTY push value down into queue and replace w/new value (RETURN)
+    // 3: If NO, check if we need to expand the pub
+    // 4: Insert the value into the pub data field at the next opening
+
 }
 
 void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {

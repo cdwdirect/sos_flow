@@ -306,7 +306,7 @@ typedef struct {
     SOS_val_meta        meta;
     SOS_val_state       state;        /* default: SOS_VAL_STATE_EMPTY   */
     SOS_time            time;         /* default: (complex)             */
-    char               *name;         /* default: --------- manual      */
+    char                name[SOS_DEFAULT_STRING_LEN]; /* default: --------- manual      */
 } SOS_data;
 
 typedef struct {
@@ -335,6 +335,8 @@ typedef struct {
     char                prog_ver[SOS_DEFAULT_STRING_LEN];     /* default: ""                    */
     char                title[SOS_DEFAULT_STRING_LEN];        /* default: ""                    */
     SOS_data          **data;
+    qhashtbl_t         *name_table;
+    SOS_val_snap_queue *snap_queue;
 } SOS_pub;
 
 typedef struct {
@@ -445,6 +447,7 @@ extern "C" {
 
     SOS_pub*  SOS_pub_create(char *pub_title);
     SOS_pub*  SOS_pub_create_sized(char *pub_title, int new_size);
+    void      SOS_pub_destroy(SOS_pub *pub);
 
     int       SOS_define_val(SOS_pub *pub, const char *name, SOS_val_type type, SOS_val_meta meta);
     int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
@@ -489,7 +492,6 @@ extern "C" {
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
     SOS_val   SOS_get_val(SOS_pub *pub, char *name);
-    void      SOS_pub_destroy(SOS_pub *pub);
     void      SOS_free_sub(SOS_sub *sub);
     void      SOS_unannounce(SOS_pub *pub);
     SOS_sub*  SOS_new_sub(void);
