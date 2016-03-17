@@ -5,7 +5,7 @@
 #include "test.h"
 #include "pub.h"
 
-#define ATTEMPT_MAX   20000
+#define ATTEMPT_MAX   2000
 
 
 int SOS_test_pub() {
@@ -17,6 +17,7 @@ int SOS_test_pub() {
     SOS_test_run(2, "pub_create", SOS_test_pub_create(), pass_fail, error_total);
     SOS_test_run(2, "pub_growth", SOS_test_pub_growth(), pass_fail, error_total);
     SOS_test_run(2, "pub_duplicates", SOS_test_pub_growth(), pass_fail, error_total);
+    SOS_test_run(2, "pub_values", SOS_test_pub_values(), pass_fail, error_total);
 
     SOS_test_section_report(1, "SOS_pub", error_total);
 
@@ -121,4 +122,187 @@ int SOS_test_pub_duplicates() {
 
     SOS_pub_destroy(pub);
     return PASS;
+}
+
+
+int SOS_test_pub_values() {
+    int attempt = 0;
+    int index = 0;
+    SOS_pub *pub;
+    SOS_val val;
+    char   val_handle[100];
+    double diff;
+
+    int    reference_i[ATTEMPT_MAX];
+    long   reference_l[ATTEMPT_MAX];
+    double reference_d[ATTEMPT_MAX];
+    char   reference_c[ATTEMPT_MAX][60];
+
+    /* Generate ATTEMPT_MAX worth of values, stored locally. */
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        reference_i[attempt] = (int) rand();
+        reference_l[attempt] = (long) rand();
+        random_double(&reference_d[attempt]);
+        random_string(reference_c[attempt], 60);
+    }
+
+    pub = SOS_pub_create("test_pub_values");
+
+    /* Push the values into the pub handle. */
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "INT(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_INT, (SOS_val) reference_i[attempt]);
+        snprintf(val_handle, 100, "LONG(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_LONG, (SOS_val) reference_l[attempt]);
+        snprintf(val_handle, 100, "DOUBLE(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_DOUBLE, (SOS_val) reference_d[attempt]);
+        snprintf(val_handle, 100, "STRING(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_STRING, (SOS_val) reference_c[attempt]);
+    }
+
+    if (pub->elem_count != (ATTEMPT_MAX * 4)) {
+        SOS_pub_destroy(pub);
+        return FAIL;
+    }
+
+    /* Pull the values back out, one at a time, and verify they all exist. */
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "INT(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+        printf("%d == %d\n", val.i_val, reference_i[attempt]);
+        if (val.i_val != reference_i[attempt]) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "LONG(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+
+        if (val.l_val != reference_l[attempt]) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "DOUBLE(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+
+        diff = val.d_val - reference_d[attempt];
+        if (diff < 0) { diff *= -1; }
+        if (diff > 0.000000000001L) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "STRING(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+
+        if (strncmp(val.c_val, reference_c[attempt], 100) != 0) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    /* Now we do it ALL again, to cover value-updating, not just value addition... */
+
+    /* Generate ATTEMPT_MAX worth of values, stored locally. */
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        reference_i[attempt] = (int) rand();
+        reference_l[attempt] = (long) rand();
+        random_double(&reference_d[attempt]);
+        random_string(reference_c[attempt], 60);
+    }
+
+    /* Push the values into the pub handle. */
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "INT(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_INT, (SOS_val) reference_i[attempt]);
+        snprintf(val_handle, 100, "LONG(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_LONG, (SOS_val) reference_l[attempt]);
+        snprintf(val_handle, 100, "DOUBLE(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_DOUBLE, (SOS_val) reference_d[attempt]);
+        snprintf(val_handle, 100, "STRING(%d)", attempt);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_STRING, (SOS_val) reference_c[attempt]);
+    }
+
+    if (pub->elem_count != (ATTEMPT_MAX * 4)) {
+        SOS_pub_destroy(pub);
+        return FAIL;
+    }
+
+    /* Pull the values back out, one at a time, and verify they all exist. */
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "INT(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+        printf("%d == %d\n", val.i_val, reference_i[attempt]);
+        if (val.i_val != reference_i[attempt]) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "LONG(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+
+        if (val.l_val != reference_l[attempt]) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "DOUBLE(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+
+        diff = val.d_val - reference_d[attempt];
+        if (diff < 0) { diff *= -1; }
+        if (diff > 0.000000000001L) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
+        snprintf(val_handle, 100, "STRING(%d)", attempt);
+        index = SOS_pub_search(pub, val_handle);
+        if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
+        if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
+        val = pub->data[index]->val;
+
+        if (strncmp(val.c_val, reference_c[attempt], 100) != 0) {
+            SOS_pub_destroy(pub);
+            return FAIL;
+        }
+    }
+
+    SOS_pub_destroy(pub);
+    return PASS;
+
 }

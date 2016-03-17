@@ -918,7 +918,7 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
         new_pub->data[i] = malloc(sizeof(SOS_data));
             memset(new_pub->data[i], '\0', sizeof(SOS_data));
             new_pub->data[i]->guid      = 0;
-            new_pub->data[i]->name      = {0};
+            new_pub->data[i]->name[0]   = '\0';
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
@@ -945,40 +945,6 @@ SOS_pub* SOS_pub_create_sized(char *title, int new_size) {
     return new_pub;
 }
 
-
-void SOS_pub_destroy(SOS_pub *pub) {
-    SOS_SET_WHOAMI(whoami, "SOS_pub_destroy");
-    int elem;
-    int guid_str[60] = {0};
-
-    if (SOS.config.offline_test_mode != true) {
-        /* TODO: { PUB DESTROY } Right now this only works in offline test mode. */
-        return;
-    }
-
-    if (pub == NULL) { return; }
-
-    dlog(6, "[%s]: Freeing element data...\n", whoami);
-    for (elem = 0; elem < pub->elem_max; elem++) {
-        if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
-            if (pub->data[elem]->val.c_val != NULL) {
-                 free(pub->data[elem]->val.c_val);
-            }
-        }
-        if (pub->data[elem] != NULL) { free(pub->data[elem]); }
-    }
-    dlog(6, "[%s]:    ...done. (%d elements)\n", whoami, pub->elem_max);
-    dlog(6, "[%s]: Freeing pub data element pointer array.\n", whoami);
-    if (pub->data != NULL) { free(pub->data); }
-    dlog(6, "[%s]: Freeing the name table and snap queue...\n", whoami);
-    pub->name_table->free(pub->name_table);
-    SOS_val_snap_queue_destroy(pub->snap_queue);
-
-    dlog(6, "[%s]: Freeing pub handle itself.\n", whoami);
-    if (pub != NULL) { free(pub); pub = NULL; }
-
-    return;
-}
 
 
 
@@ -1050,120 +1016,119 @@ int SOS_define_value( SOS_pub *pub, const char *name, SOS_val_type val_type, SOS
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_WHOAMI(whoami, "SOS_pack");
 
-    int       pos;
-    SOS_data *val;
+    long      pos;
+    SOS_data *data;
 
     /* The hash table will return NULL if a value is not present.
      * The pub->data[elem] index is zero-indexed, so indices are stored +1, to
      *   differentiate between empty and the first position.
      */
-    pos = (int) pub->name_table->get(pub, name);
-    pos--;
+    pos = SOS_pub_search(pub, name);
 
     if (pos < 0) {
-        /* Value does not exist in the pub. */
+        /* Value does NOT EXIST in the pub. */
         /* Check if we need to expand the pub */
-        if (pub->elem_count == pub->elem_max) {
+        if (pub->elem_count >= pub->elem_max) {
             SOS_expand_data(pub);
         }
 
         /* Insert the value */
         pos = pub->elem_count;
         pub->elem_count++;
-        pub->name_table->add(pub->name_table, name, (void *) (pos + 1));
+        pub->name_table->put(pub->name_table, name, (void *) (pos + 1));
 
-        val = pub->data[pos];
+        data = pub->data[pos];
 
-        val->guid = SOS_uid_next(SOS.uid.my_guid_pool);
-        val->val  = pack_val;
-        val->type = pack_type;
-        val->state = SOS_VAL_STATE_DIRTY;
-        strncpy(val->name, name, SOS_DEFAULT_STRING_LEN);
-        SOS_TIME( val->time.pack_time );
+        data->guid = SOS_uid_next(SOS.uid.my_guid_pool);
+        data->type = pack_type;
+        if (data->type == SOS_VAL_TYPE_STRING) {
+            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+        } else {
+            data->val  = pack_val;
+        }
+        data->state = SOS_VAL_STATE_DIRTY;
 
-        /* Place the new index into the hashtable (+1) */
+        strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
+        SOS_TIME( data->time.pack );
 
     } else {
-        /* Value is already in the pub. */
+        /* Name ALREADY EXISTS in the pub... (update new/enqueue old) */
 
+        data = pub->data[pos];
         /* If the value is dirty, smash it down into the queue. */
-        /* Update the value in the pub->data[elem] position. */        
+        if (data->state == SOS_VAL_STATE_DIRTY) {
+            /* TODO:{ SOS_PACK } This queue needs to be sent to the daemon... */
+            SOS_val_snap_enqueue(pub->snap_queue, pub, pos);
+        }
+
+        /* Update the value in the pub->data[elem] position. */
+        if (data->type == SOS_VAL_TYPE_STRING) {
+            if (data->val.c_val != NULL) { free(data->val.c_val); }
+            data->val.c_val = strndup( pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+        } else {
+            data->val = pack_val;
+        }
+        data->state = SOS_VAL_STATE_DIRTY;
+        SOS_TIME( data->time.pack );
     }
-
-
-    // 2: If YES && DIRTY push value down into queue and replace w/new value (RETURN)
-    // 3: If NO, check if we need to expand the pub
-    // 4: Insert the value into the pub data field at the next opening
 
 }
 
-void SOS_repack( SOS_pub *pub, int index, SOS_val pack_val ) {
-    SOS_SET_WHOAMI(whoami, "SOS_repack");
-    SOS_data *data;
-    int len;
-
-    switch (pub->data[index]->type) {
-    case SOS_VAL_TYPE_INT    : dlog(6, "[%s]: (%s) @ %d -- pack_val.i_val = \"%d\"     (update)\n",  whoami, pub->data[index]->name, index, pack_val.i_val); break;
-    case SOS_VAL_TYPE_LONG   : dlog(6, "[%s]: (%s) @ %d -- pack_val.l_val = \"%ld\"     (update)\n", whoami, pub->data[index]->name, index, pack_val.l_val); break;
-    case SOS_VAL_TYPE_DOUBLE : dlog(6, "[%s]: (%s) @ %d -- pack_val.d_val = \"%lF\"     (update)\n", whoami, pub->data[index]->name, index, pack_val.d_val); break;
-    case SOS_VAL_TYPE_STRING : dlog(6, "[%s]: (%s) @ %d -- pack_val.c_val = \"%s\"     (update)\n",  whoami, pub->data[index]->name, index, pack_val.c_val); break;
-    default:
-        dlog(6, "[%s]: Invalid type (%d) at index %d of pub->guid == %ld.\n", whoami, pub->data[index]->type, index, pub->guid);
-        break;
-    }
-
+int SOS_pub_search(SOS_pub *pub, const char *name) {
+    long i;
     
-    data = pub->data[index];
+    i = (long) pub->name_table->get(pub->name_table, name);
 
-    switch (data->type) {
+    /* If the name does not exist, i==0... since the data elements are
+     * zero-indexed, we subtract 1 from i so that 'does not exist' is
+     * returned as -1. This is accounted for when values are initially
+     * packed, as the name is added to the name_table with the index being
+     * (i + 1)'ed.
+     */
 
-    case SOS_VAL_TYPE_STRING:
-        /* Determine if the string has changed, and if so, free/malloc space for new one. */
-        if (strcmp(data->val.c_val, pack_val.c_val) == 0) {
-            /* Update the time stamp only. */
-            SOS_TIME( data->time.pack );
-        } else {
-            /* Novel string is being packed, free the old one, allocate a copy. */
-            free(data->val.c_val);
-            len = strlen(pack_val.c_val);
-            data->val.c_val = (char *) malloc(sizeof(char) * (len + 1));
-            memset(data->val.c_val, '\0', len);
-            memcpy(data->val.c_val, pack_val.c_val, len);
-            SOS_TIME( data->time.pack );
-            data->val_len = len;
-        }
-        break;
+    i--;
 
-    case SOS_VAL_TYPE_INT:
-    case SOS_VAL_TYPE_LONG:
-    case SOS_VAL_TYPE_DOUBLE:
-        data->val = pack_val;
-        SOS_TIME(data->time.pack);
-        break;
-    default:
-        dlog(6, "[%s]: Invalid type (%d) at index %d of pub->guid == %ld.\n", whoami, data->type, index, pub->guid);
-        break;
+    return i;
+}
+
+
+void SOS_pub_destroy(SOS_pub *pub) {
+    SOS_SET_WHOAMI(whoami, "SOS_pub_destroy");
+    int elem;
+    int guid_str[60] = {0};
+
+    if (SOS.config.offline_test_mode != true) {
+        /* TODO: { PUB DESTROY } Right now this only works in offline test mode. */
+        return;
     }
 
-    data->state = SOS_VAL_STATE_DIRTY;
+    if (pub == NULL) { return; }
 
-    dlog(1, "[%s]:    ... pub->data[%d]->time.pack == %lf\n", whoami, index, data->time.pack);
+    dlog(6, "[%s]: Freeing pub components:\n", whoami);
+    dlog(6, "[%s]:   ... element data: ", whoami);
+    for (elem = 0; elem < pub->elem_max; elem++) {
+        if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
+            if (pub->data[elem]->val.c_val != NULL) {
+                 free(pub->data[elem]->val.c_val);
+            }
+
+        }
+        if (pub->data[elem] != NULL) { free(pub->data[elem]); }
+    }
+    dlog(6, "done. (%d element capacity)\n", pub->elem_max);
+    dlog(6, "[%s]:   ... element pointer array\n", whoami);
+    if (pub->data != NULL) { free(pub->data); }
+    dlog(6, "[%s]:   ... name table\n", whoami);
+    pub->name_table->free(pub->name_table);
+    dlog(6, "[%s]:   ... snap queue\n", whoami);
+    SOS_val_snap_queue_destroy(pub->snap_queue);
+    dlog(6, "[%s]:   ... pub handle itself\n", whoami);
+    if (pub != NULL) { free(pub); pub = NULL; }
+    dlog(6, "[%s]:   done.\n", whoami);
 
     return;
 }
 
-SOS_val SOS_get_val(SOS_pub *pub, char *name) {
-    int i;
-
-    /* TODO:{ GET_VAL } Add hashtable lookup to improve search time in linear array. */
-
-    for(i = 0; i < pub->elem_count; i++) {
-        if (strcmp(name, pub->data[i]->name) == 0) return pub->data[i]->val;
-    }
-
-    return (SOS_val) 0;
-
-}
 
 
 SOS_sub* SOS_new_sub() {
@@ -1795,11 +1760,6 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
-        if (pub->data[elem]->name == NULL) {
-            pub->data[elem]->name = (char *) malloc(SOS_DEFAULT_STRING_LEN * sizeof(char));
-            memset(pub->data[elem]->name, '\0', SOS_DEFAULT_STRING_LEN);
-        }
-
         buffer_pos += SOS_buffer_unpack(ptr, "lsiiiiiii",
             &pub->data[elem]->guid,
             pub->data[elem]->name,

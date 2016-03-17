@@ -447,6 +447,7 @@ extern "C" {
 
     SOS_pub*  SOS_pub_create(char *pub_title);
     SOS_pub*  SOS_pub_create_sized(char *pub_title, int new_size);
+    int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);
 
     int       SOS_define_val(SOS_pub *pub, const char *name, SOS_val_type type, SOS_val_meta meta);
@@ -491,7 +492,6 @@ extern "C" {
 
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
-    SOS_val   SOS_get_val(SOS_pub *pub, char *name);
     void      SOS_free_sub(SOS_sub *sub);
     void      SOS_unannounce(SOS_pub *pub);
     SOS_sub*  SOS_new_sub(void);
