@@ -246,10 +246,10 @@ static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)
 
 
 typedef union {
-    int                 i_val;        /* default: (null)                */
-    long                l_val;        /* default: (null)                */
-    double              d_val;        /* default: (null)                */
-    char               *c_val;        /* default: (null)                */
+    int                 i_val;
+    long                l_val;
+    double              d_val;
+    char               *c_val;
 } SOS_val;
 
 typedef struct {
@@ -270,9 +270,9 @@ typedef struct {
 } SOS_async_buf_pair;
 
 typedef struct {
-    double              pack;         /* default: 0.0                   */
-    double              send;         /* default: 0.0                   */
-    double              recv;         /* default: 0.0                   */
+    double              pack;
+    double              send;
+    double              recv;
 } SOS_time;
 
 typedef struct {
@@ -290,6 +290,8 @@ typedef struct {
     SOS_val             val;
     SOS_time            time;
     long                frame;
+    SOS_val_semantic    semantic;
+    SOS_mood            mood;
     void               *next;
 } SOS_val_snap;
 
@@ -299,41 +301,41 @@ typedef struct {
 } SOS_val_snap_queue;
 
 typedef struct {
-    long                guid;         /* default: (auto)                */
-    int                 val_len;      /* default: (auto) [on assign]    */
-    SOS_val             val;          /* default: --------- manual      */
-    SOS_val_type        type;         /* default: --------- manual      */
+    long                guid;
+    int                 val_len;
+    SOS_val             val;
+    SOS_val_type        type;
     SOS_val_meta        meta;
-    SOS_val_state       state;        /* default: SOS_VAL_STATE_EMPTY   */
-    SOS_time            time;         /* default: (complex)             */
-    char                name[SOS_DEFAULT_STRING_LEN]; /* default: --------- manual      */
+    SOS_val_state       state;
+    SOS_time            time;
+    char                name[SOS_DEFAULT_STRING_LEN];
 } SOS_data;
 
 typedef struct {
-    int                 channel;      /* default: 0                     */
-    SOS_nature          nature;       /* default: --------- manual      */
-    SOS_layer           layer;        /* default: SOS_LAYER_APP         */
-    SOS_pri             pri_hint;     /* default: SOS_PRI_DEFAULT       */
-    SOS_scope           scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
-    SOS_retain          retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
+    int                 channel;
+    SOS_nature          nature;
+    SOS_layer           layer;
+    SOS_pri             pri_hint;
+    SOS_scope           scope_hint;
+    SOS_retain          retain_hint;
 } SOS_pub_meta;
 
 typedef struct {
-    long                guid;         /* default: (auto, on announce)   */
-    int                 process_id;   /* default: -1                    */
-    int                 thread_id;    /* default: -1                    */
-    int                 comm_rank;    /* default: -1                    */
-    SOS_pub_meta        meta;         /* default: (complex)             */
-    int                 announced;    /* default: 0                     */
-    long                frame;        /* default: 0                     */
-    int                 elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
-    int                 elem_count;   /* default: 0                     */
-    int                 pragma_len;   /* default: -1                    */
-    unsigned char       pragma_msg[SOS_DEFAULT_STRING_LEN];   /* default: ""                    */
-    char                node_id[SOS_DEFAULT_STRING_LEN];      /* default: SOS.config.node_id    */
-    char                prog_name[SOS_DEFAULT_STRING_LEN];    /* default: argv[0] / manual      */
-    char                prog_ver[SOS_DEFAULT_STRING_LEN];     /* default: ""                    */
-    char                title[SOS_DEFAULT_STRING_LEN];        /* default: ""                    */
+    long                guid;
+    int                 process_id;
+    int                 thread_id;
+    int                 comm_rank;
+    SOS_pub_meta        meta;
+    int                 announced;
+    long                frame;
+    int                 elem_max;
+    int                 elem_count;
+    int                 pragma_len;
+    unsigned char       pragma_msg[SOS_DEFAULT_STRING_LEN];
+    char                node_id[SOS_DEFAULT_STRING_LEN];
+    char                prog_name[SOS_DEFAULT_STRING_LEN];
+    char                prog_ver[SOS_DEFAULT_STRING_LEN];
+    char                title[SOS_DEFAULT_STRING_LEN];
     SOS_data          **data;
     qhashtbl_t         *name_table;
     SOS_val_snap_queue *snap_queue;
@@ -355,13 +357,13 @@ typedef struct {
     struct addrinfo    *server_addr;
     struct addrinfo    *result_list;
     struct addrinfo     server_hint;
-    struct addrinfo    *client_addr;          /* used by [sosd] */
+    struct addrinfo    *client_addr;
     int                 timeout;
     int                 buffer_len;
-    pthread_mutex_t    *send_lock;            /* used by [libsos] */
+    pthread_mutex_t    *send_lock;
 } SOS_socket_set;
 
-typedef struct {                              /* no pointers, headers might get used raw */
+typedef struct {
     int                 msg_size;
     SOS_msg_type        msg_type;
     long                msg_from;
@@ -489,14 +491,8 @@ extern "C" {
 
     /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
 
-
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
-    void      SOS_free_sub(SOS_sub *sub);
-    void      SOS_unannounce(SOS_pub *pub);
-    SOS_sub*  SOS_new_sub(void);
-    SOS_sub*  SOS_subscribe(SOS_role target_role, int target_rank, char *pub_title, int refresh_ms);
-    void      SOS_unsubscribe(SOS_sub *sub);
 
 #ifdef __cplusplus
 }

@@ -172,7 +172,6 @@ int SOS_test_pub_values() {
         if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
         if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
         val = pub->data[index]->val;
-        printf("%d == %d\n", val.i_val, reference_i[attempt]);
         if (val.i_val != reference_i[attempt]) {
             SOS_pub_destroy(pub);
             return FAIL;
@@ -254,7 +253,6 @@ int SOS_test_pub_values() {
         if (index < 0) { SOS_pub_destroy(pub); return FAIL; }
         if (index >= pub->elem_count) { SOS_pub_destroy(pub); return FAIL; }
         val = pub->data[index]->val;
-        printf("%d == %d\n", val.i_val, reference_i[attempt]);
         if (val.i_val != reference_i[attempt]) {
             SOS_pub_destroy(pub);
             return FAIL;

@@ -212,14 +212,7 @@ void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
     } else {
         mon->ring = ring_var;
     }
-    /*
-    mon->extract_t     = (pthread_t *) calloc(sizeof(pthread_t),1);
-    mon->extract_cond  = (pthread_cond_t *) calloc(sizeof(pthread_cond_t),1);
-    mon->extract_lock  = (pthread_mutex_t *) calloc(sizeof(pthread_mutex_t),1);
-    mon->commit_t      = (pthread_t *) calloc(sizeof(pthread_t),1);
-    mon->commit_cond   = (pthread_cond_t *) calloc(sizeof(pthread_cond_t),1);
-    mon->commit_lock   = (pthread_mutex_t *) calloc(sizeof(pthread_mutex_t),1);
-    */
+
     mon->commit_list   = NULL;
     mon->commit_count  = 0;
     mon->commit_target = target;

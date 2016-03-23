@@ -1013,6 +1013,28 @@ int SOS_define_value( SOS_pub *pub, const char *name, SOS_val_type val_type, SOS
 }
 
 
+int SOS_event( SOS_pub *pub, const char *name, SOS_val_semantic semantic ) {
+    SOS_SET_WHOAMI(whoami, "SOS_event");
+    int pos = 0;
+    int val = 1;
+
+    pos = SOS_pub_search(pub, name);
+    if (pos >= 0) {
+        val = pub->data[pos]->val.i_val;
+        val++;
+    } else {
+        val = 1;
+    }
+
+    pos = SOS_pack(pub, name, SOS_VAL_TYPE_INT, (SOS_val) val);
+
+    pub->data[pos]->meta.classifier = SOS_VAL_CLASS_EVENT;
+    pub->data[pos]->meta.semantic   = semantic;
+
+    return pos;
+}
+
+
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_WHOAMI(whoami, "SOS_pack");
 
@@ -1651,6 +1673,11 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
             pub->data[elem]->val_len);
         ptr = (buffer + buffer_len);
 
+        buffer_len += SOS_buffer_pack(ptr, "ii",
+                                      pub->data[elem]->meta.semantic,
+                                      pub->data[elem]->meta.mood);
+        ptr = (buffer + buffer_len);
+
         switch (pub->data[elem]->type) {
         case SOS_VAL_TYPE_INT:     buffer_len += SOS_buffer_pack(ptr, "i", pub->data[elem]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:    buffer_len += SOS_buffer_pack(ptr, "l", pub->data[elem]->val.l_val); break;
@@ -1837,6 +1864,11 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
             &pub->data[elem]->val_len);
         ptr = (buffer + buffer_pos);
 
+        buffer_pos += SOS_buffer_unpack(ptr, "ii",
+                                        &pub->data[elem]->meta.semantic,
+                                        &pub->data[elem]->meta.mood);
+        ptr = (buffer + buffer_pos);
+
         dlog(7, "[%s]: pub->data[%d]->time.pack == %lf   pub->data[%d]->time.send == %lf\n",
              whoami,
              elem,
@@ -1895,10 +1927,8 @@ void SOS_announce( SOS_pub *pub ) {
     dlog(6, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
     dlog(6, "[%s]:   ... pub->elem_max   = %d\n", whoami, pub->elem_max);
 
-    //memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
     buffer     = buffer_stack;
     buffer_len = 0;
-    //memset(reply_stack,  '\0', SOS_DEFAULT_REPLY_LEN);
     reply      = reply_stack;
     reply_max  = SOS_DEFAULT_REPLY_LEN;
 
@@ -1917,11 +1947,13 @@ void SOS_publish( SOS_pub *pub ) {
     SOS_SET_WHOAMI(whoami, "SOS_publish");
 
     unsigned char   *buffer;
-    unsigned char    buffer_stack[SOS_DEFAULT_BUFFER_LEN];
-    int     buffer_len;
+    unsigned char    buffer_stack[SOS_DEFAULT_BUFFER_LEN] = {0};
+    int              buffer_len;
     unsigned char   *reply;
     unsigned char    reply_stack[SOS_DEFAULT_REPLY_LEN] = {0};
-    int     reply_max;
+    int              reply_max;
+
+    SOS_val_snap_queue *snaps;
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
     buffer     = buffer_stack;
@@ -1935,7 +1967,7 @@ void SOS_publish( SOS_pub *pub ) {
         SOS_announce( pub );
     }
 
-    dlog(6, "[%s]: Preparing an announcement message...\n",    whoami);
+    dlog(6, "[%s]: Preparing a publish message...\n",    whoami);
     dlog(6, "[%s]:   ... pub->guid       = %ld\n", whoami, pub->guid);
     dlog(6, "[%s]:   ... pub->title      = %s\n", whoami, pub->title);
     dlog(6, "[%s]:   ... pub->elem_count = %d\n", whoami, pub->elem_count);
@@ -1945,43 +1977,17 @@ void SOS_publish( SOS_pub *pub ) {
     SOS_publish_to_buffer(pub, &buffer, &buffer_len);
     dlog(6, "[%s]:   ... sending the buffer to the daemon.\n", whoami);
     SOS_send_to_daemon(buffer, buffer_len, reply, reply_max);
+    dlog(6, "[%s]:   ... checking for val_snap queue entries.\n", whoami);
+    snaps = pub->snap_queue;
+    if ((snaps->from->get(snaps->from, pub->title)) != NULL) {
+        dlog(6, "[%s]:   ... entries found, placing them into a buffer.\n", whoami);
+        SOS_val_snap_queue_to_buffer(snaps, pub, &buffer, &buffer_len, true);
+        dlog(6, "[%s]:   ... sending the buffer to the daemon.\n", whoami);
+        SOS_send_to_daemon(buffer, buffer_len, reply, reply_max);
+    }
     dlog(6, "[%s]:   ... done.\n", whoami);
 
     return;
 }
 
 
-void SOS_unannounce( SOS_pub *pub ) {
-
-    /* TODO:{ UNANNOUNCE, CHAD } */
-
-    return;
-}
-
-
-SOS_sub* SOS_subscribe( SOS_role source_role, int source_rank, char *pub_title, int refresh_delay ) {
-    SOS_sub *new_sub;
-
-    new_sub = (SOS_sub *) malloc( sizeof(SOS_sub) );
-    memset(new_sub, '\0', sizeof(SOS_sub));
-
-    return new_sub;
-}
-
-
-void* SOS_refresh_sub( void *arg ) {
-    SOS_sub *sub = (SOS_sub*) arg;
-    unsigned char *msg;
-    int msg_len;
-
-    while (sub->active == 1) {
-        sleep(sub->refresh_delay);
-    }
-    return NULL;
-}
-
-
-void SOS_unsubscribe(SOS_sub *sub) {
-
-    return;
-}
