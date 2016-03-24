@@ -96,6 +96,7 @@ typedef struct {
 } SOSD_db;
 
 typedef struct {
+    SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
     SOSD_net            net;
@@ -158,7 +159,7 @@ extern "C" {
     void  SOSD_apply_announce( SOS_pub *pub, unsigned char *msg, int msg_len );
     void  SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len );
 
-    extern void SOS_uid_init( SOS_uid **uid, long from, long to);
+    extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
 
 
 #ifdef __cplusplus

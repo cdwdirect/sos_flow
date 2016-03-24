@@ -90,7 +90,7 @@ int main(int argc, char **argv) {
     SOS_TIME(ts_TOTAL_start);
     SOS_TIME(ts_start);
 
-    SOS_SET_WHOAMI(whoami, "main");
+    SOS_SET_CONTEXT(whoami, "main");
     SOS_TIME(ts_finish);
     tspan_SOS_init = ts_finish - ts_start;
 

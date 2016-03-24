@@ -14,11 +14,11 @@
  *
  *     In the MPI-version, this function is responsible for populating the
  *     following global values.  Some reasonable values will at least need
- *     to be plugged into the SOS.config.* variables.
+ *     to be plugged into the SOS->config.* variables.
  *
- *        SOS.config.comm_rank
- *        SOS.config.comm_size
- *        SOS.config.comm_support = MPI_THREAD_*
+ *        SOS->config.comm_rank
+ *        SOS->config.comm_size
+ *        SOS->config.comm_support = MPI_THREAD_*
  *        SOSD.daemon.cloud_sync_target_set[n]  (int: rank)
  *        SOSD.daemon.cloud_sync_target_count
  *        SOSD.daemon.cloud_sync_target
@@ -31,9 +31,9 @@
  *    scalability and throughput.
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_init.EVPATH");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.EVPATH");
 
-    dlog(5, "[%s]: This is an example of a debugging message.\n", whoami);
+    dlog(5, "This is an example of a debugging message.\n");
 
     return 0;
 }
@@ -43,7 +43,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
  * description: Actually send a message off-node.  (blocking)
  */
 int SOSD_cloud_send(unsigned char *msg, int msg_len) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_send.EVPATH");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.EVPATH");
 
     return 0;
 }
@@ -53,7 +53,7 @@ int SOSD_cloud_send(unsigned char *msg, int msg_len) {
  * description: Accept a message into the async send-queue.  (non-blocking)
  */
 void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_enqueue.EVPATH");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.EVPATH");
 
     return;
 }
@@ -64,7 +64,7 @@ void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
  * note.......: With EVPath, this might be totally unnecessary.  (i.e. "Let EVPath handle it...")
  */
 void  SOSD_cloud_fflush(void) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_fflush.EVPATH");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.EVPATH");
     return;
 }
 
@@ -73,7 +73,7 @@ void  SOSD_cloud_fflush(void) {
  * description: Shut down the cloud operation, flush / close files, etc.
  */
 int   SOSD_cloud_finalize(void) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_finalize.EVPATH");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.EVPATH");
 
     return 0;
 }
@@ -85,7 +85,7 @@ int   SOSD_cloud_finalize(void) {
  *              Only certain daemon ranks participate/call this function.
  */
 void  SOSD_cloud_shutdown_notice(void) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_shutdown_notice");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_shutdown_notice");
     return;
 }
 
@@ -97,7 +97,7 @@ void  SOSD_cloud_shutdown_notice(void) {
  *              incoming messages from other sosd daemon instances.
  */
 void  SOSD_cloud_listen_loop(void) {
-    SOS_SET_WHOAMI(whoami, "SOSD_cloud_listen_loop");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop");
 
     return;
 }

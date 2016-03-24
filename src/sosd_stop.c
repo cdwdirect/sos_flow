@@ -23,10 +23,11 @@
 
 
 int main(int argc, char *argv[]) {
-    SOS_msg_header header;
-    unsigned char      *msg_out;
-    unsigned char      *msg_reply;
-    int        buf_len;
+    SOS_msg_header  header;
+    unsigned char  *msg_out;
+    unsigned char  *msg_reply;
+    int             buf_len;
+    SOS_runtime    *SOS;
 
     msg_out = (unsigned char *) malloc(SOS_DEFAULT_BUFFER_LEN);
     msg_reply = (unsigned char *) malloc(SOS_DEFAULT_REPLY_LEN);
@@ -53,14 +54,14 @@ int main(int argc, char *argv[]) {
 
     fprintf(stdout, "Connecting to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
 
-    SOS_init(&argc, &argv, SOS_ROLE_CLIENT);
+    SOS = SOS_init(&argc, &argv, SOS_ROLE_CLIENT);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
-    header.msg_from = SOS.my_guid;
+    header.msg_from = SOS->my_guid;
     header.pub_guid = 0;
 
-    buf_len = SOS_buffer_pack(msg_out, "iill",
+    buf_len = SOS_buffer_pack(SOS, msg_out, "iill",
                               header.msg_size,
                               header.msg_type,
                               header.msg_from,
@@ -68,15 +69,15 @@ int main(int argc, char *argv[]) {
 
     header.msg_size = buf_len;
 
-    SOS_buffer_pack(msg_out, "i", header.msg_size);
+    SOS_buffer_pack(SOS, msg_out, "i", header.msg_size);
 
     fprintf(stdout, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    SOS_send_to_daemon(msg_out, header.msg_size, msg_reply, SOS_DEFAULT_REPLY_LEN);
+    SOS_send_to_daemon(SOS, msg_out, header.msg_size, msg_reply, SOS_DEFAULT_REPLY_LEN);
 
     fprintf(stdout, "Done.\n");
 
-    SOS_finalize();    
+    SOS_finalize(SOS);
     return (EXIT_SUCCESS);
 }
 

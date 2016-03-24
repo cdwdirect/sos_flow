@@ -22,7 +22,8 @@
 #define SOSD_DB_PUBS_TABLE_NAME "tblPubs"
 #define SOSD_DB_DATA_TABLE_NAME "tblData"
 #define SOSD_DB_VALS_TABLE_NAME "tblVals"
-#define SOSD_DB_ENUM_TABLE_NAME "tblEnum"
+#define SOSD_DB_ENUM_TABLE_NAME "tblEnums"
+#define SOSD_DB_SOSD_TABLE_NAME "tblSOSDConfig"
 
 
 void SOSD_db_insert_enum(const char *type, const char **var_strings, int max_index);
@@ -33,6 +34,8 @@ sqlite3_stmt *stmt_insert_pub;
 sqlite3_stmt *stmt_insert_data;
 sqlite3_stmt *stmt_insert_val;
 sqlite3_stmt *stmt_insert_enum;
+sqlite3_stmt *stmt_insert_sosd;
+
 
 char *sql_create_table_pubs = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUBS_TABLE_NAME " ( "         \
@@ -84,6 +87,13 @@ char *sql_create_table_enum = ""                                        \
     " type "            " STRING, "                                     \
     " text "            " STRING, "                                     \
     " enum_val "        " INTEGER); ";
+
+char *sql_create_table_sosd_config = ""                \
+    "CREATE TABLE IF NOT EXISTS " SOSD_DB_SOSD_TABLE_NAME " ( " \
+    " row_id "          " INTEGER PRIMARY KEY, "                \
+    " daemon_id "       " STRING, "                             \
+    " key "             " STRING, "                             \
+    " value "           " STRING); ";
 
 
 
@@ -138,16 +148,23 @@ const char *sql_insert_enum = ""                \
     " enum_val "                                \
     ") VALUES (?,?,?); ";
 
+const char *sql_insert_sosd_config = ""         \
+    "INSERT INTO " SOSD_DB_SOSD_TABLE_NAME " (" \
+    " daemon_id, "                              \
+    " key, "                                    \
+    " value "                                   \
+    ") VALUES (?,?,?); ";
+
 char *sql_cmd_begin_transaction    = "BEGIN DEFERRED TRANSACTION;";
 char *sql_cmd_commit_transaction   = "COMMIT TRANSACTION;";
 
 
 void SOSD_db_init_database() {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_init_database");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_init_database");
     int     retval;
     int     flags;
 
-    dlog(1, "[%s]: Opening database...\n", whoami);
+    dlog(1, "Opening database...\n");
 
     SOSD.db.ready = 0;
     SOSD.db.file  = (char *) malloc(SOS_DEFAULT_STRING_LEN);
@@ -160,7 +177,7 @@ void SOSD_db_init_database() {
     flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS.config.comm_rank);
+    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
@@ -177,38 +194,43 @@ void SOSD_db_init_database() {
 
     retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
     if( retval ){
-        dlog(0, "[%s]: ERROR!  Can't open database: %s   (%s)\n", whoami, SOSD.db.file, sqlite3_errmsg(database));
+        dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
         exit(EXIT_FAILURE);
     } else {
-        dlog(1, "[%s]: Successfully opened database.\n", whoami);
+        dlog(1, "Successfully opened database.\n");
     }
 
     SOSD_db_create_tables();
 
-    dlog(2, "[%s]: Preparing transactions...\n", whoami);
+    dlog(2, "Preparing transactions...\n");
 
-    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_pub);
+    dlog(2, "  --> \"%.50s...\"\n", sql_insert_pub);
     retval = sqlite3_prepare_v2(database, sql_insert_pub, strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
-    if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
-    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_data);
+    dlog(2, "  --> \"%.50s...\"\n", sql_insert_data);
     retval = sqlite3_prepare_v2(database, sql_insert_data, strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
-    if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
-    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_val);
+    dlog(2, "  --> \"%.50s...\"\n", sql_insert_val);
     retval = sqlite3_prepare_v2(database, sql_insert_val, strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
-    if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
-    dlog(2, "[%s]:   --> \"%.50s...\"\n", whoami, sql_insert_enum);
+    dlog(2, "  --> \"%.50s...\"\n", sql_insert_enum);
     retval = sqlite3_prepare_v2(database, sql_insert_enum, strlen(sql_insert_enum) + 1, &stmt_insert_enum, NULL);
-    if (retval) { dlog(2, "[%s]:   ... error (%d) was returned.\n", whoami, retval); }
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
+
+    dlog(2, "  --> \"%.50s...\"\n", sql_insert_sosd);
+    retval = sqlite3_prepare_v2(database, sql_insert_sosd, strlen(sql_insert_sosd) + 1, &stmt_insert_sosd, NULL);
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
+
 
     SOSD.db.ready = 1;
     pthread_mutex_unlock(SOSD.db.lock);
 
     SOSD_db_transaction_begin();
-    dlog(2, "[%s]:   Inserting the enumeration table...\n", whoami);
+    dlog(2, "  Inserting the enumeration table...\n");
 
     /* TODO: {DB, ENUM}  Make this a macro expansion... */
     SOSD_db_insert_enum("ROLE",          SOS_ROLE_string,          SOS_ROLE___MAX          );
@@ -232,63 +254,64 @@ void SOSD_db_init_database() {
 
     SOSD_db_transaction_commit();
 
-    dlog(2, "[%s]:   ... done.\n", whoami);
+    dlog(2, "  ... done.\n");
 
     return;
 }
 
 
 void SOSD_db_close_database() {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_close_database");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_close_database");
 
-    dlog(2, "[%s]: Closing database.   (%s)\n", whoami, SOSD.db.file);
+    dlog(2, "Closing database.   (%s)\n", SOSD.db.file);
     pthread_mutex_lock( SOSD.db.lock );
-    dlog(2, "[%s]:   ... finalizing statements.\n", whoami);
+    dlog(2, "  ... finalizing statements.\n");
     SOSD.db.ready = 0;
     CALL_SQLITE (finalize(stmt_insert_pub));
     CALL_SQLITE (finalize(stmt_insert_data));
     CALL_SQLITE (finalize(stmt_insert_val));
     CALL_SQLITE (finalize(stmt_insert_enum));
-    dlog(2, "[%s]:   ... closing database file.\n", whoami);
+    CALL_SQLITE (finalize(stmt_insert_sosd));
+    dlog(2, "  ... closing database file.\n");
     sqlite3_close_v2(database);
-    dlog(2, "[%s]:   ... destroying the mutex.\n", whoami);
+    dlog(2, "  ... destroying the mutex.\n");
     pthread_mutex_unlock(SOSD.db.lock);
     pthread_mutex_destroy(SOSD.db.lock);
     free(SOSD.db.lock);
     free(SOSD.db.file);
-    dlog(2, "[%s]:   ... done.\n", whoami);
+    dlog(2, "  ... done.\n");
 
     return;
 }
 
 
 void SOSD_db_transaction_begin() {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_transaction_begin");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_transaction_begin");
     int   rc;
     char *err = NULL;
 
     pthread_mutex_lock(SOSD.db.lock);
 
-    dlog(6, "[%s]:  > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n", whoami);
-    dlog(6, "[%s]: >>>>>>>>>> >> >> >> BEGIN TRANSACTION >> >> >> >>>>>>>>>>\n", whoami);
-    dlog(6, "[%s]:  > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n", whoami);
+    dlog(6, " > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n");
+    dlog(6, ">>>>>>>>>> >> >> >> BEGIN TRANSACTION >> >> >> >>>>>>>>>>\n");
+    dlog(6, " > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n");
     rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
-    if (rc) { dlog(2, "[%s]: ##### ERROR ##### : (%d)\n", whoami, rc); }
+    if (rc) { dlog(2, "##### ERROR ##### : (%d)\n", rc); }
 
     return;
 }
 
 
 void SOSD_db_transaction_commit() {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_transaction_commit");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_transaction_commit");
     int   rc;
     char *err = NULL;
 
-    dlog(6, "[%s]:  < < < < < < < < < < < < < < < < < < < < < < < < < < < <  \n", whoami);
-    dlog(6, "[%s]: <<<<<<<<<< << << << COMMIT TRANSACTION << << << <<<<<<<<<<\n", whoami);
-    dlog(6, "[%s]:  < < < < < < < < < < < < < < < < < < < < < < < < < < < <  \n", whoami);
+    dlog(6, " < < < < < < < < < < < < < < < < < < < < < < < < < < < <  \n");
+    dlog(6, "<<<<<<<<<< << << << COMMIT TRANSACTION << << << <<<<<<<<<<\n");
+    dlog(6, " < < < < < < < < < < < < < < < < < < < < < < < < < < < <  \n");
     rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
-    if (rc) { dlog(2, "[%s]: ##### ERROR ##### : (%d)\n", whoami, rc); }
+    if (rc) { dlog(2, "##### ERROR ##### : (%d)\n", rc); }
 
     pthread_mutex_unlock(SOSD.db.lock);
 
@@ -297,10 +320,10 @@ void SOSD_db_transaction_commit() {
 
 
 void SOSD_db_insert_pub( SOS_pub *pub ) {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_pub");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_pub");
     int i;
 
-    dlog(5, "[%s]: Inserting pub(%ld)->data into database(%s).\n", whoami, pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%ld)->data into database(%s).\n", pub->guid, SOSD.db.file);
 
     /*
      *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
@@ -324,9 +347,9 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     int            pragma_len        = pub->pragma_len;
     unsigned char  pragma_empty[2];    memset(pragma_empty, '\0', 2);
 
-    dlog(5, "[%s]:   ... binding values into the statement\n", whoami);
-    dlog(6, "[%s]:      ... pragma_len = %d\n", whoami, pragma_len);
-    dlog(6, "[%s]:      ... pragma     = \"%s\"\n", whoami, pragma);
+    dlog(5, "  ... binding values into the statement\n");
+    dlog(6, "     ... pragma_len = %d\n", pragma_len);
+    dlog(6, "     ... pragma     = \"%s\"\n", pragma);
 
     CALL_SQLITE (bind_int    (stmt_insert_pub, 1,  guid         ));
     CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
@@ -349,49 +372,49 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
         CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma_empty,    2, SQLITE_STATIC  ));
     }
 
-    dlog(5, "[%s]:   ... executing the query\n", whoami);
+    dlog(5, "  ... executing the query\n");
 
     CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  /* Execute the query. */
 
-    dlog(5, "[%s]:   ... success!  resetting the statement.\n", whoami);
+    dlog(5, "  ... success!  resetting the statement.\n");
 
     CALL_SQLITE (reset (stmt_insert_pub));
     CALL_SQLITE (clear_bindings (stmt_insert_pub));
 
-    dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
+    dlog(5, "  ... done.  returning to loop.\n");
     return;
 }
 
 void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_queue *re_queue ) {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_vals");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_vals");
     char pub_guid_str[SOS_DEFAULT_STRING_LEN];
     SOS_val_snap *snap;
     SOS_val_snap *next_snap;
 
-    dlog(2, "[%s]: Attempting to inject val_snap queue for pub->title = \"%s\":\n", whoami, pub->title);
+    dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
     memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
     sprintf(pub_guid_str, "%ld", pub->guid);
 
-    dlog(2, "[%s]:   ... getting locks for queues\n", whoami);
+    dlog(2, "  ... getting locks for queues\n");
     if (re_queue != NULL) {
-        dlog(2, "[%s]:      ... re_queue->lock\n", whoami);
+        dlog(2, "     ... re_queue->lock\n");
         pthread_mutex_lock( re_queue->lock );
     }
-    dlog(2, "[%s]:      ... queue->lock\n", whoami);
+    dlog(2, "     ... queue->lock\n");
     pthread_mutex_lock( queue->lock );
 
-    dlog(2, "[%s]:   ... grabbing LIFO snap_queue head\n", whoami);
+    dlog(2, "  ... grabbing LIFO snap_queue head\n");
     /* Grab the linked-list (LIFO queue) */
     snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
 
-    dlog(2, "[%s]:   ... clearing the snap queue\n", whoami);
+    dlog(2, "  ... clearing the snap queue\n");
     /* Clear the queue and unlock it so new additions can inject. */
     queue->from->remove(queue->from, pub_guid_str);
 
-    dlog(2, "[%s]:   ... releasing queue->lock\n", whoami);
+    dlog(2, "  ... releasing queue->lock\n");
     pthread_mutex_unlock( queue->lock );
 
-    dlog(2, "[%s]:   ... processing snaps extracted from the queue\n", whoami);
+    dlog(2, "  ... processing snaps extracted from the queue\n");
 
 
     int           elem;
@@ -430,10 +453,10 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = snap->val.c_val; break;
         default:
-            dlog(5, "[%s]:      ... error: invalid value type.  (%d)\n", whoami, pub->data[snap->elem]->type); break;
+            dlog(5, "     ... error: invalid value type.  (%d)\n", pub->data[snap->elem]->type); break;
         }
 
-        dlog(5, "[%s]:      ... binding values\n", whoami);
+        dlog(5, "     ... binding values\n");
 
         CALL_SQLITE (bind_int    (stmt_insert_val, 1,  guid         ));
         CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val,              1 + strlen(val),            SQLITE_STATIC ));
@@ -444,22 +467,22 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         CALL_SQLITE (bind_double (stmt_insert_val, 7,  time_send    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 8,  time_recv    ));
 
-        dlog(5, "[%s]:      ... executing the query\n", whoami);
+        dlog(5, "     ... executing the query\n");
 
         CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  /* Execute the query. */
         
-        dlog(5, "[%s]:      ... success!  resetting the statement.\n", whoami);
+        dlog(5, "     ... success!  resetting the statement.\n");
         
         CALL_SQLITE (reset (stmt_insert_val));
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
-        dlog(5, "[%s]:      ... grabbing the next snap\n", whoami);
+        dlog(5, "     ... grabbing the next snap\n");
 
         next_snap = (SOS_val_snap *) snap->next;
         if (re_queue != NULL) {
             snap->next = (void *) re_queue->from->get(re_queue->from, pub_guid_str);
             re_queue->from->remove(re_queue->from, pub_guid_str);
-            dlog(5, "[%s]:      ... re_queue this val_snap in the val_outlet   (%ld).next->(%ld)\n", whoami, (long) snap, (long) snap->next);
+            dlog(5, "     ... re_queue this val_snap in the val_outlet   (%ld).next->(%ld)\n", (long) snap, (long) snap->next);
             re_queue->from->put(re_queue->from, pub_guid_str, (void *) snap);
         } else {
             /* You're not re-queueing them...
@@ -469,7 +492,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
              * again when there is no re-queueing. (node_sync's
              * ring monitor doesn't call this function, so we don't
              * need to keep them around for transmission.) */
-            dlog(5, "[%s]:      ... freeing this val_snap b/c there is no re_queue\n", whoami);
+            dlog(5, "     ... freeing this val_snap b/c there is no re_queue\n");
             if (pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) { free(snap->val.c_val); }
             free(snap);
         }
@@ -479,22 +502,22 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
 
     free(val_alloc);
 
-    dlog(2, "[%s]:      ... done.\n", whoami);
-    dlog(2, "[%s]:   ... releasing re_queue->lock\n", whoami);
+    dlog(2, "     ... done.\n");
+    dlog(2, "  ... releasing re_queue->lock\n");
 
     if (re_queue != NULL) { pthread_mutex_unlock( re_queue->lock ); }
     
-    dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
+    dlog(5, "  ... done.  returning to loop.\n");
 
     return;
 }
 
 
 void SOSD_db_insert_data( SOS_pub *pub ) {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_data");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;
 
-    dlog(5, "[%s]: Inserting pub(%ld)->data into database(%s).\n", whoami, pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%ld)->data into database(%s).\n", pub->guid, SOSD.db.file);
 
     for (i = 0; i < pub->elem_count; i++) {
         /*
@@ -519,7 +542,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         case SOS_VAL_TYPE_DOUBLE: val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val; break;
         default:
-            dlog(5, "[%s]: ERROR: Attempting to insert an invalid daya type.  (%d)  Continuing...\n", whoami, pub->data[i]->type);
+            dlog(5, "ERROR: Attempting to insert an invalid daya type.  (%d)  Continuing...\n", pub->data[i]->type);
             break;
             continue;
         }
@@ -533,17 +556,17 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         CALL_SQLITE (bind_text   (stmt_insert_data, 7,  meta_pattern,     1 + strlen(meta_pattern), SQLITE_STATIC     ));
         CALL_SQLITE (bind_text   (stmt_insert_data, 8,  meta_compare,     1 + strlen(meta_compare), SQLITE_STATIC     ));
 
-        dlog(5, "[%s]:   ... executing insert query   pub->data[%d].(%s)\n", whoami, i, pub->data[i]->name);
+        dlog(5, "  ... executing insert query   pub->data[%d].(%s)\n", i, pub->data[i]->name);
 
         CALL_SQLITE_EXPECT (step (stmt_insert_data), DONE);
 
-        dlog(6, "[%s]:   ... success!  resetting the statement.\n", whoami);
+        dlog(6, "  ... success!  resetting the statement.\n");
         CALL_SQLITE (reset(stmt_insert_data));
         CALL_SQLITE (clear_bindings (stmt_insert_data));
 
     }
     
-    dlog(5, "[%s]:   ... done.  returning to loop.\n", whoami);
+    dlog(5, "  ... done.  returning to loop.\n");
 
     return;
 }
@@ -552,7 +575,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
 
 
 void SOSD_db_insert_enum(const char *var_type, const char **var_name, int var_max_index) {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_insert_enum");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_enum");
 
     int i;
     const char *type = var_type;
@@ -566,7 +589,7 @@ void SOSD_db_insert_enum(const char *var_type, const char **var_name, int var_ma
         CALL_SQLITE (bind_text   (stmt_insert_enum, 2,  name,         1 + strlen(name), SQLITE_STATIC     ));
         CALL_SQLITE (bind_int    (stmt_insert_enum, 3,  pos ));
 
-        dlog(2, "[%s]:   --> SOS_%s_string[%d] == \"%s\"\n", whoami, type, i, name);
+        dlog(2, "  --> SOS_%s_string[%d] == \"%s\"\n", type, i, name);
 
         CALL_SQLITE_EXPECT (step (stmt_insert_enum), DONE);
 
@@ -581,45 +604,53 @@ void SOSD_db_insert_enum(const char *var_type, const char **var_name, int var_ma
 
 
 void SOSD_db_create_tables(void) {
-    SOS_SET_WHOAMI(whoami, "SOSD_db_create_tables");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_create_tables");
     int rc;
     char *err = NULL;
 
-    dlog(1, "[%s]: Creating tables in the database...\n", whoami);
+    dlog(1, "Creating tables in the database...\n");
 
     rc = sqlite3_exec(database, sql_create_table_pubs, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME " in the database!  (%s)\n", whoami, err);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME " in the database!  (%s)\n", err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
-        dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_PUBS_TABLE_NAME);
+        dlog(0, "  ... Created: %s\n", SOSD_DB_PUBS_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_data, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME " in the database!  (%s)\n", whoami, err);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME " in the database!  (%s)\n", err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
-        dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_DATA_TABLE_NAME);
+        dlog(0, "  ... Created: %s\n", SOSD_DB_DATA_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_vals, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME " in the database!  (%s)\n", whoami, err);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME " in the database!  (%s)\n", err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
-        dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_VALS_TABLE_NAME);
+        dlog(0, "  ... Created: %s\n", SOSD_DB_VALS_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_enum, NULL, NULL, &err);
     if ( err != NULL ) {
-        dlog(0, "[%s]: ERROR!  Can't create " SOSD_DB_ENUM_TABLE_NAME " in the database!  (%s)\n", whoami, err);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_ENUM_TABLE_NAME " in the database!  (%s)\n", err);
         sqlite3_close(database); exit(EXIT_FAILURE);
     } else {
-        dlog(0, "[%s]:   ... Created: %s\n", whoami, SOSD_DB_ENUM_TABLE_NAME);
+        dlog(0, "  ... Created: %s\n", SOSD_DB_ENUM_TABLE_NAME);
     }
 
-    dlog(1, "[%s]:   ... done.\n", whoami);
+    rc = sqlite3_exec(database, sql_create_table_sosd, NULL, NULL, &err);
+    if ( err != NULL ) {
+        dlog(0, "ERROR!  Can't create " SOSD_DB_SOSD_TABLE_NAME " in the database!  (%s)\n", err);
+        sqlite3_close(database); exit(EXIT_FAILURE);
+    } else {
+        dlog(0, "  ... Created: %s\n", SOSD_DB_SOSD_TABLE_NAME);
+    }
+
+    dlog(1, "  ... done.\n");
     return;
 }
 

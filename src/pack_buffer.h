@@ -25,6 +25,6 @@ void        SOS_buffer_packi64(unsigned char *buf, long i);
 int         SOS_buffer_unpacki32(unsigned char *buf);
 long        SOS_buffer_unpacki64(unsigned char *buf);
 uint64_t    SOS_buffer_unpacku64(unsigned char *buf);
-int         SOS_buffer_pack(unsigned char *buf, char *format, ...);
-int         SOS_buffer_unpack(unsigned char *buf, char *format, ...);
+int         SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...);
+int         SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...);
 
