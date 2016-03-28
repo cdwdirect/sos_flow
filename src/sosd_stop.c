@@ -54,7 +54,7 @@ int main(int argc, char *argv[]) {
 
     fprintf(stdout, "Connecting to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
 
-    SOS = SOS_init(&argc, &argv, SOS_ROLE_CLIENT);
+    SOS = SOS_init(&argc, &argv, SOS_ROLE_CLIENT, NULL);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;

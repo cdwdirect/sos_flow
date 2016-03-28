@@ -15,10 +15,11 @@
 #include "sos.h"
 #include "sos_debug.h"
 
-int         SOS_register_signal_handler();
+int         SOS_register_signal_handler(SOS_runtime *sos_context);
 void        SOS_simple_signal_handler(int sig);   /*                 (deprecated)  */
 static void SOS_custom_signal_handler(int sig);   /* <--- The one to use...        */
 int         SOS_unregister_signal_handler();
 
+extern SOS_runtime *ERROR_sos_context;            /* from: sos_error.c */
 
 #endif

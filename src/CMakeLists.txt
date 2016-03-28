@@ -155,24 +155,6 @@ if(MPI_LINK_FLAGS)
 endif()
 
 
-#TARGET ---> mpi_to_sos
-#            (synthetic benchmark)
-add_executable("mpi_to_sos" "mpi_to_sos.c")
-target_link_libraries("mpi_to_sos" "sos" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("mpi_to_sos" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("mpi_to_sos" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
-endif()
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "mpi_to_sos" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "mpi_to_sos" PROPERTY COMPILE_OPTIONS "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("mpi_to_sos" "${CMAKE_THREAD_LIBS_INIT}")
-endif()
-
 INSTALL(FILES showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
   OWNER_READ GROUP_EXECUTE GROUP_READ

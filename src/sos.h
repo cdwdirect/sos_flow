@@ -429,7 +429,7 @@ extern SOS_runtime SOS_deprecated;
 extern "C" {
 #endif
 
- SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role);
+    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_runtime *extant_runtime);
 
     void      SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
     void      SOS_finalize(SOS_runtime *sos_context);

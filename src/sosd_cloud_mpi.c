@@ -39,14 +39,14 @@ void SOSD_cloud_shutdown_notice(void) {
         header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
         header.msg_from = SOS->my_guid;
         header.pub_guid = 0;
-        pack_inset = SOS_buffer_pack(shutdown_msg, "i", count);
-        offset = SOS_buffer_pack((shutdown_msg + pack_inset), "iill",
+        pack_inset = SOS_buffer_pack(SOS, shutdown_msg, "i", count);
+        offset = SOS_buffer_pack(SOS, (shutdown_msg + pack_inset), "iill",
                                  header.msg_size,
                                  header.msg_type,
                                  header.msg_from,
                                  header.pub_guid  );
         header.msg_size = offset;
-        SOS_buffer_pack(shutdown_msg, "ii", count, header.msg_size);
+        SOS_buffer_pack(SOS, shutdown_msg, "ii", count, header.msg_size);
 
         dlog(1, "  ... sending notice\n");
         MPI_Ssend((void *) shutdown_msg, header.msg_size, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
@@ -145,7 +145,7 @@ void SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
     SOS_msg_header header;
     memset(&header, '\0', sizeof(SOS_msg_header));
 
-    SOS_buffer_unpack(msg, "iill",
+    SOS_buffer_unpack(SOS, msg, "iill",
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
@@ -174,7 +174,7 @@ int SOSD_cloud_send(unsigned char *msg, int msg_len) {
 
     int   entry_count;
 
-    SOS_buffer_unpack(msg, "i", &entry_count);
+    SOS_buffer_unpack(SOS, msg, "i", &entry_count);
 
     dlog(5, "-----------> ----> -------------> ----------> ------------->\n");
     dlog(5, "----> --> >>Transporting off-node!>> ---(%d entries)---->\n", entry_count);
@@ -197,7 +197,7 @@ void SOSD_cloud_listen_loop(void) {
     int entry_count, entry;
     SOS_msg_header header;
 
-    SOS_async_buf_pair_init(&bp);  /* Since MPI_ is serial here, we can simply ignore the mutexes. */
+    SOS_async_buf_pair_init(SOS, &bp);  /* Since MPI_ is serial here, we can simply ignore the mutexes. */
 
     while(SOSD.daemon.running) {
         entry_count = 0;
@@ -211,7 +211,7 @@ void SOSD_cloud_listen_loop(void) {
         MPI_Recv((void *) bp->a.data, bp->a.max, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
         dlog(5, "  ... message received!\n");
 
-        offset += SOS_buffer_unpack(bp->a.data, "i", &entry_count);
+        offset += SOS_buffer_unpack(SOS, bp->a.data, "i", &entry_count);
         ptr = (bp->a.data + offset);
         dlog(5, "  ... message contains %d entries.\n", entry_count);
 
@@ -220,7 +220,7 @@ void SOSD_cloud_listen_loop(void) {
             dlog(6, "  ... processing entry %d of %d @ offset == %d \n", entry, entry_count, offset);
             memset(&header, '\0', sizeof(SOS_msg_header));
             memset(bp->b.data, '\0', bp->b.max);
-            SOS_buffer_unpack(ptr, "iill",
+            SOS_buffer_unpack(SOS, ptr, "iill",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
@@ -268,13 +268,15 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     int  *sosd_roles;
     int   cloud_sync_target_count;
 
-    SOS->config.comm_rank = getpid();
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_clout_init");
+    SOSD.sos_context->config.comm_rank = -999;
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init");
 
     SOSD_cloud_shutdown_underway = false;
 
     if (SOSD_ECHO_TO_STDOUT) printf("Configuring this daemon with MPI:\n");
     if (SOSD_ECHO_TO_STDOUT) printf("  ... calling MPI_Init_thread();\n");
+
+    SOS->config.comm_support = -1;
     rc = MPI_Init_thread( argc, argv, MPI_THREAD_SERIALIZED, &SOS->config.comm_support );
     if (rc != MPI_SUCCESS) {
         MPI_Error_string( rc, mpi_err, &mpi_err_len );
@@ -345,7 +347,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     /* -------------------- */
 
     if (SOSD_ECHO_TO_STDOUT) printf("Initializing cloud_sync buffers...\n");
-    SOS_async_buf_pair_init(&SOSD.cloud_bp);
+    SOS_async_buf_pair_init(SOS, &SOSD.cloud_bp);
     if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
 
     /* All DAEMON except the DB need the cloud_sync flush thread. */

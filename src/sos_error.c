@@ -30,16 +30,14 @@ struct sigaction SOS_segv_act;
 struct sigaction SOS_bus_act;
 struct sigaction SOS_hup_act;
 
+SOS_runtime *ERROR_sos_context;
+
 #ifdef SOSD_DAEMON_SRC
 extern int daemon_running;  /* from: sosd.c */
 #endif
 
 static void SOS_custom_signal_handler(int sig) {
-    #ifdef SOSD_DAEMON_SRC
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOS_custom_signal_handler");
-    #else
-    SOS_SET_CONTEXT(NULL, "SOS_custom_signal_handler");
-    #endif
+    SOS_SET_CONTEXT(ERROR_sos_context, "SOS_custom_signal_handler");
 
     static int recursion_flag;
     int crank = 0;
@@ -108,12 +106,9 @@ static void SOS_custom_signal_handler(int sig) {
     exit(99);
 }
 
-int SOS_register_signal_handler() {
-    #ifdef SOSD_DAEMON_SRC
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOS_register_signal_handler");
-    #else
-    SOS_SET_CONTEXT(NULL, "SOS_register_signal_handler");
-    #endif
+int SOS_register_signal_handler(SOS_runtime *sos_context) {
+    ERROR_sos_context = sos_context;
+    SOS_SET_CONTEXT(ERROR_sos_context, "SOS_register_signal_handler");
 
     dlog(0, "Register the signal handler.\n");
 

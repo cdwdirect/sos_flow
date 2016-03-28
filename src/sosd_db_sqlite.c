@@ -221,8 +221,8 @@ void SOSD_db_init_database() {
     retval = sqlite3_prepare_v2(database, sql_insert_enum, strlen(sql_insert_enum) + 1, &stmt_insert_enum, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
-    dlog(2, "  --> \"%.50s...\"\n", sql_insert_sosd);
-    retval = sqlite3_prepare_v2(database, sql_insert_sosd, strlen(sql_insert_sosd) + 1, &stmt_insert_sosd, NULL);
+    dlog(2, "  --> \"%.50s...\"\n", sql_insert_sosd_config);
+    retval = sqlite3_prepare_v2(database, sql_insert_sosd_config, strlen(sql_insert_sosd_config) + 1, &stmt_insert_sosd, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
 
@@ -642,7 +642,7 @@ void SOSD_db_create_tables(void) {
         dlog(0, "  ... Created: %s\n", SOSD_DB_ENUM_TABLE_NAME);
     }
 
-    rc = sqlite3_exec(database, sql_create_table_sosd, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_create_table_sosd_config, NULL, NULL, &err);
     if ( err != NULL ) {
         dlog(0, "ERROR!  Can't create " SOSD_DB_SOSD_TABLE_NAME " in the database!  (%s)\n", err);
         sqlite3_close(database); exit(EXIT_FAILURE);

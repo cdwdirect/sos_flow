@@ -12,5 +12,5 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
   kill -INT $$
 fi
 
-#valgrind --leak-check=full --show-leak-kinds=all ${SOS_ROOT}/bin/test $1
-valgrind --leak-check=full ${SOS_ROOT}/bin/test $1
+valgrind --leak-check=full --show-leak-kinds=all ${SOS_ROOT}/bin/test $1
+#valgrind --leak-check=full ${SOS_ROOT}/bin/test $1

@@ -45,15 +45,20 @@ SOS_runtime SOS;
 /* [util]                                   */
 /* **************************************** */
 
-SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role ) {
+SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime ) {
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
     long guid_pool_from;
     long guid_pool_to;
 
-    SOS_runtime *NEW_SOS = malloc(sizeof(SOS_runtime));
-    memset(&NEW_SOS, '\0', sizeof(SOS_runtime));
+    SOS_runtime *NEW_SOS = NULL;
+    if (extant_sos_runtime == NULL) {
+        NEW_SOS = (SOS_runtime *) malloc(sizeof(SOS_runtime));
+        memset(NEW_SOS, '\0', sizeof(SOS_runtime));
+    } else {
+        NEW_SOS = extant_sos_runtime;
+    }
 
     /*
      *  Before SOS_init returned a unique context per caller, we wanted
@@ -64,7 +69,7 @@ SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role ) {
      *  The way it works now, wrappers and libraries and applications
      *  can all have their own unique contexts and metadata, this is better.
      *
-    static bool _initialized = false;
+    static bool _initialized = false;   //old way
     if (_initialized) return;
     _initialized = true;
     */
@@ -95,9 +100,10 @@ SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS_ring_init(SOS, &SOS->ring.send);
     SOS_ring_init(SOS, &SOS->ring.recv);
 
-    /* The CLIENT doesn't do pack-granularity queueing (yet)... */
-    SOS->task.val_intake = NULL;
-    SOS->task.val_outlet = NULL;
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        SOS_val_snap_queue_init(SOS, &SOS->task.val_intake);
+        SOS->task.val_outlet = NULL;
+    }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         #if (SOS_CONFIG_USE_THREAD_POOL > 0)
@@ -105,7 +111,7 @@ SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
         dlog(1, "  ... launching libsos runtime threads.\n");
-        retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, NULL );
+        retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, (void *) SOS );
         if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
         retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
         if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
@@ -125,6 +131,7 @@ SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role ) {
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         SOS->status = SOS_STATUS_RUNNING;
         dlog(1, "  ... done with SOS_init().  [OFFLINE_TEST_MODE]\n");
+        dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
         return SOS;
     }
 
@@ -241,6 +248,7 @@ SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role ) {
     SOS->status = SOS_STATUS_RUNNING;
 
     dlog(1, "  ... done with SOS_init().\n");
+    dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
     return SOS;
 }
 
@@ -252,6 +260,8 @@ void SOS_async_buf_pair_init(SOS_runtime *sos_context, SOS_async_buf_pair **buf_
     *buf_pair_ptr = (SOS_async_buf_pair *) malloc(sizeof(SOS_async_buf_pair));
     buf_pair = *buf_pair_ptr;
     memset(buf_pair, '\0', sizeof(SOS_async_buf_pair));
+
+    buf_pair->sos_context = sos_context;
     
     memset(buf_pair->a.data, '\0', SOS_DEFAULT_BUFFER_LEN);
     memset(buf_pair->b.data, '\0', SOS_DEFAULT_BUFFER_LEN);
@@ -422,11 +432,15 @@ void SOS_ring_init(SOS_runtime *sos_context, SOS_ring_queue **ring_var) {
     ring->elem_size  = sizeof(long);
     ring->heap       = (long *) malloc( ring->elem_max * ring->elem_size );
     memset( ring->heap, '\0', (ring->elem_max * ring->elem_size) );
+
+    ring->sos_context = sos_context;
+
     dlog(5, "     ... successfully initialized ring queue.\n");
     dlog(5, "     ... initializing mutex.\n");
     ring->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(ring->lock, NULL);
     dlog(5, "  ... done.\n");
+
     return;
 }
 
@@ -611,6 +625,9 @@ void SOS_finalize(SOS_runtime *sos_context) {
         free(SOS->net.send_lock);
         #endif
 
+        dlog(0, "  ... Releasing snapshot queue...\n");
+        SOS_val_snap_queue_destroy(SOS->task.val_intake);
+
         dlog(0, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
@@ -621,6 +638,8 @@ void SOS_finalize(SOS_runtime *sos_context) {
     SOS_ring_destroy(SOS->ring.recv);
 
     dlog(0, "Done!\n");
+    free(SOS);
+
     return;
 }
 
@@ -628,7 +647,8 @@ void SOS_finalize(SOS_runtime *sos_context) {
 
 
 void* SOS_THREAD_feedback( void *args ) {
-    SOS_SET_CONTEXT(((SOS_runtime *) args), "SOS_THREAD_feedback");
+    SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
+    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_feedback");
     struct timespec ts;
     struct timeval  tp;
     int wake_type;
@@ -712,7 +732,7 @@ void* SOS_THREAD_feedback( void *args ) {
 
         case SOS_FEEDBACK_EXEC_FUNCTION: 
         case SOS_FEEDBACK_SET_PARAMETER: 
-        case SOS_FEEDBACK_EFFECT_CHANGE:
+        case SOS_FEEDBACK_EFFECT_CHANGE: 
             SOS_handle_feedback(SOS, feedback_msg, header.msg_size);
             break;
 
@@ -799,10 +819,11 @@ void SOS_uid_init(SOS_runtime *sos_context,  SOS_uid **id_var, long set_from, lo
     id->next = (set_from > 0) ? set_from : 1;
     id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
     dlog(5, "     ... default set for uid range (%ld -> %ld).\n", id->next, id->last);
-
     dlog(5, "     ... initializing uid mutex.\n");
     id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(id->lock, NULL );
+
+    id->sos_context = sos_context;
 
     return;
 }
@@ -879,12 +900,16 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, int new_siz
     SOS_SET_CONTEXT(sos_context, "SOS_pub_create_sized");
 
     SOS_pub   *new_pub;
+    char       pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int        i;
 
     dlog(6, "Allocating and initializing a new pub handle....\n");
 
     new_pub = malloc(sizeof(SOS_pub));
     memset(new_pub, '\0', sizeof(SOS_pub));
+
+    dlog(6, "  ... binding pub to it's execution context.\n");
+    new_pub->sos_context = sos_context;
 
     if (SOS->role != SOS_ROLE_CLIENT) {
         new_pub->guid = -1;
@@ -945,9 +970,15 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, int new_siz
 
     }
 
-    /* Configure the name hash table and the val_snap queues... */
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", new_pub->guid);
+
+    if (sos_context->role == SOS_ROLE_CLIENT) {
+        dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
+        new_pub->snap_queue = sos_context->task.val_intake;
+    }
+
+    dlog(6, "  ... initializing the name table for values.\n");
     new_pub->name_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
-    SOS_val_snap_queue_init(SOS, &new_pub->snap_queue);
 
     dlog(6, "  ... done.\n");
 
@@ -963,7 +994,7 @@ void SOS_expand_data( SOS_pub *pub ) {
     int n;
     SOS_data **expanded_data;
 
-    dlog(2, "Growing pub(\"%s\")->elem_max from %d to %d...\n",
+    dlog(6, "Growing pub(\"%s\")->elem_max from %d to %d...\n",
             pub->title,
             pub->elem_max,
             (pub->elem_max + SOS_DEFAULT_ELEM_MAX));
@@ -979,7 +1010,7 @@ void SOS_expand_data( SOS_pub *pub ) {
     pub->data = expanded_data;
     pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
 
-    dlog(2, "  ... done.\n");
+    dlog(6, "  ... done.\n");
 
     return;
 }
@@ -1062,7 +1093,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             SOS_expand_data(pub);
         }
 
-        /* Insert the value */
+        /* Insert the value...
+         * NOTE: (pos + 1) is correct, see SOS_pub_search(...) for explanation. */
         pos = pub->elem_count;
         pub->elem_count++;
         pub->name_table->put(pub->name_table, name, (void *) (pos + 1));
@@ -1128,13 +1160,16 @@ void SOS_pub_destroy(SOS_pub *pub) {
     int guid_str[60] = {0};
 
     if (SOS->config.offline_test_mode != true) {
-        /* TODO: { PUB DESTROY } Right now this only works in offline test mode. */
+        /* TODO: { PUB DESTROY } Right now this only works in offline test mode.
+        *  ...is this still the case?  */
         return;
     }
 
     if (pub == NULL) { return; }
 
     dlog(6, "Freeing pub components:\n");
+    dlog(6, "  ... snapshot queue\n");
+    SOS_val_snap_queue_drain(pub->snap_queue, pub);
     dlog(6, "  ... element data: ");
     for (elem = 0; elem < pub->elem_max; elem++) {
         if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
@@ -1150,8 +1185,6 @@ void SOS_pub_destroy(SOS_pub *pub) {
     if (pub->data != NULL) { free(pub->data); }
     dlog(6, "  ... name table\n");
     pub->name_table->free(pub->name_table);
-    dlog(6, "  ... snap queue\n");
-    SOS_val_snap_queue_destroy(pub->snap_queue);
     dlog(6, "  ... pub handle itself\n");
     if (pub != NULL) { free(pub); pub = NULL; }
     dlog(6, "  done.\n");
@@ -1181,6 +1214,8 @@ void SOS_val_snap_queue_init(SOS_runtime *sos_context, SOS_val_snap_queue **queu
     queue = *queue_var;
 
     dlog(5, "Initializing a val_snap_queue:\n");
+
+    queue->sos_context = sos_context;
 
     dlog(5, "  ... initializing queue->lock\n");
     queue->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
@@ -1454,7 +1489,7 @@ void SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_v
 
 
 
- void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
+void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
     SOS_SET_CONTEXT(queue->sos_context, "SOS_val_snap_queue_drain");
     SOS_val_snap *snap;
     SOS_val_snap *next_snap;

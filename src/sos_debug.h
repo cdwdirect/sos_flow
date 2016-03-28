@@ -44,14 +44,18 @@ FILE   *sos_daemon_log_fptr;
     /* Set the behavior of the debugging macros: */
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
-    if (SOS->role != SOS_ROLE_CLIENT) {                                  \
+    if (SOS->role != SOS_ROLE_CLIENT) {                                 \
         if (SOSD_DAEMON_LOG > level) {                                  \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
-                fprintf(sos_daemon_log_fptr, "(%s:%d)",                 \
-                        __FILE__, __LINE__ );                           \
+                if (sos_daemon_log_fptr != NULL) {                      \
+                    fprintf(sos_daemon_log_fptr, "(%s:%d)",             \
+                            __FILE__, __LINE__ );                       \
+                }                                                       \
             }                                                           \
-            fprintf(sos_daemon_log_fptr, __VA_ARGS__);                  \
-            fflush(sos_daemon_log_fptr);                                \
+            if (sos_daemon_log_fptr != NULL) {                          \
+                fprintf(sos_daemon_log_fptr, __VA_ARGS__);              \
+                fflush(sos_daemon_log_fptr);                            \
+            }                                                           \
             if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {       \
                 if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
                     printf("(%s:%d)", __FILE__, __LINE__ );             \

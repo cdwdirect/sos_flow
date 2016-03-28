@@ -89,7 +89,7 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
+    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, NULL );
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);

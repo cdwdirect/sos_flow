@@ -27,7 +27,7 @@
 #define SOSD_PUB_ANN_CLOUD           88
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
-#define SOSD_pack_ack(__buffer, __len_var) {             \
+#define SOSD_pack_ack(__context, __buffer, __len_var) {  \
         SOS_msg_header header;                           \
         memset(&header, '\0', sizeof(header));           \
         header.msg_size = -1;                            \
@@ -35,12 +35,14 @@
         header.msg_from = 0;                             \
         header.pub_guid = 0;                             \
         *__len_var = 0;                                  \
-        *__len_var += SOS_buffer_pack(__buffer, "iill",  \
+        *__len_var += SOS_buffer_pack(__context,         \
+                                      __buffer, "iill",  \
                                       header.msg_size,   \
                                       header.msg_type,   \
                                       header.msg_from,   \
                                       header.pub_guid);  \
-        SOS_buffer_pack(__buffer, "i", *__len_var);      \
+        SOS_buffer_pack(__context,                       \
+                        __buffer, "i", *__len_var);      \
     }
 
 

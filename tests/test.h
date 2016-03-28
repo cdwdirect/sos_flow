@@ -6,6 +6,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "sos.h"
+
 /*
  *  Should work fine in most linux terminals.
  *    Ex:   printf(colorRed "Red text!" colorNormal "\n");
@@ -30,6 +32,8 @@ extern int SOS_RUN_MODE;
 
 extern void random_string(char *dest_str, size_t size);
 extern void random_double(double *dest_dbl);
+
+extern SOS_runtime *TEST_sos;
 
 #define SOS_test_result(level, module_name, pass_fail);         \
     {                                                           \
