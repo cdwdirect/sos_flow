@@ -161,7 +161,9 @@ extern "C" {
     void  SOSD_apply_announce( SOS_pub *pub, unsigned char *msg, int msg_len );
     void  SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len );
 
+    /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
+    extern SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime);
 
 
 #ifdef __cplusplus

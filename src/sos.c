@@ -24,17 +24,18 @@
 #include "qhashtbl.h"
 
 /* Private functions (not in the header file) */
-void*  SOS_THREAD_feedback(void *arg);
-void   SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *buffer, int buffer_length);
+void*        SOS_THREAD_feedback(void *arg);
+void         SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *buffer, int buffer_length);
+void         SOS_expand_data(SOS_pub *pub);
 
-void   SOS_expand_data(SOS_pub *pub);
+SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime);
 
-/* Doesn't lock the queue, for use within queue functions. */
-void   SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub);
+void         SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub);
+             /* NOTE: Doesn't lock the queue, for use within queue functions when lock is held. */
 
 
 /* Private variables (not exposed in the header file) */
-int   SOS_NULL_STR_LEN  = sizeof(unsigned char);
+int            SOS_NULL_STR_LEN  = sizeof(unsigned char);
 unsigned char  SOS_NULL_STR_CHAR = '\0';
 unsigned char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
 
@@ -45,7 +46,11 @@ SOS_runtime SOS;
 /* [util]                                   */
 /* **************************************** */
 
-SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime ) {
+SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role) {
+    return SOS_init_runtime(argc, argv, role, NULL);
+}
+
+SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime ) {
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
@@ -602,14 +607,14 @@ void SOS_finalize(SOS_runtime *sos_context) {
     SOS_SET_CONTEXT(sos_context, "SOS_finalize");
     
     /* This will cause any SOS threads to leave their loops next time they wake up. */
-    dlog(0, "SOS->status = SOS_STATUS_SHUTDOWN\n");
+    dlog(1, "SOS->status = SOS_STATUS_SHUTDOWN\n");
     SOS->status = SOS_STATUS_SHUTDOWN;
 
     free(SOS->config.node_id);
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         #if (SOS_CONFIG_USE_THREAD_POOL > 0)
-        dlog(0, "  ... Joining threads...\n");
+        dlog(1, "  ... Joining threads...\n");
         pthread_cond_signal(SOS->task.feedback_cond);
         pthread_join(*SOS->task.feedback, NULL);
         pthread_cond_destroy(SOS->task.feedback_cond);
@@ -619,25 +624,25 @@ void SOS_finalize(SOS_runtime *sos_context) {
         free(SOS->task.feedback_cond);
         free(SOS->task.feedback);
 
-        dlog(0, "  ... Removing send lock...\n");
+        dlog(1, "  ... Removing send lock...\n");
         pthread_mutex_lock(SOS->net.send_lock);
         pthread_mutex_destroy(SOS->net.send_lock);
         free(SOS->net.send_lock);
         #endif
 
-        dlog(0, "  ... Releasing snapshot queue...\n");
+        dlog(1, "  ... Releasing snapshot queue...\n");
         SOS_val_snap_queue_destroy(SOS->task.val_intake);
 
-        dlog(0, "  ... Releasing uid objects...\n");
+        dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
     }
 
-    dlog(0, "  ... Releasing ring queues...\n");
+    dlog(1, "  ... Releasing ring queues...\n");
     SOS_ring_destroy(SOS->ring.send);
     SOS_ring_destroy(SOS->ring.recv);
 
-    dlog(0, "Done!\n");
+    dlog(1, "Done!\n");
     free(SOS);
 
     return;
@@ -1119,7 +1124,6 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         data = pub->data[pos];
         /* If the value is dirty, smash it down into the queue. */
         if (data->state == SOS_VAL_STATE_DIRTY) {
-            /* TODO:{ SOS_PACK } This queue needs to be sent to the daemon... */
             SOS_val_snap_enqueue(pub->snap_queue, pub, pos);
         }
 
@@ -1943,6 +1947,7 @@ void SOS_publish( SOS_pub *pub ) {
     int              reply_max;
 
     SOS_val_snap_queue *snaps;
+    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
     buffer     = buffer_stack;
@@ -1966,9 +1971,11 @@ void SOS_publish( SOS_pub *pub ) {
     SOS_publish_to_buffer(pub, &buffer, &buffer_len);
     dlog(6, "  ... sending the buffer to the daemon.\n");
     SOS_send_to_daemon(SOS, buffer, buffer_len, reply, reply_max);
+
     dlog(6, "  ... checking for val_snap queue entries.\n");
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
     snaps = pub->snap_queue;
-    if ((snaps->from->get(snaps->from, pub->title)) != NULL) {
+    if ((snaps->from->get(snaps->from, pub_guid_str)) != NULL) {
         dlog(6, "  ... entries found, placing them into a buffer.\n");
         SOS_val_snap_queue_to_buffer(snaps, pub, &buffer, &buffer_len, true);
         dlog(6, "  ... sending the buffer to the daemon.\n");

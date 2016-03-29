@@ -85,11 +85,13 @@ int main(int argc, char *argv[]) {
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
     char    *str_prog_ver = "1.0";
-    char    *var_string   = "Hello, world!";
+    char     var_string[100] = {0};
     int      var_int;
     double   var_double;
     
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, NULL );
+    snprintf(var_string, 100, "Hello, world!");
+
+    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
@@ -193,8 +195,13 @@ int main(int argc, char *argv[]) {
         var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
 
-        SOS_publish(pub);
+        if (ones % 2) {
+            /* Publish every other iteration to force local snap-queue use. */
+            SOS_publish(pub);
+        }
     }
+    /* Catch any stragglers. */
+    SOS_publish(pub);
     dlog(0, "  ... done.\n");
     
     printf("demo_app finished successfully!\n"); fflush(stdout);

@@ -108,7 +108,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Initializing SOSD:\n");
 
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( my_role, SOS_ROLE ));
-    SOSD.sos_context = SOS_init( &argc, &argv, my_role, SOSD.sos_context );
+    SOSD.sos_context = SOS_init_runtime( &argc, &argv, my_role, SOSD.sos_context );
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
@@ -325,6 +325,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_GUID_BLOCK: dlog(5, "  ... msg_type = GUID_BLOCK (%d)\n", header.msg_type); break;
         case SOS_MSG_TYPE_ANNOUNCE:   dlog(5, "  ... msg_type = ANNOUNCE (%d)\n", header.msg_type); break;
         case SOS_MSG_TYPE_PUBLISH:    dlog(5, "  ... msg_type = PUBLISH (%d)\n", header.msg_type); break;
+        case SOS_MSG_TYPE_VAL_SNAPS:  dlog(5, "  ... msg_type = VAL_SNAPS (%d)\n", header.msg_type); break;
         case SOS_MSG_TYPE_ECHO:       dlog(5, "  ... msg_type = ECHO (%d)\n", header.msg_type); break;
         case SOS_MSG_TYPE_SHUTDOWN:   dlog(5, "  ... msg_type = SHUTDOWN (%d)\n", header.msg_type); break;
         case SOS_MSG_TYPE_CHECK_IN:   dlog(5, "  ... msg_type = CHECK_IN (%d)\n", header.msg_type); break;
@@ -336,6 +337,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_GUID_BLOCK: SOSD_handle_guid_block (buffer, byte_count); break;
         case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer, byte_count); break;
         case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer, byte_count); break;
+        case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (buffer, byte_count); break;
         case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (buffer, byte_count); break;
         case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer, byte_count); break;
         case SOS_MSG_TYPE_CHECK_IN:   SOSD_handle_check_in   (buffer, byte_count); break;

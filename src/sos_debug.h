@@ -22,7 +22,7 @@
  *     +3 = VERY verbose
  *      0 = essential messages only (allows daemon logging)
  *     -1 = disabled in daemon/client (for production runs)  */
-#define SOS_DEBUG                 0
+#define SOS_DEBUG                 -1
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
@@ -45,7 +45,7 @@ FILE   *sos_daemon_log_fptr;
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
     if (SOS->role != SOS_ROLE_CLIENT) {                                 \
-        if (SOSD_DAEMON_LOG > level) {                                  \
+        if (SOSD_DAEMON_LOG >= level) {                                  \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 if (sos_daemon_log_fptr != NULL) {                      \
                     fprintf(sos_daemon_log_fptr, "(%s:%d)",             \
@@ -66,7 +66,7 @@ FILE   *sos_daemon_log_fptr;
             }                                                           \
         }                                                               \
     } else {                                                            \
-        if (SOS_DEBUG > level && SOS->role != SOS_ROLE_DAEMON) {         \
+        if (SOS_DEBUG >= level && SOS->role != SOS_ROLE_DAEMON) {         \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 printf("(%s:%d)", __FILE__, __LINE__ );                 \
             }                                                           \

@@ -451,7 +451,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = snap->val.c_val; break;
+        case SOS_VAL_TYPE_STRING: val = snap->val.c_val; dlog(0, "Injecting: %s\n", snap->val.c_val); break;
         default:
             dlog(5, "     ... error: invalid value type.  (%d)\n", pub->data[snap->elem]->type); break;
         }
@@ -542,7 +542,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         case SOS_VAL_TYPE_DOUBLE: val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val; break;
         default:
-            dlog(5, "ERROR: Attempting to insert an invalid daya type.  (%d)  Continuing...\n", pub->data[i]->type);
+            dlog(5, "ERROR: Attempting to insert an invalid data type.  (%d)  Continuing...\n", pub->data[i]->type);
             break;
             continue;
         }
