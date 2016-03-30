@@ -1034,30 +1034,7 @@ void SOS_strip_str( char *str ) {
 }
 
 
-int SOS_define_value( SOS_pub *pub, const char *name, SOS_val_type val_type, SOS_val_meta val_meta) {
-    SOS_SET_CONTEXT(pub->sos_context, "SOS_define_val");
-
-    SOS_val empty;
-    int val_pos;
-
-    memset(&empty, '\0', sizeof(SOS_val));
-
-    switch (val_type) {
-    case SOS_VAL_TYPE_INT:    empty.i_val = 0;    break;
-    case SOS_VAL_TYPE_LONG:   empty.l_val = 0;    break;
-    case SOS_VAL_TYPE_DOUBLE: empty.d_val = 0.0;  break;
-    case SOS_VAL_TYPE_STRING: empty.c_val = NULL; break;
-    default: dlog(0, "ERROR!  Attempted to define an invalid value type (%d).\n", val_type); exit(EXIT_FAILURE); break;
-    }
-
-    val_pos = SOS_pack(pub, name, val_type, empty);
-    pub->data[val_pos]->meta = val_meta;
-
-    return val_pos;
-}
-
-
-int SOS_event( SOS_pub *pub, const char *name, SOS_val_semantic semantic ) {
+int SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_event");
     int pos = 0;
     int val = 1;
@@ -1087,7 +1064,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
     /* The hash table will return NULL if a value is not present.
      * The pub->data[elem] index is zero-indexed, so indices are stored +1, to
-     *   differentiate between empty and the first position.
+     *   differentiate between empty and the first position.  The value
+     *   returned by SOS_pub_search() is the actual array index to be used.
      */
     pos = SOS_pub_search(pub, name);
 
@@ -1098,10 +1076,12 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             SOS_expand_data(pub);
         }
 
-        /* Insert the value...
-         * NOTE: (pos + 1) is correct, see SOS_pub_search(...) for explanation. */
+        /* Insert the value... */
         pos = pub->elem_count;
         pub->elem_count++;
+
+        /* NOTE: (pos + 1) is correct, we're storing it's "N'th element" position
+         *       rather than it's array index. See SOS_pub_search(...) for explanation. */
         pub->name_table->put(pub->name_table, name, (void *) (pos + 1));
 
         data = pub->data[pos];

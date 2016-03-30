@@ -36,6 +36,21 @@ sqlite3_stmt *stmt_insert_val;
 sqlite3_stmt *stmt_insert_enum;
 sqlite3_stmt *stmt_insert_sosd;
 
+#if (SOS_CONFIG_DB_ENUM_STRINGS > 0)
+    #define __ENUM_DB_TYPE " STRING "
+    #define __ENUM_C_TYPE const char*
+    #define __ENUM_VAL(__source, __enum_handle) \
+        SOS_ENUM_STR( __source, __enum_handle )
+    #define __BIND_ENUM(__statement, __position, __variable) \
+        CALL_SQLITE( bind_text(__statement, __position, __variable, 1 + strlen(__variable), SQLITE_STATIC))
+#else
+    #define __ENUM_DB_TYPE " INTEGER "
+    #define __ENUM_C_TYPE int
+    #define __ENUM_VAL(__source, __enum_handle) \
+        __source
+    #define __BIND_ENUM(__statement, __position, __variable) \
+        CALL_SQLITE(bind_int(__statement, __position, __variable))
+#endif
 
 char *sql_create_table_pubs = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUBS_TABLE_NAME " ( "         \
@@ -49,11 +64,11 @@ char *sql_create_table_pubs = ""                                        \
     " prog_name "       " STRING, "                                     \
     " prog_ver "        " STRING, "                                     \
     " meta_channel "    " INTEGER, "                                    \
-    " meta_nature "     " STRING, "                                     \
-    " meta_layer "      " STRING, "                                     \
-    " meta_pri_hint "   " STRING, "                                     \
-    " meta_scope_hint " " STRING, "                                     \
-    " meta_retain_hint "" STRING, "                                     \
+    " meta_nature "     __ENUM_DB_TYPE ", "                                \
+    " meta_layer "      __ENUM_DB_TYPE ", "                                \
+    " meta_pri_hint "   __ENUM_DB_TYPE ", "                                \
+    " meta_scope_hint " __ENUM_DB_TYPE ", "                                \
+    " meta_retain_hint "__ENUM_DB_TYPE ", "                                \
     " pragma "          " STRING); ";
 
 char *sql_create_table_data = ""                                        \
@@ -62,11 +77,11 @@ char *sql_create_table_data = ""                                        \
     " pub_guid "        " INTEGER, "                                    \
     " guid "            " INTEGER, "                                    \
     " name "            " STRING, "                                     \
-    " val_type "        " STRING, "                                     \
-    " meta_freq "       " STRING, "                                     \
-    " meta_class "      " STRING, "                                     \
-    " meta_pattern "    " STRING, "                                     \
-    " meta_compare "    " STRING); ";
+    " val_type "        __ENUM_DB_TYPE ", "                                \
+    " meta_freq "       __ENUM_DB_TYPE ", "                                \
+    " meta_class "      __ENUM_DB_TYPE ", "                                \
+    " meta_pattern "    __ENUM_DB_TYPE ", "                                \
+    " meta_compare "    __ENUM_DB_TYPE ");";
 
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
@@ -74,8 +89,8 @@ char *sql_create_table_vals = ""                                        \
     " guid "            " INTEGER, "                                    \
     " val "             " STRING, "                                     \
     " frame "           " INTEGER, "                                    \
-    " meta_semantic "   " STRING, "                                     \
-    " meta_mood "       " STRING, "                                     \
+    " meta_semantic "   __ENUM_DB_TYPE ", "                                \
+    " meta_mood "       __ENUM_DB_TYPE ", "                                \
     " time_pack "       " DOUBLE, "                                     \
     " time_send "       " DOUBLE, "                                     \
     " time_recv "       " DOUBLE); ";
@@ -338,11 +353,11 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     char          *prog_name         = pub->prog_name;
     char          *prog_ver          = pub->prog_ver;
     int            meta_channel      = pub->meta.channel;
-    const char    *meta_nature       = SOS_ENUM_STR(pub->meta.nature, SOS_NATURE);
-    const char    *meta_layer        = SOS_ENUM_STR(pub->meta.layer, SOS_LAYER);
-    const char    *meta_pri_hint     = SOS_ENUM_STR(pub->meta.pri_hint, SOS_PRI);
-    const char    *meta_scope_hint   = SOS_ENUM_STR(pub->meta.scope_hint, SOS_SCOPE);
-    const char    *meta_retain_hint  = SOS_ENUM_STR(pub->meta.retain_hint, SOS_RETAIN);
+    __ENUM_C_TYPE  meta_nature       = __ENUM_VAL(pub->meta.nature, SOS_NATURE);
+    __ENUM_C_TYPE  meta_layer        = __ENUM_VAL(pub->meta.layer, SOS_LAYER);
+    __ENUM_C_TYPE  meta_pri_hint     = __ENUM_VAL(pub->meta.pri_hint, SOS_PRI);
+    __ENUM_C_TYPE  meta_scope_hint   = __ENUM_VAL(pub->meta.scope_hint, SOS_SCOPE);
+    __ENUM_C_TYPE  meta_retain_hint  = __ENUM_VAL(pub->meta.retain_hint, SOS_RETAIN);
     unsigned char *pragma            = pub->pragma_msg;
     int            pragma_len        = pub->pragma_len;
     unsigned char  pragma_empty[2];    memset(pragma_empty, '\0', 2);
@@ -360,11 +375,11 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name,        1 + strlen(prog_name), SQLITE_STATIC  ));
     CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver,         1 + strlen(prog_ver), SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 9,  meta_channel ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 10, meta_nature,      1 + strlen(meta_nature), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 11, meta_layer,       1 + strlen(meta_layer), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 12, meta_pri_hint,    1 + strlen(meta_pri_hint), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 13, meta_scope_hint,  1 + strlen(meta_scope_hint), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 14, meta_retain_hint, 1 + strlen(meta_retain_hint), SQLITE_STATIC  ));
+    __BIND_ENUM (stmt_insert_pub, 10, meta_nature  );
+    __BIND_ENUM (stmt_insert_pub, 11, meta_layer   );
+    __BIND_ENUM (stmt_insert_pub, 12, meta_pri_hint);
+    __BIND_ENUM (stmt_insert_pub, 13, meta_scope_hint );
+    __BIND_ENUM (stmt_insert_pub, 14, meta_retain_hint );
     if (pragma_len > 0) {
         /* Only bind the pragma if there actually is something to insert... */
         CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma,           pub->pragma_len, SQLITE_STATIC  ));
@@ -424,8 +439,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
     double        time_send;
     double        time_recv;
     long          frame;
-    const char   *semantic;
-    const char   *mood;
+    __ENUM_C_TYPE semantic;
+    __ENUM_C_TYPE mood;
     
     val_alloc = (char *) malloc(SOS_DEFAULT_STRING_LEN);
 
@@ -437,8 +452,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         time_send         = snap->time.send;
         time_recv         = snap->time.recv;
         frame             = snap->frame;
-        semantic          = SOS_ENUM_STR( snap->semantic, SOS_VAL_SEMANTIC );
-        mood              = SOS_ENUM_STR( snap->mood, SOS_MOOD );
+        semantic          = __ENUM_VAL( snap->semantic, SOS_VAL_SEMANTIC );
+        mood              = __ENUM_VAL( snap->mood, SOS_MOOD );
 
         SOS_TIME( time_recv );
 
@@ -461,8 +476,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         CALL_SQLITE (bind_int    (stmt_insert_val, 1,  guid         ));
         CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val,              1 + strlen(val),            SQLITE_STATIC ));
         CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
-        CALL_SQLITE (bind_text   (stmt_insert_val, 4,  semantic,    1 + strlen(semantic),  SQLITE_STATIC ));
-        CALL_SQLITE (bind_text   (stmt_insert_val, 5,  mood,        1 + strlen(mood),      SQLITE_STATIC ));
+        __BIND_ENUM (stmt_insert_val, 4,  semantic     );
+        __BIND_ENUM (stmt_insert_val, 5,  mood         );
         CALL_SQLITE (bind_double (stmt_insert_val, 6,  time_pack    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 7,  time_send    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 8,  time_recv    ));
@@ -527,11 +542,11 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         long          guid              = pub->data[i]->guid;
         const char   *name              = pub->data[i]->name;
         char         *val;
-        const char   *val_type          = SOS_ENUM_STR( pub->data[i]->type, SOS_VAL_TYPE );
-        const char   *meta_freq         = SOS_ENUM_STR( pub->data[i]->meta.freq, SOS_VAL_FREQ );
-        const char   *meta_class        = SOS_ENUM_STR( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
-        const char   *meta_pattern      = SOS_ENUM_STR( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
-        const char   *meta_compare      = SOS_ENUM_STR( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
+        __ENUM_C_TYPE val_type          = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
+        __ENUM_C_TYPE meta_freq         = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
+        __ENUM_C_TYPE meta_class        = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
+        __ENUM_C_TYPE meta_pattern      = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
+        __ENUM_C_TYPE meta_compare      = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
 
         char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
         memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
@@ -550,11 +565,11 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         CALL_SQLITE (bind_int    (stmt_insert_data, 1,  pub_guid     ));
         CALL_SQLITE (bind_int    (stmt_insert_data, 2,  guid         ));
         CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             1 + strlen(name), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 4,  val_type,         1 + strlen(val_type), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 5,  meta_freq,        1 + strlen(meta_freq), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 6,  meta_class,       1 + strlen(meta_class), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 7,  meta_pattern,     1 + strlen(meta_pattern), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 8,  meta_compare,     1 + strlen(meta_compare), SQLITE_STATIC     ));
+        __BIND_ENUM (stmt_insert_data, 4,  val_type     );
+        __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
+        __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
+        __BIND_ENUM (stmt_insert_data, 7,  meta_pattern );
+        __BIND_ENUM (stmt_insert_data, 8,  meta_compare );
 
         dlog(5, "  ... executing insert query   pub->data[%d].(%s)\n", i, pub->data[i]->name);
 

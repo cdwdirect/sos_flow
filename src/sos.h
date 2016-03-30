@@ -31,6 +31,8 @@
 /* SOS Configuration Switches... */
 
 #define SOS_CONFIG_USE_THREAD_POOL  1
+#define SOS_CONFIG_DB_STRING_ENUMS  0
+
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
@@ -439,9 +441,8 @@ extern "C" {
     int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);
 
-    int       SOS_define_val(SOS_pub *pub, const char *name, SOS_val_type type, SOS_val_meta meta);
     int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
-    void      SOS_repack(SOS_pub *pub, int index, SOS_val pack_val);
+    int       SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
 
     void      SOS_announce(SOS_pub *pub);
     void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
