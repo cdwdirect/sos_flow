@@ -1084,6 +1084,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         data->type = pack_type;
         if (data->type == SOS_VAL_TYPE_STRING) {
             data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+            dlog(0, "[STRING] Packing a string: %s", data->val.c_val);
         } else {
             data->val  = pack_val;
         }
@@ -1105,6 +1106,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         if (data->type == SOS_VAL_TYPE_STRING) {
             if (data->val.c_val != NULL) { free(data->val.c_val); }
             data->val.c_val = strndup( pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+            dlog(0, "[STRING] Re-packing a string value: %s\n", data->val.c_val);
         } else {
             data->val = pack_val;
         }
@@ -1112,6 +1114,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         SOS_TIME( data->time.pack );
     }
 
+    return;
 }
 
 int SOS_pub_search(SOS_pub *pub, const char *name) {
@@ -1137,8 +1140,10 @@ void SOS_pub_destroy(SOS_pub *pub) {
     int elem;
 
     if (SOS->config.offline_test_mode != true) {
-        /* TODO: { PUB DESTROY } Right now this only works in offline test mode.
-        *  ...is this still the case?  */
+        /* TODO: { PUB DESTROY } Right now this only works in offline test mode
+         * within the client-side library code. The Daemon likely has additional
+         * memory structures in play.
+         *  ...is this still the case?  */
         return;
     }
 
@@ -1389,8 +1394,11 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
     dlog(6, "     ... header.msg_type == %d\n", header.msg_type);
     dlog(6, "     ... header.msg_from == %ld\n", header.msg_from);
     dlog(6, "     ... header.pub_guid == %ld\n", header.pub_guid);
+    
+    char guid_str[SOS_DEFAULT_STRING_LEN];
+    snprintf(guid_str, SOS_DEFAULT_STRING_LEN, "%ld", header.pub_guid);
 
-    pub = (SOS_pub *) pub_table->get(pub_table, pub->guid_str);
+    pub = (SOS_pub *) pub_table->get(pub_table, guid_str);
     
     if (pub == NULL) {
         dlog(1, "WARNING! Attempting to build snap_queue for a pub we don't know about.\n");
@@ -1426,6 +1434,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
             snap->val.c_val = (char *) malloc(1 + string_len);
             memset(snap->val.c_val, '\0', (1 + string_len));
             offset += SOS_buffer_unpack(SOS, ptr, "s", snap->val.c_val);
+            dlog(0, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
             break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
@@ -1704,6 +1713,8 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
 
     pub->guid = header.pub_guid;
 
+    snprintf(pub->guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
+
     dlog(6, "  ... unpacking the pub definition.\n");
     /* Unpack the pub definition: */
 
@@ -1864,6 +1875,7 @@ void SOS_publish_from_buffer( SOS_pub *pub, unsigned char *buf_ptr, SOS_val_snap
                 memset(pub->data[elem]->val.c_val, '\0', (1 + pub->data[elem]->val_len));
             }
             buffer_pos += SOS_buffer_unpack(SOS, ptr, "s", pub->data[elem]->val.c_val);
+            dlog(0, "[STRING] Extracted pub message string: %s\n", pub->data[elem]->val.c_val);
             break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[elem]->type, elem, pub->guid);
