@@ -677,8 +677,9 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
         pub = SOS_pub_create(SOS, guid_str, SOS_NATURE_DEFAULT);
-        SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
+        strncpy(pub->guid_str, guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.pub_guid;
+        SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
     } else {
         dlog(5, "     ... FOUND IT!\n");
     }
@@ -735,8 +736,9 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
         /* If it's not in the table, add it. */
         dlog(1, "     ... WHOAH!  PUBLISHING INTO A PUB NOT FOUND! (WEIRD!)  ADDING new pub to the table... (this is bogus, man)\n");
         pub = SOS_pub_create(SOS, guid_str, SOS_NATURE_DEFAULT);
-        SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
+        strncpy(pub->guid_str, guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.pub_guid;
+        SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
     } else {
         dlog(5, "     ... FOUND it!\n");
     }

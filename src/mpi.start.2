@@ -23,7 +23,7 @@ echo ${daemon1}
 
 valgrind_cmd=""
 #valgrind_cmd="valgrind --tool=memcheck --leak-check=full --max-stackframe=3097792 --show-reachable=yes --error-limit=no --log-file=${SOS_WORK}/sosd.valgrind.log --show-leak-kinds=all --track-origins=yes --trace-children=yes "
-#valgrind_cmd="valgrind --tool=memcheck --leak-check=full --track-origins=yes --trace-children=yes "
+#valgrind_cmd="valgrind --tool=memcheck --leak-check=full --track-origins=yes --trace-children=yes --log-file=${SOS_WORK}/sosd.valgrind.log "
 
 if [ "x${valgrind_cmd}" == "x" ] ; then
   echo ""
@@ -38,9 +38,9 @@ fi
 echo "=========="
 echo "Launch command:"
 echo ""
-echo "mpirun -np 1 ${daemon0} : -np 1 ${valgrind_cmd} ${daemon1}"
+echo "mpirun -np 1 ${valgrind_vmd} ${daemon0} : -np 1 ${daemon1}"
 echo ""
 echo "=========="
 echo ""
 
-mpirun -np 1 ${daemon0} : -np 1 ${valgrind_cmd} ${daemon1}
+mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}
