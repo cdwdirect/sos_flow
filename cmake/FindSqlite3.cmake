@@ -41,24 +41,22 @@ FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h
   "$ENV{SQLITE}/include"
   "$ENV{LIB_DIR}/include"
   "$ENV{LIB_DIR}/include/sqlite"
-  "$ENV{SQLITE_ROOT}/include"
-  "$ENV{SQLITE_ROOT}/include/sqlite"
   #mingw
   c:/msys/local/include
   NO_DEFAULT_PATH
   )
 FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h)
 
-FIND_LIBRARY(SQLITE3_LIBRARY NAMES libsqlite3.so sqlite3 sqlite3_i PATHS
+FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3 sqlite3_i PATHS
   "$ENV{SQLITE}/lib"
+  $ENV{LIB} 
+  /usr/lib 
   "$ENV{LIB_DIR}/lib"
-  "$ENV{SQLITE_ROOT}/lib"
-  "$ENV{LIB}"
-  "/usr/lib"
   #mingw
   c:/msys/local/lib
   NO_DEFAULT_PATH
   )
+FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3)
 
 IF (SQLITE3_INCLUDE_DIR AND SQLITE3_LIBRARY)
    SET(SQLITE3_FOUND TRUE)
@@ -68,8 +66,7 @@ ENDIF (SQLITE3_INCLUDE_DIR AND SQLITE3_LIBRARY)
 IF (SQLITE3_FOUND)
 
    IF (NOT SQLITE3_FIND_QUIETLY)
-      MESSAGE(STATUS "Found Sqlite3 header: ${SQLITE3_INCLUDE_DIR}")
-      MESSAGE(STATUS "Found Sqlite3 library: ${SQLITE3_LIBRARY}")
+      MESSAGE(STATUS "Found Sqlite3: ${SQLITE3_LIBRARY}")
    ENDIF (NOT SQLITE3_FIND_QUIETLY)
 
 ELSE (SQLITE3_FOUND)

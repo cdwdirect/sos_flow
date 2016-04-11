@@ -27,7 +27,7 @@
 #define SOSD_PUB_ANN_CLOUD           88
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
-#define SOSD_pack_ack(__buffer, __len_var) {             \
+#define SOSD_pack_ack(__context, __buffer, __len_var) {  \
         SOS_msg_header header;                           \
         memset(&header, '\0', sizeof(header));           \
         header.msg_size = -1;                            \
@@ -35,12 +35,14 @@
         header.msg_from = 0;                             \
         header.pub_guid = 0;                             \
         *__len_var = 0;                                  \
-        *__len_var += SOS_buffer_pack(__buffer, "iill",  \
+        *__len_var += SOS_buffer_pack(__context,         \
+                                      __buffer, "iill",  \
                                       header.msg_size,   \
                                       header.msg_type,   \
                                       header.msg_from,   \
                                       header.pub_guid);  \
-        SOS_buffer_pack(__buffer, "i", *__len_var);      \
+        SOS_buffer_pack(__context,                       \
+                        __buffer, "i", *__len_var);      \
     }
 
 
@@ -89,13 +91,16 @@ typedef struct {
     int                 cloud_sync_target;
 } SOSD_runtime;
 
+
 typedef struct {
     char               *file;
     int                 ready;
     pthread_mutex_t    *lock;
 } SOSD_db;
 
+
 typedef struct {
+    SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
     SOSD_net            net;
@@ -158,7 +163,9 @@ extern "C" {
     void  SOSD_apply_announce( SOS_pub *pub, unsigned char *msg, int msg_len );
     void  SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len );
 
-    extern void SOS_uid_init( SOS_uid **uid, long from, long to);
+    /* Private functions... see: sos.c */
+    extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
+    extern SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 
 #ifdef __cplusplus

@@ -22,7 +22,7 @@
  *     +3 = VERY verbose
  *      0 = essential messages only (allows daemon logging)
  *     -1 = disabled in daemon/client (for production runs)  */
-#define SOS_DEBUG                 1
+#define SOS_DEBUG                 0
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
@@ -38,33 +38,40 @@ FILE   *sos_daemon_log_fptr;
 #if (SOS_DEBUG < 0)
 
     /* Nullify the variadic debugging macros wherever they are in code: */
-    #define dlog(level, ...)
+    #define dlog(level, ...)   
 
 #else
     /* Set the behavior of the debugging macros: */
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
-    if (SOS.role != SOS_ROLE_CLIENT) {                                  \
-        if (SOSD_DAEMON_LOG > level) {                                  \
+    if (SOS->role != SOS_ROLE_CLIENT) {                                 \
+        if (SOSD_DAEMON_LOG >= level) {                                  \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
-                fprintf(sos_daemon_log_fptr, "(%s:%d)",                 \
-                        __FILE__, __LINE__ );                           \
+                if (sos_daemon_log_fptr != NULL) {                      \
+                    fprintf(sos_daemon_log_fptr, "(%s:%d)",             \
+                            __FILE__, __LINE__ );                       \
+                }                                                       \
             }                                                           \
-            fprintf(sos_daemon_log_fptr, __VA_ARGS__);                  \
-            fflush(sos_daemon_log_fptr);                                \
+            if (sos_daemon_log_fptr != NULL) {                          \
+                fprintf(sos_daemon_log_fptr, "[%s]: ", SOS_WHOAMI);     \
+                fprintf(sos_daemon_log_fptr, __VA_ARGS__);              \
+                fflush(sos_daemon_log_fptr);                            \
+            }                                                           \
             if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {       \
                 if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
                     printf("(%s:%d)", __FILE__, __LINE__ );             \
                 }                                                       \
+                printf("[%s]: ", SOS_WHOAMI);                           \
                 printf(__VA_ARGS__);                                    \
                 fflush(stdout);                                         \
             }                                                           \
         }                                                               \
     } else {                                                            \
-        if (SOS_DEBUG > level && SOS.role != SOS_ROLE_DAEMON) {         \
+        if (SOS_DEBUG >= level && SOS->role != SOS_ROLE_DAEMON) {       \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 printf("(%s:%d)", __FILE__, __LINE__ );                 \
             }                                                           \
+            printf("[%s]: ", SOS_WHOAMI);                               \
             printf(__VA_ARGS__);                                        \
             if (stdout) fflush(stdout);                                 \
         }                                                               \

@@ -12,7 +12,7 @@ int SOS_test_all();
 int SOS_test_show_ok() { return PASS; }
 
 int SOS_RUN_MODE;
-
+SOS_runtime *TEST_sos;
 
 int main(int argc, char *argv[]) {
     int error_total = 0;
@@ -28,13 +28,13 @@ int main(int argc, char *argv[]) {
     }
 
     SOS_test_section_start(0, "SOS");
-    
-    SOS_init(&argc, &argv, SOS_RUN_MODE);
+
+    TEST_sos = SOS_init(&argc, &argv, SOS_RUN_MODE, SOS_LAYER_SOS_RUNTIME);
     SOS_test_run(1, "SOS_init", SOS_test_show_ok(), error_ignore, error_ignore);
 
     error_total = SOS_test_all();
 
-    SOS_finalize();
+    SOS_finalize(TEST_sos);
     SOS_test_run(1, "SOS_finalize", SOS_test_show_ok(), error_ignore, error_ignore);
 
     SOS_test_section_report(0, "SOS", error_total);

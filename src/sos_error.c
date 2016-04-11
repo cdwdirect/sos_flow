@@ -30,23 +30,26 @@ struct sigaction SOS_segv_act;
 struct sigaction SOS_bus_act;
 struct sigaction SOS_hup_act;
 
+SOS_runtime *ERROR_sos_context;
+
 #ifdef SOSD_DAEMON_SRC
 extern int daemon_running;  /* from: sosd.c */
 #endif
 
 static void SOS_custom_signal_handler(int sig) {
-    SOS_SET_WHOAMI(whoami, "SOS_custom_signal_handler");
+    SOS_SET_CONTEXT(ERROR_sos_context, "SOS_custom_signal_handler");
+
     static int recursion_flag;
     int crank = 0;
     int csize = 0;
 
     #ifdef SOSD_DAEMON_SRC
-    if (SOS.role == SOS_ROLE_DAEMON) {
+    if (SOSD.role == SOS_ROLE_DAEMON) {
         if (sig == SIGHUP) {
             syslog(LOG_DEBUG, "SIGHUP signal caught, shutting down.");
-            dlog(0, "[%s]: Caught SIGHUP, shutting down.\n", whoami);
+            dlog(0, "Caught SIGHUP, shutting down.\n");
             SOSD.daemon_running = 0;
-            dlog(0, "[%s]: Signaling the pub_ring monitors to iterate and then quit.\n", whoami);
+            dlog(0, "Signaling the pub_ring monitors to iterate and then quit.\n");
             pthread_cond_signal(SOSD.local_sync->extract_cond);
             pthread_cond_signal(SOSD.local_sync->commit_cond);
             pthread_cond_signal(SOSD.cloud_sync->extract_cond);
@@ -54,9 +57,9 @@ static void SOS_custom_signal_handler(int sig) {
             return;
         } else if (sig == SIGTERM) {
             syslog(LOG_DEBUG, "SIGTERM signal caught, shutting down.");
-            dlog(0, "[%s]: Caught SIGTERM, shutting down.\n", whoami);
+            dlog(0, "Caught SIGTERM, shutting down.\n");
             SOSD.daemon_running = 0;
-            dlog(0, "[%s]: Signaling the pub_ring monitors to iterate and then quit.\n", whoami);
+            dlog(0, "Signaling the pub_ring monitors to iterate and then quit.\n");
             pthread_cond_signal(SOSD.local_sync->extract_cond);
             pthread_cond_signal(SOSD.local_sync->commit_cond);
             pthread_cond_signal(SOSD.cloud_sync->extract_cond);
@@ -103,15 +106,16 @@ static void SOS_custom_signal_handler(int sig) {
     exit(99);
 }
 
-int SOS_register_signal_handler() {
-    SOS_SET_WHOAMI(whoami, "SOS_register_signal_handler");
+int SOS_register_signal_handler(SOS_runtime *sos_context) {
+    ERROR_sos_context = sos_context;
+    SOS_SET_CONTEXT(ERROR_sos_context, "SOS_register_signal_handler");
 
-    dlog(0, "[%s]: Register the signal handler.\n", whoami);
+    dlog(0, "Register the signal handler.\n");
 
     /*
      *
      *
-    dlog(0, "[%s]:   ... choosing: simple handler\n", whoami);
+    dlog(0, "  ... choosing: simple handler\n");
     struct sigaction act;
     sigemptyset(&act.sa_mask);
     act.sa_flags = SA_RESTART;
@@ -123,7 +127,7 @@ int SOS_register_signal_handler() {
     /*
      *  Register the more robust back-tracing handler...
      */
-    dlog(0, "[%s]:   ... choosing: custom handler w/backtrack\n", whoami);
+    dlog(0, "  ... choosing: custom handler w/backtrack\n");
     struct sigaction act;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;
@@ -159,7 +163,11 @@ void SOS_test_signal_handler() {
 
 
 void SOS_simple_signal_handler(int signal) {
-    SOS_SET_WHOAMI(whoami, "SOS_simple_signal_handler");
+    #ifdef SOSD_DAEMON_CODE
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOS_simple_signal_handler");
+    #else
+    SOS_SET_CONTEXT(NULL, "SOS_simple_signal_handler");
+    #endif
 
     switch (signal) {
     case SIGTERM:
@@ -169,7 +177,7 @@ void SOS_simple_signal_handler(int signal) {
         syslog(LOG_INFO, "Shutting down.\n");
         closelog();
         #endif
-        dlog(0, "[%s]: Caught SIGTERM, shutting down.\n", whoami);
+        dlog(0, "Caught SIGTERM, shutting down.\n");
         break;
     }
 }

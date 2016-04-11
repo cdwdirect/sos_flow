@@ -9,6 +9,8 @@ paper sections / notes:
 		- coupled with an application
 		- takes information and places it in a space where it can be used for analysis
 
+
+
 		- "it's a programming framework"
 			- focus on user-defined behavior
 			- programmable api to track / respond to whatever we want

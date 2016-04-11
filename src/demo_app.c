@@ -29,14 +29,14 @@
 #include "sos_debug.h"
 
 int main(int argc, char *argv[]) {
+
+    SOS_runtime *my_sos;
+
     int i;
     int elem;
     int next_elem;
     char pub_title[SOS_DEFAULT_STRING_LEN];
     SOS_pub *pub;
-    SOS_pub *pub2;
-    SOS_sub *sub;
-    pthread_t repub_t;
     double time_now;
     double time_start;
 
@@ -85,23 +85,25 @@ int main(int argc, char *argv[]) {
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
     char    *str_prog_ver = "1.0";
-    char    *var_string   = "Hello, world!";
+    char     var_string[100] = {0};
     int      var_int;
     double   var_double;
     
-    SOS_init( &argc, &argv, SOS_ROLE_CLIENT );
-    SOS_SET_WHOAMI(whoami, "demo_app.main");
+    snprintf(var_string, 100, "Hello, world!");
 
-    srandom(SOS.my_guid);
+    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
+    SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
-    printf("[%s]: demo_app starting...\n", whoami); fflush(stdout);
+    srandom(my_sos->my_guid);
+
+    printf("demo_app starting...\n"); fflush(stdout);
     
-    if (SOS_DEBUG) printf("[%s]: Creating a pub...\n", whoami);
+    dlog(0, "Creating a pub...\n");
 
-    pub = SOS_pub_create("demo");
-    if (SOS_DEBUG) printf("[%s]:   ... pub->guid  = %ld\n", whoami, pub->guid);
+    pub = SOS_pub_create(my_sos, "demo", SOS_NATURE_CREATE_OUTPUT);
+    dlog(0, "  ... pub->guid  = %ld\n", pub->guid);
 
-    if (SOS_DEBUG) printf("[%s]: Manually configuring some pub metadata...\n", whoami);
+    dlog(0, "Manually configuring some pub metadata...\n");
     strcpy (pub->prog_ver, str_prog_ver);
     pub->meta.channel     = 1;
     pub->meta.nature      = SOS_NATURE_EXEC_WORK;
@@ -111,7 +113,7 @@ int main(int argc, char *argv[]) {
     pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
 
-    if (SOS_DEBUG) printf("[%s]: Packing a couple values...\n", whoami);
+    dlog(0, "Packing a couple values...\n");
     var_double = 0.0;
     var_int = 0;
 
@@ -140,13 +142,12 @@ int main(int argc, char *argv[]) {
     var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
 
-    if (SOS_DEBUG) printf("[%s]:   ... Announcing\n", whoami);
+    dlog(0, "  ... Announcing\n");
     SOS_announce(pub);
-    if (SOS_DEBUG) printf("[%s]:   ... Publishing (initial)\n", whoami);
+    dlog(0, "  ... Publishing (initial)\n");
     SOS_publish(pub);
 
-    if (SOS_DEBUG) printf("[%s]:   ... Re-packing --> Publishing %d values for %d times per iteration:\n",
-           whoami,
+    dlog(0, "  ... Re-packing --> Publishing %d values for %d times per iteration:\n",
            NUM_VALUES,
            ITERATION_SIZE);
            
@@ -157,8 +158,7 @@ int main(int argc, char *argv[]) {
         ones += 1;
         if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
-            if (SOS_DEBUG) printf("[%s]:      ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
-                   whoami,
+            dlog(0, "     ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
                    ITERATION_SIZE,
                    NUM_VALUES,
                    (time_now - time_start),
@@ -170,7 +170,7 @@ int main(int argc, char *argv[]) {
             SOS_TIME( time_start);
         }
         if (((ones * NUM_VALUES)%1000000) == 0) {
-            if (SOS_DEBUG) printf("[%s]:      ... 1,000,000 value milestone ---------\n", whoami);
+            dlog(0, "     ... 1,000,000 value milestone ---------\n");
         }
 
         var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
@@ -195,13 +195,18 @@ int main(int argc, char *argv[]) {
         var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
         var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
 
-        SOS_publish(pub);
+        if (ones % 2) {
+            /* Publish every other iteration to force local snap-queue use. */
+            SOS_publish(pub);
+        }
     }
-    if (SOS_DEBUG) printf("[%s]:   ... done.\n", whoami);
+    /* Catch any stragglers. */
+    SOS_publish(pub);
+    dlog(0, "  ... done.\n");
     
-    printf("[%s]: demo_app finished successfully!\n", whoami); fflush(stdout);
+    printf("demo_app finished successfully!\n"); fflush(stdout);
 
-    SOS_finalize();
+    SOS_finalize(my_sos);
 
     #if (SOSD_CLOUD_SYNC > 0)
     MPI_Finalize();

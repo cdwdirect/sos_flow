@@ -2,7 +2,7 @@
 #define SOS_H
 
 /*
- * sos.h              API for Applications that use SOS.
+ * sos.h              Core API for SOS_flow project. 
  *
  *
  * [ THREAD SAFETY ]: Note that these routines do not speculatively add
@@ -28,22 +28,11 @@
 
 #include "qhashtbl.h"
 
-#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
-#define SOS_SET_WHOAMI(__SOS_var_name, __SOS_str_func)                  \
-    char __SOS_var_name[SOS_DEFAULT_STRING_LEN] = {0};                  \
-    {                                                                   \
-        switch (SOS.role) {                                             \
-        case SOS_ROLE_CLIENT    : sprintf(__SOS_var_name, "client(%ld).%s",  SOS.my_guid, __SOS_str_func); break; \
-        case SOS_ROLE_DAEMON    : sprintf(__SOS_var_name, "daemon(%d).%s",   SOS.config.comm_rank, __SOS_str_func); break; \
-        case SOS_ROLE_DB        : sprintf(__SOS_var_name, "db(%d).%s",      SOS.config.comm_rank, __SOS_str_func); break; \
-        case SOS_ROLE_CONTROL   : sprintf(__SOS_var_name, "control(%d).%s", SOS.config.comm_rank, __SOS_str_func); break; \
-        default            : sprintf(__SOS_var_name, "------(%ld).%s",  SOS.my_guid, __SOS_str_func); break; \
-        }                                                               \
-    }
-
 /* SOS Configuration Switches... */
 
 #define SOS_CONFIG_USE_THREAD_POOL  1
+#define SOS_CONFIG_DB_STRING_ENUMS  0
+
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
@@ -51,7 +40,7 @@
 #define SOS_DEFAULT_REPLY_LEN       128
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256
-#define SOS_DEFAULT_RING_SIZE       8192
+#define SOS_DEFAULT_RING_SIZE       65536
 #define SOS_DEFAULT_TABLE_SIZE      128
 #define SOS_DEFAULT_UID_MAX         LONG_MAX
 #define SOS_DEFAULT_GUID_BLOCK      512
@@ -174,11 +163,12 @@
     LAYER(SOS_LAYER_APP)                        \
     LAYER(SOS_LAYER_OS)                         \
     LAYER(SOS_LAYER_LIB)                        \
-    LAYER(SOS_LAYER_FLOW)                       \
-    LAYER(SOS_LAYER_CONTROL)                    \
+    LAYER(SOS_LAYER_ENVIRONMENT)                \
+    LAYER(SOS_LAYER_SOS_RUNTIME)                \
     LAYER(SOS_LAYER___MAX)
 
 #define FOREACH_NATURE(NATURE)                  \
+    NATURE(SOS_NATURE_DEFAULT)                  \
     NATURE(SOS_NATURE_CREATE_INPUT)             \
     NATURE(SOS_NATURE_CREATE_OUTPUT)            \
     NATURE(SOS_NATURE_CREATE_VIZ)               \
@@ -244,12 +234,11 @@ static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)
  *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
  */
 
-
 typedef union {
-    int                 i_val;        /* default: (null)                */
-    long                l_val;        /* default: (null)                */
-    double              d_val;        /* default: (null)                */
-    char               *c_val;        /* default: (null)                */
+    int                 i_val;
+    long                l_val;
+    double              d_val;
+    char               *c_val;
 } SOS_val;
 
 typedef struct {
@@ -261,6 +250,7 @@ typedef struct {
 } SOS_buf;
 
 typedef struct {
+    void               *sos_context;
     SOS_buf             a;
     SOS_buf             b;
     SOS_buf            *send_buf;
@@ -270,9 +260,9 @@ typedef struct {
 } SOS_async_buf_pair;
 
 typedef struct {
-    double              pack;         /* default: 0.0                   */
-    double              send;         /* default: 0.0                   */
-    double              recv;         /* default: 0.0                   */
+    double              pack;
+    double              send;
+    double              recv;
 } SOS_time;
 
 typedef struct {
@@ -290,62 +280,91 @@ typedef struct {
     SOS_val             val;
     SOS_time            time;
     long                frame;
+    SOS_val_semantic    semantic;
+    SOS_mood            mood;
     void               *next;
+    int                 visits;  /* TODO: { MEMORY } Debugging snapshots going missing... */
 } SOS_val_snap;
 
 typedef struct {
+    void               *sos_context;
     qhashtbl_t         *from;
     pthread_mutex_t    *lock;
 } SOS_val_snap_queue;
 
 typedef struct {
-    long                guid;         /* default: (auto)                */
-    int                 val_len;      /* default: (auto) [on assign]    */
-    SOS_val             val;          /* default: --------- manual      */
-    SOS_val_type        type;         /* default: --------- manual      */
+    long                guid;
+    int                 val_len;
+    SOS_val             val;
+    SOS_val_type        type;
     SOS_val_meta        meta;
-    SOS_val_state       state;        /* default: SOS_VAL_STATE_EMPTY   */
-    SOS_time            time;         /* default: (complex)             */
-    char               *name;         /* default: --------- manual      */
+    SOS_val_state       state;
+    SOS_time            time;
+    char                name[SOS_DEFAULT_STRING_LEN];
 } SOS_data;
 
 typedef struct {
-    int                 channel;      /* default: 0                     */
-    SOS_nature          nature;       /* default: --------- manual      */
-    SOS_layer           layer;        /* default: SOS_LAYER_APP         */
-    SOS_pri             pri_hint;     /* default: SOS_PRI_DEFAULT       */
-    SOS_scope           scope_hint;   /* default: SOS_SCOPE_DEFAULT     */
-    SOS_retain          retain_hint;  /* default: SOS_RETAIN_DEFAULT    */
+    int                 channel;
+    SOS_nature          nature;
+    SOS_layer           layer;
+    SOS_pri             pri_hint;
+    SOS_scope           scope_hint;
+    SOS_retain          retain_hint;
 } SOS_pub_meta;
 
 typedef struct {
-    long                guid;         /* default: (auto, on announce)   */
-    int                 process_id;   /* default: -1                    */
-    int                 thread_id;    /* default: -1                    */
-    int                 comm_rank;    /* default: -1                    */
-    SOS_pub_meta        meta;         /* default: (complex)             */
-    int                 announced;    /* default: 0                     */
-    long                frame;        /* default: 0                     */
-    int                 elem_max;     /* default: SOS_DEFAULT_ELEM_MAX  */
-    int                 elem_count;   /* default: 0                     */
-    int                 pragma_len;   /* default: -1                    */
-    unsigned char       pragma_msg[SOS_DEFAULT_STRING_LEN];   /* default: ""                    */
-    char                node_id[SOS_DEFAULT_STRING_LEN];      /* default: SOS.config.node_id    */
-    char                prog_name[SOS_DEFAULT_STRING_LEN];    /* default: argv[0] / manual      */
-    char                prog_ver[SOS_DEFAULT_STRING_LEN];     /* default: ""                    */
-    char                title[SOS_DEFAULT_STRING_LEN];        /* default: ""                    */
+    void               *sos_context;
+    long                guid;
+    char                guid_str[SOS_DEFAULT_STRING_LEN];
+    int                 process_id;
+    int                 thread_id;
+    int                 comm_rank;
+    SOS_pub_meta        meta;
+    int                 announced;
+    long                frame;
+    int                 elem_max;
+    int                 elem_count;
+    int                 pragma_len;
+    unsigned char       pragma_msg[SOS_DEFAULT_STRING_LEN];
+    char                node_id[SOS_DEFAULT_STRING_LEN];
+    char                prog_name[SOS_DEFAULT_STRING_LEN];
+    char                prog_ver[SOS_DEFAULT_STRING_LEN];
+    char                title[SOS_DEFAULT_STRING_LEN];
     SOS_data          **data;
+    qhashtbl_t         *name_table;
+    SOS_val_snap_queue *snap_queue;
 } SOS_pub;
 
+
 typedef struct {
-    int                 suid;
-    int                 active;
-    int                 refresh_delay;
-    SOS_role            source_role;
-    int                 source_rank;
-    SOS_pub            *pub;
-    pthread_t           thread_handle;
-} SOS_sub;
+    long                guid;
+    long                client_guid;
+    char                handle[SOS_DEFAULT_STRING_LEN];
+    char                crypto_key[SOS_DEFAULT_STRING_LEN];
+    void               *target;
+    SOS_feedback        target_type;
+    int                 daemon_trigger_count;
+    int                 client_receipt_count;
+} SOS_sensitivity;
+
+
+typedef struct {
+    long                guid;
+    long                source_guid;
+    char                handle[SOS_DEFAULT_STRING_LEN];
+    SOS_feedback        feedback;
+    void               *data;
+    int                 data_len;
+    int                 apply_count; /* -1 == constant */
+} SOS_action;
+
+
+typedef struct {
+    char               *sql;
+    int                 sql_len;
+    SOS_action          action;
+} SOS_trigger;
+
 
 typedef struct {
     char               *server_host;
@@ -353,13 +372,13 @@ typedef struct {
     struct addrinfo    *server_addr;
     struct addrinfo    *result_list;
     struct addrinfo     server_hint;
-    struct addrinfo    *client_addr;          /* used by [sosd] */
+    struct addrinfo    *client_addr;
     int                 timeout;
     int                 buffer_len;
-    pthread_mutex_t    *send_lock;            /* used by [libsos] */
+    pthread_mutex_t    *send_lock;
 } SOS_socket_set;
 
-typedef struct {                              /* no pointers, headers might get used raw */
+typedef struct {
     int                 msg_size;
     SOS_msg_type        msg_type;
     long                msg_from;
@@ -375,10 +394,12 @@ typedef struct {
     int                 comm_support;
     int                 process_id;
     int                 thread_id;
+    SOS_layer           layer;
     bool                offline_test_mode;
 } SOS_config;
 
 typedef struct {
+    void               *sos_context;
     long                next;
     long                last;
     pthread_mutex_t    *lock;
@@ -390,6 +411,7 @@ typedef struct {
 } SOS_unique_set;
 
 typedef struct {
+    void               *sos_context;
     int                 read_elem;
     int                 write_elem;
     int                 elem_count;
@@ -423,12 +445,16 @@ typedef struct {
     long                my_guid;
 } SOS_runtime;
 
+
+
+
+
 /* ----------
  *
  *  The root 'global' data structure:
  */
 
-extern SOS_runtime SOS;
+extern SOS_runtime SOS_deprecated;
 
 /*
  *
@@ -439,16 +465,23 @@ extern SOS_runtime SOS;
 #ifdef __cplusplus
 extern "C" {
 #endif
-    void      SOS_init(int *argc, char ***argv, SOS_role role);
-    void      SOS_send_to_daemon(unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
-    void      SOS_finalize();
 
-    SOS_pub*  SOS_pub_create(char *pub_title);
-    SOS_pub*  SOS_pub_create_sized(char *pub_title, int new_size);
+    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
+    void      SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
+    void      SOS_finalize(SOS_runtime *sos_context);
 
-    int       SOS_define_val(SOS_pub *pub, const char *name, SOS_val_type type, SOS_val_meta meta);
+    SOS_pub*  SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
+    SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
+    int       SOS_pub_search(SOS_pub *pub, const char *name);
+    void      SOS_pub_destroy(SOS_pub *pub);
+
+    void      SOS_sense_register(SOS_runtime *sos_context, char *handle, SOS_feedback target_type, void *target);
+    void      SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
+
+
     int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
-    void      SOS_repack(SOS_pub *pub, int index, SOS_val pack_val);
+    int       SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
+
 
     void      SOS_announce(SOS_pub *pub);
     void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
@@ -458,16 +491,16 @@ extern "C" {
     void      SOS_publish_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
     void      SOS_publish_from_buffer(SOS_pub *pub, unsigned char *buffer, SOS_val_snap_queue *opt_queue);
 
-    void      SOS_async_buf_pair_init(SOS_async_buf_pair **buf_pair_ptr);
+    void      SOS_async_buf_pair_init(SOS_runtime *sos_context, SOS_async_buf_pair **buf_pair_ptr);
     void      SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair);
     void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, unsigned char *msg_ptr, int msg_len);
     void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
 
-    void      SOS_uid_init(SOS_uid **uid, long from, long to);
+    void      SOS_uid_init(SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
     long      SOS_uid_next(SOS_uid *uid);
     void      SOS_uid_destroy(SOS_uid *uid);
     
-    void      SOS_val_snap_queue_init(SOS_val_snap_queue **queue);
+    void      SOS_val_snap_queue_init(SOS_runtime *sos_context, SOS_val_snap_queue **queue);
     void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);
     void      SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock);
     void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsigned char **buffer, int *buffer_len, bool drain);
@@ -476,7 +509,7 @@ extern "C" {
 
     void      SOS_strip_str(char *str);
 
-    void      SOS_ring_init(SOS_ring_queue **ring);
+    void      SOS_ring_init(SOS_runtime *sos_context, SOS_ring_queue **ring);
     void      SOS_ring_destroy(SOS_ring_queue *ring);
     int       SOS_ring_put(SOS_ring_queue *ring, long item);
     long      SOS_ring_get(SOS_ring_queue *ring);
@@ -485,20 +518,38 @@ extern "C" {
 
     /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
 
-
     /* ..... [ empty stubs ] ..... */
     void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
-    SOS_val   SOS_get_val(SOS_pub *pub, char *name);
-    void      SOS_pub_destroy(SOS_pub *pub);
-    void      SOS_free_sub(SOS_sub *sub);
-    void      SOS_unannounce(SOS_pub *pub);
-    SOS_sub*  SOS_new_sub(void);
-    SOS_sub*  SOS_subscribe(SOS_role target_role, int target_rank, char *pub_title, int refresh_ms);
-    void      SOS_unsubscribe(SOS_sub *sub);
 
 #ifdef __cplusplus
 }
 #endif
+
+
+#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
+
+#if (SOS_DEBUG < 0)
+    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
+    SOS_runtime *SOS;                                                   \
+    SOS = (SOS_runtime *) __SOS_context;
+#else
+    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
+    SOS_runtime *SOS;                                                   \
+    SOS = (SOS_runtime *) __SOS_context;                                \
+    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
+    if (SOS == NULL) {                                                  \
+        sprintf(SOS_WHOAMI, " * unknown * ");                           \
+    } else {                                                            \
+        switch (SOS->role) {                                            \
+        case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%ld).%s",  SOS->my_guid, __SOS_str_func); break; \
+        case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
+        case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
+        case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break; \
+        default            : sprintf(SOS_WHOAMI, "------(%ld).%s",  SOS->my_guid, __SOS_str_func); break; \
+        }                                                               \
+    }
+#endif
+
 
 
 

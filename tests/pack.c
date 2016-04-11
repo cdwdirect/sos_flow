@@ -35,8 +35,8 @@ int SOS_test_pack_int() {
 
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
         input = random();
-        SOS_buffer_pack(buffer, "i", input);
-        SOS_buffer_unpack(buffer, "i", &output);
+        SOS_buffer_pack(TEST_sos, buffer, "i", input);
+        SOS_buffer_unpack(TEST_sos, buffer, "i", &output);
         if (input != output) {
             return FAIL;
         }
@@ -54,8 +54,8 @@ int SOS_test_pack_long() {
 
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
         input = (long)random();
-        SOS_buffer_pack(buffer, "l", input);
-        SOS_buffer_unpack(buffer, "l", &output);
+        SOS_buffer_pack(TEST_sos, buffer, "l", input);
+        SOS_buffer_unpack(TEST_sos, buffer, "l", &output);
         if (input != output) {
             return FAIL;
         }
@@ -79,8 +79,8 @@ int SOS_test_pack_double() {
 
         random_double(&input);
 
-        SOS_buffer_pack(buffer, "d", input);
-        SOS_buffer_unpack(buffer, "d", &output);
+        SOS_buffer_pack(TEST_sos, buffer, "d", input);
+        SOS_buffer_unpack(TEST_sos, buffer, "d", &output);
 
         diff = input - output;
         if (diff < 0) { diff *= -1; }
@@ -103,8 +103,8 @@ int SOS_test_pack_string() {
 
         random_string(input, 512);
 
-        SOS_buffer_pack(buffer, "s", input);
-        SOS_buffer_unpack(buffer, "s", output);
+        SOS_buffer_pack(TEST_sos, buffer, "s", input);
+        SOS_buffer_unpack(TEST_sos, buffer, "s", output);
         if (strncmp(input, output, 512) != 0) {
             return FAIL;
         }
