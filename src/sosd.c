@@ -108,7 +108,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Initializing SOSD:\n");
 
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( my_role, SOS_ROLE ));
-    SOSD.sos_context = SOS_init_runtime( &argc, &argv, my_role, SOSD.sos_context );
+    SOSD.sos_context = SOS_init_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
@@ -676,7 +676,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
-        pub = SOS_pub_create(SOS, guid_str);
+        pub = SOS_pub_create(SOS, guid_str, SOS_NATURE_DEFAULT);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = header.pub_guid;
     } else {
@@ -734,7 +734,7 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
     if (pub == NULL) {
         /* If it's not in the table, add it. */
         dlog(1, "     ... WHOAH!  PUBLISHING INTO A PUB NOT FOUND! (WEIRD!)  ADDING new pub to the table... (this is bogus, man)\n");
-        pub = SOS_pub_create(SOS, guid_str);
+        pub = SOS_pub_create(SOS, guid_str, SOS_NATURE_DEFAULT);
         SOSD.pub_table->put(SOSD.pub_table, guid_str, pub);
         pub->guid = header.pub_guid;
     } else {

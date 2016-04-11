@@ -28,7 +28,7 @@ void*        SOS_THREAD_feedback(void *arg);
 void         SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *buffer, int buffer_length);
 void         SOS_expand_data(SOS_pub *pub);
 
-SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime);
+SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 void         SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub);
              /* NOTE: Doesn't lock the queue, for use within queue functions when lock is held. */
@@ -46,11 +46,11 @@ SOS_runtime SOS;
 /* [util]                                   */
 /* **************************************** */
 
-SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role) {
-    return SOS_init_runtime(argc, argv, role, NULL);
+SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_layer layer) {
+    return SOS_init_runtime(argc, argv, role, layer, NULL);
 }
 
-SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime ) {
+SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime ) {
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
@@ -89,6 +89,7 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_runti
     }
 
     NEW_SOS->status = SOS_STATUS_INIT;
+    NEW_SOS->config.layer  = layer;
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
 
     dlog(1, "Initializing SOS ...\n");
@@ -453,7 +454,6 @@ void SOS_ring_destroy(SOS_ring_queue *ring) {
     SOS_SET_CONTEXT(ring->sos_context, "SOS_ring_destroy");
 
     free(ring->lock);
-
     memset(ring->heap, '\0', (ring->elem_max * ring->elem_size));
     free(ring->heap);
     memset(ring, '\0', (sizeof(SOS_ring_queue)));
@@ -469,9 +469,7 @@ int SOS_ring_put(SOS_ring_queue *ring, long item) {
     pthread_mutex_lock(ring->lock);
 
     dlog(5, "Attempting to add (%ld) into the ring.\n", item);
-
     if (item == 0) { dlog(1, "  ... ERROR: Being asked to insert a '0' element!\n"); }
-
     if (ring == NULL) { dlog(0, "ERROR!  Attempted to insert into a NULL ring!\n"); exit(EXIT_FAILURE); }
 
     if (ring->elem_count >= ring->elem_max) {
@@ -488,7 +486,6 @@ int SOS_ring_put(SOS_ring_queue *ring, long item) {
     ring->elem_count++;
 
     dlog(5, "  ... this is item %d of %d @ position %d.\n", ring->elem_count, ring->elem_max, (ring->write_elem - 1));
-
     dlog(5, "  ... UNLOCK ring->lock\n");
     pthread_mutex_unlock(ring->lock);
     dlog(5, "  ... done.\n");
@@ -897,15 +894,13 @@ long SOS_uid_next( SOS_uid *id ) {
 }
 
 
-SOS_pub* SOS_pub_create(SOS_runtime *sos_context, char *title) {
-    return SOS_pub_create_sized(sos_context, title, SOS_DEFAULT_ELEM_MAX);
+SOS_pub* SOS_pub_create(SOS_runtime *sos_context, char *title, SOS_nature nature) {
+    return SOS_pub_create_sized(sos_context, title, nature, SOS_DEFAULT_ELEM_MAX);
 }
 
-SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, int new_size) {
+SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature nature, int new_size) {
     SOS_SET_CONTEXT(sos_context, "SOS_pub_create_sized");
-
     SOS_pub   *new_pub;
-    char       pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int        i;
 
     dlog(6, "Allocating and initializing a new pub handle....\n");
@@ -921,6 +916,7 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, int new_siz
     } else {
         new_pub->guid = SOS_uid_next( SOS->uid.my_guid_pool );
     }
+    snprintf(new_pub->guid_str, SOS_DEFAULT_STRING_LEN, "%ld", new_pub->guid);
 
     dlog(6, "  ... setting default values, allocating space for strings.\n");
 
@@ -933,8 +929,8 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, int new_siz
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
     new_pub->meta.channel     = 0;
-    new_pub->meta.layer       = SOS_LAYER_APP;
-    new_pub->meta.nature      = SOS_NATURE_SOS;
+    new_pub->meta.layer       = SOS->config.layer;
+    new_pub->meta.nature      = nature;
     new_pub->meta.pri_hint    = SOS_PRI_DEFAULT;
     new_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
@@ -974,8 +970,6 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, int new_siz
             new_pub->data[i]->meta.mood       = SOS_MOOD_GOOD;
 
     }
-
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", new_pub->guid);
 
     if (sos_context->role == SOS_ROLE_CLIENT) {
         dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
@@ -1141,7 +1135,6 @@ int SOS_pub_search(SOS_pub *pub, const char *name) {
 void SOS_pub_destroy(SOS_pub *pub) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pub_destroy");
     int elem;
-    int guid_str[60] = {0};
 
     if (SOS->config.offline_test_mode != true) {
         /* TODO: { PUB DESTROY } Right now this only works in offline test mode.
@@ -1217,7 +1210,6 @@ void SOS_val_snap_queue_init(SOS_runtime *sos_context, SOS_val_snap_queue **queu
 
 void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     SOS_SET_CONTEXT(queue->sos_context, "SOS_val_snap_enqueue");
-    char pub_id_str[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_val_snap *new_snap;
     SOS_val val_copy;
 
@@ -1231,8 +1223,8 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     new_snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
     memset(new_snap, '\0', sizeof(SOS_val_snap));
 
-    memset(pub_id_str, '\0', SOS_DEFAULT_STRING_LEN);
-    sprintf(pub_id_str, "%ld", pub->guid);
+    memset(pub->guid_str, '\0', SOS_DEFAULT_STRING_LEN);
+    sprintf(pub->guid_str, "%ld", pub->guid);
 
     val_copy = pub->data[elem]->val;
     if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
@@ -1244,31 +1236,36 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
 
     dlog(6, "  ... assigning values to snapshot\n");
 
-    new_snap->elem  = elem;
-    new_snap->guid  = pub->data[elem]->guid;
-    new_snap->val   = val_copy;
-    new_snap->time  = pub->data[elem]->time;
-    new_snap->frame = pub->frame;
-    new_snap->next  = (void *) queue->from->get(queue->from, pub_id_str);
-    queue->from->remove(queue->from, pub_id_str);
+    new_snap->elem      = elem;
+    new_snap->guid      = pub->data[elem]->guid;
+    new_snap->mood      = pub->data[elem]->meta.mood;
+    new_snap->semantic  = pub->data[elem]->meta.semantic;
+    new_snap->val       = val_copy;
+    new_snap->time      = pub->data[elem]->time;
+    new_snap->frame     = pub->frame;
+    new_snap->next      = (void *) queue->from->get(queue->from, pub->guid_str);
+    queue->from->remove(queue->from, pub->guid_str);
 
-    dlog(6, "     &(%ld) new_snap->elem  = %d\n", (long) new_snap, new_snap->elem);
-    dlog(6, "     &(%ld) new_snap->guid  = %ld\n", (long) new_snap, new_snap->guid);
+    dlog(6, "     &(%ld) new_snap->elem      = %d\n",  (long) new_snap, new_snap->elem);
+    dlog(6, "     &(%ld) new_snap->guid      = %ld\n", (long) new_snap, new_snap->guid);
+    dlog(6, "     &(%ld) new_snap->mood      = %d\n",  (long) new_snap, new_snap->mood);
+    dlog(6, "     &(%ld) new_snap->semantic  = %d\n",  (long) new_snap, new_snap->semantic);
+    
     switch(pub->data[elem]->type) {
-    case SOS_VAL_TYPE_INT:     dlog(6, "     &(%ld) new_snap->val   = %d (int)\n",     (long) new_snap, new_snap->val.i_val); break;
-    case SOS_VAL_TYPE_LONG:    dlog(6, "     &(%ld) new_snap->val   = %ld (long)\n",   (long) new_snap, new_snap->val.l_val); break;
-    case SOS_VAL_TYPE_DOUBLE:  dlog(6, "     &(%ld) new_snap->val   = %lf (double)\n", (long) new_snap, new_snap->val.d_val); break;
-    case SOS_VAL_TYPE_STRING:  dlog(6, "     &(%ld) new_snap->val   = %s (string)\n",  (long) new_snap, new_snap->val.c_val); break;
+    case SOS_VAL_TYPE_INT:     dlog(6, "     &(%ld) new_snap->val       = %d (int)\n",     (long) new_snap, new_snap->val.i_val); break;
+    case SOS_VAL_TYPE_LONG:    dlog(6, "     &(%ld) new_snap->val       = %ld (long)\n",   (long) new_snap, new_snap->val.l_val); break;
+    case SOS_VAL_TYPE_DOUBLE:  dlog(6, "     &(%ld) new_snap->val       = %lf (double)\n", (long) new_snap, new_snap->val.d_val); break;
+    case SOS_VAL_TYPE_STRING:  dlog(6, "     &(%ld) new_snap->val       = %s (string)\n",  (long) new_snap, new_snap->val.c_val); break;
     default:
         dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[elem]->type, elem, pub->guid);
         break;
     }
-    dlog(6, "     &(%ld) new_snap->frame = %ld\n", (long) new_snap, new_snap->frame);
-    dlog(6, "     &(%ld) new_snap->next  = %ld\n", (long) new_snap, (long) new_snap->next);
+    dlog(6, "     &(%ld) new_snap->frame     = %ld\n", (long) new_snap, new_snap->frame);
+    dlog(6, "     &(%ld) new_snap->next      = %ld\n", (long) new_snap, (long) new_snap->next);
     dlog(6, "  ... making this the new head of the val_snap queue\n");
 
     /* We're hashing into per-pub val_snap stacks... (say that 5 times fast) */
-    queue->from->put(queue->from, pub_id_str, (void *) new_snap);
+    queue->from->put(queue->from, pub->guid_str, (void *) new_snap);
 
     dlog(7, "  ... UNLOCK queue->lock\n");
     pthread_mutex_unlock(queue->lock);
@@ -1282,24 +1279,20 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
 void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsigned char **buf_ptr, int *buf_len, bool drain) {
     SOS_SET_CONTEXT(queue->sos_context, "SOS_val_snap_queue_to_buffer");
     SOS_msg_header header;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     unsigned char *buffer;
     unsigned char *ptr;
     int   buffer_len;
     SOS_val_snap *snap;
-
-    memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
 
     buffer = *buf_ptr;
     buffer_len = 0;
     ptr = (buffer + buffer_len);
     memset(ptr, '\0', SOS_DEFAULT_BUFFER_LEN);
 
-    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
+    snap = (SOS_val_snap *) queue->from->get(queue->from, pub->guid_str);
 
     if (snap == NULL) {
-        dlog(4, "  ... nothing to do for pub(%s)\n", pub_guid_str);
+        dlog(4, "  ... nothing to do for pub(%s)\n", pub->guid_str);
         *buf_len = buffer_len;
         return;
     }
@@ -1322,10 +1315,12 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
     ptr = (buffer + buffer_len);
 
     dlog(6, "     ... processing snaps extracted from the queue\n");
-    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
+    snap = (SOS_val_snap *) queue->from->get(queue->from, pub->guid_str);
 
     while (snap != NULL) {
-    dlog(6, "     ... guid=%ld\n", snap->guid);
+
+        dlog(6, "     ... guid=%ld\n", snap->guid);
+        snap->visits++;
 
         buffer_len += SOS_buffer_pack(SOS, ptr, "ildddl",
                                       snap->elem,
@@ -1349,7 +1344,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
         snap = snap->next;
     }
     if (drain) {
-        dlog(6, "     ... draining queue for pub(%s)\n", pub_guid_str);
+        dlog(6, "     ... draining queue for pub(%s)\n", pub->guid_str);
         SOS_val_snap_queue_drain(queue, pub);
     }
 
@@ -1369,7 +1364,6 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
 void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, unsigned char *buffer, int buffer_size) {
     SOS_SET_CONTEXT(queue->sos_context, "SOS_val_snap_queue_from_buffer");
     SOS_msg_header header;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     unsigned char *ptr;
     int   offset;
     SOS_val_snap *snap;
@@ -1396,10 +1390,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
     dlog(6, "     ... header.msg_from == %ld\n", header.msg_from);
     dlog(6, "     ... header.pub_guid == %ld\n", header.pub_guid);
 
-    memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", header.pub_guid);
-
-    pub = (SOS_pub *) pub_table->get(pub_table, pub_guid_str);
+    pub = (SOS_pub *) pub_table->get(pub_table, pub->guid_str);
     
     if (pub == NULL) {
         dlog(1, "WARNING! Attempting to build snap_queue for a pub we don't know about.\n");
@@ -1441,7 +1432,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
             break;
         }
         ptr = (buffer + offset);
-        SOS_val_snap_push_down(queue, pub_guid_str, snap, 0);
+        SOS_val_snap_push_down(queue, pub->guid_str, snap, 0);
 
         /* TODO: 
          *   Do we want to make sure the pub[elem]->... stuff is updated
@@ -1477,17 +1468,29 @@ void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
     SOS_SET_CONTEXT(queue->sos_context, "SOS_val_snap_queue_drain");
     SOS_val_snap *snap;
     SOS_val_snap *next_snap;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    long this_frame;
 
-    memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
+    snap = (SOS_val_snap *) queue->from->get(queue->from, pub->guid_str);
+    queue->from->remove(queue->from, pub->guid_str);
 
-    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
-    queue->from->remove(queue->from, pub_guid_str);
-    
     while (snap != NULL) {
+        /* We do this test to make sure we don't drain parts of the queue that
+         * might not have been handled yet. Only handle one message's worth
+         * at a time. */
+        //if (snap->frame != this_frame) return;
+
+        if (SOS->role == SOS_ROLE_DAEMON) {
+            if (snap->visits != 2) {
+                dlog(0, "snap->guid(%ld) is being drained with %d visits!\n", snap->guid, snap->visits);
+            }
+        }
+
+        if (SOS->role == SOS_ROLE_DB) {
+            dlog(0, "snap->guid(%ld) is being drained in the SOS_ROLE_DB ... this is wrong.\n", snap->guid);
+        }
+
         next_snap = snap->next;
-        if(pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) {
+        if (pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) {
             free(snap->val.c_val);
         }
         free(snap);
@@ -1927,7 +1930,6 @@ void SOS_publish( SOS_pub *pub ) {
     int              reply_max;
 
     SOS_val_snap_queue *snaps;
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
 
     memset(buffer_stack, '\0', SOS_DEFAULT_BUFFER_LEN);
     buffer     = buffer_stack;
@@ -1953,9 +1955,8 @@ void SOS_publish( SOS_pub *pub ) {
     SOS_send_to_daemon(SOS, buffer, buffer_len, reply, reply_max);
 
     dlog(6, "  ... checking for val_snap queue entries.\n");
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
     snaps = pub->snap_queue;
-    if ((snaps->from->get(snaps->from, pub_guid_str)) != NULL) {
+    if ((snaps->from->get(snaps->from, pub->guid_str)) != NULL) {
         dlog(6, "  ... entries found, placing them into a buffer.\n");
         SOS_val_snap_queue_to_buffer(snaps, pub, &buffer, &buffer_len, true);
         dlog(6, "  ... sending the buffer to the daemon.\n");

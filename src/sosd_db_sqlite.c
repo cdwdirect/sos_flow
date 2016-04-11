@@ -421,16 +421,14 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
     dlog(2, "  ... grabbing LIFO snap_queue head\n");
     /* Grab the linked-list (LIFO queue) */
     snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
-
-    dlog(2, "  ... clearing the snap queue\n");
     /* Clear the queue and unlock it so new additions can inject. */
+    dlog(2, "  ... clearing the snap queue\n");
     queue->from->remove(queue->from, pub_guid_str);
-
     dlog(2, "  ... releasing queue->lock\n");
     pthread_mutex_unlock( queue->lock );
 
-    dlog(2, "  ... processing snaps extracted from the queue\n");
 
+    dlog(2, "  ... processing snaps extracted from the queue\n");
 
     int           elem;
     char         *val, *val_alloc;
@@ -466,7 +464,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = snap->val.c_val; dlog(0, "Injecting: %s\n", snap->val.c_val); break;
+        case SOS_VAL_TYPE_STRING: val = snap->val.c_val; dlog(0, "Injecting snap->val.c_val = \"%s\"\n", snap->val.c_val); break;
         default:
             dlog(5, "     ... error: invalid value type.  (%d)\n", pub->data[snap->elem]->type); break;
         }
@@ -508,6 +506,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
              * ring monitor doesn't call this function, so we don't
              * need to keep them around for transmission.) */
             dlog(5, "     ... freeing this val_snap b/c there is no re_queue\n");
+
             if (pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) { free(snap->val.c_val); }
             free(snap);
         }

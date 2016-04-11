@@ -29,7 +29,7 @@ int main(int argc, char *argv[]) {
 
     SOS_test_section_start(0, "SOS");
 
-    TEST_sos = SOS_init(&argc, &argv, SOS_RUN_MODE);
+    TEST_sos = SOS_init(&argc, &argv, SOS_RUN_MODE, SOS_LAYER_SOS_RUNTIME);
     SOS_test_run(1, "SOS_init", SOS_test_show_ok(), error_ignore, error_ignore);
 
     error_total = SOS_test_all();

@@ -9,8 +9,8 @@
         usually under heavy loads
         
 * IMMEDIATE
+   - SOS_val(String) :: Strings not migrating correctly into db.
    - DOCUMENTATION :: Write technical description and user's guide.
-   - Instructions :: Provide guidance for GTech on EVPATH connector.
 
 * MEDIUM
 ** DAEMON
@@ -20,10 +20,6 @@
 ** CLIENT / LIB
     - Buffers :: Re-tool buffer-touching API signatures with max. buffer size
                  and make sure this is respected by the library functions.
-    - Runtime :: Have SOS_init() return a SOS_runtime object for that layer
-                 and adjust all SOS calls to take this SOS_runtime object
-                 as a parameter for all calls, such that any layer of the
-                 system is maintaining its own context.
     - Data Relationships :: Support for proposed relationship tracking.
 
 ** INTEGRATION

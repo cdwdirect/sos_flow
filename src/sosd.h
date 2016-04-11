@@ -91,11 +91,13 @@ typedef struct {
     int                 cloud_sync_target;
 } SOSD_runtime;
 
+
 typedef struct {
     char               *file;
     int                 ready;
     pthread_mutex_t    *lock;
 } SOSD_db;
+
 
 typedef struct {
     SOS_runtime        *sos_context;
@@ -163,7 +165,7 @@ extern "C" {
 
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
-    extern SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_runtime *extant_sos_runtime);
+    extern SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 
 #ifdef __cplusplus

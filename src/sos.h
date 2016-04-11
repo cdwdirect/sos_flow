@@ -40,7 +40,7 @@
 #define SOS_DEFAULT_REPLY_LEN       128
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256
-#define SOS_DEFAULT_RING_SIZE       8192
+#define SOS_DEFAULT_RING_SIZE       65536
 #define SOS_DEFAULT_TABLE_SIZE      128
 #define SOS_DEFAULT_UID_MAX         LONG_MAX
 #define SOS_DEFAULT_GUID_BLOCK      512
@@ -163,11 +163,12 @@
     LAYER(SOS_LAYER_APP)                        \
     LAYER(SOS_LAYER_OS)                         \
     LAYER(SOS_LAYER_LIB)                        \
-    LAYER(SOS_LAYER_FLOW)                       \
-    LAYER(SOS_LAYER_CONTROL)                    \
+    LAYER(SOS_LAYER_ENVIRONMENT)                \
+    LAYER(SOS_LAYER_SOS_RUNTIME)                \
     LAYER(SOS_LAYER___MAX)
 
 #define FOREACH_NATURE(NATURE)                  \
+    NATURE(SOS_NATURE_DEFAULT)                  \
     NATURE(SOS_NATURE_CREATE_INPUT)             \
     NATURE(SOS_NATURE_CREATE_OUTPUT)            \
     NATURE(SOS_NATURE_CREATE_VIZ)               \
@@ -282,6 +283,7 @@ typedef struct {
     SOS_val_semantic    semantic;
     SOS_mood            mood;
     void               *next;
+    int                 visits;  /* TODO: { MEMORY } Debugging snapshots going missing... */
 } SOS_val_snap;
 
 typedef struct {
@@ -313,6 +315,7 @@ typedef struct {
 typedef struct {
     void               *sos_context;
     long                guid;
+    char                guid_str[SOS_DEFAULT_STRING_LEN];
     int                 process_id;
     int                 thread_id;
     int                 comm_rank;
@@ -331,6 +334,37 @@ typedef struct {
     qhashtbl_t         *name_table;
     SOS_val_snap_queue *snap_queue;
 } SOS_pub;
+
+
+typedef struct {
+    long                guid;
+    long                client_guid;
+    char                handle[SOS_DEFAULT_STRING_LEN];
+    char                crypto_key[SOS_DEFAULT_STRING_LEN];
+    void               *target;
+    SOS_feedback        target_type;
+    int                 daemon_trigger_count;
+    int                 client_receipt_count;
+} SOS_sensitivity;
+
+
+typedef struct {
+    long                guid;
+    long                source_guid;
+    char                handle[SOS_DEFAULT_STRING_LEN];
+    SOS_feedback        feedback;
+    void               *data;
+    int                 data_len;
+    int                 apply_count; /* -1 == constant */
+} SOS_action;
+
+
+typedef struct {
+    char               *sql;
+    int                 sql_len;
+    SOS_action          action;
+} SOS_trigger;
+
 
 typedef struct {
     char               *server_host;
@@ -360,6 +394,7 @@ typedef struct {
     int                 comm_support;
     int                 process_id;
     int                 thread_id;
+    SOS_layer           layer;
     bool                offline_test_mode;
 } SOS_config;
 
@@ -431,18 +466,22 @@ extern SOS_runtime SOS_deprecated;
 extern "C" {
 #endif
 
-    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role);
-
+    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
     void      SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
     void      SOS_finalize(SOS_runtime *sos_context);
 
-    SOS_pub*  SOS_pub_create(SOS_runtime *sos_context, char *pub_title);
-    SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, int new_size);
+    SOS_pub*  SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
+    SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
     int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);
 
+    void      SOS_sense_register(SOS_runtime *sos_context, char *handle, SOS_feedback target_type, void *target);
+    void      SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
+
+
     int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
     int       SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
+
 
     void      SOS_announce(SOS_pub *pub);
     void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);

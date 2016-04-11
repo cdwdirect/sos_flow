@@ -22,11 +22,11 @@
  *     +3 = VERY verbose
  *      0 = essential messages only (allows daemon logging)
  *     -1 = disabled in daemon/client (for production runs)  */
-#define SOS_DEBUG                 -1
+#define SOS_DEBUG                 0
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           0
+#define SOSD_DAEMON_LOG           1
 #define SOSD_ECHO_TO_STDOUT       0
 
 int     sos_daemon_lock_fptr;
@@ -53,6 +53,7 @@ FILE   *sos_daemon_log_fptr;
                 }                                                       \
             }                                                           \
             if (sos_daemon_log_fptr != NULL) {                          \
+                fprintf(sos_daemon_log_fptr, "[%s]: ", SOS_WHOAMI);     \
                 fprintf(sos_daemon_log_fptr, __VA_ARGS__);              \
                 fflush(sos_daemon_log_fptr);                            \
             }                                                           \
@@ -66,7 +67,7 @@ FILE   *sos_daemon_log_fptr;
             }                                                           \
         }                                                               \
     } else {                                                            \
-        if (SOS_DEBUG >= level && SOS->role != SOS_ROLE_DAEMON) {         \
+        if (SOS_DEBUG >= level && SOS->role != SOS_ROLE_DAEMON) {       \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 printf("(%s:%d)", __FILE__, __LINE__ );                 \
             }                                                           \
