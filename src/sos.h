@@ -23,6 +23,7 @@
 #include <pthread.h>
 #include <sys/time.h>
 #include <limits.h>
+#include <inttypes.h>
 #include <sys/socket.h>
 #include <netdb.h>
 
@@ -42,7 +43,7 @@
 #define SOS_DEFAULT_STRING_LEN      256
 #define SOS_DEFAULT_RING_SIZE       65536
 #define SOS_DEFAULT_TABLE_SIZE      128
-#define SOS_DEFAULT_UID_MAX         INT_MAX
+#define SOS_DEFAULT_UID_MAX         LLONG_MAX
 #define SOS_DEFAULT_GUID_BLOCK      512
 #define SOS_DEFAULT_ELEM_MAX        1024
 
@@ -234,6 +235,9 @@ static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)
  *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
  */
 
+typedef     uint64_t SOS_guid;
+#define SOS_GUID_FMT PRIu64
+
 typedef union {
     int                 i_val;
     long                l_val;
@@ -276,7 +280,7 @@ typedef struct {
 
 typedef struct {
     int                 elem;
-    long                guid;
+    SOS_guid            guid;
     SOS_val             val;
     SOS_time            time;
     long                frame;
@@ -293,7 +297,7 @@ typedef struct {
 } SOS_val_snap_queue;
 
 typedef struct {
-    long                guid;
+    SOS_guid            guid;
     int                 val_len;
     SOS_val             val;
     SOS_val_type        type;
@@ -314,7 +318,7 @@ typedef struct {
 
 typedef struct {
     void               *sos_context;
-    long                guid;
+    SOS_guid            guid;
     char                guid_str[SOS_DEFAULT_STRING_LEN];
     int                 process_id;
     int                 thread_id;
@@ -337,8 +341,8 @@ typedef struct {
 
 
 typedef struct {
-    long                guid;
-    long                client_guid;
+    SOS_guid            guid;
+    SOS_guid            client_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
     char                crypto_key[SOS_DEFAULT_STRING_LEN];
     void               *target;
@@ -349,8 +353,8 @@ typedef struct {
 
 
 typedef struct {
-    long                guid;
-    long                source_guid;
+    SOS_guid            guid;
+    SOS_guid            source_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
     SOS_feedback        feedback;
     void               *data;
@@ -381,8 +385,8 @@ typedef struct {
 typedef struct {
     int                 msg_size;
     SOS_msg_type        msg_type;
-    long                msg_from;
-    long                pub_guid;
+    SOS_guid            msg_from;
+    SOS_guid            pub_guid;
 } SOS_msg_header;
 
 typedef struct {
@@ -430,6 +434,7 @@ typedef struct {
     pthread_t          *feedback;
     pthread_mutex_t    *feedback_lock;
     pthread_cond_t     *feedback_cond;
+    qhashtbl_t         *sense_table;
     SOS_val_snap_queue *val_intake;
     SOS_val_snap_queue *val_outlet;
 } SOS_task_set;
@@ -442,19 +447,11 @@ typedef struct {
     SOS_ring_set        ring;
     SOS_task_set        task;
     SOS_socket_set      net;
-    long                my_guid;
+    SOS_guid            my_guid;
 } SOS_runtime;
 
 
 
-
-
-/* ----------
- *
- *  The root 'global' data structure:
- */
-
-extern SOS_runtime SOS_deprecated;
 
 /*
  *
@@ -475,13 +472,11 @@ extern "C" {
     int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);
 
-    void      SOS_sense_register(SOS_runtime *sos_context, char *handle, SOS_feedback target_type, void *target);
+    int       SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data));
     void      SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
-
 
     int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
     int       SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
-
 
     void      SOS_announce(SOS_pub *pub);
     void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
@@ -496,8 +491,8 @@ extern "C" {
     void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, unsigned char *msg_ptr, int msg_len);
     void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
 
-    void      SOS_uid_init(SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
-    long      SOS_uid_next(SOS_uid *uid);
+    void      SOS_uid_init(SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
+    SOS_guid  SOS_uid_next(SOS_uid *uid);
     void      SOS_uid_destroy(SOS_uid *uid);
     
     void      SOS_val_snap_queue_init(SOS_runtime *sos_context, SOS_val_snap_queue **queue);
@@ -526,6 +521,7 @@ extern "C" {
 #endif
 
 
+
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
 
 #if (SOS_DEBUG < 0)
@@ -541,11 +537,11 @@ extern "C" {
         sprintf(SOS_WHOAMI, " * unknown * ");                           \
     } else {                                                            \
         switch (SOS->role) {                                            \
-        case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%ld).%s",  SOS->my_guid, __SOS_str_func); break; \
-        case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
-        case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
-        case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break; \
-        default            : sprintf(SOS_WHOAMI, "------(%ld).%s",  SOS->my_guid, __SOS_str_func); break; \
+        case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break;  \
+        case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break;       \
+        case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break;        \
+        case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break;        \
+        default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break;       \
         }                                                               \
     }
 #endif

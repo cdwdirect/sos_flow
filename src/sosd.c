@@ -560,11 +560,11 @@ void SOSD_handle_val_snaps(unsigned char *msg, int msg_size) {
 void SOSD_handle_register(unsigned char *msg, int msg_size) {
     SOS_SET_CONTEXT(SOSD.sos_context, "daemon_handle_register");
     SOS_msg_header header;
-    int  ptr             = 0;
-    int  i               = 0;
-    int  reply_len       = 0;
-    long guid_block_from = 0;
-    long guid_block_to   = 0;
+    int      ptr             = 0;
+    int      i               = 0;
+    int      reply_len       = 0;
+    SOS_guid guid_block_from = 0;
+    SOS_guid guid_block_to   = 0;
 
     ptr += SOS_buffer_unpack(SOS, msg, "iill",
                              &header.msg_size,
@@ -582,9 +582,9 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
          * Supply them a block of GUIDs ...
          */
         SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_block_from, &guid_block_to);
-        memcpy(reply, &guid_block_from, sizeof(long));
-        memcpy((reply + sizeof(long)), &guid_block_to, sizeof(long));
-        reply_len = 2 * sizeof(long);
+        memcpy(reply, &guid_block_from, sizeof(SOS_guid));
+        memcpy((reply + sizeof(SOS_guid)), &guid_block_to, sizeof(SOS_guid));
+        reply_len = 2 * sizeof(SOS_guid);
 
     } else {
         /* An existing client (such as sos_cmd) is coming back online,
@@ -606,8 +606,8 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
 void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
     SOS_SET_CONTEXT(SOSD.sos_context, "daemon_handle_register");
     SOS_msg_header header;
-    long block_from   = 0;
-    long block_to     = 0;
+    SOS_guid block_from   = 0;
+    SOS_guid block_to     = 0;
     int reply_len;
     int ptr;
     int i;
@@ -626,9 +626,9 @@ void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
     reply_len = 0;
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
-    memcpy(reply, &block_from, sizeof(long));
-    memcpy((reply + sizeof(long)), &block_to, sizeof(long));
-    reply_len = 2 * sizeof(long);
+    memcpy(reply, &block_from, sizeof(SOS_guid));
+    memcpy((reply + sizeof(SOS_guid)), &block_to, sizeof(SOS_guid));
+    reply_len = 2 * sizeof(SOS_guid);
 
     i = send( SOSD.net.client_socket_fd, (void *) reply, reply_len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
@@ -847,7 +847,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
         ptr = feedback_msg;
         offset = 0;
 
-        offset += SOS_buffer_pack(SOS, ptr, "iill",
+        offset += SOS_buffer_pack(SOS, ptr, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -1108,9 +1108,9 @@ void SOSD_init() {
      */
     dlog(1, "Obtaining this instance's guid range...\n");
     #if (SOSD_CLOUD_SYNC > 0)
-        long guid_block_size = (long) (SOS_DEFAULT_UID_MAX / SOS->config.comm_size);
-        long guid_my_first   = (long) SOS->config.comm_rank * guid_block_size;
-        printf("%d: My guid range: %lu - %lu", SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
+        SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
+        SOS_guid guid_my_first   = (SOS_guid) SOS->config.comm_rank * guid_block_size;
+        printf("%d: My guid range: %llu - %llu", SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
         SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
         dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");

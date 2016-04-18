@@ -36,7 +36,7 @@
         header.pub_guid = 0;                             \
         *__len_var = 0;                                  \
         *__len_var += SOS_buffer_pack(__context,         \
-                                      __buffer, "iill",  \
+                                      __buffer, "iigg",  \
                                       header.msg_size,   \
                                       header.msg_type,   \
                                       header.msg_from,   \
@@ -164,7 +164,7 @@ extern "C" {
     void  SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len );
 
     /* Private functions... see: sos.c */
-    extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, long from, long to);
+    extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
     extern SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 
