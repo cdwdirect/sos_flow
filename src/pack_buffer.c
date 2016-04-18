@@ -258,8 +258,8 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
             g = va_arg(ap, SOS_guid);
             dlog(20, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
             SOS_buffer_packguid(buf, g);
-            buf += sizeof(SOS_guid);
-            packed_bytes += sizeof(SOS_guid);
+            buf += 8;
+            packed_bytes += 8;
             break;
         case 'd': // float-64
             d = va_arg(ap, double);
