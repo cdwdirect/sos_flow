@@ -18,6 +18,9 @@ if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; f
 daemon0=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 2097152 --listen_backlog 10 --work_dir ${SOS_WORK} "
 daemon1=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 2097152 --listen_backlog 10 --work_dir ${SOS_WORK} "
 
+#surplus=""
+surplus=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22501 --buffer_len 2097152 --listen_backlog 10 --work_dir ${SOS_WORK} " 
+
 echo ${daemon0}
 echo ${daemon1}
 
@@ -43,4 +46,8 @@ echo ""
 echo "=========="
 echo ""
 
-mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}
+if [ "x${surplus}" == "x" ] ; then
+    mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}
+else
+    mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1} : -np 1 ${surplus}
+fi
