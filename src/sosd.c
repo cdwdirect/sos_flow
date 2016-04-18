@@ -1028,9 +1028,9 @@ void SOSD_init() {
      *      system logging initialize
      */
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.%d.log", SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.local.log", SOSD.daemon.name);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Opening log file: %s\n", SOSD.daemon.log_file); fflush(stdout); }
     sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w"); /* Open a log file, even if we don't use it... */

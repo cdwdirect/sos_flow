@@ -1513,7 +1513,7 @@ void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
 
         if (SOS->role == SOS_ROLE_DAEMON) {
             if (snap->visits != 2) {
-                dlog(0, "snap->guid(%" SOS_GUID_FMT ") is being drained with %d visits!\n", snap->guid, snap->visits);
+                dlog(2, "snap->guid(%" SOS_GUID_FMT ") is being drained with %d visits!\n", snap->guid, snap->visits);
             }
         }
 
