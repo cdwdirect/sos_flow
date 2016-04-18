@@ -178,7 +178,7 @@ int64_t SOS_buffer_unpacki64(unsigned char *buf)
 
 /*
 ** unpackguid() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
-*/ 
+*/
 SOS_guid SOS_buffer_unpackguid(unsigned char *buf)
 {
     return ((SOS_guid)buf[0]<<56) |
