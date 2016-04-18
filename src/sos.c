@@ -1438,7 +1438,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
         snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
         memset(snap, '\0', sizeof(SOS_val_snap));
 
-        offset += SOS_buffer_unpack(SOS, ptr, "ildddl",
+        offset += SOS_buffer_unpack(SOS, ptr, "igdddl",
                                     &snap->elem,
                                     &snap->guid,
                                     &snap->time.pack,
@@ -1725,7 +1725,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
 
     dlog(6, "  ... unpacking the header.\n");
     /* Unpack the header */
-    buffer_pos += SOS_buffer_unpack(SOS, ptr, "iill",
+    buffer_pos += SOS_buffer_unpack(SOS, ptr, "iigg",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
@@ -1798,7 +1798,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
-        buffer_pos += SOS_buffer_unpack(SOS, ptr, "lsiiiiiii",
+        buffer_pos += SOS_buffer_unpack(SOS, ptr, "gsiiiiiii",
             &pub->data[elem]->guid,
             pub->data[elem]->name,
             &pub->data[elem]->type,
@@ -1843,7 +1843,7 @@ void SOS_publish_from_buffer( SOS_pub *pub, unsigned char *buf_ptr, SOS_val_snap
     dlog(7, "Unpacking the values from the buffer...\n");
 
     /* Unpack the header */
-    buffer_pos += SOS_buffer_unpack(SOS, ptr, "iill",
+    buffer_pos += SOS_buffer_unpack(SOS, ptr, "iigg",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
