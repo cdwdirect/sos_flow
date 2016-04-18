@@ -1108,8 +1108,9 @@ void SOSD_init() {
      */
     dlog(1, "Obtaining this instance's guid range...\n");
     #if (SOSD_CLOUD_SYNC > 0)
-        long guid_block_size = (long) ((long double) SOS_DEFAULT_UID_MAX / (long double) SOS->config.comm_size);
+        long guid_block_size = (long) (SOS_DEFAULT_UID_MAX / SOS->config.comm_size);
         long guid_my_first   = (long) SOS->config.comm_rank * guid_block_size;
+        printf("%d: My guid range: %lu - %lu", SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
         SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
         dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");
