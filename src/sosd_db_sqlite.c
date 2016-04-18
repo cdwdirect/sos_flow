@@ -485,7 +485,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  /* Execute the query. */
         
         dlog(5, "     ... success!  resetting the statement.\n");
-        
+
         CALL_SQLITE (reset (stmt_insert_val));
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
@@ -495,7 +495,6 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         if (re_queue != NULL) {
             snap->next = (void *) re_queue->from->get(re_queue->from, pub_guid_str);
             re_queue->from->remove(re_queue->from, pub_guid_str);
-            dlog(5, "     ... re_queue this val_snap in the val_outlet   (%ld).next->(%ld)\n", (long) snap, (long) snap->next);
             re_queue->from->put(re_queue->from, pub_guid_str, (void *) snap);
         } else {
             /* You're not re-queueing them...

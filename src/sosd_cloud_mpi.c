@@ -40,7 +40,7 @@ void SOSD_cloud_shutdown_notice(void) {
         header.msg_from = SOS->my_guid;
         header.pub_guid = 0;
         pack_inset = SOS_buffer_pack(SOS, shutdown_msg, "i", count);
-        offset = SOS_buffer_pack(SOS, (shutdown_msg + pack_inset), "iill",
+        offset = SOS_buffer_pack(SOS, (shutdown_msg + pack_inset), "iigg",
                                  header.msg_size,
                                  header.msg_type,
                                  header.msg_from,
@@ -145,7 +145,7 @@ void SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
     SOS_msg_header header;
     memset(&header, '\0', sizeof(SOS_msg_header));
 
-    SOS_buffer_unpack(SOS, msg, "iill",
+    SOS_buffer_unpack(SOS, msg, "iigg",
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
@@ -222,15 +222,15 @@ void SOSD_cloud_listen_loop(void) {
             dlog(6, "  ... processing entry %d of %d @ offset == %d \n", entry, entry_count, offset);
             memset(&header, '\0', sizeof(SOS_msg_header));
             memset(bp->b.data, '\0', bp->b.max);
-            SOS_buffer_unpack(SOS, ptr, "iill",
+            SOS_buffer_unpack(SOS, ptr, "iigg",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
                               &header.pub_guid);
             dlog(6, "     ... header.msg_size == %d\n", header.msg_size);
             dlog(6, "     ... header.msg_type == %s  (%d)\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
-            dlog(6, "     ... header.msg_from == %ld\n", header.msg_from);
-            dlog(6, "     ... header.pub_guid == %ld\n", header.pub_guid);
+            dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+            dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
             memcpy(bp->b.data, ptr, header.msg_size);
             offset += header.msg_size;
