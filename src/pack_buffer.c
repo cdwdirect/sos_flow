@@ -29,69 +29,6 @@
 #define SOS_buffer_unpack754_64(i) (SOS_buffer_unpack754((i), 64, 11))
 
 
-/*
- *  Old stuff...
- *
- *
-
-uint64_t OLD_SOS_buffer_pack754(long double f, unsigned int bits, unsigned int expbits) {
-    long double fnorm;
-    int shift;
-    long sign, exp, significand;
-    unsigned significandbits = bits - expbits - 1; // -1 for sign bit
-    
-    if (f == 0.0) return 0; // get this special case out of the way
-    
-    // check sign and begin normalization
-    if (f < 0) { sign = 1; fnorm = -f; }
-    else { sign = 0; fnorm = f; }
-    
-    // get the normalized form of f and track the exponent
-    shift = 0;
-    while(fnorm >= 2.0) { fnorm /= 2.0; shift++; }
-    while(fnorm < 1.0) { fnorm *= 2.0; shift--; }
-    fnorm = fnorm - 1.0;
-    
-    // calculate the binary form (non-float) of the significand data
-    significand = fnorm * ((1L<<significandbits) + 0.5f);
-    
-    // get the biased exponent
-    exp = shift + ((1<<(expbits-1)) - 1); // shift + bias
-    
-    // return the final answer
-    return (sign<<(bits-1)) | (exp<<(bits-expbits-1)) | significand;
-}
-
-
-
-long double OLD_SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits) {
-    long double result;
-    long long shift;
-    unsigned bias;
-    unsigned significandbits = bits - expbits - 1; // -1 for sign bit
-
-    if (i == 0) return 0.0;
-
-    // pull the significand
-    result = (i&((1L<<significandbits)-1)); // mask
-    result /= (1L<<significandbits); // convert back to float
-    result += 1.0f; // add the one back on
-
-    // deal with the exponent
-    bias = (1<<(expbits-1)) - 1;
-    shift = ((i>>significandbits)&((1L<<expbits)-1)) - bias;
-    while(shift > 0) { result *= 2.0; shift--; }
-    while(shift < 0) { result /= 2.0; shift++; }
-
-    // sign it
-    result *= (i>>(bits-1))&1? -1.0: 1.0;
-
-    return result;
-}
-*/
-
-
-
 
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format
@@ -170,6 +107,7 @@ void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
     *buf++ = i>>8;  *buf++ = i;
 }
 
+
 /*
 ** packi64() -- store a 64-bit int into a char buffer (like htonl())
 */ 
@@ -180,6 +118,21 @@ void SOS_buffer_packi64(unsigned char *buf, unsigned long long int i)
     *buf++ = i>>24; *buf++ = i>>16;
     *buf++ = i>>8;  *buf++ = i;
 }
+
+
+/*
+** packguid() -- store a GUID in a char buffer (like htonl())
+*/ 
+void SOS_buffer_packguid(unsigned char *buf, SOS_guid g)
+{
+    *buf++ = g>>56; *buf++ = g>>48;
+    *buf++ = g>>40; *buf++ = g>>32;
+    *buf++ = g>>24; *buf++ = g>>16;
+    *buf++ = g>>8;  *buf++ = g;
+}
+
+
+
 
 /*
 ** unpacki32() -- unpack a 32-bit int from a char buffer (like ntohl())
@@ -224,6 +177,22 @@ int64_t SOS_buffer_unpacki64(unsigned char *buf)
 
 
 /*
+** unpackguid() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
+*/ 
+SOS_guid SOS_buffer_unpackguid(unsigned char *buf)
+{
+    return ((SOS_guid)buf[0]<<56) |
+        ((SOS_guid)buf[1]<<48) |
+        ((SOS_guid)buf[2]<<40) |
+        ((SOS_guid)buf[3]<<32) |
+        ((SOS_guid)buf[4]<<24) |
+        ((SOS_guid)buf[5]<<16) |
+        ((SOS_guid)buf[6]<<8)  |
+        buf[7];
+}
+
+
+/*
 ** unpacku64() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
 */ 
 uint64_t SOS_buffer_unpacku64(unsigned char *buf)
@@ -254,6 +223,7 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
 
     int      i;           // 32-bit
     long     l;           // 64-bit
+    SOS_guid g;           // GUID (64-bit uint)
     double   d;           // double
     uint64_t fhold;
 
@@ -277,7 +247,6 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
             buf += 4;
             packed_bytes += 4;
             break;
-
         case 'l': // 64-bit
             l = va_arg(ap, long);
             dlog(20, "  ... packing l @ %d:   %ld   [64-bit]\n", packed_bytes, (long) l);
@@ -285,7 +254,13 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
             buf += 8;
             packed_bytes += 8;
             break;
-
+        case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
+            g = va_arg(ap, SOS_guid);
+            dlog(20, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
+            SOS_buffer_packguid(buf, g);
+            buf += sizeof(SOS_guid);
+            packed_bytes += sizeof(SOS_guid);
+            break;
         case 'd': // float-64
             d = va_arg(ap, double);
             dlog(20, "  ... packing d @ %d:   %lf   [64-bit float]\n", packed_bytes, (double) d);
@@ -294,7 +269,6 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
             buf += 8;
             packed_bytes += 8;
             break;
-
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
@@ -327,12 +301,13 @@ int SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format
 
     va_list ap;
 
-    int    *i;       // 32-bit
-    long   *l;       // 64-bit
-    double *d;       // double (64-bit)
-    uint64_t fhold;
+    int      *i;       // 32-bit
+    long     *l;       // 64-bit
+    SOS_guid *g;       // GUID (64-bit uint)
+    double   *d;       // double (64-bit)
+    uint64_t  fhold;
+    char     *s;
 
-    char *s;
     unsigned int len, maxstrlen=0, count;
 
     int packed_bytes;
@@ -356,6 +331,13 @@ int SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format
             l = va_arg(ap, long*);
             *l = SOS_buffer_unpacki64(buf);
             dlog(20, "  ... unpacked l @ %d:   %ld   [64-bit]\n", packed_bytes, *l);
+            buf += 8;
+            packed_bytes += 8;
+            break;
+        case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
+            g = va_arg(ap, SOS_guid*);
+            *g = SOS_buffer_unpackguid(buf);
+            dlog(20, "  ... unpacked g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, *g);
             buf += 8;
             packed_bytes += 8;
             break;

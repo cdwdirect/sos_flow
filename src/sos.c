@@ -54,8 +54,9 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
-    long guid_pool_from;
-    long guid_pool_to;
+    SOS_guid guid_pool_from;
+    SOS_guid guid_pool_to;
+
 
     SOS_runtime *NEW_SOS = NULL;
     if (extant_sos_runtime == NULL) {
@@ -112,23 +113,26 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
     }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
+
         #if (SOS_CONFIG_USE_THREAD_POOL > 0)
         SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
         SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-        dlog(1, "  ... launching libsos runtime threads.\n");
+        
+        dlog(1, "  ... launching libsos runtime thread[s].\n");
         retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, (void *) SOS );
         if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
         retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
         if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
         retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
         if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-
         SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         retval = pthread_mutex_init(SOS->net.send_lock, NULL);
         if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
         #endif
+
     }
+
 
     if (SOS->config.offline_test_mode == true) {
         /* Here, the offline mode finishes up any non-networking initialization and bails out. */
@@ -173,7 +177,7 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
     if (SOS->role == SOS_ROLE_CLIENT) {
         /*
          *
-         *  CLIENT / CONTROL
+         *  CLIENT
          *
          */
         dlog(1, "  ... setting up socket communications with the daemon.\n" );
@@ -214,7 +218,7 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
 
         memset(buffer, '\0', SOS_DEFAULT_REPLY_LEN);
 
-        SOS_buffer_pack(SOS, buffer, "iill", 
+        SOS_buffer_pack(SOS, buffer, "iigg", 
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -228,16 +232,16 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
         retval = recv( server_socket_fd, (void *) buffer, SOS_DEFAULT_REPLY_LEN, 0);
 
         dlog(6, "  ... server responded with %d bytes.\n", retval);
-        memcpy(&guid_pool_from, buffer, sizeof(long));
-        memcpy(&guid_pool_to, (buffer + sizeof(long)), sizeof(long));
-        dlog(1, "  ... received guid range from %ld to %ld.\n", guid_pool_from, guid_pool_to);
+        memcpy(&guid_pool_from, buffer, sizeof(SOS_guid));
+        memcpy(&guid_pool_to, (buffer + sizeof(SOS_guid)), sizeof(SOS_guid));
+        dlog(1, "  ... received guid range from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(1, "  ... configuring uid sets.\n");
 
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* DAEMON doesn't use this, it's for CLIENTS. */
 
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
-        dlog(1, "  ... SOS->my_guid == %ld\n", SOS->my_guid);
+        dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
 
         close( server_socket_fd );
 
@@ -257,6 +261,25 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
     dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
     return SOS;
 }
+
+
+/* TODO */
+int SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data)) {
+    SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
+
+
+
+    return 0;
+}
+
+
+ /* TODO */
+void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length) {
+    SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
+
+    return;
+}
+
 
 
 void SOS_async_buf_pair_init(SOS_runtime *sos_context, SOS_async_buf_pair **buf_pair_ptr) {
@@ -694,7 +717,7 @@ void* SOS_THREAD_feedback( void *args ) {
         ptr = check_in_msg;
         ptr_offset = 0;
 
-        ptr_offset += SOS_buffer_pack(SOS, ptr, "iill",
+        ptr_offset += SOS_buffer_pack(SOS, ptr, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -711,7 +734,7 @@ void* SOS_THREAD_feedback( void *args ) {
         ptr = feedback_msg;
         ptr_offset = 0;
 
-        ptr_offset += SOS_buffer_unpack(SOS, ptr, "iill",
+        ptr_offset += SOS_buffer_unpack(SOS, ptr, "iigg",
             &header.msg_size,
             &header.msg_type,
             &header.msg_from,
@@ -775,7 +798,7 @@ void SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *msg, int msg_l
     ptr = msg;
     ptr_offset = 0;
 
-    ptr_offset += SOS_buffer_unpack(SOS, ptr, "iill",
+    ptr_offset += SOS_buffer_unpack(SOS, ptr, "iigg",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
@@ -812,7 +835,7 @@ void SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *msg, int msg_l
 
 
 
-void SOS_uid_init(SOS_runtime *sos_context,  SOS_uid **id_var, long set_from, long set_to ) {
+void SOS_uid_init(SOS_runtime *sos_context,  SOS_uid **id_var, SOS_guid set_from, SOS_guid set_to ) {
     SOS_SET_CONTEXT(sos_context, "SOS_uid_init");
     SOS_uid *id;
 
@@ -845,7 +868,7 @@ void SOS_uid_destroy( SOS_uid *id ) {
 }
 
 
-long SOS_uid_next( SOS_uid *id ) {
+SOS_guid SOS_uid_next( SOS_uid *id ) {
     SOS_SET_CONTEXT(id->sos_context, "SOS_uid_next");
     long next_serial;
 
@@ -883,7 +906,7 @@ long SOS_uid_next( SOS_uid *id ) {
                 memcpy(&id->next, buffer, sizeof(long));
                 memcpy(&id->last, (buffer + sizeof(long)), sizeof(long));
             }
-            dlog(1, "  ... recieved a new guid block from %ld to %ld.\n", id->next, id->last);
+            dlog(1, "  ... recieved a new guid block from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", id->next, id->last);
         }
     }
 
@@ -916,7 +939,7 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
     } else {
         new_pub->guid = SOS_uid_next( SOS->uid.my_guid_pool );
     }
-    snprintf(new_pub->guid_str, SOS_DEFAULT_STRING_LEN, "%ld", new_pub->guid);
+    snprintf(new_pub->guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, new_pub->guid);
 
     dlog(6, "  ... setting default values, allocating space for strings.\n");
 
@@ -1053,7 +1076,7 @@ int SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic) {
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack");
 
-    long      pos;
+    int       pos;
     SOS_data *data;
 
     /* The hash table will return NULL if a value is not present.
@@ -1076,7 +1099,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         /* NOTE: (pos + 1) is correct, we're storing it's "N'th element" position
          *       rather than it's array index. See SOS_pub_search(...) for explanation. */
-        pub->name_table->put(pub->name_table, name, (void *) (pos + 1));
+        pub->name_table->put(pub->name_table, name, (void *) ((long)(pos + 1)));
 
         data = pub->data[pos];
 
@@ -1084,7 +1107,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         data->type = pack_type;
         if (data->type == SOS_VAL_TYPE_STRING) {
             data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
-            dlog(0, "[STRING] Packing a string: %s", data->val.c_val);
+            dlog(8, "[STRING] Packing a string: %s\n", data->val.c_val);
         } else {
             data->val  = pack_val;
         }
@@ -1106,7 +1129,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         if (data->type == SOS_VAL_TYPE_STRING) {
             if (data->val.c_val != NULL) { free(data->val.c_val); }
             data->val.c_val = strndup( pack_val.c_val, SOS_DEFAULT_STRING_LEN);
-            dlog(0, "[STRING] Re-packing a string value: %s\n", data->val.c_val);
+            dlog(8, "[STRING] Re-packing a string value: %s\n", data->val.c_val);
         } else {
             data->val = pack_val;
         }
@@ -1114,7 +1137,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         SOS_TIME( data->time.pack );
     }
 
-    return;
+    return pos;
 }
 
 int SOS_pub_search(SOS_pub *pub, const char *name) {
@@ -1229,7 +1252,7 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     memset(new_snap, '\0', sizeof(SOS_val_snap));
 
     memset(pub->guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-    sprintf(pub->guid_str, "%ld", pub->guid);
+    sprintf(pub->guid_str, "%" SOS_GUID_FMT, pub->guid);
 
     val_copy = pub->data[elem]->val;
     if (pub->data[elem]->type == SOS_VAL_TYPE_STRING) {
@@ -1252,7 +1275,7 @@ void SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem) {
     queue->from->remove(queue->from, pub->guid_str);
 
     dlog(6, "     &(%ld) new_snap->elem      = %d\n",  (long) new_snap, new_snap->elem);
-    dlog(6, "     &(%ld) new_snap->guid      = %ld\n", (long) new_snap, new_snap->guid);
+    dlog(6, "     &(%ld) new_snap->guid      = %" SOS_GUID_FMT "\n", (long) new_snap, new_snap->guid);
     dlog(6, "     &(%ld) new_snap->mood      = %d\n",  (long) new_snap, new_snap->mood);
     dlog(6, "     &(%ld) new_snap->semantic  = %d\n",  (long) new_snap, new_snap->semantic);
     
@@ -1312,7 +1335,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
     header.msg_from = SOS->my_guid;
     header.pub_guid = pub->guid;
 
-    buffer_len += SOS_buffer_pack(SOS, ptr, "iill",
+    buffer_len += SOS_buffer_pack(SOS, ptr, "iigg",
                                   header.msg_size,
                                   header.msg_type,
                                   header.msg_from,
@@ -1324,10 +1347,10 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
 
     while (snap != NULL) {
 
-        dlog(6, "     ... guid=%ld\n", snap->guid);
+        dlog(6, "     ... guid=%" SOS_GUID_FMT "\n", snap->guid);
         snap->visits++;
 
-        buffer_len += SOS_buffer_pack(SOS, ptr, "ildddl",
+        buffer_len += SOS_buffer_pack(SOS, ptr, "igdddl",
                                       snap->elem,
                                       snap->guid,
                                       snap->time.pack,
@@ -1342,7 +1365,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
         case SOS_VAL_TYPE_DOUBLE: buffer_len += SOS_buffer_pack(SOS, ptr, "d", snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING: buffer_len += SOS_buffer_pack(SOS, ptr, "s", snap->val.c_val); break;
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
+            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
             break;
         }
         ptr = (buffer + buffer_len);
@@ -1392,11 +1415,11 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
 
     dlog(6, "     ... header.msg_size == %d\n", header.msg_size);
     dlog(6, "     ... header.msg_type == %d\n", header.msg_type);
-    dlog(6, "     ... header.msg_from == %ld\n", header.msg_from);
-    dlog(6, "     ... header.pub_guid == %ld\n", header.pub_guid);
+    dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+    dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
     
     char guid_str[SOS_DEFAULT_STRING_LEN];
-    snprintf(guid_str, SOS_DEFAULT_STRING_LEN, "%ld", header.pub_guid);
+    snprintf(guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.pub_guid);
 
     pub = (SOS_pub *) pub_table->get(pub_table, guid_str);
     
@@ -1437,7 +1460,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
             dlog(0, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
             break;
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
+            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
             break;
         }
         ptr = (buffer + offset);
@@ -1490,12 +1513,12 @@ void SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub) {
 
         if (SOS->role == SOS_ROLE_DAEMON) {
             if (snap->visits != 2) {
-                dlog(0, "snap->guid(%ld) is being drained with %d visits!\n", snap->guid, snap->visits);
+                dlog(0, "snap->guid(%" SOS_GUID_FMT ") is being drained with %d visits!\n", snap->guid, snap->visits);
             }
         }
 
         if (SOS->role == SOS_ROLE_DB) {
-            dlog(0, "snap->guid(%ld) is being drained in the SOS_ROLE_DB ... this is wrong.\n", snap->guid);
+            dlog(0, "snap->guid(%" SOS_GUID_FMT ") is being drained in the SOS_ROLE_DB ... this is wrong.\n", snap->guid);
         }
 
         next_snap = snap->next;
@@ -1549,7 +1572,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
     header.msg_from = SOS->my_guid;
     header.pub_guid = pub->guid;
     /* Pack the header, (we'll re-pack the header.msg_size at the end) */
-    buffer_len += SOS_buffer_pack(SOS, ptr, "iill",
+    buffer_len += SOS_buffer_pack(SOS, ptr, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -1578,7 +1601,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
 
     /* Pack the data definitions: */
     for (elem = 0; elem < pub->elem_count; elem++) {
-        buffer_len += SOS_buffer_pack(SOS, ptr, "lsiiiiiii",
+        buffer_len += SOS_buffer_pack(SOS, ptr, "gsiiiiiii",
             pub->data[elem]->guid,
             pub->data[elem]->name,
             pub->data[elem]->type,
@@ -1628,7 +1651,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
     header.msg_from = SOS->my_guid;
     header.pub_guid = pub->guid;
     /* Pack the header, (we'll re-pack the header.msg_size at the end) */
-    buffer_len += SOS_buffer_pack(SOS, ptr, "iill",
+    buffer_len += SOS_buffer_pack(SOS, ptr, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -1670,7 +1693,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
         case SOS_VAL_TYPE_DOUBLE:  buffer_len += SOS_buffer_pack(SOS, ptr, "d", pub->data[elem]->val.d_val); break;
         case SOS_VAL_TYPE_STRING:  buffer_len += SOS_buffer_pack(SOS, ptr, "s", pub->data[elem]->val.c_val); break;
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[elem]->type, elem, pub->guid);
+            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
             break;
         }
         ptr = (buffer + buffer_len);
@@ -1713,7 +1736,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
 
     pub->guid = header.pub_guid;
 
-    snprintf(pub->guid_str, SOS_DEFAULT_STRING_LEN, "%ld", pub->guid);
+    snprintf(pub->guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, pub->guid);
 
     dlog(6, "  ... unpacking the pub definition.\n");
     /* Unpack the pub definition: */
@@ -1795,7 +1818,7 @@ void SOS_announce_from_buffer( SOS_pub *pub, unsigned char *buf_ptr ) {
         }
 
         ptr = (buffer + buffer_pos);
-        dlog(6, "  ... pub->data[%d]->guid = %ld\n", elem, pub->data[elem]->guid);
+        dlog(6, "  ... pub->data[%d]->guid = %" SOS_GUID_FMT "\n", elem, pub->data[elem]->guid);
         dlog(6, "  ... pub->data[%d]->name = %s\n", elem, pub->data[elem]->name);
         dlog(6, "  ... pub->data[%d]->type = %d\n", elem, pub->data[elem]->type);
     }
@@ -1830,7 +1853,7 @@ void SOS_publish_from_buffer( SOS_pub *pub, unsigned char *buf_ptr, SOS_val_snap
     dlog(7, "  ... header.msg_size = %d\n", header.msg_size);
     dlog(7, "  ... header.msg_type = %d\n", header.msg_type);
     dlog(7, "  ... header.msg_from = %ld\n", header.msg_from);
-    dlog(7, "  ... header.pub_guid = %ld\n", header.pub_guid);
+    dlog(7, "  ... header.pub_guid = %" SOS_GUID_FMT "\n", header.pub_guid);
     dlog(7, "  ... values:\n");
 
 
@@ -1878,7 +1901,7 @@ void SOS_publish_from_buffer( SOS_pub *pub, unsigned char *buf_ptr, SOS_val_snap
             dlog(0, "[STRING] Extracted pub message string: %s\n", pub->data[elem]->val.c_val);
             break;
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %ld.\n", pub->data[elem]->type, elem, pub->guid);
+            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
             break;
         }
         ptr = (buffer + buffer_pos);
@@ -1910,7 +1933,7 @@ void SOS_announce( SOS_pub *pub ) {
     int            reply_max;
 
     dlog(6, "Preparing an announcement message...\n");
-    dlog(6, "  ... pub->guid       = %ld\n", pub->guid);
+    dlog(6, "  ... pub->guid       = %" SOS_GUID_FMT "\n", pub->guid);
     dlog(6, "  ... pub->title      = %s\n", pub->title);
     dlog(6, "  ... pub->elem_count = %d\n", pub->elem_count);
     dlog(6, "  ... pub->elem_max   = %d\n", pub->elem_max);
@@ -1956,7 +1979,7 @@ void SOS_publish( SOS_pub *pub ) {
     }
 
     dlog(6, "Preparing a publish message...\n");
-    dlog(6, "  ... pub->guid       = %ld\n", pub->guid);
+    dlog(6, "  ... pub->guid       = %" SOS_GUID_FMT "\n", pub->guid);
     dlog(6, "  ... pub->title      = %s\n", pub->title);
     dlog(6, "  ... pub->elem_count = %d\n", pub->elem_count);
     dlog(6, "  ... pub->elem_max   = %d\n", pub->elem_max);

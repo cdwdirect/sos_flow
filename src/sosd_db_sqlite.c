@@ -55,7 +55,7 @@ sqlite3_stmt *stmt_insert_sosd;
 char *sql_create_table_pubs = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUBS_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
-    " guid "            " INTEGER, "                                    \
+    " guid "            " UNSIGNED BIG INT, "                           \
     " title "           " STRING, "                                     \
     " process_id "      " INTEGER, "                                    \
     " thread_id "       " INTEGER, "                                    \
@@ -74,8 +74,8 @@ char *sql_create_table_pubs = ""                                        \
 char *sql_create_table_data = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
-    " pub_guid "        " INTEGER, "                                    \
-    " guid "            " INTEGER, "                                    \
+    " pub_guid "        " UNSIGNED BIG INT, "                           \
+    " guid "            " UNSIGNED BIG INT, "                           \
     " name "            " STRING, "                                     \
     " val_type "        __ENUM_DB_TYPE ", "                                \
     " meta_freq "       __ENUM_DB_TYPE ", "                                \
@@ -86,7 +86,7 @@ char *sql_create_table_data = ""                                        \
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
-    " guid "            " INTEGER, "                                    \
+    " guid "            " UNSIGNED BIG INT, "                           \
     " val "             " STRING, "                                     \
     " frame "           " INTEGER, "                                    \
     " meta_semantic "   __ENUM_DB_TYPE ", "                                \
@@ -338,13 +338,13 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_pub");
     int i;
 
-    dlog(5, "Inserting pub(%ld)->data into database(%s).\n", pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 
     /*
      *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
      */
 
-    long           guid              = pub->guid;
+    SOS_guid       guid              = pub->guid;
     char          *title             = pub->title;
     int            process_id        = pub->process_id;
     int            thread_id         = pub->thread_id;
@@ -408,7 +408,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
 
     dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
     memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-    sprintf(pub_guid_str, "%ld", pub->guid);
+    sprintf(pub_guid_str, "%" SOS_GUID_FMT, pub->guid);
 
     dlog(2, "  ... getting locks for queues\n");
     if (re_queue != NULL) {
@@ -432,7 +432,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
 
     int           elem;
     char         *val, *val_alloc;
-    long          guid;
+    SOS_guid      guid;
     double        time_pack;
     double        time_send;
     double        time_recv;
@@ -531,14 +531,14 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;
 
-    dlog(5, "Inserting pub(%ld)->data into database(%s).\n", pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 
     for (i = 0; i < pub->elem_count; i++) {
         /*
          *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
          */
-        long          pub_guid          = pub->guid;
-        long          guid              = pub->data[i]->guid;
+        SOS_guid      pub_guid          = pub->guid;
+        SOS_guid      guid              = pub->data[i]->guid;
         const char   *name              = pub->data[i]->name;
         char         *val;
         __ENUM_C_TYPE val_type          = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );

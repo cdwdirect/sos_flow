@@ -183,6 +183,8 @@ int SOSD_cloud_send(unsigned char *msg, int msg_len) {
     /* At this point, it's pretty simple: */
     MPI_Ssend((void *) msg, msg_len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
 
+
+
     return 0;
 }
 
