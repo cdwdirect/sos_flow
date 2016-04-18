@@ -366,7 +366,7 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     dlog(6, "     ... pragma_len = %d\n", pragma_len);
     dlog(6, "     ... pragma     = \"%s\"\n", pragma);
 
-    CALL_SQLITE (bind_int    (stmt_insert_pub, 1,  guid         ));
+    CALL_SQLITE (bind_int64  (stmt_insert_pub, 1,  guid         ));
     CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 3,  process_id   ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 4,  thread_id    ));
@@ -471,7 +471,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
 
         dlog(5, "     ... binding values\n");
 
-        CALL_SQLITE (bind_int    (stmt_insert_val, 1,  guid         ));
+        CALL_SQLITE (bind_int64  (stmt_insert_val, 1,  guid         ));
         CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val,              1 + strlen(val),            SQLITE_STATIC ));
         CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
         __BIND_ENUM (stmt_insert_val, 4,  semantic     );
@@ -561,8 +561,8 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
             continue;
         }
 
-        CALL_SQLITE (bind_int    (stmt_insert_data, 1,  pub_guid     ));
-        CALL_SQLITE (bind_int    (stmt_insert_data, 2,  guid         ));
+        CALL_SQLITE (bind_int64  (stmt_insert_data, 1,  pub_guid     ));
+        CALL_SQLITE (bind_int64  (stmt_insert_data, 2,  guid         ));
         CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             1 + strlen(name), SQLITE_STATIC     ));
         __BIND_ENUM (stmt_insert_data, 4,  val_type     );
         __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
