@@ -30,8 +30,6 @@ void         SOS_expand_data(SOS_pub *pub);
 
 SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
-void         SOS_val_snap_queue_drain(SOS_val_snap_queue *queue, SOS_pub *pub);
-             /* NOTE: Doesn't lock the queue, for use within queue functions when lock is held. */
 
 
 /* Private variables (not exposed in the header file) */
@@ -1406,7 +1404,7 @@ void SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_t
     pthread_mutex_lock( queue->lock );
     dlog(6, "     ... processing header\n");
 
-    offset += SOS_buffer_unpack(SOS, ptr, "iill",
+    offset += SOS_buffer_unpack(SOS, ptr, "iigg",
                                   &header.msg_size,
                                   &header.msg_type,
                                   &header.msg_from,

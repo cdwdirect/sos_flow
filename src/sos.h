@@ -27,7 +27,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include "qhashtbl.h"
+#include "sos_pipe.h"
+#include "sos_qhashtbl.h"
+#include "sos_buffer.h"
 
 /* SOS Configuration Switches... */
 
@@ -247,24 +249,6 @@ typedef union {
 } SOS_val;
 
 typedef struct {
-    unsigned char       data[SOS_DEFAULT_BUFFER_LEN];
-    int                 len;
-    int                 max;
-    int                 entry_count;
-    pthread_mutex_t    *lock;
-} SOS_buf;
-
-typedef struct {
-    void               *sos_context;
-    SOS_buf             a;
-    SOS_buf             b;
-    SOS_buf            *send_buf;
-    SOS_buf            *grow_buf;
-    pthread_cond_t     *flush_cond;
-    pthread_mutex_t    *flush_lock;
-} SOS_async_buf_pair;
-
-typedef struct {
     double              pack;
     double              send;
     double              recv;
@@ -464,58 +448,38 @@ typedef struct {
 extern "C" {
 #endif
 
-    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
-    void      SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
-    void      SOS_finalize(SOS_runtime *sos_context);
+    /* --- "public" functions for users of SOS --- */
 
-    SOS_pub*  SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
+    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
+    SOS_pub*     SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
+    int          SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
+    int          SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
+    void         SOS_announce(SOS_pub *pub);
+    void         SOS_publish(SOS_pub *pub);
+    int          SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *your_data));
+    void         SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
+    void         SOS_finalize(SOS_runtime *sos_context);
+
+
+
+    /* --- "private" functions used by SOS --- */
+
     SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
     int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);
-
-    int       SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data));
-    void      SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
-
-    int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
-    int       SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
-
-    void      SOS_announce(SOS_pub *pub);
-    void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
-    void      SOS_announce_from_buffer(SOS_pub *pub, unsigned char *buffer);
-
-    void      SOS_publish(SOS_pub *pub);
-    void      SOS_publish_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
-    void      SOS_publish_from_buffer(SOS_pub *pub, unsigned char *buffer, SOS_val_snap_queue *opt_queue);
-
-    void      SOS_async_buf_pair_init(SOS_runtime *sos_context, SOS_async_buf_pair **buf_pair_ptr);
-    void      SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair);
-    void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, unsigned char *msg_ptr, int msg_len);
-    void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
-
+    void      SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+    void      SOS_announce_from_buffer(SOS_pub *pub, SOS_buffer *buffer);
+    void      SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+    void      SOS_publish_from_buffer(SOS_pub *pub, SOS_buffer *buffer);
     void      SOS_uid_init(SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
     SOS_guid  SOS_uid_next(SOS_uid *uid);
     void      SOS_uid_destroy(SOS_uid *uid);
-    
-    void      SOS_val_snap_queue_init(SOS_runtime *sos_context, SOS_val_snap_queue **queue);
-    void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);
-    void      SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock);
-    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsigned char **buffer, int *buffer_len, bool drain);
-    void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, unsigned char *buffer, int buffer_size);
-    void      SOS_val_snap_queue_destroy(SOS_val_snap_queue *queue);
-
+    void      SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+    void      SOS_val_snap_queue_from_buffer(SOS_pub *pub, SOS_buffer *buffer);
     void      SOS_strip_str(char *str);
-
-    void      SOS_ring_init(SOS_runtime *sos_context, SOS_ring_queue **ring);
-    void      SOS_ring_destroy(SOS_ring_queue *ring);
-    int       SOS_ring_put(SOS_ring_queue *ring, long item);
-    long      SOS_ring_get(SOS_ring_queue *ring);
-    long*     SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning);
-
+    void      SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
 
     /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
-
-    /* ..... [ empty stubs ] ..... */
-    void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
 
 #ifdef __cplusplus
 }

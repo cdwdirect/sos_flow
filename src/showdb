@@ -26,6 +26,6 @@ for db in $SOS_WORK/sosd.*.db ; do
     echo -n "${db} [pub.COUNT] = "
     sqlite3 ${db} "select count(distinct guid) from tblpubs;"
     echo    "${db} [pubs.LIST] = "
-    sqlite3 ${db} -column -header "${PUBLIST_SQL}"
+    sqlite3 ${db} -header "${PUBLIST_SQL}"
 done
 

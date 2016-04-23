@@ -61,7 +61,7 @@ int main(int argc, char *argv[]) {
     header.msg_from = SOS->my_guid;
     header.pub_guid = 0;
 
-    buf_len = SOS_buffer_pack(SOS, msg_out, "iill",
+    buf_len = SOS_buffer_pack(SOS, msg_out, "iigg",
                               header.msg_size,
                               header.msg_type,
                               header.msg_from,

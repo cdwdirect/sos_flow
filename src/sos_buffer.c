@@ -1,14 +1,9 @@
 
-
-
 /*
- *   Serialization code for [un]packing structs/numerics in character arrays.
- *     ... lifted from Beej's guide:  http://beej.us/guide/
- *     ... modified to prepend 'SOS_buffer_' to the function signatures.
- *     ... see end of file for an example of use.
+ *   Serialization portions of this code for [un]packing structs/numerics
+ *   inspired by Beej's guide:  http://beej.us/guide/
  *                --2015, Chad Wood
  */
-
 
 #include <stdio.h>
 #include <ctype.h>
@@ -16,18 +11,43 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "sos.h"
+#include "sos_buffer.h"
 #include "sos_debug.h"
 
-// macros for packing floats and doubles:
+
+typedef struct {
+    void          *sos_context;
+    pthread_mutex *lock;
+    unsigned char *data;
+    int            len;
+    int            max;
+} SOS_buffer;
+
+void      SOS_buffer_init(SOS_runtime *sos_context, SOS_buffer **buffer);
+void      SOS_buffer_init_sized(SOS_runtime *sos_context, SOS_buffer **buffer, int max_size);
+void      SOS_buffer_lock(SOS_buffer *buffer);
+void      SOS_buffer_unlock(SOS_buffer *buffer);
+void      SOS_buffer_destroy(SOS_buffer *buffer);
+          // The following functions do *NOT* lock the buffer...
+          // (You should hold the lock already, manually)
+void      SOS_buffer_wipe(SOS_buffer *buffer);
+void      SOS_buffer_grow(SOS_buffer *buffer);
+void      SOS_buffer_trim(SOS_buffer *buffer, int to_new_max);
+int       SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...);
+int       SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...);
+
+
+
+// Macros for packing floats and doubles.
 #define SOS_buffer_pack754_16(f) (SOS_buffer_pack754((f), 16, 5))
 #define SOS_buffer_pack754_32(f) (SOS_buffer_pack754((f), 32, 8))
 #define SOS_buffer_pack754_64(f) (SOS_buffer_pack754((f), 64, 11))
 #define SOS_buffer_unpack754_16(i) (SOS_buffer_unpack754((i), 16, 5))
 #define SOS_buffer_unpack754_32(i) (SOS_buffer_unpack754((i), 32, 8))
 #define SOS_buffer_unpack754_64(i) (SOS_buffer_unpack754((i), 64, 11))
-
 
 
 /*
@@ -216,10 +236,16 @@ uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 **
 */
 
-int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...) {
+int SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...) {
     SOS_SET_CONTEXT(sos_context, "SOS_buffer_pack");
 
     va_list ap;
+
+    while (offset >= buffer->max) {
+        SOS_buffer_grow(buffer);
+    }
+        
+    char   *buf = (buffer->data + offset);
 
     int      i;           // 32-bit
     long     l;           // 64-bit

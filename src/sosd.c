@@ -294,7 +294,7 @@ void SOSD_listen_loop() {
 
         if (byte_count >= sizeof(SOS_msg_header)) {
 
-            SOS_buffer_unpack(SOS, buffer, "iill",
+            SOS_buffer_unpack(SOS, buffer, "iigg",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
@@ -513,7 +513,7 @@ void SOSD_handle_echo(unsigned char *msg, int msg_size) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_ECHO\n");
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                                     &header.msg_size,
                                     &header.msg_type,
                                     &header.msg_from,
@@ -537,14 +537,14 @@ void SOSD_handle_val_snaps(unsigned char *msg, int msg_size) {
 
     dlog(5, "Injecting snaps into local_sync queue...\n");
     SOS_val_snap_queue_from_buffer(SOSD.local_sync->val_intake, SOSD.pub_table, msg, msg_size);
-    SOS_buffer_unpack(SOS, msg, "iill",
+    SOS_buffer_unpack(SOS, msg, "iigg",
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
                       &header.pub_guid);
 
     if (header.pub_guid == 0) {
-        dlog(1, "  ... ERROR: Being forced to insert a val_snap with a '0' pub_guid!  (msg_from == %ld)\n", header.msg_from);
+        dlog(1, "  ... ERROR: Being forced to insert a val_snap with a '0' pub_guid!  (msg_from == %" SOS_GUID_FMT ")\n", header.msg_from);
     }
     
     SOS_ring_put(SOSD.local_sync->ring, header.pub_guid);
@@ -566,7 +566,7 @@ void SOSD_handle_register(unsigned char *msg, int msg_size) {
     SOS_guid guid_block_from = 0;
     SOS_guid guid_block_to   = 0;
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -614,7 +614,7 @@ void SOSD_handle_guid_block(unsigned char *msg, int msg_size) {
 
     ptr = 0;
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -662,13 +662,13 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
     ptr = 0;
     dlog(5, "header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n");
 
-    buffer_pos += SOS_buffer_unpack(SOS, msg, "iill",
+    buffer_pos += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
                              &header.pub_guid);
 
-    sprintf(guid_str, "%ld", header.pub_guid);
+    sprintf(guid_str, "%" SOS_GUID_FMT , header.pub_guid);
 
     /* Check the table for this pub ... */
     dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n", guid_str);
@@ -692,7 +692,7 @@ void SOSD_handle_announce(unsigned char *msg, int msg_size) {
 
     if (SOS->role == SOS_ROLE_DB) { return; }
 
-    dlog(5, "  ... pub(%ld)->elem_count = %d\n", pub->guid, pub->elem_count);
+    dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n", pub->guid, pub->elem_count);
 
     SOSD_pack_ack(SOS, reply, &reply_len);
     
@@ -720,13 +720,13 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_PUBLISH\n");
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
                              &header.pub_guid);
 
-    sprintf(guid_str, "%ld", header.pub_guid);
+    sprintf(guid_str, "%" SOS_GUID_FMT , header.pub_guid);
 
     /* Check the table for this pub ... */
     dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n", guid_str);
@@ -747,7 +747,7 @@ void SOSD_handle_publish(unsigned char *msg, int msg_size)  {
 
     SOSD_apply_publish( pub, msg, msg_size );
 
-    dlog(5, "  ... inserting pub(%ld) into the 'to-do' ring queue. (It'll auto-announce as needed.)\n", pub->guid);
+    dlog(5, "  ... inserting pub(%" SOS_GUID_FMT ") into the 'to-do' ring queue. (It'll auto-announce as needed.)\n", pub->guid);
     SOS_ring_put(SOSD.local_sync->ring, pub->guid);
 
     if (SOSD_check_sync_saturation(SOSD.local_sync)) {
@@ -784,7 +784,7 @@ void SOSD_handle_shutdown(unsigned char *msg, int msg_size) {
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -830,7 +830,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_CHECK_IN\n");
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -888,7 +888,7 @@ void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
 
     dlog(1, "header.msg_type = UNKNOWN\n");
 
-    ptr += SOS_buffer_unpack(SOS, msg, "iill",
+    ptr += SOS_buffer_unpack(SOS, msg, "iigg",
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
@@ -896,8 +896,8 @@ void SOSD_handle_unknown(unsigned char *msg, int msg_size) {
 
     dlog(1, "header.msg_size == %d\n", header.msg_size);
     dlog(1, "header.msg_type == %d\n", header.msg_type);
-    dlog(1, "header.msg_from == %ld\n", header.msg_from);
-    dlog(1, "header.pub_guid == %ld\n", header.pub_guid);
+    dlog(1, "header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+    dlog(1, "header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
     if (SOS->role == SOS_ROLE_DB) { return; }
 
@@ -1116,7 +1116,7 @@ void SOSD_init() {
         dlog(1, "DATA NOTE:  GUID values are unique only to this node.\n");
         SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
     #endif
-    dlog(1, "  ... (%ld ---> %ld)\n", SOSD.guid->next, SOSD.guid->last);
+    dlog(1, "  ... (%" SOS_GUID_FMT " ---> %" SOS_GUID_FMT ")\n", SOSD.guid->next, SOSD.guid->last);
 
     /* [hashtable]
      *    storage system for received pubs.  (will enque their key -> db)

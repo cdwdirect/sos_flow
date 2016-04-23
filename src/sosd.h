@@ -6,7 +6,7 @@
 #include <time.h>
 
 #include "qhashtbl.h"
-
+#include "pipe.h"
 
 /*********************/
 /* [SOSD_DAEMON_MODE]
