@@ -22,7 +22,10 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-#include "pipe.h"
+
+#include "sos_pipe.h"
+#include "sos_debug.h"
+
 
 #include <assert.h>
 #include <stdbool.h>
@@ -1121,5 +1124,23 @@ void pipe_reserve(pipe_generic_t* gen, size_t count)
         resize_buffer(p, count);
     );
 }
+
+
+void SOS_pipe_init(struct SOS_runtime *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
+    SOS_SET_CONTEXT(sos_context, "SOS_pipe_init");
+    
+    SOS_pipe *pipe;
+    pipe = *pipe_obj = (SOS_pipe *) malloc(sizeof(SOS_pipe));
+
+    pipe_t *p_setup = pipe_new(elem_size, 0);
+    pipe->intake = pipe_producer_new(p_setup);
+    pipe->outlet = pipe_consumer_new(p_setup);
+    pipe_free(p_setup);
+
+    pipe->sos_context = sos_context;
+    pipe->elem_size = elem_size;
+    return;
+}
+
 
 /* vim: set et ts=4 sw=4 softtabstop=4 textwidth=80: */

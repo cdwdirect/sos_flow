@@ -1,3 +1,6 @@
+#ifndef SOS_PIPE_H
+#define SOS_PIPE_H
+
 /* pipe.h - The public pipe interface. This is the only file that must be
  *          included to begin using the pipe.
  *
@@ -140,6 +143,24 @@ typedef struct pipe_producer_t pipe_producer_t;
 typedef struct pipe_consumer_t pipe_consumer_t;
 typedef struct pipe_generic_t  pipe_generic_t;
 
+typedef struct {
+    struct SOS_runtime *sos_context;
+    pipe_producer_t    *intake;
+    pipe_consumer_t    *outlet;
+    size_t              elem_size;
+} SOS_pipe;
+
+void SOS_pipe_init(struct SOS_runtime *sos_context, SOS_pipe **pipe_obj, size_t elem_size);
+
+    /* There are no SOS_pipe_destroy() helper-functions...
+     * ...see the 'direct' data object functions below,
+     * when you're ready to close / free() a pipe.
+     * Unlike other SOS objects, pipes need to be closed 
+     * manually because they are likely involved in other
+     * async stuff we don't know about within the library.
+     */
+
+
 #define PIPE_GENERIC(handle) ((pipe_generic_t*)(handle))
 
 /*
@@ -263,3 +284,5 @@ void pipe_run_test_suite(void);
 #endif
 
 /* vim: set et ts=4 sw=4 softtabstop=4 textwidth=80: */
+
+#endif

@@ -5,8 +5,9 @@
 #include <signal.h>
 #include <time.h>
 
-#include "qhashtbl.h"
-#include "pipe.h"
+#include "sos.h"
+#include "sos_types.h"
+
 
 /*********************/
 /* [SOSD_DAEMON_MODE]
@@ -46,21 +47,6 @@
     }
 
 
-typedef struct {
-    pthread_t          extract_t;
-    pthread_cond_t     extract_cond;
-    pthread_mutex_t    extract_lock;
-    pthread_t          commit_t;
-    pthread_cond_t     commit_cond;
-    pthread_mutex_t    commit_lock;
-    long               *commit_list;
-    int                 commit_count;
-    SOS_target          commit_target;
-    SOS_val_snap_queue *val_intake;
-    SOS_val_snap_queue *val_outlet;
-    char               *name;
-    SOS_ring_queue     *ring;
-} SOSD_pub_ring_mon;
 
 typedef struct {
     int                 server_socket_fd;
@@ -105,9 +91,8 @@ typedef struct {
     SOSD_db             db;
     SOSD_net            net;
     SOS_uid            *guid;
-    SOSD_pub_ring_mon  *local_sync;
-    SOSD_pub_ring_mon  *cloud_sync;
-    SOS_async_buf_pair *cloud_bp;
+    SOS_pipe           *local_sync;
+    SOS_pipe           *cloud_sync;
     qhashtbl_t         *pub_table;
 } SOSD_global;
 
@@ -137,16 +122,8 @@ extern "C" {
     void  SOSD_init(void);
     void  SOSD_setup_socket(void);
 
-    void  SOSD_init_pub_ring_monitor(void);
-    void* SOSD_THREAD_pub_ring_list_extractor(void *args);
-    void* SOSD_THREAD_pub_ring_storage_injector(void *args);
-    void  SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
-                                     char *name_var,
-                                     SOS_ring_queue *ring_var,
-                                     SOS_val_snap_queue *source_vals,
-                                     SOS_val_snap_queue *target_vals,
-                                     SOS_target target);
-    void  SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon_var);
+    void* SOSD_THREAD_local_sync(void *args);
+    void* SOSD_THREAD_cloud_sync(void *args);
 
     void  SOSD_listen_loop(void);
     void  SOSD_handle_register(unsigned char *msg_data, int msg_size);
@@ -165,7 +142,7 @@ extern "C" {
 
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
-    extern SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
+    extern SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 
 #ifdef __cplusplus

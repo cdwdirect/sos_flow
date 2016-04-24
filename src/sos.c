@@ -19,36 +19,30 @@
 #include <netdb.h>
 
 #include "sos.h"
+#include "sos_types.h"
 #include "sos_debug.h"
-#include "pack_buffer.h"
-#include "qhashtbl.h"
+#include "sos_buffer.h"
+#include "sos_pipe.h"
+#include "sos_qhashtbl.h"
 
 /* Private functions (not in the header file) */
 void*        SOS_THREAD_feedback(void *arg);
-void         SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *buffer, int buffer_length);
+void         SOS_handle_feedback(SOS_buffer *buffer);
 void         SOS_expand_data(SOS_pub *pub);
 
-SOS_runtime* SOS_init_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
+SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 
-
-/* Private variables (not exposed in the header file) */
-int            SOS_NULL_STR_LEN  = sizeof(unsigned char);
-unsigned char  SOS_NULL_STR_CHAR = '\0';
-unsigned char *SOS_NULL_STR      = &SOS_NULL_STR_CHAR;
-
-/* Global data structure */
-SOS_runtime SOS;
 
 /* **************************************** */
 /* [util]                                   */
 /* **************************************** */
 
 SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_layer layer) {
-    return SOS_init_runtime(argc, argv, role, layer, NULL);
+    return SOS_init_with_runtime(argc, argv, role, layer, NULL);
 }
 
-SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime ) {
+SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime ) {
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
@@ -101,23 +95,11 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
     gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
     dlog(1, "  ... node_id: %s\n", SOS->config.node_id );
 
-    dlog(1, "  ... configuring data rings.\n");
-    SOS_ring_init(SOS, &SOS->ring.send);
-    SOS_ring_init(SOS, &SOS->ring.recv);
-
     if (SOS->role == SOS_ROLE_CLIENT) {
-        SOS_val_snap_queue_init(SOS, &SOS->task.val_intake);
-        SOS->task.val_outlet = NULL;
-    }
-
-    if (SOS->role == SOS_ROLE_CLIENT) {
-
-        #if (SOS_CONFIG_USE_THREAD_POOL > 0)
+        dlog(1, "  ... launching libsos runtime thread[s].\n");
         SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
         SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-        
-        dlog(1, "  ... launching libsos runtime thread[s].\n");
         retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, (void *) SOS );
         if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
         retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
@@ -127,8 +109,6 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
         SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         retval = pthread_mutex_init(SOS->net.send_lock, NULL);
         if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-        #endif
-
     }
 
 
@@ -214,22 +194,24 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
         header.msg_from = 0;
         header.pub_guid = 0;
 
-        memset(buffer, '\0', SOS_DEFAULT_REPLY_LEN);
+        SOS_buffer *buffer;
+        SOS_buffer_init(SOS, &buffer);
+        SOS_buffer_lock(buffer);
 
-        SOS_buffer_pack(SOS, buffer, "iigg", 
+        SOS_buffer_pack(buffer, 0, "iigg", 
             header.msg_size,
             header.msg_type,
             header.msg_from,
             header.pub_guid);
-        
-        retval = sendto( server_socket_fd, buffer, sizeof(SOS_msg_header), 0, 0, 0 );
+
+        retval = sendto( server_socket_fd, buffer->data, buffer->len, 0, 0, 0 );
         if (retval < 0) { dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port); exit(1); }
 
         dlog(1, "  ... listening for the server to reply...\n");
-        memset(buffer, '\0', SOS_DEFAULT_REPLY_LEN);
-        retval = recv( server_socket_fd, (void *) buffer, SOS_DEFAULT_REPLY_LEN, 0);
-
+        SOS_buffer_wipe(buffer);
+        buffer->len = recv( server_socket_fd, (void *) buffer->data, buffer->max, 0);
         dlog(6, "  ... server responded with %d bytes.\n", retval);
+
         memcpy(&guid_pool_from, buffer, sizeof(SOS_guid));
         memcpy(&guid_pool_to, (buffer + sizeof(SOS_guid)), sizeof(SOS_guid));
         dlog(1, "  ... received guid range from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
@@ -240,6 +222,9 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
 
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
+
+        SOS_buffer_unlock(buffer);
+        SOS_buffer_destroy(buffer);
 
         close( server_socket_fd );
 
@@ -261,7 +246,7 @@ SOS_runtime* SOS_init_runtime( int *argc, char ***argv, SOS_role role, SOS_layer
 }
 
 
-/* TODO */
+/* TODO: { FEEDBACK } */
 int SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data)) {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
 
@@ -271,7 +256,7 @@ int SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callb
 }
 
 
- /* TODO */
+/* TODO: { FEEDBACK } */
 void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length) {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
 
@@ -280,295 +265,14 @@ void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer,
 
 
 
-void SOS_async_buf_pair_init(SOS_runtime *sos_context, SOS_async_buf_pair **buf_pair_ptr) {
-    SOS_SET_CONTEXT(sos_context, "SOS_async_buf_pair_init");
-    SOS_async_buf_pair *buf_pair;
-
-    *buf_pair_ptr = (SOS_async_buf_pair *) malloc(sizeof(SOS_async_buf_pair));
-    buf_pair = *buf_pair_ptr;
-    memset(buf_pair, '\0', sizeof(SOS_async_buf_pair));
-
-    buf_pair->sos_context = sos_context;
-    
-    memset(buf_pair->a.data, '\0', SOS_DEFAULT_BUFFER_LEN);
-    memset(buf_pair->b.data, '\0', SOS_DEFAULT_BUFFER_LEN);
-    buf_pair->a.len = 0;
-    buf_pair->b.len = 0;
-    buf_pair->a.max = SOS_DEFAULT_BUFFER_LEN;
-    buf_pair->b.max = SOS_DEFAULT_BUFFER_LEN;
-    buf_pair->grow_buf = &buf_pair->a;
-    buf_pair->send_buf = &buf_pair->b;
-
-    buf_pair->a.lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    buf_pair->b.lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(buf_pair->a.lock, NULL);
-    pthread_mutex_init(buf_pair->b.lock, NULL);
-
-    buf_pair->flush_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(buf_pair->flush_lock, NULL);
-    buf_pair->flush_cond = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-    pthread_cond_init(buf_pair->flush_cond, NULL);
-
-    return;
-}
-
-
-void SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair) {
-    SOS_SET_CONTEXT(buf_pair->sos_context, "SOS_async_buf_pair_fflush");
-
-    /* The thread that actually does the 'flushing' is set up by the
-     * context that creats the buf_pair.  Specifically, all we do here
-     * is grab the locks, swap the roles of the buffers, trigger the
-     * flush condition, and release the lock.
-     * Immediately, grow_buf is available to handle new
-     * writes, because the facilitating thread does not go back to sleep
-     * and release the flush lock until the sending buffer has been
-     * entirely handled. */
-
-    dlog(1, "Forcing a flush...\n");
-    if (SOS->status != SOS_STATUS_RUNNING) {
-        dlog(1, "  ... skipping buffer flush, system is shutting down\n");
-        return;
-    }
-    dlog(7, "  ... LOCK buf_pair->flush_lock\n");
-    pthread_mutex_lock(buf_pair->flush_lock);
-    dlog(7, "  ... LOCK buf_pair->send_buf->lock\n");
-    pthread_mutex_lock(buf_pair->send_buf->lock);
-    dlog(7, "  ... LOCK buf_pair->grow_buf->lock\n");
-    pthread_mutex_lock(buf_pair->grow_buf->lock);
-
-
-    dlog(1, "  ... swap buffers\n");
-    if (buf_pair->send_buf == &buf_pair->a) {
-        buf_pair->grow_buf = &buf_pair->a;
-        buf_pair->send_buf = &buf_pair->b;
-    } else {
-        buf_pair->grow_buf = &buf_pair->b;
-        buf_pair->send_buf = &buf_pair->a;
-    }
-    dlog(7, "  ... UNLOCK buf_pair->send_buf->lock\n");
-    pthread_mutex_unlock(buf_pair->send_buf->lock);
-    dlog(7, "  ... UNLOCK buf_pair->grow_buf->lock\n");
-    pthread_mutex_unlock(buf_pair->grow_buf->lock);
-
-    dlog(7, "  ... signal flush condition\n");
-    pthread_cond_signal(buf_pair->flush_cond);
-    dlog(7, "  ... UNLOCK buf_pair->flush_lock\n");
-    pthread_mutex_unlock(buf_pair->flush_lock);
-
-    return;
-}
-
-void SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, unsigned char *msg_ptr, int msg_len) {
-    SOS_SET_CONTEXT(buf_pair->sos_context, "SOS_async_buf_pair_insert");
-    SOS_buf *buf;
-    int count;
-    int count_size;
-
-    buf = buf_pair->grow_buf;
-
-    dlog(7, "  ... LOCK grow_buf->lock\n");
-    pthread_mutex_lock(buf->lock);
-    count_size = SOS_buffer_unpack(SOS, buf->data, "i", &count);
-
-    /* NOTE: '8' to make sure we'll have room to pack in the msg_len... */
-    if ((8 + msg_len) > buf->max) {
-        dlog(0, "WARNING! You've attempted to insert a value that is larger than the buffer!  (msg_len == %d)\n", msg_len);
-        dlog(0, "WARNING! Skipping this value, but the system is no longer tracking all entries.\n");
-        dlog(7, "  ... UNLOCK grow_buf->lock\n");
-        pthread_mutex_unlock(buf->lock);
-        return;
-    }
-
-    while ((8 + msg_len + buf->len) > buf->max) {
-        pthread_mutex_unlock(buf->lock);
-        SOS_async_buf_pair_fflush(buf_pair);
-        buf = buf_pair->grow_buf;
-        pthread_mutex_lock(buf->lock);
-    }
-    /* Now buf points to an totally empty/available buffer,
-     * and we know our value fits, even if multiple threads
-     * are hitting it. */
-
-    /* NOTE: We can't use SOS_buffer_pack() for the msg because, being already
-     *       the product of packing, msg may contain inline null zero's and is
-     *       not useable as a 'string'.  We use memcpy on it instead.  This will
-     *       be true on the receiving/processing side of this buffer as well. */
-    memcpy((buf->data + buf->len + count_size), msg_ptr, msg_len);
-    buf->len += msg_len;
-
-    buf->entry_count++;
-    dlog(7, "buf->entry_count == %d\n", buf->entry_count);
-
-    SOS_buffer_pack(SOS, buf->data, "i", buf->entry_count);
-
-    dlog(7, "  ... UNLOCK grow_buf->lock\n");
-    pthread_mutex_unlock(buf->lock);
-
-    return;
-}
-
-
-void SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair) {
-    SOS_SET_CONTEXT(buf_pair->sos_context, "SOS_async_buf_pair_destroy");
-
-    /* Naturally, exit/join any affiliated threads before calling this, as
-     * this wipes out the condition variable that the thread might be
-     * waiting on.  */
-
-    dlog(7, "  ... send_buf mutex\n");
-    dlog(7, "     ... LOCK send_buf->lock\n");
-    pthread_mutex_lock(buf_pair->send_buf->lock);
-    dlog(7, "     ... UNLOCK send_buf->lock (destroy)\n");
-    pthread_mutex_destroy(buf_pair->send_buf->lock);
-
-    dlog(7, "  ... grow_buf mutex\n");
-    dlog(7, "     ... LOCK grow_buf->lock\n");
-    pthread_mutex_lock(buf_pair->grow_buf->lock);
-    dlog(7, "     ... UNLOCK grow_buf->lock (destroy)\n");
-    pthread_mutex_destroy(buf_pair->grow_buf->lock);
-
-    dlog(7, "  ... flush_lock mutex\n");
-    dlog(7, "     ... LOCK bp->flush_lock\n");
-    pthread_mutex_lock(buf_pair->flush_lock);
-    dlog(7, "     ... UNLOCK bp->flush_lock (destroy)\n");
-    pthread_mutex_destroy(buf_pair->flush_lock);
-
-    free(buf_pair->a.lock);
-    free(buf_pair->b.lock);
-    pthread_cond_destroy(buf_pair->flush_cond);
-    free(buf_pair->flush_cond);
-
-    memset(buf_pair, '\0', sizeof(SOS_async_buf_pair));
-    free(buf_pair);
-
-    return;
-}
-
-
-
-void SOS_ring_init(SOS_runtime *sos_context, SOS_ring_queue **ring_var) {
-    SOS_SET_CONTEXT(sos_context, "SOS_ring_init");
-    SOS_ring_queue *ring;
-
-    dlog(5, "  ... initializing ring_var @ %ld\n", (long) ring_var);
-    ring = *ring_var = (SOS_ring_queue *) malloc(sizeof(SOS_ring_queue));
-    ring->read_elem  = ring->write_elem  = 0;
-    ring->elem_count = 0;
-    ring->elem_max   = SOS_DEFAULT_RING_SIZE;
-    ring->elem_size  = sizeof(long);
-    ring->heap       = (long *) malloc( ring->elem_max * ring->elem_size );
-    memset( ring->heap, '\0', (ring->elem_max * ring->elem_size) );
-
-    ring->sos_context = sos_context;
-
-    dlog(5, "     ... successfully initialized ring queue.\n");
-    dlog(5, "     ... initializing mutex.\n");
-    ring->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(ring->lock, NULL);
-    dlog(5, "  ... done.\n");
-
-    return;
-}
-
-void SOS_ring_destroy(SOS_ring_queue *ring) {
-    SOS_SET_CONTEXT(ring->sos_context, "SOS_ring_destroy");
-
-    free(ring->lock);
-    memset(ring->heap, '\0', (ring->elem_max * ring->elem_size));
-    free(ring->heap);
-    memset(ring, '\0', (sizeof(SOS_ring_queue)));
-    free(ring);
-
-    return;
-}
-
-
-int SOS_ring_put(SOS_ring_queue *ring, long item) {
-    SOS_SET_CONTEXT(ring->sos_context, "SOS_ring_put");
-    dlog(7, "LOCK ring->lock\n");
-    pthread_mutex_lock(ring->lock);
-
-    dlog(5, "Attempting to add (%ld) into the ring.\n", item);
-    if (item == 0) { dlog(1, "  ... ERROR: Being asked to insert a '0' element!\n"); }
-    if (ring == NULL) { dlog(0, "ERROR!  Attempted to insert into a NULL ring!\n"); exit(EXIT_FAILURE); }
-
-    if (ring->elem_count >= ring->elem_max) {
-        /* The ring is full... */
-        dlog(5, "ERROR!  Attempting to insert a data element into a full ring!");
-        dlog(7, "  ... UNLOCK ring->lock\n");
-        pthread_mutex_unlock(ring->lock);
-        return(-1);
-    }
-    
-    ring->heap[ring->write_elem] = item;
-
-    ring->write_elem = (ring->write_elem + 1) % ring->elem_max;
-    ring->elem_count++;
-
-    dlog(5, "  ... this is item %d of %d @ position %d.\n", ring->elem_count, ring->elem_max, (ring->write_elem - 1));
-    dlog(5, "  ... UNLOCK ring->lock\n");
-    pthread_mutex_unlock(ring->lock);
-    dlog(5, "  ... done.\n");
-
-    return(0);
-}
-
-
-long SOS_ring_get(SOS_ring_queue *ring) {
-    SOS_SET_CONTEXT(ring->sos_context, "SOS_ring_get");
-    long element;
-
-    dlog(7, "LOCK ring->lock\n");
-    pthread_mutex_lock(ring->lock);
-
-    if (ring->elem_count == 0) {
-        pthread_mutex_unlock(ring->lock);
-        return -1;
-    }
-
-    element = ring->heap[ring->read_elem];
-    ring->read_elem = (ring->read_elem + 1) % ring->elem_max;
-    ring->elem_count--;
-
-    dlog(7, "UNLOCK ring->lock\n");
-    pthread_mutex_unlock(ring->lock);
-
-    return element;
-}
-
-
-long* SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning) {
-    SOS_SET_CONTEXT(ring->sos_context, "SOS_ring_get_all");
-    long *elem_list;
-    int elem_list_bytes;
-    int fragment_count;
-
-    dlog(7, "LOCK ring->lock\n");
-    pthread_mutex_lock(ring->lock);
-
-    elem_list_bytes = (ring->elem_count * ring->elem_size);
-    elem_list = (long *) malloc(elem_list_bytes);
-    memset(elem_list, '\0', elem_list_bytes);
-
-    *elem_returning = ring->elem_count;
-
-    memcpy(elem_list, &ring->heap[ring->read_elem], (ring->elem_count * ring->elem_size));
-    ring->read_elem = ring->write_elem;
-    ring->elem_count = 0;
-
-    dlog(7, "UNLOCK ring->lock\n");
-    pthread_mutex_unlock(ring->lock);
-
-    return elem_list;
-}
-
-void SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *msg, int msg_len, unsigned char *reply, int reply_max ) {
-    SOS_SET_CONTEXT(sos_context, "SOS_send_to_daemon");
+void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
+    SOS_SET_CONTEXT(send_buffer->sos_context, "SOS_send_to_daemon");
 
     SOS_msg_header header;
     int server_socket_fd;
-    int retval;
+    int retval         = 0;
+    double time_start  = 0.0;
+    double time_out    = 0.0;
 
     if (SOS->status == SOS_STATUS_SHUTDOWN) {
         dlog(1, "Suppressing a send to the daemon.  (SOS_STATUS_SHUTDOWN)\n");
@@ -580,9 +284,7 @@ void SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *msg, int msg_le
         return;
     }
 
-    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
     pthread_mutex_lock(SOS->net.send_lock);
-    #endif
 
     retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port, &SOS->net.server_hint, &SOS->net.result_list );
     if ( retval < 0 ) { dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port ); exit(1); }
@@ -602,19 +304,33 @@ void SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *msg, int msg_le
         exit(1);  /* TODO:{ SEND_TO_DAEMON }  Make this a loop that tries X times to connect, doesn't crash app. */
     }
 
-    /* TODO: { SEND_TO_DAEMON } Make this a loop that ensures all data was sent. */
-    retval = send(server_socket_fd, msg, msg_len, 0 );
-    if (retval == -1) { dlog(0, "Error sending message to daemon.\n %s", strerror(errno)); }
+    int more_to_send = 1;
+    SOS_TIME(time_start);
+    while (more_to_send) {
+        retval = send(server_socket_fd, send_buffer->data, send_buffer->len, 0 );
+        if (retval == send_buffer->len) { more_to_send = 0; }
+        if (retval == -1) {
+            SOS_TIME(time_out);
+            dlog(0, "ERROR: Could not send message to daemon.\n %s", strerror(errno));
+            if ((time_out - time_start) > SOS_DEFAULT_TIMEOUT_SEC) {
+                dlog(0, "ERROR: Unable to communicate w/daemon for more than %lf seconds.  Terminating.\n",
+                     SOS_DEFAULT_TIMEOUT_SEC);
+            }
+        }
+    }
 
-    retval = recv(server_socket_fd, reply, reply_max, 0);
+    retval = 0;
+    while(retval += recv(server_socket_fd, (reply_buffer->data + retval), (reply_buffer->max - retval), 0)) {
+        if ((reply_buffer->max - retval) < SOS_DEFAULT_BUFFER_MIN) {
+            SOS_buffer_grow(reply_buffer);
+        }
+    }
     if (retval == -1) { dlog(0, "Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n", retval, errno, strerror(errno)); }
     else { dlog(6, "Server sent a (%d) byte reply.\n", retval); }
 
     close( server_socket_fd );
 
-    #if (SOS_CONFIG_USE_THREAD_POOL > 0)
     pthread_mutex_unlock(SOS->net.send_lock);
-    #endif
 
     return;
 }
@@ -631,7 +347,6 @@ void SOS_finalize(SOS_runtime *sos_context) {
     free(SOS->config.node_id);
 
     if (SOS->role == SOS_ROLE_CLIENT) {
-        #if (SOS_CONFIG_USE_THREAD_POOL > 0)
         dlog(1, "  ... Joining threads...\n");
         pthread_cond_signal(SOS->task.feedback_cond);
         pthread_join(*SOS->task.feedback, NULL);
@@ -646,19 +361,11 @@ void SOS_finalize(SOS_runtime *sos_context) {
         pthread_mutex_lock(SOS->net.send_lock);
         pthread_mutex_destroy(SOS->net.send_lock);
         free(SOS->net.send_lock);
-        #endif
-
-        dlog(1, "  ... Releasing snapshot queue...\n");
-        SOS_val_snap_queue_destroy(SOS->task.val_intake);
 
         dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
     }
-
-    dlog(1, "  ... Releasing ring queues...\n");
-    SOS_ring_destroy(SOS->ring.send);
-    SOS_ring_destroy(SOS->ring.recv);
 
     dlog(1, "Done!\n");
     free(SOS);
@@ -668,28 +375,26 @@ void SOS_finalize(SOS_runtime *sos_context) {
 
 
 
-
 void* SOS_THREAD_feedback( void *args ) {
     SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
     SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_feedback");
     struct timespec ts;
     struct timeval  tp;
     int wake_type;
+    int error_count;
 
-    unsigned char *ptr;
-    unsigned char *check_in_msg;
-    unsigned char *feedback_msg;
-    int ptr_offset;
-
-    SOS_msg_header header;
-    SOS_feedback feedback;
+    int offset;
+    SOS_msg_header  header;
+    SOS_buffer     *check_in_buffer;
+    SOS_buffer     *feedback_buffer;
+    SOS_feedback    feedback;
 
     if ( SOS->config.offline_test_mode == true ) { return NULL; }
 
-    check_in_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
-    feedback_msg = (unsigned char *) malloc(SOS_DEFAULT_FEEDBACK_LEN * sizeof(unsigned char));
+    SOS_buffer_init(SOS, &check_in_buffer);
+    SOS_buffer_init(SOS, &feedback_buffer);
 
-    sleep(1);
+    sleep(1); /* Give the rest of SOS time to come on-line... */
     if (SOS->status != SOS_STATUS_SHUTDOWN) {
       sleep(4 + (random() % 5));
     }
@@ -701,62 +406,59 @@ void* SOS_THREAD_feedback( void *args ) {
 
     /* Grab the lock that the wakeup condition is bound to. */
     pthread_mutex_lock(SOS->task.feedback_lock);
+    error_count = 0;
 
     while (SOS->status != SOS_STATUS_SHUTDOWN) {
         /* Build a checkin message. */
-        memset(check_in_msg, '\0', SOS_DEFAULT_FEEDBACK_LEN);
-        memset(feedback_msg, '\0', SOS_DEFAULT_FEEDBACK_LEN);
+        SOS_buffer_wipe(check_in_buffer);
+        SOS_buffer_wipe(feedback_buffer);
 
         header.msg_size = -1;
         header.msg_from = SOS->my_guid;
         header.msg_type = SOS_MSG_TYPE_CHECK_IN;
         header.pub_guid = 0;
 
-        ptr = check_in_msg;
-        ptr_offset = 0;
-
-        ptr_offset += SOS_buffer_pack(SOS, ptr, "iigg",
+        offset = 0;
+        offset += SOS_buffer_pack(check_in_buffer, offset, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
             header.pub_guid);
-        ptr = (check_in_msg + ptr_offset);
-
-        header.msg_size = ptr_offset;
-        SOS_buffer_pack(SOS, check_in_msg, "i", header.msg_size);
+        header.msg_size = offset;
+        SOS_buffer_pack(check_in_buffer, 0, "i", header.msg_size);
 
         /* Ping the daemon to see if there is anything to do. */
-        SOS_send_to_daemon(SOS, (unsigned char *) check_in_msg, ptr_offset, feedback_msg, SOS_DEFAULT_FEEDBACK_LEN);
+        SOS_send_to_daemon(check_in_buffer, feedback_buffer);
 
         memset(&header, '\0', sizeof(SOS_msg_header));
-        ptr = feedback_msg;
-        ptr_offset = 0;
-
-        ptr_offset += SOS_buffer_unpack(SOS, ptr, "iigg",
+        offset = 0;
+        offset += SOS_buffer_unpack(feedback_buffer, offset, "iigg",
             &header.msg_size,
             &header.msg_type,
             &header.msg_from,
             &header.pub_guid);
-        ptr = (feedback_msg + ptr_offset);
+
         if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
-            dlog(0, "WARNING! --- sosd (daemon) responded to a CHECK_IN msg malformed FEEDBACK!\n");
+            dlog(0, "WARNING: sosd (daemon) responded to a CHECK_IN_MSG with malformed FEEDBACK!\n");
+            error_count++;
+            if (error_count > 5) { break; }
             gettimeofday(&tp, NULL);
             ts.tv_sec  = (tp.tv_sec + 2);
             ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
             continue;
+        } else {
+            dlog(0, "ERROR: Too much mal-formed feedback, shutting down feedback thread.\n");
+            error_count = 0;
         }
 
-        ptr_offset += SOS_buffer_unpack(SOS, ptr, "i",
-            &feedback);
-        ptr = (feedback_msg + ptr_offset);
+        offset += SOS_buffer_unpack(feedback_buffer, offset, "i", &feedback);
 
         switch (feedback) {
         case SOS_FEEDBACK_CONTINUE: break;
-
         case SOS_FEEDBACK_EXEC_FUNCTION: 
         case SOS_FEEDBACK_SET_PARAMETER: 
         case SOS_FEEDBACK_EFFECT_CHANGE: 
-            SOS_handle_feedback(SOS, feedback_msg, header.msg_size);
+            SOS_handle_feedback(feedback_buffer);
             break;
 
         default: break;
@@ -773,58 +475,49 @@ void* SOS_THREAD_feedback( void *args ) {
         }
     }
 
-    free(check_in_msg);
-    free(feedback_msg);
-
+    SOS_buffer_destroy(check_in_buffer);
+    SOS_buffer_destroy(feedback_buffer);
     pthread_mutex_unlock(SOS->task.feedback_lock);
+
     return NULL;
 }
 
 
-void SOS_handle_feedback(SOS_runtime *sos_context, unsigned char *msg, int msg_length) {
-    SOS_SET_CONTEXT(sos_context, "SOS_handle_feedback");
+void SOS_handle_feedback(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_handle_feedback");
     int  activity_code;
     char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
 
     SOS_msg_header header;
 
-    char *ptr;
-    int ptr_offset;
+    int offset;
 
-    /* TODO: { FEEDBACK } Ponder the thread-safety of all this jazz... */
+    SOS_buffer_lock(buffer);
 
-    ptr = msg;
-    ptr_offset = 0;
-
-    ptr_offset += SOS_buffer_unpack(SOS, ptr, "iigg",
+    offset = 0;
+    offset += SOS_buffer_unpack(buffer, offset, "iigg",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
         &header.pub_guid);
-    ptr = (msg + ptr_offset);
 
-    ptr_offset += SOS_buffer_unpack(SOS, ptr, "i",
+    offset += SOS_buffer_unpack(buffer, offset, "i",
         &activity_code);
-    ptr = (msg + ptr_offset);
-    
     
     switch (activity_code) {
     case SOS_FEEDBACK_CONTINUE: break;
-
     case SOS_FEEDBACK_EXEC_FUNCTION:
-        /* TODO: { HANDLE_FEEDACK } Add in more robust / variable handlers. (hardcoded right now) */
-        /* Read in the function signature from the buffer. */
-        /* Check if that function is supported by this libsos client. */
-        /* Launch the SOS_feedback_exec(...) routine for that function. */
-
-        ptr_offset += SOS_buffer_unpack(SOS, ptr, "s", function_sig);
-        ptr = (msg + ptr_offset);
+        /* TODO: { FEEDBACK } */
+        offset += SOS_buffer_unpack(buffer, offset, "s", function_sig);
         dlog(5, "FEEDBACK activity_code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", activity_code, function_sig);
+        break;
 
     case SOS_FEEDBACK_SET_PARAMETER: break;
     case SOS_FEEDBACK_EFFECT_CHANGE: break;
     default: break;
     }
+
+    SOS_buffer_unlock(buffer);
 
     return;
 }
@@ -994,7 +687,7 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
 
     if (sos_context->role == SOS_ROLE_CLIENT) {
         dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
-        new_pub->snap_queue = sos_context->task.val_intake;
+        SOS_pipe_create(SOS, &new_pub->val_snap, sizeof(SOS_val_snap));
     }
 
     dlog(6, "  ... initializing the name table for values.\n");
@@ -1333,7 +1026,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
     header.msg_from = SOS->my_guid;
     header.pub_guid = pub->guid;
 
-    buffer_len += SOS_buffer_pack(SOS, ptr, "iigg",
+    buffer_len += SOS_buffer_pack(ptr, "iigg",
                                   header.msg_size,
                                   header.msg_type,
                                   header.msg_from,
@@ -1348,7 +1041,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
         dlog(6, "     ... guid=%" SOS_GUID_FMT "\n", snap->guid);
         snap->visits++;
 
-        buffer_len += SOS_buffer_pack(SOS, ptr, "igdddl",
+        buffer_len += SOS_buffer_pack(ptr, "igdddl",
                                       snap->elem,
                                       snap->guid,
                                       snap->time.pack,
@@ -1358,10 +1051,10 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
         ptr = (buffer + buffer_len);
 
         switch (pub->data[snap->elem]->type) {
-        case SOS_VAL_TYPE_INT:    buffer_len += SOS_buffer_pack(SOS, ptr, "i", snap->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:   buffer_len += SOS_buffer_pack(SOS, ptr, "l", snap->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: buffer_len += SOS_buffer_pack(SOS, ptr, "d", snap->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: buffer_len += SOS_buffer_pack(SOS, ptr, "s", snap->val.c_val); break;
+        case SOS_VAL_TYPE_INT:    buffer_len += SOS_buffer_pack(ptr, "i", snap->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:   buffer_len += SOS_buffer_pack(ptr, "l", snap->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE: buffer_len += SOS_buffer_pack(ptr, "d", snap->val.d_val); break;
+        case SOS_VAL_TYPE_STRING: buffer_len += SOS_buffer_pack(ptr, "s", snap->val.c_val); break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
             break;
@@ -1379,7 +1072,7 @@ void SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsig
 
     *buf_len        = buffer_len;
     header.msg_size = buffer_len;
-    SOS_buffer_pack(SOS, buffer, "i", header.msg_size);
+    SOS_buffer_pack(buffer, "i", header.msg_size);
     dlog(6, "     ... done   (buf_len == %d)\n", *buf_len);
    
     return;
@@ -1570,7 +1263,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
     header.msg_from = SOS->my_guid;
     header.pub_guid = pub->guid;
     /* Pack the header, (we'll re-pack the header.msg_size at the end) */
-    buffer_len += SOS_buffer_pack(SOS, ptr, "iigg",
+    buffer_len += SOS_buffer_pack(ptr, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -1578,7 +1271,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
     ptr = (buffer + buffer_len);
 
     /* Pack the pub definition: */
-    buffer_len += SOS_buffer_pack(SOS, ptr, "siiississiiiiiii",
+    buffer_len += SOS_buffer_pack(ptr, "siiississiiiiiii",
         pub->node_id,
         pub->process_id,
         pub->thread_id,
@@ -1599,7 +1292,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
 
     /* Pack the data definitions: */
     for (elem = 0; elem < pub->elem_count; elem++) {
-        buffer_len += SOS_buffer_pack(SOS, ptr, "gsiiiiiii",
+        buffer_len += SOS_buffer_pack(ptr, "gsiiiiiii",
             pub->data[elem]->guid,
             pub->data[elem]->name,
             pub->data[elem]->type,
@@ -1614,7 +1307,7 @@ void SOS_announce_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len
 
     /* Re-pack the message size now that we know it. */
     header.msg_size = buffer_len;
-    SOS_buffer_pack(SOS, buffer, "i", header.msg_size);
+    SOS_buffer_pack(buffer, "i", header.msg_size);
 
     *buf_len = buffer_len;
 
@@ -1649,7 +1342,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
     header.msg_from = SOS->my_guid;
     header.pub_guid = pub->guid;
     /* Pack the header, (we'll re-pack the header.msg_size at the end) */
-    buffer_len += SOS_buffer_pack(SOS, ptr, "iigg",
+    buffer_len += SOS_buffer_pack(ptr, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -1657,7 +1350,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
     ptr = (buffer + buffer_len);
 
     /* Pack in the frame of these elements: */
-    buffer_len += SOS_buffer_pack(SOS, ptr, "l", this_frame);
+    buffer_len += SOS_buffer_pack(ptr, "l", this_frame);
     ptr = (buffer + buffer_len);
 
     /* Pack in the data elements. */
@@ -1673,23 +1366,23 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
              elem,
              pub->data[elem]->time.send);
 
-        buffer_len += SOS_buffer_pack(SOS, ptr, "iddi",
+        buffer_len += SOS_buffer_pack(ptr, "iddi",
             elem,
             pub->data[elem]->time.pack,
             pub->data[elem]->time.send,
             pub->data[elem]->val_len);
         ptr = (buffer + buffer_len);
 
-        buffer_len += SOS_buffer_pack(SOS, ptr, "ii",
+        buffer_len += SOS_buffer_pack(ptr, "ii",
                                       pub->data[elem]->meta.semantic,
                                       pub->data[elem]->meta.mood);
         ptr = (buffer + buffer_len);
 
         switch (pub->data[elem]->type) {
-        case SOS_VAL_TYPE_INT:     buffer_len += SOS_buffer_pack(SOS, ptr, "i", pub->data[elem]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:    buffer_len += SOS_buffer_pack(SOS, ptr, "l", pub->data[elem]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE:  buffer_len += SOS_buffer_pack(SOS, ptr, "d", pub->data[elem]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING:  buffer_len += SOS_buffer_pack(SOS, ptr, "s", pub->data[elem]->val.c_val); break;
+        case SOS_VAL_TYPE_INT:     buffer_len += SOS_buffer_pack(ptr, "i", pub->data[elem]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:    buffer_len += SOS_buffer_pack(ptr, "l", pub->data[elem]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE:  buffer_len += SOS_buffer_pack(ptr, "d", pub->data[elem]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING:  buffer_len += SOS_buffer_pack(ptr, "s", pub->data[elem]->val.c_val); break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
             break;
@@ -1699,7 +1392,7 @@ void SOS_publish_to_buffer( SOS_pub *pub, unsigned char **buf_ptr, int *buf_len 
 
     /* Re-pack the message size now that we know what it is. */
     header.msg_size = buffer_len;
-    SOS_buffer_pack(SOS, buffer, "i", header.msg_size);
+    SOS_buffer_pack(buffer, "i", header.msg_size);
 
     *buf_len = buffer_len;
 

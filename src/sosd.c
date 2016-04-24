@@ -108,7 +108,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Initializing SOSD:\n");
 
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( my_role, SOS_ROLE ));
-    SOSD.sos_context = SOS_init_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
+    SOSD.sos_context = SOS_init_with_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
@@ -204,66 +204,8 @@ int main(int argc, char *argv[])  {
 
 
 
-void SOSD_pub_ring_monitor_init(SOSD_pub_ring_mon **mon_var,
-                                char *name_var,
-                                SOS_ring_queue *ring_var,
-                                SOS_val_snap_queue *val_source,
-                                SOS_val_snap_queue *val_target,
-                                SOS_target target )
-{
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_pub_ring_monitor_init");
-    SOSD_pub_ring_mon *mon;
-    int retval;
-
-    mon = *mon_var = malloc(sizeof(SOSD_pub_ring_mon));
-    memset(mon, '\0', sizeof(SOSD_pub_ring_mon));
-
-    mon->name = name_var;
-    if (ring_var == NULL) {
-        SOS_ring_init(SOS, &mon->ring);
-    } else {
-        mon->ring = ring_var;
-    }
-
-    mon->commit_list   = NULL;
-    mon->commit_count  = 0;
-    mon->commit_target = target;
-    mon->val_intake    = val_source;
-    mon->val_outlet    = val_target;
-
-    retval = pthread_cond_init(&(mon->extract_cond), NULL); 
-    if (retval != 0) { dlog(0, "ERROR!  Could not initialize the mon(%s)->extract_cond pthread_cond_t variable.  (%s)\n", mon->name, strerror(errno)); exit(EXIT_FAILURE); } 
-    retval = pthread_cond_init(&(mon->commit_cond), NULL);
-    if (retval != 0) { dlog(0, "ERROR!  Could not initialize the mon(%s)->commit_cond pthread_cond_t variable.  (%s)\n", mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_mutex_init(&(mon->extract_lock), NULL);
-    if (retval != 0) { dlog(0, "ERROR!  Could not initialize the mon(%s)->extract_lock mutex.  (%s)\n", mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_mutex_init(&(mon->commit_lock), NULL);
-    if (retval != 0) { dlog(0, "ERROR!  Could not initialize the mon(%s)->commit_lock mutex.  (%s)\n", mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_create( &(mon->extract_t), NULL, (void *) SOSD_THREAD_pub_ring_list_extractor, mon );
-    if (retval != 0) { dlog(0, "ERROR!  Could not initialize the mon(%s)->extract_t thread.  (%s)\n", mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-    retval = pthread_create( &(mon->commit_t), NULL, (void *) SOSD_THREAD_pub_ring_storage_injector, mon );
-    if (retval != 0) { dlog(0, "ERROR!  Could not initialize the mon(%s)->commit_t thread.  (%s)\n", mon->name, strerror(errno)); exit(EXIT_FAILURE); }
-
-    return;
-}
-
-void SOSD_pub_ring_monitor_destroy(SOSD_pub_ring_mon *mon) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_pub_ring_monitor_destroy");
-
-    pthread_mutex_destroy( &(mon->extract_lock) );
-    pthread_mutex_destroy( &(mon->commit_lock) );
-    pthread_cond_destroy( &(mon->extract_cond) );
-    pthread_cond_destroy( &(mon->commit_cond) );
-
-    SOS_ring_destroy(mon->ring);
-    free(mon);
-
-    return;
-}
 
 
-
-/* -------------------------------------------------- */
 void SOSD_listen_loop() {
     SOS_SET_CONTEXT(SOSD.sos_context, "daemon_listen_loop");
     SOS_msg_header header;
@@ -355,154 +297,27 @@ void SOSD_listen_loop() {
 /* -------------------------------------------------- */
 
 
-void* SOSD_THREAD_pub_ring_list_extractor(void *args) {
-    SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
-    char func_name[SOS_DEFAULT_STRING_LEN] = {0};
+void* SOSD_THREAD_local_sync(void *args) {
 
-    sprintf(func_name, "SOSD_THREAD_pub_ring_extractor(%s)", my->name);
-    SOS_SET_CONTEXT(SOSD.sos_context, func_name);
-
-    struct timespec ts;
-    struct timeval  tp;
-    int wake_type;
-    gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
-    pthread_mutex_lock(&my->extract_lock);
-    while (SOSD.daemon.running) {
-        wake_type = pthread_cond_timedwait(&my->extract_cond, &my->extract_lock, &ts);
-        if (wake_type == ETIMEDOUT) {
-            /* ...any special actions that need to happen if timed-out vs. called-explicitly */
-            if (my->ring->elem_count == 0) {
-                /* If the ring is empty, wait slightly longer. */
-                gettimeofday(&tp, NULL); ts.tv_sec  = tp.tv_sec; ts.tv_nsec = (1000 * tp.tv_usec) + 122500000;   /* ~ 0.12 seconds. */
-                continue;
-            }
-            dlog(6, "Checking ring...  (%d entries)\n", my->ring->elem_count);
-        }
-        pthread_mutex_lock(&my->commit_lock);  /* This will block until the current commit-list is cleared. */
-        my->commit_count = 0;
-        my->commit_list = SOS_ring_get_all(my->ring, &my->commit_count);
-        int z;
-        for (z = 0; z < my->commit_count; z++) {
-            dlog(6, "  ... %ld\n", my->commit_list[z]);
-        }
-        pthread_mutex_unlock(&my->commit_lock);
-        pthread_cond_signal(&my->commit_cond);
-        gettimeofday(&tp, NULL); 
-        ts.tv_sec  = tp.tv_sec; 
-        ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
+    while (SOSD.running) {
+        sleep(1);
     }
-    pthread_mutex_unlock(&my->extract_lock);
 
-    /* Free up the commit/inject thread to close down, too... */
-    pthread_mutex_unlock(&my->commit_lock);
-    pthread_cond_signal(&my->commit_cond);
-    dlog(6, "Leaving thread safely.\n");
     pthread_exit(NULL);
 }
 
 
-void* SOSD_THREAD_pub_ring_storage_injector(void *args) {
-    SOSD_pub_ring_mon *my = (SOSD_pub_ring_mon *) args;
-    char func_name[SOS_DEFAULT_STRING_LEN] = {0};
+void* SOSD_THREAD_cloud_sync(void *args) {
 
-    sprintf(func_name, "SOSD_THREAD_pub_ring_storage_injector(%s)", my->name);
-    SOS_SET_CONTEXT(SOSD.sos_context, func_name);
-
-    int       list_index;
-    char      guid_str[SOS_DEFAULT_STRING_LEN] = {0};
-    SOS_pub  *pub;
-
-    unsigned char     *buffer;
-    unsigned char      buffer_static[SOS_DEFAULT_BUFFER_LEN];
-    int       buffer_len;
-
-    pthread_mutex_lock(&my->commit_lock);
-    while (SOSD.daemon.running) {
-        pthread_cond_wait(&my->commit_cond, &my->commit_lock);
-        if (my->commit_count == 0) { continue; }
-
-        if (my->commit_target == SOS_TARGET_LOCAL_SYNC) {
-            SOSD_db_transaction_begin();
-        }
-
-        for (list_index = 0; list_index < my->commit_count; list_index++) {
-            memset(guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-            sprintf(guid_str, "%ld", my->commit_list[list_index]);
-            dlog(6, "Attempting to inject my->commit_list[%d] == pub(\"%s\")\n", list_index, guid_str);
-            dlog(6, "Pulling up pub(%s) ...\n", guid_str);
-            pub = SOSD.pub_table->get(SOSD.pub_table, guid_str);
-            if (pub == NULL) { dlog(0, "ERROR!  SOSD.pub_table->get(SOSD_pub_table, \"%s\") == NULL     (skipping to next entry)\n", guid_str); continue; }
-
-            switch (my->commit_target) {
-
-            case SOS_TARGET_LOCAL_SYNC:
-                if (pub->announced == SOSD_PUB_ANN_DIRTY) {
-                    SOSD_db_insert_pub(pub);
-                    SOSD_db_insert_data(pub);
-                    pub->announced = SOSD_PUB_ANN_LOCAL;
-                }
-                if (SOS->role == SOS_ROLE_DB) {
-                    SOSD_db_insert_vals(pub, my->val_intake, NULL);
-                } else {
-                    SOSD_db_insert_vals(pub, my->val_intake, my->val_outlet);
-                    #if (SOSD_CLOUD_SYNC > 0)
-                    SOS_ring_put( SOSD.cloud_sync->ring, my->commit_list[list_index] );
-                    #endif
-                }
-                break;
-
-            case SOS_TARGET_CLOUD_SYNC:
-                #if (SOSD_CLOUD_SYNC > 0)
-                if (SOS->role == SOS_ROLE_DB) { break; }
-                if (pub->announced == SOSD_PUB_ANN_LOCAL) {
-                    /* Announce to the CLOUD if it hasn't happened yet... */
-                    buffer = buffer_static;
-                    buffer_len = SOS_DEFAULT_BUFFER_LEN;
-                    memset(buffer, '\0', buffer_len);
-                    SOS_announce_to_buffer( pub, &buffer, &buffer_len );
-                    SOSD_cloud_enqueue( buffer, buffer_len );
-                    pub->announced = SOSD_PUB_ANN_CLOUD;
-                }
-                /* Push any enqueued VALUES for this pub out to the CLOUD */
-                buffer     = buffer_static;
-                buffer_len = SOS_DEFAULT_BUFFER_LEN;
-                memset(buffer, '\0', buffer_len);
-                SOS_val_snap_queue_to_buffer(my->val_intake, pub, &buffer, &buffer_len, true);
-                if (buffer_len > 0) { SOSD_cloud_enqueue(buffer, buffer_len); }
-                buffer_len = SOS_DEFAULT_BUFFER_LEN;
-                memset(buffer, '\0', buffer_len);
-                #endif
-                break;
-
-            default:
-                dlog(0, "WARNING!  Attempting a storage injection into an unsupported target!  (%d)\n", my->commit_target);
-            }
-
-        }
-        switch (my->commit_target) {
-        case SOS_TARGET_LOCAL_SYNC: SOSD_db_transaction_commit(); break;
-        case SOS_TARGET_CLOUD_SYNC:
-            #if (SOSD_CLOUD_SYNC > 0)
-            if ((SOS->role != SOS_ROLE_DB) && SOSD.daemon.running) {
-                SOSD_cloud_fflush();
-            }
-            #endif
-            break;
-        default:
-            dlog(5, "WARNING!  Your commit target doesn't make sense.  (%d)\n", my->commit_target);
-            break;
-        }
-        free(my->commit_list);
-        my->commit_count = 0;
+    while (SOSD.runnning) {
+        sleep(1);
     }
-    pthread_mutex_unlock(&my->commit_lock);
-    dlog(6, "Leaving thread safely.\n");
+
     pthread_exit(NULL);
 }
 
 
 /* -------------------------------------------------- */
-
 
 
 void SOSD_handle_echo(unsigned char *msg, int msg_size) { 
@@ -847,7 +662,7 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
         ptr = feedback_msg;
         offset = 0;
 
-        offset += SOS_buffer_pack(SOS, ptr, "iigg",
+        offset += SOS_buffer_pack(ptr, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -858,13 +673,13 @@ void SOSD_handle_check_in(unsigned char *msg, int msg_size) {
         //memset(function_name, '\0', SOS_DEFAULT_STRING_LEN);
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
-        offset += SOS_buffer_pack(SOS, ptr, "is",
+        offset += SOS_buffer_pack(ptr, "is",
             SOS_FEEDBACK_EXEC_FUNCTION,
             function_name);
         ptr = (feedback_msg + offset);
 
         /* Go back and set the message length to the actual length. */
-        SOS_buffer_pack(SOS, feedback_msg, "i", offset);
+        SOS_buffer_pack(feedback_msg, "i", offset);
 
         dlog(1, "Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", function_name);
 

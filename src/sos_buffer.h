@@ -1,3 +1,7 @@
+#ifndef SOS_BUFFER_H
+#define SOS_BUFFER_H
+
+
 /*
  *   Serialization code for numeric data.
  *     ... drawn from Beej's guide.
@@ -9,22 +13,53 @@
 
 
 #include <stdio.h>
+#include <pthread.h>
 #include <ctype.h>
 #include <stdarg.h>
 #include <string.h>
 
-//uint64_t    SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
-//double      SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits);
-
-uint64_t    SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
-long double SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits);
+#include "sos.h"
+#include "sos_types.h"
 
 
-void        SOS_buffer_packi32(unsigned char *buf, int i);
-void        SOS_buffer_packi64(unsigned char *buf, long i);
-int         SOS_buffer_unpacki32(unsigned char *buf);
-long        SOS_buffer_unpacki64(unsigned char *buf);
-uint64_t    SOS_buffer_unpacku64(unsigned char *buf);
-int         SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...);
-int         SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...);
+typedef struct {
+    void                *sos_context;
+    pthread_mutex_t     *lock;
+    unsigned char       *data;
+    int                  len;
+    int                  max;
+} SOS_buffer;
 
+
+/* Required if included by C++ code. */
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+void         SOS_buffer_init(void *sos_context, SOS_buffer **buffer);
+void         SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer, int max_size);
+void         SOS_buffer_lock(SOS_buffer *buffer);
+void         SOS_buffer_unlock(SOS_buffer *buffer);
+void         SOS_buffer_destroy(SOS_buffer *buffer);
+             // The following functions do *NOT* lock the buffer...
+             // (You should hold the lock already, manually)
+void         SOS_buffer_wipe(SOS_buffer *buffer);
+void         SOS_buffer_grow(SOS_buffer *buffer);
+void         SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max);
+int          SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...);
+int          SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...);
+
+
+uint64_t     SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
+double       SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits);
+void         SOS_buffer_packi32(unsigned char *buf, int32_t i);
+void         SOS_buffer_packi64(unsigned char *buf, int64_t i);
+int32_t      SOS_buffer_unpacki32(unsigned char *buf);
+int64_t      SOS_buffer_unpacki64(unsigned char *buf);
+uint64_t     SOS_buffer_unpacku64(unsigned char *buf);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif

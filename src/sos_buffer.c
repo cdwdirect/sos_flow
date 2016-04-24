@@ -14,30 +14,9 @@
 #include <pthread.h>
 
 #include "sos.h"
+#include "sos_types.h"
 #include "sos_buffer.h"
 #include "sos_debug.h"
-
-
-typedef struct {
-    void          *sos_context;
-    pthread_mutex *lock;
-    unsigned char *data;
-    int            len;
-    int            max;
-} SOS_buffer;
-
-void      SOS_buffer_init(SOS_runtime *sos_context, SOS_buffer **buffer);
-void      SOS_buffer_init_sized(SOS_runtime *sos_context, SOS_buffer **buffer, int max_size);
-void      SOS_buffer_lock(SOS_buffer *buffer);
-void      SOS_buffer_unlock(SOS_buffer *buffer);
-void      SOS_buffer_destroy(SOS_buffer *buffer);
-          // The following functions do *NOT* lock the buffer...
-          // (You should hold the lock already, manually)
-void      SOS_buffer_wipe(SOS_buffer *buffer);
-void      SOS_buffer_grow(SOS_buffer *buffer);
-void      SOS_buffer_trim(SOS_buffer *buffer, int to_new_max);
-int       SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...);
-int       SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...);
 
 
 
@@ -50,11 +29,120 @@ int       SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...);
 #define SOS_buffer_unpack754_64(i) (SOS_buffer_unpack754((i), 64, 11))
 
 
+void SOS_buffer_init(void *sos_context, SOS_buffer **buffer_obj) {
+    SOS_buffer_init_sized(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_LEN);
+}
+void SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer_obj, int max_size) {
+    SOS_SET_CONTEXT((SOS_runtime *)sos_context, "SOS_buffer_init_sized");
+
+    dlog(5, "Creating buffer:\n");
+    SOS_buffer *buffer;
+    buffer = *buffer_obj = (SOS_buffer *) malloc(sizeof(SOS_buffer));
+    buffer->sos_context = sos_context;
+    buffer->max = max_size;
+    buffer->len = 0;
+    dlog(5, "   ... allocate storage space.   (buffer->max == %d)\n", buffer->max);
+    buffer->data = (unsigned char *) malloc(buffer->max * sizeof(unsigned char));
+    memset(buffer->data, '\0', buffer->max);
+    dlog(5, "   ... creating buffer->lock.\n");
+    buffer->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    if (buffer->lock == NULL) {
+        dlog(0, "ERROR: Unable to create buffer->lock!\n");
+        exit(EXIT_FAILURE);
+    } else {
+        pthread_mutex_init(buffer->lock, NULL);
+        dlog(5, "   ... done.\n");
+    }
+
+    return;
+}
+
+
+void SOS_buffer_lock(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_lock");
+    dlog(4, "Locking buffer: ");
+    pthread_mutex_lock(buffer->lock);
+    dlog(4, "Done.\n");
+    return;
+}
+
+
+void SOS_buffer_unlock(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unlock");
+    dlog(4, "Unlocking buffer: ");
+    pthread_mutex_unlock(buffer->lock);
+    dlog(4, "Done.\n");
+    return;
+}
+
+
+void SOS_buffer_destroy(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_destroy");
+
+    dlog(5, "Destroying buffer:\n");
+    SOS_buffer_lock(buffer);
+    dlog(5, "   ... free'ing data\n");
+    free(buffer->data);
+    dlog(5, "   ... destroying mutex.\n");
+    pthread_mutex_destroy(buffer->lock);
+    dlog(5, "   ... free'ing object\n")
+    free(buffer);
+    dlog(5, "   ... done.\n");
+    return;
+}
+
+
+void SOS_buffer_wipe(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_wipe");
+
+    dlog(5, "Wiping out buffer:\n");
+    memset(buffer->data, '\0', buffer->max);
+    buffer->len = 0;
+    dlog(5, "   ... done.   (buffer->max == %d)\n", buffer->max);
+    return;
+}
+
+
+void SOS_buffer_grow(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
+
+    dlog(5, "Growing buffer:\n");
+    buffer->max += SOS_DEFAULT_BUFFER_LEN;
+    buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
+    if (buffer->data == NULL) {
+        dlog(0, "ERROR: Unable to expand buffer!\n");
+        dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(5, "   ... done.\n");
+    }
+    return;
+
+}
+
+
+void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_trim");
+
+    if (buffer->max == to_new_max) return;
+
+    dlog(5, "Trimming buffer:\n");
+    dlog(5, "   ... realloc()'ing from %d to %zd bytes.\n", buffer->max, to_new_max);
+    buffer->data = (unsigned char *) realloc(buffer->data, to_new_max);
+    if (buffer->data == NULL) {
+        dlog(0, "ERROR: Unable to trim buffer!\n");
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(5, "   ... done.\n");
+    }
+    return;
+}
+
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format
 */ 
 
-uint64_t SOS_buffer_pack754(double f, unsigned bits, unsigned expbits)
+uint64_t SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits)
 {
     //----------
     double fnorm;
@@ -121,7 +209,7 @@ double SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits)
 /*
 ** packi32() -- store a 32-bit int into a char buffer (like htonl())
 */
-void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
+void SOS_buffer_packi32(unsigned char *buf, int i)
 {
     *buf++ = i>>24; *buf++ = i>>16;
     *buf++ = i>>8;  *buf++ = i;
@@ -131,7 +219,7 @@ void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
 /*
 ** packi64() -- store a 64-bit int into a char buffer (like htonl())
 */ 
-void SOS_buffer_packi64(unsigned char *buf, unsigned long long int i)
+void SOS_buffer_packi64(unsigned char *buf, int64_t i)
 {
     *buf++ = i>>56; *buf++ = i>>48;
     *buf++ = i>>40; *buf++ = i>>32;
@@ -237,14 +325,13 @@ uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 */
 
 int SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...) {
-    SOS_SET_CONTEXT(sos_context, "SOS_buffer_pack");
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_pack");
 
     va_list ap;
 
     while (offset >= buffer->max) {
         SOS_buffer_grow(buffer);
     }
-        
     char   *buf = (buffer->data + offset);
 
     int      i;           // 32-bit
@@ -322,10 +409,19 @@ int SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...) {
 **  following the instructions in the format string.
 **
 */
-int SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...) {
-    SOS_SET_CONTEXT(sos_context, "SOS_buffer_unpack");
+int SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack");
 
     va_list ap;
+
+    while (offset >= buffer->max) {
+        dlog(0, "WARNING: Attempting to read beyond the end of a buffer!\n");
+        dlog(0, "WARNING:   buffer->max == %d, SOS_unpack() w/offset == %d\n", buffer->max, offset);
+        dlog(0, "WARNING: ...growing the buffer.\n");
+        SOS_buffer_grow(buffer);
+    }
+    char   *buf = (buffer->data + offset);
+
 
     int      *i;       // 32-bit
     long     *l;       // 64-bit

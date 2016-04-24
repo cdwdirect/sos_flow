@@ -31,11 +31,40 @@ else()
 endif()
 
 
+#TARGET ---> sos_pipe
+#            (library)
+add_library("sos_pipe" "sos_pipe.c")
+if(THREADS_HAVE_PTHREAD_ARG)
+  target_compile_options(TARGET "sos_pipe" PROPERTY COMPILE_OPTIONS "-pthread")
+  target_compile_options(TARGET "sos_pipe" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries("sos_pipe" "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+
+#TARGET ---> sos_buffer
+#            (library)
+add_library("sos_buffer" "sos_buffer.c")
+if(THREADS_HAVE_PTHREAD_ARG)
+  target_compile_options(TARGET "sos_buffer" PROPERTY COMPILE_OPTIONS "-pthread")
+  target_compile_options(TARGET "sos_buffer" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries("sos_buffer" "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+
+#TARGET ---> sos_qhashtbl
+#            (library)
+add_library("sos_qhashtbl" "sos_qhashtbl.c")
+
+
+
+
 #TARGET ---> sos
 #            (library)
-#add_library("sos" SHARED "sos.c" "pack_buffer.c" "qhashtbl.c" "pipe.c")
-add_library("sos" "sos.c" "pack_buffer.c" "qhashtbl.c" "pipe.c")
-# add_library("sos_static" STATIC "sos.c" "pack_buffer.c" "qhashtbl.c" "pipe.c")
+#add_library("sos" SHARED "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
+add_library("sos" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
+# add_library("sos_static" STATIC "sos.c" "sos_pack_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
 if(THREADS_HAVE_PTHREAD_ARG)
   target_compile_options(TARGET "sos" PROPERTY COMPILE_OPTIONS "-pthread")
   target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
@@ -43,23 +72,14 @@ if(THREADS_HAVE_PTHREAD_ARG)
   # target_compile_options(TARGET "sos_static" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("sos" "${CMAKE_THREAD_LIBS_INIT}")
+  target_link_libraries("sos"
+    "sos_buffer"
+    "sos_qhashtbl"
+    "sos_pipe"
+    "${CMAKE_THREAD_LIBS_INIT}")
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-#TARGET ---> pipe
-#            (library)
-add_library("pipe" "pipe.c")
-# ...project wide-c99 now.
-#set_target_properties("pipe" PROPERTIES COMPILE_FLAGS "-std=c99")
-#
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "pipe" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "pipe" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("pipe" "${CMAKE_THREAD_LIBS_INIT}")
-endif()
 
 #TARGET ---> sosd
 #            (daemon)
@@ -75,13 +95,19 @@ if(SOSD_CLOUD_SYNC)
       "sosd_cloud_mpi.c"
       "sosd_db_sqlite.c"
       "sos_error.c"
-      "qhashtbl.c"
-      "pack_buffer.c"
-      "pipe.c")
+      "sos_qhashtbl.c"
+      "sos_buffer.c"
+      "sos_pipe.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_MPI")
-    target_link_libraries("sosd" "sos" "${MPI_LIBRARIES}" "${SQLITE3_LIBRARY}")
+    target_link_libraries("sosd"
+      "sos"
+      "sos_qhashtbl"
+      "sos_buffer"
+      "sos_pipe"
+      "${MPI_LIBRARIES}"
+      "${SQLITE3_LIBRARY}")
     if(APPLE)
         # Apple does not support the '-lrt' compiler option.
     else()
@@ -105,13 +131,18 @@ if(SOSD_CLOUD_SYNC)
       "sosd_cloud_evpath.c"
       "sosd_db_sqlite.c"
       "sos_error.c"
-      "qhashtbl.c"
-      "pack_buffer.c"
-      "pipe.c")
+      "sos_qhashtbl.c"
+      "sos_buffer.c"
+      "sos_pipe.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_EVPATH")
-    target_link_libraries("sosd" "sos" "${SQLITE3_LIBRARY}")
+    target_link_libraries("sosd"
+      "sos"
+      "sos_qhashtbl"
+      "sos_buffer"
+      "sos_pipe"
+      "${SQLITE3_LIBRARY}")
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
     else()
@@ -131,12 +162,17 @@ else()
     "sosd_cloud_stubs.c"
     "sosd_db_sqlite.c"
     "sos_error.c"
-    "qhashtbl.c"
-    "pack_buffer.c"
-    "pipe.c")
+    "sos_qhashtbl.c"
+    "sos_buffer.c"
+    "sos_pipe.c")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_STUBS")
-  target_link_libraries("sosd" "sos" "${SQLITE3_LIBRARY}")
+  target_link_libraries("sosd"
+    "sos"
+    "sos_qhashtbl"
+    "sos_buffer"
+    "sos_pipe"
+    "${SQLITE3_LIBRARY}")
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.
   else()
@@ -174,12 +210,10 @@ endif()
 
 #TARGET ---> demo_pipe
 #            (test / benchmark queue structure)
-add_executable("demo_pipe" "demo_pipe.c" "pipe.c")
-target_link_libraries("demo_pipe" "pipe")
+add_executable("demo_pipe" "demo_pipe.c" "sos_pipe.c")
+target_link_libraries("demo_pipe" "sos_pipe")
 if(THREADS_HAVE_PTHREAD_ARG)
   set_target_properties("demo_pipe" PROPERTY COMPILE_OPTIONS "-pthread")
-#  C99 is project-wide now
-#  set_target_properties("demo_pipe" PROPERTY COMPILE_OPTIONS "-std=c99")
 endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("demo_pipe" "${CMAKE_THREAD_LIBS_INIT}")
