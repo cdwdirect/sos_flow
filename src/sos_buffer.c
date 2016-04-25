@@ -324,15 +324,15 @@ uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 **
 */
 
-int SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...) {
+int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_pack");
 
     va_list ap;
 
-    while (offset >= buffer->max) {
+    while (*offset >= buffer->max) {
         SOS_buffer_grow(buffer);
     }
-    char   *buf = (buffer->data + offset);
+    char   *buf = (buffer->data + *offset);
 
     int      i;           // 32-bit
     long     l;           // 64-bit
@@ -399,6 +399,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...) {
     va_end(ap);
     dlog(20, "  ... done\n");
 
+    *offset += packed_bytes;
     return packed_bytes;
 }
 
@@ -409,19 +410,18 @@ int SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...) {
 **  following the instructions in the format string.
 **
 */
-int SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...) {
+int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack");
 
     va_list ap;
 
-    while (offset >= buffer->max) {
+    while (*offset >= buffer->max) {
         dlog(0, "WARNING: Attempting to read beyond the end of a buffer!\n");
-        dlog(0, "WARNING:   buffer->max == %d, SOS_unpack() w/offset == %d\n", buffer->max, offset);
+        dlog(0, "WARNING:   buffer->max == %d, SOS_unpack() w/offset == %d\n", buffer->max, *offset);
         dlog(0, "WARNING: ...growing the buffer.\n");
         SOS_buffer_grow(buffer);
     }
-    char   *buf = (buffer->data + offset);
-
+    char   *buf = (buffer->data + *offset);
 
     int      *i;       // 32-bit
     long     *l;       // 64-bit
@@ -501,6 +501,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...) {
     dlog(20, "  ... done\n");
     
 
+    *offset += packed_bytes;
     return packed_bytes;
 }
 

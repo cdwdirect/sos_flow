@@ -8,7 +8,8 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <string.h>
-#include "pipe.h"
+
+#include "sos_pipe.h"
 
 #define TITLE "DEMO_PIPE"
 #define USAGE " ./demo_pipe <write_count> <sleep_reader_secs>"

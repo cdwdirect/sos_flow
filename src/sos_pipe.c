@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 
 // Vanity bytes. As long as this isn't removed from the executable, I don't
 // mind if I don't get credits in a README or any other documentation. Consider
@@ -1126,8 +1127,8 @@ void pipe_reserve(pipe_generic_t* gen, size_t count)
 }
 
 
-void SOS_pipe_init(struct SOS_runtime *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
-    SOS_SET_CONTEXT(sos_context, "SOS_pipe_init");
+void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
+    SOS_SET_CONTEXT((SOS_runtime *) sos_context, "SOS_pipe_init");
     
     SOS_pipe *pipe;
     pipe = *pipe_obj = (SOS_pipe *) malloc(sizeof(SOS_pipe));
@@ -1139,6 +1140,12 @@ void SOS_pipe_init(struct SOS_runtime *sos_context, SOS_pipe **pipe_obj, size_t 
 
     pipe->sos_context = sos_context;
     pipe->elem_size = elem_size;
+
+    //Initialize the optional elements:
+    pipe->elem_count = 0;
+    pipe->sync_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pthread_mutex_init(pipe->sync_lock, NULL);
+
     return;
 }
 

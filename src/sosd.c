@@ -36,8 +36,10 @@
 #include "sos_error.h"
 #include "sosd.h"
 #include "sosd_db_sqlite.h"
-#include "qhashtbl.h"
-#include "pack_buffer.h"
+
+#include "sos_pipe.h"
+#include "sos_qhashtbl.h"
+#include "sos_buffer.h"
 
 #define USAGE          "usage:   $ sosd  --port <number>  --buffer_len <bytes>  --listen_backlog <len>  --role <role>  --work_dir <path>"
 

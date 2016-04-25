@@ -46,8 +46,8 @@ void         SOS_buffer_destroy(SOS_buffer *buffer);
 void         SOS_buffer_wipe(SOS_buffer *buffer);
 void         SOS_buffer_grow(SOS_buffer *buffer);
 void         SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max);
-int          SOS_buffer_pack(SOS_buffer *buffer, int offset, char *format, ...);
-int          SOS_buffer_unpack(SOS_buffer *buffer, int offset, char *format, ...);
+int          SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...);
+int          SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...);
 
 
 uint64_t     SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);

@@ -238,6 +238,10 @@ typedef struct {
     SOS_mood            mood;
 } SOS_val_snap;
 
+
+
+
+
 typedef struct {
     SOS_guid            guid;
     int                 val_len;
@@ -260,6 +264,7 @@ typedef struct {
 
 typedef struct {
     void               *sos_context;
+    pthread_mutex_t    *lock;
     SOS_guid            guid;
     char                guid_str[SOS_DEFAULT_STRING_LEN];
     int                 process_id;
@@ -278,7 +283,7 @@ typedef struct {
     char                title[SOS_DEFAULT_STRING_LEN];
     SOS_data          **data;
     qhashtbl_t         *name_table;
-    SOS_pipe           *val_snap;
+    SOS_pipe           *snap_queue;
 } SOS_pub;
 
 
@@ -356,21 +361,6 @@ typedef struct {
     SOS_uid            *my_guid_pool;
 } SOS_unique_set;
 
-typedef struct {
-    void               *sos_context;
-    int                 read_elem;
-    int                 write_elem;
-    int                 elem_count;
-    int                 elem_max;
-    int                 elem_size;
-    long               *heap;
-    pthread_mutex_t    *lock;
-} SOS_ring_queue;
-
-typedef struct {
-    SOS_ring_queue     *send;
-    SOS_ring_queue     *recv;
-} SOS_ring_set;
 
 typedef struct {
     pthread_t          *feedback;
@@ -384,7 +374,6 @@ typedef struct {
     SOS_role            role;
     SOS_status          status;
     SOS_unique_set      uid;
-    SOS_ring_set        ring;
     SOS_task_set        task;
     SOS_socket_set      net;
     SOS_guid            my_guid;

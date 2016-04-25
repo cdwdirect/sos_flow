@@ -29,6 +29,7 @@
                 use include guards. Most do, so I'm keeping it in. */
 
 #include <stddef.h>
+#include <pthread.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -148,16 +149,20 @@ typedef struct {
     pipe_producer_t    *intake;
     pipe_consumer_t    *outlet;
     size_t              elem_size;
+    int                 elem_count;  // (optional) manually use for sync. behavior
+    pthread_mutex_t    *sync_lock;   // (optional) manually use for sync. behavior
 } SOS_pipe;
 
-void SOS_pipe_init(struct SOS_runtime *sos_context, SOS_pipe **pipe_obj, size_t elem_size);
+void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size);
 
-    /* There are no SOS_pipe_destroy() helper-functions...
+    /* TODO: { PIPE, MEMORY }
+     * There are no SOS_pipe_destroy() helper-functions...
      * ...see the 'direct' data object functions below,
      * when you're ready to close / free() a pipe.
      * Unlike other SOS objects, pipes need to be closed 
      * manually because they are likely involved in other
-     * async stuff we don't know about within the library.
+     * async stuff we don't know about within this part of
+     * the library.
      */
 
 
