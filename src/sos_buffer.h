@@ -24,6 +24,7 @@
 
 typedef struct {
     void                *sos_context;
+    bool                 is_locking;
     pthread_mutex_t     *lock;
     unsigned char       *data;
     int                  len;
@@ -38,6 +39,7 @@ extern "C" {
 
 void         SOS_buffer_init(void *sos_context, SOS_buffer **buffer);
 void         SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer, int max_size);
+void         SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer, int max_size, bool locking);
 void         SOS_buffer_lock(SOS_buffer *buffer);
 void         SOS_buffer_unlock(SOS_buffer *buffer);
 void         SOS_buffer_destroy(SOS_buffer *buffer);

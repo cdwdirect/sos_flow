@@ -65,6 +65,7 @@
     VAL_TYPE(SOS_VAL_TYPE_LONG)                 \
     VAL_TYPE(SOS_VAL_TYPE_DOUBLE)               \
     VAL_TYPE(SOS_VAL_TYPE_STRING)               \
+    VAL_TYPE(SOS_VAL_TYPE_BYTES)                \
     VAL_TYPE(SOS_VAL_TYPE___MAX)
 
 #define FOREACH_VAL_STATE(VAL_STATE)            \
@@ -211,6 +212,7 @@ typedef union {
     long                l_val;
     double              d_val;
     char               *c_val;
+    unsigned char      *bytes;
 } SOS_val;
 
 typedef struct {
@@ -237,10 +239,6 @@ typedef struct {
     SOS_val_semantic    semantic;
     SOS_mood            mood;
 } SOS_val_snap;
-
-
-
-
 
 typedef struct {
     SOS_guid            guid;

@@ -1145,6 +1145,7 @@ void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
     pipe->elem_count = 0;
     pipe->sync_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(pipe->sync_lock, NULL);
+    pthread_cond_init(pipe->sync_cond, NULL);
 
     return;
 }

@@ -124,8 +124,8 @@ extern "C" {
 #ifdef SOSD_CLOUD_SYNC
     /* All cloud_sync modules must have the following signatures: */
     extern int   SOSD_cloud_init(int *argc, char ***argv);
-    extern int   SOSD_cloud_send(unsigned char *msg, int msg_len);
-    extern void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len);
+    extern int   SOSD_cloud_send(SOS_buffer *buffer);
+    extern void  SOSD_cloud_enqueue(SOS_buffer *buffer);
     extern void  SOSD_cloud_fflush(void);
     extern int   SOSD_cloud_finalize(void);
     extern void  SOSD_cloud_shutdown_notice(void);
