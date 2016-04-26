@@ -28,22 +28,25 @@
 #define SOSD_PUB_ANN_CLOUD           88
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
-#define SOSD_pack_ack(__context, __buffer, __len_var) {  \
+
+#define SOSD_PACK_ACK(__buffer) {                        \
         SOS_msg_header header;                           \
+        int offset;                                      \
         memset(&header, '\0', sizeof(header));           \
         header.msg_size = -1;                            \
         header.msg_type = SOS_MSG_TYPE_ACK;              \
         header.msg_from = 0;                             \
         header.pub_guid = 0;                             \
-        *__len_var = 0;                                  \
-        *__len_var += SOS_buffer_pack(__context,         \
-                                      __buffer, "iigg",  \
+        offset = 0;                                      \
+        SOS_buffer_pack(__buffer, &offset, "iigg",       \
                                       header.msg_size,   \
                                       header.msg_type,   \
                                       header.msg_from,   \
                                       header.pub_guid);  \
-        SOS_buffer_pack(__context,                       \
-                        __buffer, "i", *__len_var);      \
+        header.msg_size = offset;                        \
+        offset = 0;                                      \
+        SOS_buffer_pack(__buffer, &offset, "i",          \
+                        header.msg_size);                \
     }
 
 
@@ -77,13 +80,24 @@ typedef struct {
     int                 cloud_sync_target;
 } SOSD_runtime;
 
-
 typedef struct {
     char               *file;
     int                 ready;
     pthread_mutex_t    *lock;
 } SOSD_db;
 
+typedef struct {
+    void                *sos_context;
+    SOS_pipe            *queue;
+    pthread_t           *handler;
+    pthread_mutex_t     *lock;
+    pthread_cond_t      *cond;
+} SOSD_sync_context;
+
+typedef struct {
+    SOSD_sync_context    local;
+    SOSD_sync_context    cloud;
+} SOSD_sync_set;
 
 typedef struct {
     SOS_runtime        *sos_context;
@@ -91,8 +105,7 @@ typedef struct {
     SOSD_db             db;
     SOSD_net            net;
     SOS_uid            *guid;
-    SOS_pipe           *local_sync;
-    SOS_pipe           *cloud_sync;
+    SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
 } SOSD_global;
 
@@ -122,23 +135,25 @@ extern "C" {
     void  SOSD_init(void);
     void  SOSD_setup_socket(void);
 
+    void  SOSD_sync_context_init(SOS_runtime *sos_context, SOSD_sync_context *sync_context, void* (*thread_func)(void *thread_param));
+
     void* SOSD_THREAD_local_sync(void *args);
     void* SOSD_THREAD_cloud_sync(void *args);
 
     void  SOSD_listen_loop(void);
-    void  SOSD_handle_register(unsigned char *msg_data, int msg_size);
-    void  SOSD_handle_guid_block(unsigned char *msg_data, int msg_size);
-    void  SOSD_handle_announce(unsigned char *msg_data, int msg_size);
-    void  SOSD_handle_publish(unsigned char *msg_data, int msg_size);
-    void  SOSD_handle_echo(unsigned char *msg_data, int msg_size);
-    void  SOSD_handle_val_snaps(unsigned char *msg, int msg_size);
-    void  SOSD_handle_shutdown(unsigned char *msg_data, int msg_size);
-    void  SOSD_handle_check_in(unsigned char *msg, int msg_size);
-    void  SOSD_handle_unknown(unsigned char *msg_data, int msg_size);
+    void  SOSD_handle_register(SOS_buffer *buffer);
+    void  SOSD_handle_guid_block(SOS_buffer *buffer);
+    void  SOSD_handle_announce(SOS_buffer *buffer);
+    void  SOSD_handle_publish(SOS_buffer *buffer);
+    void  SOSD_handle_echo(SOS_buffer *buffer);
+    void  SOSD_handle_val_snaps(SOS_buffer *buffer);
+    void  SOSD_handle_shutdown(SOS_buffer *buffer);
+    void  SOSD_handle_check_in(SOS_buffer *buffer);
+    void  SOSD_handle_unknown(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, long *pool_from, long *pool_to );
-    void  SOSD_apply_announce( SOS_pub *pub, unsigned char *msg, int msg_len );
-    void  SOSD_apply_publish( SOS_pub *pub, unsigned char *msg, int msg_len );
+    void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
+    void  SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer );
 
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
