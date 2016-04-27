@@ -135,7 +135,10 @@ extern "C" {
     void  SOSD_init(void);
     void  SOSD_setup_socket(void);
 
-    void  SOSD_sync_context_init(SOS_runtime *sos_context, SOSD_sync_context *sync_context, void* (*thread_func)(void *thread_param));
+    void  SOSD_sync_context_init(SOS_runtime *sos_context,
+                                 SOSD_sync_context *sync_context,
+                                 size_t elem_size,
+                                 void* (*thread_func)(void *thread_param));
 
     void* SOSD_THREAD_local_sync(void *args);
     void* SOSD_THREAD_cloud_sync(void *args);

@@ -130,10 +130,10 @@ int main(int argc, char *argv[])  {
     SOSD_db_init_database();
     dlog(0, "Initializing the sync framework...\n");
     #ifdef SOSD_CLOUD_SYNC
-    SOSD_sync_context_init(SOS, &SOSD.sync.cloud, (void *) SOSD_THREAD_cloud_sync);
+    SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), (void *) SOSD_THREAD_cloud_sync);
     #else
     #endif
-    SOSD_sync_context_init(SOS, &SOSD.sync.local, SOSD_THREAD_local_sync);
+    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
 
     dlog(0, "Entering listening loop...\n");
 
@@ -930,6 +930,25 @@ void SOSD_init() {
     SOSD.daemon.running = 1;
     return;
 }
+
+
+
+ void SOSD_sync_context_init(SOS_runtime *sos_context, SOSD_sync_context *sync_context, size_t elem_size, void* (*thread_func)(void *thread_param)) {
+    SOS_SET_CONTEXT(sos_context, "SOSD_sync_context_init");
+
+    SOS_pipe_init(SOS, &sync_context->queue, elem_size);
+
+    sync_context->handler = (pthread_t *) malloc(sizeof(pthread_t));
+    sync_context->lock    = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    sync_context->cond    = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+
+    pthread_mutex_init(sync_context->lock, NULL);
+    pthread_cond_init(sync_context->cond, NULL);
+    pthread_create(sync_context->handler, NULL, (void *) thread_func, (void *) sync_context);
+
+    return;
+}
+
 
 void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to) {
     SOS_SET_CONTEXT(id->sos_context, "SOSD_guid_claim_range");

@@ -234,6 +234,8 @@ typedef struct {
     int                 elem;
     SOS_guid            guid;
     SOS_val             val;
+    int                 val_len;
+    SOS_val_type        type;
     SOS_time            time;
     long                frame;
     SOS_val_semantic    semantic;

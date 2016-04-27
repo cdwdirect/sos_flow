@@ -82,7 +82,8 @@ void* SOSD_THREAD_cloud_flush(void *args) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_THREAD_cloud_flush(MPI)");
     struct timespec  tsleep;
     struct timeval   tnow;
-    SOS_pipe        *queue = (SOS_pipe *) args;
+    SOSD_sync_context *my = (SOSD_sync_context *) args;
+    SOS_pipe        *queue = my->queue;;
     SOS_buffer      *send_buffer;
     SOS_buffer     **msg_list;
     int              msg_count;
@@ -243,14 +244,18 @@ int SOSD_cloud_send(SOS_buffer *buffer) {
 
 void SOSD_cloud_listen_loop(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop(MPI)");
-    MPI_Status status;
-    SOS_buffer *buffer;
-    SOS_buffer *msg;
-    int offset;
-    int entry_count, entry;
-    SOS_msg_header header;
+    MPI_Status      status;
+    SOS_msg_header  header;
+    SOS_buffer     *buffer;
+    SOS_buffer     *msg;
+    char            unpack_format[SOS_DEFAULT_STRING_LEN] = {0};
+    int             mpi_msg_len;
+    int             offset;
+    int             msg_offset;
+    int             entry_count;
+    int             entry;
 
-    SOS_buffer_init(&buffer);
+    SOS_buffer_init(SOS, &buffer);
 
     while(SOSD.daemon.running) {
         entry_count = 0;
@@ -258,21 +263,26 @@ void SOSD_cloud_listen_loop(void) {
 
         /* Receive a composite message from a daemon: */
         dlog(5, "Waiting for a message from MPI...\n");
-        MPI_Recv((void *) bp->a.data, bp->a.max, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        dlog(5, "  ... message received!\n");
 
-        offset += SOS_buffer_unpack(SOS, bp->a.data, "i", &entry_count);
-        ptr = (bp->a.data + offset);
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
+
+        while(buffer->max < mpi_msg_len) {
+            SOS_buffer_grow(buffer);
+        }
+
+        MPI_Recv((void *) buffer->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+        dlog(5, "  ... message received from rank %d!\n", status.MPI_SOURCE);
+        offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
         dlog(5, "  ... message contains %d entries.\n", entry_count);
 
-        // LEFT OFF (careful with offsets here...)
-
-        /* Extract one-at-a-time single messages into bp->b.data: */
+        /* Extract one-at-a-time single messages into 'msg' */
         for (entry = 1; entry <= entry_count; entry++) {
             dlog(6, "  ... processing entry %d of %d @ offset == %d \n", entry, entry_count, offset);
             memset(&header, '\0', sizeof(SOS_msg_header));
-            memset(bp->b.data, '\0', bp->b.max);
-            SOS_buffer_unpack(SOS, ptr, "iigg",
+            SOS_buffer_wipe(msg);
+            SOS_buffer_unpack(buffer, &offset, "iigg",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
@@ -282,22 +292,42 @@ void SOSD_cloud_listen_loop(void) {
             dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
             dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
+            /* TODO: { THREAD POOL }
+             *    could alloc a new message and put it in a dispatch queue
+             *    for worker threads to grab and handle.
+             *    ...would need to make sure __everything__ was thread safe.
+             *
+             *    For now, we handle it one at a time, prolly not the best.
+             */
+
             SOS_buffer_init_sized_locking(SOS, &msg, (1 + SOS_DEFAULT_BUFFER_MIN + header.msg_size), false);
+
+            msg_offset = 0;
+            SOS_buffer_pack(msg, &msg_offset, "iigg",
+                            header.msg_size,
+                            header.msg_type,
+                            header.msg_from,
+                            header.pub_guid);
+
+            /* Unpack the embedded message body directly into the new buffer. */
+            snprintf(unpack_format, SOS_DEFAULT_STRING_LEN, "%zdb",
+                     (header.msg_size - sizeof(SOS_msg_header)));
+            SOS_buffer_unpack(buffer, &offset, unpack_format, (msg->data + sizeof(SOS_msg_header)));
 
             /* Now let's handle the message we've moved over into buffer bp-b.data */
             switch (header.msg_type) {
 
-            case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (bp->b.data, header.msg_size); break;
-            case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (bp->b.data, header.msg_size); break;
-            case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (bp->b.data, header.msg_size); break;
-
+            case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (msg); break;
+            case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (msg); break;
+            case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (msg); break;
             case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
-
-            case SOS_MSG_TYPE_REGISTER:   /* SOSD_handle_register   (bp->b.data, header.msg_size); break; */
-            case SOS_MSG_TYPE_GUID_BLOCK: /* SOSD_handle_guid_block (bp->b.data, header.msg_size); break; */
-            case SOS_MSG_TYPE_ECHO:       /* SOSD_handle_echo       (bp->b.data, header.msg_size); break; */
-            default:                      SOSD_handle_unknown    (bp->b.data, header.msg_size); break;
+            case SOS_MSG_TYPE_REGISTER:   /* Not for the cloud. */
+            case SOS_MSG_TYPE_GUID_BLOCK: /* Not for the cloud. */
+            case SOS_MSG_TYPE_ECHO:       /* Not for the cloud. */
+            default:                      SOSD_handle_unknown    (msg); break;
             }
+
+            SOS_buffer_destroy(msg);
         }
     }
 
@@ -396,15 +426,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     /* -------------------- */
 
-    if (SOSD_ECHO_TO_STDOUT) printf("Initializing cloud_sync buffers...\n");
-    SOS_async_buf_pair_init(SOS, &SOSD.cloud_bp);
-    if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
-
     /* All DAEMON except the DB need the cloud_sync flush thread. */
     if (SOS->role != SOS_ROLE_DB) {
         if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
-        SOSD_cloud_flush = (pthread_t *) malloc(sizeof(pthread_t));
-        rc = pthread_create(SOSD_cloud_flush, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) SOSD.cloud_bp);
+        SOSD.sync.cloud.handler = (pthread_t *) malloc(sizeof(pthread_t));
+        rc = pthread_create(SOSD.sync.cloud.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud);
         if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     }
 
@@ -417,21 +443,16 @@ int SOSD_cloud_finalize(void) {
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
     int   rc;
 
-    if (SOS->role != SOS_ROLE_DB) {
-        dlog(1, "Shutting down SOSD cloud services...\n");
-        dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
-        SOS_async_buf_pair_fflush(SOSD.cloud_bp);
-        pthread_cond_signal(SOSD.cloud_bp->flush_cond);
-        dlog(1, "  ... joining the cloud_sync flush thread.\n");
-        pthread_join(*SOSD_cloud_flush, NULL);
-        free(SOSD_cloud_flush);
-    }
+    dlog(1, "Shutting down SOSD cloud services...\n");
+    dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
+    SOSD_cloud_fflush();
+    dlog(1, "  ... joining the cloud_sync flush thread.\n");
+    pthread_join(*SOSD.sync.cloud.handler, NULL);
+    free(SOSD.sync.cloud.handler);
 
     dlog(1, "  ... cleaning up the cloud_sync_set list.\n");
     memset(SOSD.daemon.cloud_sync_target_set, '\0', (SOSD.daemon.cloud_sync_target_count * sizeof(int)));
     free(SOSD.daemon.cloud_sync_target_set);
-    dlog(1, "  ... destroying the cloud-send buffers.\n");
-    SOS_async_buf_pair_destroy(SOSD.cloud_bp);
 
     dlog(1, "Leaving the MPI communicator...\n");
     rc = MPI_Finalize();

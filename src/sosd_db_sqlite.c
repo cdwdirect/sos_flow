@@ -400,33 +400,28 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     return;
 }
 
-void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_queue *re_queue ) {
+/* NOTE: re_queue can be NULL, and snaps are then free()'ed. */
+void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_vals");
-    char pub_guid_str[SOS_DEFAULT_STRING_LEN];
-    SOS_val_snap *snap;
-    SOS_val_snap *next_snap;
+    SOS_val_snap **snap_list;
+    int            snap_index;
+    int            snap_count;
+    int            bytes;
 
     dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
-    memset(pub_guid_str, '\0', SOS_DEFAULT_STRING_LEN);
-    sprintf(pub_guid_str, "%" SOS_GUID_FMT, pub->guid);
 
     dlog(2, "  ... getting locks for queues\n");
-    if (re_queue != NULL) {
-        dlog(2, "     ... re_queue->lock\n");
-        pthread_mutex_lock( re_queue->lock );
-    }
-    dlog(2, "     ... queue->lock\n");
-    pthread_mutex_lock( queue->lock );
+    if (re_queue != NULL) { pthread_mutex_lock( re_queue->sync_lock ); }
+    pthread_mutex_lock( queue->sync_lock );
 
-    dlog(2, "  ... grabbing LIFO snap_queue head\n");
-    /* Grab the linked-list (LIFO queue) */
-    snap = (SOS_val_snap *) queue->from->get(queue->from, pub_guid_str);
-    /* Clear the queue and unlock it so new additions can inject. */
-    dlog(2, "  ... clearing the snap queue\n");
-    queue->from->remove(queue->from, pub_guid_str);
+    snap_count = queue->elem_count;
+    snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
+
+    dlog(2, "  ... grabbing %d snaps from the queue.\n", snap_count);
+    bytes = pipe_pop(queue->outlet, (void *) snap_list, snap_count);
+    queue->elem_count -= snap_count;
     dlog(2, "  ... releasing queue->lock\n");
-    pthread_mutex_unlock( queue->lock );
-
+    pthread_mutex_unlock(queue->sync_lock);
 
     dlog(2, "  ... processing snaps extracted from the queue\n");
 
@@ -442,37 +437,37 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
     
     val_alloc = (char *) malloc(SOS_DEFAULT_STRING_LEN);
 
-    while (snap != NULL) {
+    for (snap_index = 0; snap_index < snap_count ; snap_index++) {
 
-        elem              = snap->elem;
-        guid              = snap->guid;
-        time_pack         = snap->time.pack;
-        time_send         = snap->time.send;
-        time_recv         = snap->time.recv;
-        frame             = snap->frame;
-        semantic          = __ENUM_VAL( snap->semantic, SOS_VAL_SEMANTIC );
-        mood              = __ENUM_VAL( snap->mood, SOS_MOOD );
+        elem              = snap_list[snap_index]->elem;
+        guid              = snap_list[snap_index]->guid;
+        time_pack         = snap_list[snap_index]->time.pack;
+        time_send         = snap_list[snap_index]->time.send;
+        time_recv         = snap_list[snap_index]->time.recv;
+        frame             = snap_list[snap_index]->frame;
+        semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
+        mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
 
         SOS_TIME( time_recv );
 
-        if (pub->data[snap->elem]->type != SOS_VAL_TYPE_STRING) {
+        if (pub->data[snap_list[snap_index]->elem]->type != SOS_VAL_TYPE_STRING) {
             val = val_alloc;
             memset(val, '\0', SOS_DEFAULT_STRING_LEN);
         }
 
-        switch (pub->data[snap->elem]->type) {
-        case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = snap->val.c_val; dlog(0, "Injecting snap->val.c_val = \"%s\"\n", snap->val.c_val); break;
+        switch (pub->data[snap_list[snap_index]->elem]->type) {
+        case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val); break;
+        case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val); break;
+        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap_list[snap_index]->val.d_val); break;
+        case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; dlog(0, "Injecting snap->val.c_val = \"%s\"\n", snap_list[snap_index]->val.c_val); break;
         default:
-            dlog(5, "     ... error: invalid value type.  (%d)\n", pub->data[snap->elem]->type); break;
+            dlog(5, "     ... error: invalid value type.  (%d)\n", pub->data[snap_list[snap_index]->elem]->type); break;
         }
 
         dlog(5, "     ... binding values\n");
 
         CALL_SQLITE (bind_int64  (stmt_insert_val, 1,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val,              1 + strlen(val),            SQLITE_STATIC ));
+        CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, 1 + strlen(val), SQLITE_STATIC ));
         CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
         __BIND_ENUM (stmt_insert_val, 4,  semantic     );
         __BIND_ENUM (stmt_insert_val, 5,  mood         );
@@ -489,37 +484,28 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_val_snap_queue *queue, SOS_val_snap_
         CALL_SQLITE (reset (stmt_insert_val));
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
-        dlog(5, "     ... grabbing the next snap\n");
-
-        next_snap = (SOS_val_snap *) snap->next;
-        if (re_queue != NULL) {
-            snap->next = (void *) re_queue->from->get(re_queue->from, pub_guid_str);
-            re_queue->from->remove(re_queue->from, pub_guid_str);
-            re_queue->from->put(re_queue->from, pub_guid_str, (void *) snap);
-        } else {
-            /* You're not re-queueing them...
-             *   ... you'll need to free() them yourself. */
-            /* Let's go ahead and do it, there are no easily
-             * identifiable cases where they need to get used
-             * again when there is no re-queueing. (node_sync's
-             * ring monitor doesn't call this function, so we don't
-             * need to keep them around for transmission.) */
-            dlog(5, "     ... freeing this val_snap b/c there is no re_queue\n");
-
-            if (pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) { free(snap->val.c_val); }
-            free(snap);
+        if (re_queue == NULL) {
+            /* Free the snapshots as we process them. */
+            switch(snap_list[snap_index]->type) {
+            case SOS_VAL_TYPE_STRING: free(snap_list[snap_index]->val.c_val); break;
+            case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
+            default: break;
+            }
         }
 
-        snap = next_snap;
+        dlog(5, "     ... grabbing the next snap.\n");
     }
 
+    if (re_queue != NULL) {
+        pthread_mutex_lock(re_queue->sync_lock);
+        pipe_push(re_queue->intake, (void *) snap_list, snap_count);
+        re_queue->elem_count += snap_count;
+        pthread_mutex_unlock(re_queue->sync_lock);
+    }
+
+    free(snap_list);
     free(val_alloc);
 
-    dlog(2, "     ... done.\n");
-    dlog(2, "  ... releasing re_queue->lock\n");
-
-    if (re_queue != NULL) { pthread_mutex_unlock( re_queue->lock ); }
-    
     dlog(5, "  ... done.  returning to loop.\n");
 
     return;
