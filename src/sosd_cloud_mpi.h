@@ -10,6 +10,7 @@
 
 /* For DAEMONs sending through cloud_sync: */
 int   SOSD_cloud_init(int *argc, char ***argv);
+int   SOSD_cloud_start(void);
 int   SOSD_cloud_send(SOS_buffer *buffer);
 void  SOSD_cloud_enqueue(SOS_buffer *buffer);
 void  SOSD_cloud_fflush(void);

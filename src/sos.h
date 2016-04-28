@@ -30,7 +30,7 @@
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
-#define SOS_DEFAULT_TIMEOUT_SEC     4.0
+#define SOS_DEFAULT_TIMEOUT_SEC     2.0
 #define SOS_DEFAULT_BUFFER_LEN      1048576
 #define SOS_DEFAULT_BUFFER_MIN      2048
 #define SOS_DEFAULT_REPLY_LEN       128
@@ -108,22 +108,27 @@ extern "C" {
 #if (SOS_DEBUG < 0)
     #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
     SOS_runtime *SOS;                                                   \
-    SOS = (SOS_runtime *) __SOS_context;
+    SOS = (SOS_runtime *) __SOS_context;                                \
+    if (SOS == NULL) {                                                  \
+        printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n"); \
+        exit(EXIT_FAILURE);                                             \
+    }
 #else
     #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
     SOS_runtime *SOS;                                                   \
     SOS = (SOS_runtime *) __SOS_context;                                \
-    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
     if (SOS == NULL) {                                                  \
-        sprintf(SOS_WHOAMI, " * unknown * ");                           \
-    } else {                                                            \
-        switch (SOS->role) {                                            \
-        case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break;  \
-        case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break;       \
-        case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break;        \
-        case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break;        \
-        default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break;       \
-        }                                                               \
+        printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n"); \
+        exit(EXIT_FAILURE);                                             \
+    }                                                                   \
+    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
+    sprintf(SOS_WHOAMI, "* ??? *");                                     \
+    switch (SOS->role) {                                                    \
+    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
+    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
+    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
+    case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break; \
+    default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
     }
 #endif
 

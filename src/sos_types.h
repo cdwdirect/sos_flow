@@ -212,7 +212,7 @@ typedef union {
     long                l_val;
     double              d_val;
     char               *c_val;
-    unsigned char      *bytes;
+    void               *bytes;   /* Use addr. of SOS_buffer object. */
 } SOS_val;
 
 typedef struct {
@@ -291,7 +291,6 @@ typedef struct {
     SOS_guid            guid;
     SOS_guid            client_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
-    char                crypto_key[SOS_DEFAULT_STRING_LEN];
     void               *target;
     SOS_feedback        target_type;
     int                 daemon_trigger_count;
@@ -327,6 +326,7 @@ typedef struct {
     int                 timeout;
     int                 buffer_len;
     pthread_mutex_t    *send_lock;
+    SOS_buffer         *recv_part;
 } SOS_socket_set;
 
 typedef struct {

@@ -29,10 +29,15 @@
 
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
 
-#define SOSD_PACK_ACK(__buffer) {                        \
+#define SOSD_PACK_ACK(__buffer) {                                       \
+        if (__buffer == NULL) {                                         \
+            dlog(0, "ERROR: You called SOSD_PACK_ACK() on a NULL buffer!  Terminating.\n"); \
+            exit(EXIT_FAILURE);                                         \
+        }                                                               \
         SOS_msg_header header;                           \
         int offset;                                      \
-        memset(&header, '\0', sizeof(header));           \
+        dlog(7, "SOSD_PACK_ACK used to assemble a reply.\n");   \
+        memset(&header, '\0', sizeof(SOS_msg_header));   \
         header.msg_size = -1;                            \
         header.msg_type = SOS_MSG_TYPE_ACK;              \
         header.msg_from = 0;                             \

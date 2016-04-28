@@ -41,17 +41,25 @@ void SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer_obj, int max_s
 
 
 void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, int max_size, bool locking) {
-    SOS_SET_CONTEXT((SOS_runtime *)sos_context, "SOS_buffer_init_sized");
+    SOS_SET_CONTEXT((SOS_runtime *)sos_context, "SOS_buffer_init_sized_locking");
+    SOS_buffer *buffer;
 
     dlog(5, "Creating buffer:\n");
-    SOS_buffer *buffer;
     buffer = *buffer_obj = (SOS_buffer *) malloc(sizeof(SOS_buffer));
+    memset(buffer, '\0', sizeof(SOS_buffer));
     buffer->sos_context = sos_context;
     buffer->max = max_size;
     buffer->len = 0;
-    dlog(5, "   ... allocate storage space.   (buffer->max == %d)\n", buffer->max);
+
+    dlog(5, "   ... allocating storage space.\n");
     buffer->data = (unsigned char *) malloc(buffer->max * sizeof(unsigned char));
-    memset(buffer->data, '\0', buffer->max);
+
+    if (buffer->data == NULL) {
+        dlog(1, "ERROR: Unable to allocate buffer space.  Terminating.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(buffer->data, 0, buffer->max);
 
     buffer->is_locking = locking;
     if (locking) {
@@ -65,6 +73,8 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
             dlog(5, "   ... done.\n");
         }
     }
+
+    dlog(5, "   ...done.\n");
 
     return;
 }
@@ -102,6 +112,11 @@ void SOS_buffer_unlock(SOS_buffer *buffer) {
 
 void SOS_buffer_destroy(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_destroy");
+
+    if (buffer == NULL) {
+        dlog(0, "ERROR: You called SOS_buffer_destroy() on a NULL buffer!  Terminating.\n");
+        exit(EXIT_FAILURE);
+    }
 
     dlog(5, "Destroying buffer:\n");
     if (buffer->is_locking) {
@@ -346,7 +361,7 @@ uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 
 
 /*
-** pack() -- store data dictated by the format string in the buffer
+** SOS_buffer_pack() -- store data dictated by the format string in the buffer
 **
 */
 
@@ -454,7 +469,9 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     va_end(ap);
     dlog(20, "  ... done\n");
 
-    *offset += packed_bytes;
+    *offset     += packed_bytes;
+    buffer->len  = (buffer->len > *offset) ? buffer->len : *offset;
+
     return packed_bytes;
 }
 

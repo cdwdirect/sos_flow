@@ -25,7 +25,7 @@ set(PROJECT_NAME sos_flow)
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
 project(${PROJECT_NAME} C)
-set(CMAKE_C_FLAGS -std=gnu99)
+set(CMAKE_C_FLAGS "-std=gnu99 -g -O0")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")

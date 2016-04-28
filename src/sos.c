@@ -160,6 +160,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
          */
         dlog(1, "  ... setting up socket communications with the daemon.\n" );
 
+        SOS_buffer_init(SOS, &SOS->net.recv_part);
+
         SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
@@ -196,7 +198,6 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         SOS_buffer *buffer;
         SOS_buffer_init(SOS, &buffer);
-        SOS_buffer_lock(buffer);
         
         int offset = 0;
         SOS_buffer_pack(buffer, &offset, "iigg", 
@@ -205,16 +206,33 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
             header.msg_from,
             header.pub_guid);
 
-        retval = sendto( server_socket_fd, buffer->data, buffer->len, 0, 0, 0 );
-        if (retval < 0) { dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port); exit(1); }
+        pthread_mutex_lock(SOS->net.send_lock);
+
+        dlog(0, "Built a registration message:\n");
+        dlog(0, "  ... buffer->data == %ld\n", (long) buffer->data);
+        dlog(0, "  ... buffer->len  == %d\n", buffer->len);
+        dlog(0, "Calling send...\n");
+
+        retval = send( server_socket_fd, buffer->data, buffer->len, 0);
+
+        if (retval < 0) {
+            dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
+            exit(EXIT_FAILURE);
+        } else {
+            dlog(0, "   ... registration message sent.   (retval == %d)\n", retval);
+        }
 
         dlog(1, "  ... listening for the server to reply...\n");
-        SOS_buffer_wipe(buffer);
         buffer->len = recv( server_socket_fd, (void *) buffer->data, buffer->max, 0);
         dlog(6, "  ... server responded with %d bytes.\n", retval);
 
-        memcpy(&guid_pool_from, buffer, sizeof(SOS_guid));
-        memcpy(&guid_pool_to, (buffer + sizeof(SOS_guid)), sizeof(SOS_guid));
+        close( server_socket_fd );
+        pthread_mutex_unlock(SOS->net.send_lock);
+
+        offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "gg",
+                          &guid_pool_from,
+                          &guid_pool_to);
         dlog(1, "  ... received guid range from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(1, "  ... configuring uid sets.\n");
 
@@ -224,10 +242,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
 
-        SOS_buffer_unlock(buffer);
         SOS_buffer_destroy(buffer);
 
-        close( server_socket_fd );
 
     } else {
         /*
@@ -268,12 +284,15 @@ void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer,
 
 void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     SOS_SET_CONTEXT(send_buffer->sos_context, "SOS_send_to_daemon");
-
     SOS_msg_header header;
-    int server_socket_fd;
-    int retval         = 0;
-    double time_start  = 0.0;
-    double time_out    = 0.0;
+    SOS_buffer    *recv_part   = SOS->net.recv_part;
+    char           recv_pack_fmt[SOS_DEFAULT_STRING_LEN];
+    int            server_socket_fd;
+    int            offset      = 0;
+    int            inset       = 0;
+    int            retval      = 0;
+    double         time_start  = 0.0;
+    double         time_out    = 0.0;
 
     if (SOS->status == SOS_STATUS_SHUTDOWN) {
         dlog(1, "Suppressing a send to the daemon.  (SOS_STATUS_SHUTDOWN)\n");
@@ -286,6 +305,7 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     }
 
     pthread_mutex_lock(SOS->net.send_lock);
+    dlog(6, "Processing a send to the daemon.\n");
 
     retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port, &SOS->net.server_hint, &SOS->net.result_list );
     if ( retval < 0 ) { dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port ); exit(1); }
@@ -306,32 +326,57 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     }
 
     int more_to_send = 1;
+    retval = 0;
     SOS_TIME(time_start);
     while (more_to_send) {
-        retval = send(server_socket_fd, send_buffer->data, send_buffer->len, 0 );
-        if (retval == send_buffer->len) { more_to_send = 0; }
+        retval += send(server_socket_fd, send_buffer->data, send_buffer->len, 0 );
+        if (retval >= send_buffer->len) { more_to_send = 0; }
         if (retval == -1) {
             SOS_TIME(time_out);
-            dlog(0, "ERROR: Could not send message to daemon.\n %s", strerror(errno));
+            if (more_to_send < 2) {
+                dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
+                more_to_send = 2;
+            }
+            usleep(1000);
             if ((time_out - time_start) > SOS_DEFAULT_TIMEOUT_SEC) {
                 dlog(0, "ERROR: Unable to communicate w/daemon for more than %lf seconds.  Terminating.\n",
                      SOS_DEFAULT_TIMEOUT_SEC);
+                exit(EXIT_FAILURE);
             }
         }
     }
 
-    retval = 0;
-    while(retval += recv(server_socket_fd, (reply_buffer->data + retval), (reply_buffer->max - retval), 0)) {
-        if ((reply_buffer->max - retval) < SOS_DEFAULT_BUFFER_MIN) {
+    dlog(6, "Send complete, waiting for a reply...\n");
+
+    offset = 0;
+    inset = 0;
+    SOS_buffer_wipe(recv_part);
+
+    recv_part->len = recv(server_socket_fd, recv_part->data, recv_part->max, 0);
+
+    while(recv_part->len != 0) {
+        if (recv_part->len == -1) {
+            dlog(0, "Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n",
+                 retval, errno, strerror(errno));
+        }
+        
+        while (reply_buffer->max < (reply_buffer->len + recv_part->len)) {
             SOS_buffer_grow(reply_buffer);
         }
+
+        dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
+
+        memcpy((reply_buffer->data + offset), recv_part->data, recv_part->len);
+        offset += recv_part->len;
+
+        SOS_buffer_wipe(recv_part);
+        recv_part->len = recv(server_socket_fd, recv_part->data, recv_part->max, 0);
     }
-    if (retval == -1) { dlog(0, "Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n", retval, errno, strerror(errno)); }
-    else { dlog(6, "Server sent a (%d) byte reply.\n", retval); }
-
+    reply_buffer->len = offset;
     close( server_socket_fd );
-
     pthread_mutex_unlock(SOS->net.send_lock);
+
+    dlog(6, "Reply fully received.  reply_buffer->len == %d\n", reply_buffer->len);
 
     return;
 }
@@ -366,6 +411,9 @@ void SOS_finalize(SOS_runtime *sos_context) {
         dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
+
+        dlog(1, "  ... Clearing up networking...\b");
+        SOS_buffer_destroy(SOS->net.recv_part);
     }
 
     dlog(1, "Done!\n");
@@ -419,18 +467,25 @@ void* SOS_THREAD_feedback( void *args ) {
         header.msg_type = SOS_MSG_TYPE_CHECK_IN;
         header.pub_guid = 0;
 
+        dlog(4, "Building a check-in message.\n");
+
         offset = 0;
         offset += SOS_buffer_pack(check_in_buffer, &offset, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
             header.pub_guid);
+
         header.msg_size = offset;
         offset = 0;
         SOS_buffer_pack(check_in_buffer, &offset, "i", header.msg_size);
 
+        dlog(4, "Sending check-in to daemon.\n");
+
         /* Ping the daemon to see if there is anything to do. */
         SOS_send_to_daemon(check_in_buffer, feedback_buffer);
+
+        dlog(4, "Processing reply (to check-in)...\n");
 
         memset(&header, '\0', sizeof(SOS_msg_header));
         offset = 0;
@@ -443,13 +498,15 @@ void* SOS_THREAD_feedback( void *args ) {
         if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
             dlog(0, "WARNING: sosd (daemon) responded to a CHECK_IN_MSG with malformed FEEDBACK!\n");
             error_count++;
-            if (error_count > 5) { break; }
+            if (error_count > 5) { 
+                dlog(0, "ERROR: Too much mal-formed feedback, shutting down feedback thread.\n");
+                break;
+            }
             gettimeofday(&tp, NULL);
             ts.tv_sec  = (tp.tv_sec + 2);
             ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
             continue;
         } else {
-            dlog(0, "ERROR: Too much mal-formed feedback, shutting down feedback thread.\n");
             error_count = 0;
         }
 
@@ -493,6 +550,8 @@ void SOS_handle_feedback(SOS_buffer *buffer) {
     SOS_msg_header header;
 
     int offset;
+
+    dlog(4, "Determining appropriate action RE:feedback from daemon.\n");
 
     SOS_buffer_lock(buffer);
 
@@ -792,8 +851,9 @@ int SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic) {
 
 int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack");
-    int       pos;
-    SOS_data *data;
+    SOS_buffer *byte_buffer;
+    SOS_data   *data;
+    int         pos;
 
     pthread_mutex_lock(pub->lock);
 
@@ -820,17 +880,31 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         pub->name_table->put(pub->name_table, name, (void *) ((long)(pos + 1)));
 
         data = pub->data[pos];
+        data->type = pack_type;
+
+        switch(data->type) {
+        case SOS_VAL_TYPE_STRING:
+            data->val.c_val = strdup(pack_val.c_val);
+            break;
+
+        case SOS_VAL_TYPE_BYTES:
+            byte_buffer = (SOS_buffer *) pack_val.bytes;
+            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
+            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
+            break;
+
+        case SOS_VAL_TYPE_INT:
+        case SOS_VAL_TYPE_LONG:
+        case SOS_VAL_TYPE_DOUBLE:
+        default:
+            data->val = pack_val;
+            break;
+        }
+
+
 
         data->guid = SOS_uid_next(SOS->uid.my_guid_pool);
         data->type = pack_type;
-        if (data->type == SOS_VAL_TYPE_STRING) {
-            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
-            dlog(8, "[STRING] Packing a string: %s\n", data->val.c_val);
-        } else {
-            data->val  = pack_val;
-        }
-        data->state = SOS_VAL_STATE_DIRTY;
-
         strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
         SOS_TIME( data->time.pack );
 
@@ -847,7 +921,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             snap->guid     = data->guid;
             snap->mood     = data->meta.mood;
             snap->semantic = data->meta.semantic;
-            snap->val      = data->val;    /* Take over extant string. */
+            snap->type     = data->type;
+            snap->val      = data->val;    /* Take over extant string/bytes. */
+            snap->val_len  = data->val_len;
             snap->time     = data->time;
             snap->frame    = pub->frame;
 
@@ -858,12 +934,26 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         }
 
         /* Update the value in the pub->data[elem] position. */
-        if (data->type == SOS_VAL_TYPE_STRING) {
-            data->val.c_val = strdup( pack_val.c_val);
-            dlog(8, "[STRING] Re-packing a string value: %s\n", data->val.c_val);
-        } else {
+        switch(data->type) {
+
+        case SOS_VAL_TYPE_STRING:
+            data->val.c_val = strdup(pack_val.c_val);
+            break;
+
+        case SOS_VAL_TYPE_BYTES:
+            byte_buffer = (SOS_buffer *) pack_val.bytes;
+            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
+            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
+            break;
+
+        case SOS_VAL_TYPE_INT:
+        case SOS_VAL_TYPE_LONG:
+        case SOS_VAL_TYPE_DOUBLE:
+        default:
             data->val = pack_val;
+            break;
         }
+
         data->state = SOS_VAL_STATE_DIRTY;
         SOS_TIME( data->time.pack );
     }
@@ -956,13 +1046,15 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     SOS_SET_CONTEXT(pub->sos_context, "SOS_val_snap_queue_to_buffer");
     SOS_msg_header header;
     SOS_val_snap *snap;
+    char pack_fmt[SOS_DEFAULT_STRING_LEN] = {0};
     int offset;
-    int bytes;
+    int count;
 
     pthread_mutex_lock(pub->snap_queue->sync_lock);
 
     if (pub->snap_queue->elem_count < 1) {
         dlog(4, "  ... nothing to do for pub(%s)\n", pub->guid_str);
+        pthread_mutex_unlock(pub->snap_queue->sync_lock);
         return;
     }
 
@@ -970,8 +1062,10 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     int snap_count = pub->snap_queue->elem_count;
     SOS_val_snap **snap_list;
 
+    dlog(6, "  ... attempting to pop %d snaps off the queue.\n", snap_count);
+
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
-    bytes = pipe_pop(pub->snap_queue->outlet, snap_list, (snap_count * sizeof(SOS_val_snap *)));
+    count = pipe_pop(pub->snap_queue->outlet, snap_list, snap_count);
     pub->snap_queue->elem_count = 0;
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
 
@@ -997,9 +1091,11 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
 
         dlog(6, "     ... guid=%" SOS_GUID_FMT "\n", snap->guid);
 
-        SOS_buffer_pack(buffer, &offset, "igdddl",
+        SOS_buffer_pack(buffer, &offset, "igiidddl",
                         snap->elem,
                         snap->guid,
+                        snap->type,
+                        snap->val_len,
                         snap->time.pack,
                         snap->time.send,
                         snap->time.recv,
@@ -1010,6 +1106,10 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
         case SOS_VAL_TYPE_LONG:   SOS_buffer_pack(buffer, &offset, "l", snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_pack(buffer, &offset, "d", snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING: SOS_buffer_pack(buffer, &offset, "s", snap->val.c_val); break;
+        case SOS_VAL_TYPE_BYTES:
+            memset(pack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
+            snprintf(pack_fmt, SOS_DEFAULT_STRING_LEN, "%db", snap->val_len);
+            SOS_buffer_pack(buffer, &offset, pack_fmt, snap->val.bytes);
         default:
             dlog(0, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
             break;
@@ -1026,6 +1126,8 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     offset = 0;
     SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
     dlog(6, "     ... done   (buf_len == %d)\n", header.msg_size);
+
+    
    
     return;
 }
@@ -1036,6 +1138,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_val_snap_queue_from_buffer");
     SOS_msg_header header;
     SOS_val_snap  *snap;
+    char           unpack_fmt[SOS_DEFAULT_STRING_LEN] = {0};
     int            offset;
     int            string_len;
 
@@ -1068,9 +1171,11 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
         memset(snap, '\0', sizeof(SOS_val_snap));
 
-        SOS_buffer_unpack(buffer, &offset, "igdddl",
+        SOS_buffer_unpack(buffer, &offset, "igiidddl",
                           &snap->elem,
                           &snap->guid,
+                          &snap->type,
+                          &snap->val_len,
                           &snap->time.pack,
                           &snap->time.send,
                           &snap->time.recv,
@@ -1087,6 +1192,14 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             memset(snap->val.c_val, '\0', (1 + string_len));
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
             dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
+            break;
+        case SOS_VAL_TYPE_BYTES:
+            memset(unpack_fmt, '\0', SOS_DEFAULT_BUFFER_LEN);
+            offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
+            snap->val_len = string_len;
+            snap->val.bytes = (void *) malloc((1 + string_len) * sizeof(unsigned char));
+            snprintf(unpack_fmt, SOS_DEFAULT_STRING_LEN, "%db", string_len);
+            SOS_buffer_unpack(buffer, &offset, unpack_fmt, snap->val.bytes);
             break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
@@ -1319,11 +1432,11 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
 
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if ((SOS->role == SOS_ROLE_DAEMON) && elem > pub->elem_max) {
         dlog(4, "AUTOGROW --\n");
         dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW -- Announced pub size: %d", elem);
-        dlog(4, "AUTOGROW -- In-memory pub size: %d", pub->elem_max);
+        dlog(4, "AUTOGROW -- Announced pub size: %d\n", elem);
+        dlog(4, "AUTOGROW -- In-memory pub size: %d\n", pub->elem_max);
         dlog(4, "AUTOGROW --\n");
         dlog(4, "AUTOGROW --\n");
     }
@@ -1369,8 +1482,17 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
     int             offset;
     int             elem;
 
-    dlog(7, "Unpacking the values from the buffer...\n");
+    if (buffer == NULL) {
+        dlog(0, "ERROR: SOS_buffer *buffer parameter is NULL!  Terminating.\n");
+        exit(EXIT_FAILURE);
+    }
 
+    if (pub == NULL) {
+        dlog(0, "ERROR: SOS_pub *pub parameter is NULL!  Terminating.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    dlog(7, "Unpacking the values from the buffer...\n");
     pthread_mutex_lock(pub->lock);
 
     offset = 0;
@@ -1391,11 +1513,12 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
 
     /* Unpack in the data elements. */
     while (offset < header.msg_size) {
+        dlog(7, "Unpacking next message @ offset %d of %d...\n", offset, header.msg_size);
 
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
         data = pub->data[elem];
 
-        SOS_buffer_unpack(buffer, &offset, "ddi",
+        SOS_buffer_unpack(buffer, &offset, "ddill",
                           &data->time.pack,
                           &data->time.send,
                           &data->val_len,
@@ -1434,14 +1557,16 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
             snap->guid     = data->guid;
             snap->mood     = data->meta.mood;
             snap->semantic = data->meta.semantic;
+            snap->type     = data->type;
             snap->val      = data->val;    /* Take over extant string. */
+            snap->val_len  = data->val_len;
             snap->time     = data->time;
             snap->frame    = pub->frame;
 
-            pthread_mutex_lock(pub->snap_queue->sync_lock);
-            pipe_push(pub->snap_queue->intake, &snap, sizeof(SOS_val_snap *));
-            pub->snap_queue->elem_count++;
-            pthread_mutex_unlock(pub->snap_queue->sync_lock);
+            pthread_mutex_lock(snap_queue->sync_lock);
+            pipe_push(snap_queue->intake, (void *) &snap, 1);
+            snap_queue->elem_count++;
+            pthread_mutex_unlock(snap_queue->sync_lock);
         }//if
     }//while
 

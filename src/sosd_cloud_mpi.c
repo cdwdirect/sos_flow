@@ -83,7 +83,7 @@ void* SOSD_THREAD_cloud_flush(void *args) {
     struct timespec  tsleep;
     struct timeval   tnow;
     SOSD_sync_context *my = (SOSD_sync_context *) args;
-    SOS_pipe        *queue = my->queue;;
+    SOS_pipe        *queue = my->queue;
     SOS_buffer      *send_buffer;
     SOS_buffer     **msg_list;
     int              msg_count;
@@ -97,7 +97,7 @@ void* SOSD_THREAD_cloud_flush(void *args) {
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Starting thread.\n"); }
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... LOCK queue->sync_lock\n"); }
     pthread_mutex_lock(queue->sync_lock);
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... UNLOCK queue->sync_lock, waiting for daemon to finish initializing.\n"); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... COND_WAIT for daemon to finish initializing.\n"); }
     pthread_cond_wait(queue->sync_cond, queue->sync_lock);
     dlog(6, "  ... AWAKE and running now.\n");
 
@@ -212,6 +212,8 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
 
 
 void SOSD_cloud_fflush(void) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush");
+    dlog(5, "Signaling SOSD.sync.cloud.queue->sync_cond ...\n");
     pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
     return;
 }
@@ -300,7 +302,7 @@ void SOSD_cloud_listen_loop(void) {
              *    For now, we handle it one at a time, prolly not the best.
              */
 
-            SOS_buffer_init_sized_locking(SOS, &msg, (1 + SOS_DEFAULT_BUFFER_MIN + header.msg_size), false);
+            SOS_buffer_init_sized_locking(SOS, &msg, (1 + SOS_DEFAULT_BUFFER_MIN + header.msg_size), true);
 
             msg_offset = 0;
             SOS_buffer_pack(msg, &msg_offset, "iigg",
@@ -426,7 +428,15 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     /* -------------------- */
 
-    /* All DAEMON except the DB need the cloud_sync flush thread. */
+
+    return 0;
+}
+
+
+int SOSD_cloud_start() {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_start");
+    int rc;
+
     if (SOS->role != SOS_ROLE_DB) {
         if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
         SOSD.sync.cloud.handler = (pthread_t *) malloc(sizeof(pthread_t));
@@ -434,8 +444,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     }
 
+    pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+
     return 0;
 }
+
 
 int SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize(MPI)");

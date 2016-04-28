@@ -5,7 +5,6 @@
  *
  */
 
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -133,14 +132,17 @@ int main(int argc, char *argv[])  {
     SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), (void *) SOSD_THREAD_cloud_sync);
     #else
     #endif
-    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
+    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), (void *) SOSD_THREAD_local_sync);
+
+    dlog(0, "Starting the cloud threads...\n");
+    SOSD_cloud_start();
 
     dlog(0, "Entering listening loop...\n");
 
     /* Go! */
     switch (SOS->role) {
     case SOS_ROLE_DAEMON:   SOSD_listen_loop(); break;
-    case SOS_ROLE_DB:       
+    case SOS_ROLE_DB:
         #ifdef SOSD_CLOUD_SYNC
         SOSD_cloud_listen_loop();
         #endif
@@ -184,21 +186,22 @@ int main(int argc, char *argv[])  {
 
 
 
-
 void SOSD_listen_loop() {
     SOS_SET_CONTEXT(SOSD.sos_context, "daemon_listen_loop");
     SOS_msg_header header;
     SOS_buffer    *buffer;
+    SOS_buffer    *recv_part;
     int            recv_len;
     int            offset;
     int            i;
 
     SOS_buffer_init(SOS, &buffer);
+    SOS_buffer_init(SOS, &recv_part);
 
     dlog(0, "Entering main loop...\n");
     while (SOSD.daemon.running) {
+        offset = 0;
         SOS_buffer_wipe(buffer);
-
         memset(&header, '\0', sizeof(SOS_msg_header));
 
         dlog(5, "Listening for a message...\n");
@@ -207,12 +210,34 @@ void SOSD_listen_loop() {
         i = getnameinfo((struct sockaddr *) &SOSD.net.peer_addr, SOSD.net.peer_addr_len, SOSD.net.client_host, NI_MAXHOST, SOSD.net.client_port, NI_MAXSERV, NI_NUMERICSERV);
         if (i != 0) { dlog(0, "Error calling getnameinfo() on client connection.  (%s)\n", strerror(errno)); break; }
 
-        recv_len = recv(SOSD.net.client_socket_fd, (void *) (buffer->data + buffer->len), (buffer->max - buffer->len), 0);
-        if (recv_len < 1) {
-            dlog(1, "  ... recv() call returned an errror.  (%s)\n", strerror(errno));
-            continue;
-        }
+        SOS_buffer_wipe(recv_part);
+        recv_part->len = recv(SOSD.net.client_socket_fd, (void *) recv_part->data, recv_part->max, 0);
+        dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
 
+        while (recv_part->len != 0) {
+            if (recv_part->len < 0) {
+                dlog(1, "  ... recv() call returned an errror.  (%s)\n", strerror(errno));
+            }
+
+            while(buffer->max < (recv_part->len + buffer->len)) {
+                SOS_buffer_grow(buffer);
+            }
+
+            memcpy((buffer->data + offset), recv_part->data, recv_part->len);
+            offset += recv_part->len;
+
+            if (recv_part->len == recv_part->max) {
+                dlog(6, "  ... checking for more:\n");
+                SOS_buffer_wipe(recv_part);
+                recv_part->len = recv(SOSD.net.client_socket_fd, (void *) recv_part->data, recv_part->max, 0);
+                dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
+            } else {
+                SOS_buffer_wipe(recv_part);
+            }
+        }
+        buffer->len = offset;
+
+        dlog(1, "  ... Received %d bytes", recv_len);
         buffer->len += recv_len;
 
         if (buffer->len >= sizeof(SOS_msg_header)) {
@@ -222,23 +247,10 @@ void SOSD_listen_loop() {
                               &header.msg_type,
                               &header.msg_from,
                               &header.pub_guid);
-            dlog(6, "  ... Received %d of %d bytes in this message.\n", recv_len, header.msg_size);
+            dlog(6, " of %d bytes in this message.\n", header.msg_size);
         } else {
-            dlog(0, "  ... Received short (useless) message.\n");  continue;
-        }
-
-        while (buffer->len < header.msg_size) {
-            if ((buffer->max - buffer->len) < SOS_DEFAULT_BUFFER_MIN) {
-                SOS_buffer_grow(buffer);
-            }
-            recv_len += recv(SOSD.net.client_socket_fd, (void *) (buffer->data + buffer->len), (buffer->max - buffer->len), 0);
-            if (recv_len < 1) {
-                dlog(6, "     ... ERROR!  Remote side closed their connection.\n");
-                continue;
-            } else {
-                dlog(6, "     ... %d of %d ...\n", recv_len, header.msg_size);
-                buffer->len = recv_len;
-            }
+            dlog(0, "  ... Received short (useless) message.\n");
+            continue;
         }
 
         dlog(5, "Received connection.\n");
@@ -351,6 +363,8 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     dlog(5, "Injecting snaps into local_sync queue...\n");
     SOS_val_snap_queue_from_buffer(buffer, SOSD.sync.local.queue, pub);
 
+    //TODO: REPLY
+
     dlog(5, "  ... done.\n");
         
     return;
@@ -370,14 +384,15 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_REGISTER\n");
 
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+
+
     offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
                       &header.pub_guid);
-
-    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     if (header.msg_from == 0) {
         /* A new client is registering with the daemon.
@@ -420,14 +435,14 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n");
 
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+
     offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
         &header.pub_guid);
-
-    SOS_buffer_init(SOS, &reply);
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
 
@@ -458,6 +473,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     int             i;
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n");
+
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
@@ -492,6 +509,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n", pub->guid, pub->elem_count);
 
     SOSD_PACK_ACK(reply);
+
+    dlog(5, "  ... sending ACK w/reply->len == %d\n", reply->len);
     
     i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0);
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
@@ -515,6 +534,8 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     int             i;
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_PUBLISH\n");
+
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
@@ -573,7 +594,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
 
-    SOS_buffer_init(SOS, &reply);
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
@@ -661,7 +682,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
 
         dlog(1, "Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", function_name);
 
-        i = send( SOSD.net.client_socket_fd, (void *) reply->data, header.msg_size, 0 );
+        i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
         if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
         else { dlog(5, "  ... send() returned the following bytecount: %d\n", i); }
     }
@@ -936,8 +957,8 @@ void SOSD_init() {
  void SOSD_sync_context_init(SOS_runtime *sos_context, SOSD_sync_context *sync_context, size_t elem_size, void* (*thread_func)(void *thread_param)) {
     SOS_SET_CONTEXT(sos_context, "SOSD_sync_context_init");
 
+    sync_context->sos_context = sos_context;
     SOS_pipe_init(SOS, &sync_context->queue, elem_size);
-
     sync_context->handler = (pthread_t *) malloc(sizeof(pthread_t));
     sync_context->lock    = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     sync_context->cond    = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));

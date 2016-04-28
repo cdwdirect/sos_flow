@@ -34,6 +34,34 @@
 #include <string.h>
 #include <pthread.h>
 
+
+
+void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
+    SOS_SET_CONTEXT((SOS_runtime *) sos_context, "SOS_pipe_init");
+    
+    SOS_pipe *pipe;
+    pipe = *pipe_obj = (SOS_pipe *) malloc(sizeof(SOS_pipe));
+
+    pipe_t *p_setup = pipe_new(elem_size, 0);
+    pipe->intake = pipe_producer_new(p_setup);
+    pipe->outlet = pipe_consumer_new(p_setup);
+    pipe_free(p_setup);
+
+    pipe->sos_context = sos_context;
+    pipe->elem_size = elem_size;
+
+    //Initialize the optional elements:
+    pipe->elem_count = 0;
+    pipe->sync_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    pipe->sync_cond = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    pthread_mutex_init(pipe->sync_lock, NULL);
+    pthread_cond_init(pipe->sync_cond, NULL);
+
+    return;
+}
+
+
+
 // Vanity bytes. As long as this isn't removed from the executable, I don't
 // mind if I don't get credits in a README or any other documentation. Consider
 // this your fulfillment of the MIT license.
@@ -1126,29 +1154,6 @@ void pipe_reserve(pipe_generic_t* gen, size_t count)
     );
 }
 
-
-void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
-    SOS_SET_CONTEXT((SOS_runtime *) sos_context, "SOS_pipe_init");
-    
-    SOS_pipe *pipe;
-    pipe = *pipe_obj = (SOS_pipe *) malloc(sizeof(SOS_pipe));
-
-    pipe_t *p_setup = pipe_new(elem_size, 0);
-    pipe->intake = pipe_producer_new(p_setup);
-    pipe->outlet = pipe_consumer_new(p_setup);
-    pipe_free(p_setup);
-
-    pipe->sos_context = sos_context;
-    pipe->elem_size = elem_size;
-
-    //Initialize the optional elements:
-    pipe->elem_count = 0;
-    pipe->sync_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    pthread_mutex_init(pipe->sync_lock, NULL);
-    pthread_cond_init(pipe->sync_cond, NULL);
-
-    return;
-}
 
 
 /* vim: set et ts=4 sw=4 softtabstop=4 textwidth=80: */
