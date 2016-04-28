@@ -38,10 +38,10 @@ workflow;
 
 \section{Introduction}
 % no \IEEEPARstart
-Here we set up the problem space we are addressing.\\
-\\
-It will be a good time!\\
-\\
+Here we set up the problem space we are addressing.
+
+It will be a good time!
+
 \todo[inline]{Come back and flesh out the INTRO and ABSTRACT at the end, once 
 we're sure the content we are after is a part of the paper.}
 
@@ -49,7 +49,7 @@ we're sure the content we are after is a part of the paper.}
 \section{Motivations for Tracking Variability}
 \todo[inline]{More than simply demonstrating that there are different and 
 possibly incompatible motivations for variability research, this section is 
-setting up the necessity for a new performance model.}\\
+setting up the necessity for a new performance model.}
 Due to the novelty of this research area, there will be opportunities to 
 further refine the way in which research is taxonomized, and to establish 
 a set of definitions that provide adequate coverage of the conceptually distinct 
@@ -73,8 +73,8 @@ of the hardware itself becomes an increasingly significant contributor to
 observed variability. Hardware is an important source to consider when it comes 
 to variability because there is almost nothing that can be done to control for 
 it, the noise has to be admitted in the results, and therefore is an important 
-part of the output of any performance-related experiment.\\
-\\
+part of the output of any performance-related experiment.
+
 Using higher-levels of  description, variability in workflow 
 performance can be introduced by many different sources:
 \begin{itemize}
@@ -104,7 +104,7 @@ performance can be introduced by many different sources:
 close analysis of individual components at small scale will have issues with 
 significant variability. There are tractible 
 concerns (demonstrating sensitivity to var.) and inherently intractible 
-concerns (controlling var. across runs).}\\
+concerns (controlling var. across runs).}
 Even in cases where nothing can be done to influence the variations in 
 performance, it is important to recognize that performance variability is 
 present and to  attempt to both quantify it and render reasonable attributions 
@@ -122,7 +122,7 @@ propensity for creating performance variability.
 performance when 
 considering scientific workflows on exascale systems. Nail the coffin shut on 
 existing performance research validation tools and techniques. They are 
-intractible, per the above notes, and irrelevant, per this discussion}\\
+intractible, per the above notes, and irrelevant, per this discussion}
 Performance research is principally concerned with decreasing the resource 
 consumption and compute time required by low-level components and libraries 
 that are used when constructing higher-level scientific workflows. For example: 
@@ -210,16 +210,16 @@ values that are tracked will be able to carry a full spectrum of high-level
 tags that express what that data point means and what could be expected of it, 
 in structure preserving a human programmer or user's understanding while also
 being compatible with unsupervised machine-learning tests for significance and 
-other advanced analysis techniques.\\
-\\
+other advanced analysis techniques.
+
 Any episodic performance measurement, such as run-time TAU instrumentation, can 
 also be injected into the SOSflow engine, and the SOSflow runtime will be able to 
 differentiate from information pushed directly by a layer, and information that 
-is being captured by middle-ware tools.\\
-\\
+is being captured by middle-ware tools.
+
 \todo[inline]{Insert table heres of some of the enum values alongside 
-plain-english descriptions.}\\
-\\
+plain-english descriptions.}
+
 Semantic information is local to the "publication handle" (pub) 
 created by a source that is contributing to SOSflow.  Sources can create 
 multiple pubs to distinctly represent potential compound or complex roles. Pubs 
@@ -243,8 +243,8 @@ performance data.
 Applying a novel semantic workflow performance model to actual run-time 
 environments necessitated the development of new infrastructure software, and 
 so the second contribution to the general challenges of monitoring scientific 
-workflows is the SOSflow software artifact.\\
-\\
+workflows is the SOSflow software artifact.
+
 The initial design goals of SOSflow are:
 \begin{enumerate}
 \item Facilitate capture of scientific workflow performance data and events in 
@@ -263,8 +263,8 @@ during the initial development phase for on-node storage, but the API is
 modularized and a different 
 format/mechanism could be used instead.  On-node storage is logically separated 
 off-node data transport mechanisms, but they could be the same backend if the 
-enabling technology supports that.\\
-\\
+enabling technology supports that.
+
 SOSflow is divided into two main parts in it's current incarnation:
 \begin{itemize}
 \item sosd - Daemon process running on each node
@@ -326,13 +326,13 @@ sources that are pushing semantically-annotated data into it. At this time the
 use-case development has centered on the ADIOS scalable I/O library, due to its 
 deep integration with many existing scientific workflows and industry standard 
 tools  like VisIt. ADIOS instrumentation is a source of significant
-observable data and an actionable target for effective feedback and control.\\
-\\
+observable data and an actionable target for effective feedback and control.
+
 The more sources that are instrumented with SOSflow the less limited the workflow 
 performance model will be. When only one or two layers are instrumented, the 
 benefits of the semantic annotation and the workflow performance model are 
-naturally limited.\\
-\\
+naturally limited.
+
 The SOSflow software artifact is in its initial development cycle and has room 
 for improvement in various software engineering facets:  
 memory subsystem interaction, diversity of storage and transport mechanisms, 
