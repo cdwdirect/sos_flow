@@ -72,13 +72,22 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     _initialized = true;
     */
 
+    
+    NEW_SOS->config.offline_test_mode = false;
+    NEW_SOS->config.runtime_utility   = false;
 
-    if (role == SOS_ROLE_OFFLINE_TEST_MODE) {
+    switch (role) {
+    case SOS_ROLE_OFFLINE_TEST_MODE:
         NEW_SOS->config.offline_test_mode = true;
         NEW_SOS->role = SOS_ROLE_CLIENT;
-    } else {
-        NEW_SOS->config.offline_test_mode = false;
+        break;
+    case SOS_ROLE_RUNTIME_UTILITY:
+        NEW_SOS->config.runtime_utility   = true;
+        NEW_SOS->role = SOS_ROLE_CLIENT;
+        break;
+    default:
         NEW_SOS->role = role;
+        break;
     }
 
     NEW_SOS->status = SOS_STATUS_INIT;
@@ -96,21 +105,22 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     dlog(1, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->role == SOS_ROLE_CLIENT) {
-        dlog(1, "  ... launching libsos runtime thread[s].\n");
-        SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
-        SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-        SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-        retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, (void *) SOS );
-        if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-        retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
-        if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-        retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
-        if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
+        if (SOS->config.runtime_utility == false) {
+            dlog(1, "  ... launching libsos runtime thread[s].\n");
+            SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
+            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+            retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, (void *) SOS );
+            if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
+            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
+            if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
+            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
+            if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
+        }
         SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         retval = pthread_mutex_init(SOS->net.send_lock, NULL);
         if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
     }
-
 
     if (SOS->config.offline_test_mode == true) {
         /* Here, the offline mode finishes up any non-networking initialization and bails out. */
@@ -208,10 +218,10 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         pthread_mutex_lock(SOS->net.send_lock);
 
-        dlog(0, "Built a registration message:\n");
-        dlog(0, "  ... buffer->data == %ld\n", (long) buffer->data);
-        dlog(0, "  ... buffer->len  == %d\n", buffer->len);
-        dlog(0, "Calling send...\n");
+        dlog(1, "Built a registration message:\n");
+        dlog(1, "  ... buffer->data == %ld\n", (long) buffer->data);
+        dlog(1, "  ... buffer->len  == %d\n", buffer->len);
+        dlog(1, "Calling send...\n");
 
         retval = send( server_socket_fd, buffer->data, buffer->len, 0);
 
@@ -219,7 +229,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
             dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
             exit(EXIT_FAILURE);
         } else {
-            dlog(0, "   ... registration message sent.   (retval == %d)\n", retval);
+            dlog(1, "   ... registration message sent.   (retval == %d)\n", retval);
         }
 
         dlog(1, "  ... listening for the server to reply...\n");
@@ -252,7 +262,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
          *
          */
 
-        dlog(0, "  ... skipping socket setup (becase we're the daemon).\n");
+        dlog(1, "  ... skipping socket setup (becase we're the daemon).\n");
     }
 
     SOS->status = SOS_STATUS_RUNNING;
@@ -322,14 +332,14 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     
     if (server_socket_fd == 0) {
         dlog(0, "Error attempting to connect to the server.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
-        exit(1);  /* TODO:{ SEND_TO_DAEMON }  Make this a loop that tries X times to connect, doesn't crash app. */
+        exit(1);
     }
 
     int more_to_send = 1;
     retval = 0;
     SOS_TIME(time_start);
     while (more_to_send) {
-        retval += send(server_socket_fd, send_buffer->data, send_buffer->len, 0 );
+        retval += send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
         if (retval >= send_buffer->len) { more_to_send = 0; }
         if (retval == -1) {
             SOS_TIME(time_out);
@@ -393,28 +403,32 @@ void SOS_finalize(SOS_runtime *sos_context) {
     free(SOS->config.node_id);
 
     if (SOS->role == SOS_ROLE_CLIENT) {
-        dlog(1, "  ... Joining threads...\n");
-        pthread_cond_signal(SOS->task.feedback_cond);
-        pthread_join(*SOS->task.feedback, NULL);
-        pthread_cond_destroy(SOS->task.feedback_cond);
-        pthread_mutex_lock(SOS->task.feedback_lock);
-        pthread_mutex_destroy(SOS->task.feedback_lock);
-        free(SOS->task.feedback_lock);
-        free(SOS->task.feedback_cond);
-        free(SOS->task.feedback);
+        if (SOS->config.runtime_utility == false) {
+            dlog(1, "  ... Joining threads...\n");
+            pthread_cond_signal(SOS->task.feedback_cond);
+            pthread_join(*SOS->task.feedback, NULL);
+            pthread_cond_destroy(SOS->task.feedback_cond);
+            pthread_mutex_lock(SOS->task.feedback_lock);
+            pthread_mutex_destroy(SOS->task.feedback_lock);
+            free(SOS->task.feedback_lock);
+            free(SOS->task.feedback_cond);
+            free(SOS->task.feedback);
+        }
 
         dlog(1, "  ... Removing send lock...\n");
         pthread_mutex_lock(SOS->net.send_lock);
         pthread_mutex_destroy(SOS->net.send_lock);
         free(SOS->net.send_lock);
-
+    
         dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
-
-        dlog(1, "  ... Clearing up networking...\b");
-        SOS_buffer_destroy(SOS->net.recv_part);
-    }
+        
+        if (SOS->config.offline_test_mode == false) {
+            dlog(1, "  ... Clearing up networking...\b");
+            SOS_buffer_destroy(SOS->net.recv_part);
+        }
+    }    
 
     dlog(1, "Done!\n");
     free(SOS);
@@ -443,10 +457,9 @@ void* SOS_THREAD_feedback( void *args ) {
     SOS_buffer_init(SOS, &check_in_buffer);
     SOS_buffer_init(SOS, &feedback_buffer);
 
-    sleep(1); /* Give the rest of SOS time to come on-line... */
-    if (SOS->status != SOS_STATUS_SHUTDOWN) {
-      sleep(4 + (random() % 5));
-    }
+    while (SOS->status != SOS_STATUS_RUNNING) {
+        usleep(1000);
+    };
 
     /* Set the wakeup time (ts) to 2 seconds in the future. */
     gettimeofday(&tp, NULL);
@@ -479,6 +492,8 @@ void* SOS_THREAD_feedback( void *args ) {
         header.msg_size = offset;
         offset = 0;
         SOS_buffer_pack(check_in_buffer, &offset, "i", header.msg_size);
+
+        if (SOS->status != SOS_STATUS_RUNNING) break;
 
         dlog(4, "Sending check-in to daemon.\n");
 
@@ -928,7 +943,7 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
             snap->frame    = pub->frame;
 
             pthread_mutex_lock(pub->snap_queue->sync_lock);
-            pipe_push(pub->snap_queue->intake, &snap, sizeof(SOS_val_snap *));
+            pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
             pub->snap_queue->elem_count++;
             pthread_mutex_unlock(pub->snap_queue->sync_lock);
         }
@@ -1065,9 +1080,14 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     dlog(6, "  ... attempting to pop %d snaps off the queue.\n", snap_count);
 
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
-    count = pipe_pop(pub->snap_queue->outlet, snap_list, snap_count);
-    pub->snap_queue->elem_count = 0;
+    count = pipe_pop(pub->snap_queue->outlet, snap_list,snap_count);
+    pub->snap_queue->elem_count -= count;
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
+
+    if (count != snap_count) {
+        dlog(6, "  ... received %d snaps instead!\n", count);
+        snap_count = count;
+    }
 
     dlog(6, "  ... building buffer from the val_snap queue:\n");
     dlog(6, "     ... processing header\n");
@@ -1206,7 +1226,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             break;
         }
 
-        pipe_push(snap_queue->intake, &snap, sizeof(SOS_val_snap *));
+        pipe_push(snap_queue->intake, (void *) &snap, 1);
         snap_queue->elem_count++;
 
         /* TODO: 

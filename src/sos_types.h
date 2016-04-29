@@ -19,7 +19,7 @@
     ROLE(SOS_ROLE_CLIENT)                       \
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_DB)                           \
-    ROLE(SOS_ROLE_CONTROL)                      \
+    ROLE(SOS_ROLE_RUNTIME_UTILITY)              \
     ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)
 
@@ -347,6 +347,7 @@ typedef struct {
     int                 thread_id;
     SOS_layer           layer;
     bool                offline_test_mode;
+    bool                runtime_utility;
 } SOS_config;
 
 typedef struct {
@@ -363,6 +364,7 @@ typedef struct {
 
 
 typedef struct {
+    bool                feedback_active;
     pthread_t          *feedback;
     pthread_mutex_t    *feedback_lock;
     pthread_cond_t     *feedback_cond;

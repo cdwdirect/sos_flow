@@ -70,7 +70,6 @@ int main(int argc, char *argv[])  {
         else if ( strcmp(argv[elem], "--role"            ) == 0) {
             if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0)  { my_role = SOS_ROLE_DAEMON; }
             else if ( strcmp(argv[next_elem], "SOS_ROLE_DB" ) == 0)      { my_role = SOS_ROLE_DB; }
-            else if ( strcmp(argv[next_elem], "SOS_ROLE_CONTROL" ) == 0) { my_role = SOS_ROLE_CONTROL; }
             else {  fprintf(stderr, "Unknown role: %s %s\n", argv[elem], argv[next_elem]); }
         } else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
@@ -147,7 +146,6 @@ int main(int argc, char *argv[])  {
         SOSD_cloud_listen_loop();
         #endif
         break;
-    case SOS_ROLE_CONTROL:  break;
     default: break;
     }
 
@@ -820,7 +818,6 @@ void SOSD_init() {
     switch (SOS->role) {
     case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
     case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
-    case SOS_ROLE_CONTROL: snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".ctl" */); break;
     default: break;
     }
 

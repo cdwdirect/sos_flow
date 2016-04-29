@@ -1,5 +1,4 @@
 #!/bin/bash
-{
 if [ "x${SOS_ROOT}" == "x" ] ; then 
   echo "Please set the SOS_ROOT environment variable."
   kill -INT $$
@@ -30,6 +29,10 @@ echo ""
 SOS_DEMO_APP_CMD="-np 3 ${SOS_ROOT}/bin/demo_app -i 100 -m 20000"
 echo "*** Running [demo_app]...   mpirun ${SOS_DEMO_APP_CMD}"
 mpirun ${SOS_DEMO_APP_CMD}
+echo ""
+echo ""
+echo ""
+echo "*** All demo_app ranks are finished, sleep(1) and then shut down the daemon."
 sleep 1
 echo ""
 echo ""
@@ -47,4 +50,3 @@ echo ""
 sleep 2
 $SOS_ROOT/src/showdb
 echo ""
-} | tee runit.log

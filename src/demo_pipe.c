@@ -69,7 +69,7 @@ void *THREAD_write(void *arg) {
     PUT_TIME(writer_start);
     uint64_t thing = 0;
     for (thing = 0; thing < write_count; thing++) {
-        pipe_push(prod, (void *) &thing, sizeof(uint64_t));
+        pipe_push(prod, (void *) &thing, 1);
     }
     PUT_TIME(writer_stop);
     pipe_producer_free(prod);
@@ -90,7 +90,7 @@ void *THREAD_read(void *arg) {
     nanosleep(&til, NULL);
 
     PUT_TIME(reader_start);
-    while ((read = pipe_pop_eager(cons, &buf, READER_BUF_SIZE * sizeof(uint64_t)))) {
+    while ((read = pipe_pop_eager(cons, &buf, READER_BUF_SIZE))) {
 
     }
     PUT_TIME(reader_stop);

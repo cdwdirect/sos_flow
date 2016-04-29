@@ -24,8 +24,9 @@
 
 /* SOS Configuration Switches... */
 
-#define SOS_CONFIG_USE_THREAD_POOL  1
 #define SOS_CONFIG_DB_STRING_ENUMS  0
+#define SOS_CONFIG_USE_THREAD_POOL  1
+#define SOS_CONFIG_FEEDBACK_ACTIVE  1
 
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
@@ -90,6 +91,11 @@ extern "C" {
 #endif
 
 
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a);                 \
+        __typeof__ (b) _b = (b);                \
+        _a > _b ? _a : _b; })
+
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
 
@@ -127,7 +133,6 @@ extern "C" {
     case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
     case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
     case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
-    case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break; \
     default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
     }
 #endif
