@@ -68,6 +68,12 @@
     VAL_TYPE(SOS_VAL_TYPE_BYTES)                \
     VAL_TYPE(SOS_VAL_TYPE___MAX)
 
+#define FOREACH_VAL_SYNC(VAL_SYNC)              \
+    VAL_SYNC(SOS_VAL_SYNC_RENEW)                \
+    VAL_SYNC(SOS_VAL_SYNC_LOCAL)                \
+    VAL_SYNC(SOS_VAL_SYNC_CLOUD)                \
+    VAL_SYNC(SOS_VAL_SYNC___MAX)
+
 #define FOREACH_VAL_STATE(VAL_STATE)            \
     VAL_STATE(SOS_VAL_STATE_CLEAN)              \
     VAL_STATE(SOS_VAL_STATE_DIRTY)              \
@@ -164,6 +170,7 @@ typedef enum { FOREACH_FEEDBACK(GENERATE_ENUM)     } SOS_feedback;
 typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
 typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
 typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
+typedef enum { FOREACH_VAL_SYNC(GENERATE_ENUM)     } SOS_val_sync;
 typedef enum { FOREACH_VAL_SEMANTIC(GENERATE_ENUM) } SOS_val_semantic;
 typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)     } SOS_val_freq;
 typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)  } SOS_val_pattern;
@@ -183,6 +190,7 @@ static const char *SOS_FEEDBACK_string[] =     { FOREACH_FEEDBACK(GENERATE_STRIN
 static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
 static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
 static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
+static const char *SOS_VAL_SYNC_string[] =     { FOREACH_VAL_SYNC(GENERATE_STRING)     };
 static const char *SOS_VAL_FREQ_string[] =     { FOREACH_VAL_FREQ(GENERATE_STRING)     };
 static const char *SOS_VAL_SEMANTIC_string[] = { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
 static const char *SOS_VAL_PATTERN_string[] =  { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
@@ -249,6 +257,7 @@ typedef struct {
     SOS_val_type        type;
     SOS_val_meta        meta;
     SOS_val_state       state;
+    SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
 } SOS_data;

@@ -256,6 +256,7 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
     SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
     SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
+    SOSD_db_insert_enum("VAL_SYNC",      SOS_VAL_SYNC_string,      SOS_VAL_SYNC___MAX      );
     SOSD_db_insert_enum("VAL_FREQ",      SOS_VAL_FREQ_string,      SOS_VAL_FREQ___MAX      );
     SOSD_db_insert_enum("VAL_SEMANTIC",  SOS_VAL_SEMANTIC_string,  SOS_VAL_SEMANTIC___MAX  );
     SOSD_db_insert_enum("VAL_PATTERN",   SOS_VAL_PATTERN_string,   SOS_VAL_PATTERN___MAX   );
@@ -406,21 +407,27 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOS_val_snap **snap_list;
     int            snap_index;
     int            snap_count;
-    int            bytes;
+    int            count;
 
     dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
 
-    dlog(2, "  ... getting locks for queues\n");
+    dlog(2, "  ... getting lock for queues\n");
     if (re_queue != NULL) { pthread_mutex_lock( re_queue->sync_lock ); }
     pthread_mutex_lock( queue->sync_lock );
-
     snap_count = queue->elem_count;
-    snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
 
-    dlog(2, "  ... grabbing %d snaps from the queue.\n", snap_count);
-    bytes = pipe_pop(queue->outlet, (void *) snap_list, snap_count);
-    queue->elem_count -= snap_count;
-    dlog(2, "  ... releasing queue->lock\n");
+    if (queue->elem_count < 1) {
+        dlog(2, "  ... nothing in the queue, returning.\n");
+        pthread_mutex_unlock( queue->sync_lock);
+        return;
+    }
+
+    snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
+    dlog(2, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
+    count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
+    queue->elem_count -= count;
+    snap_count = count;
+    dlog(2, "  ... [bbb] releasing queue->lock\n");
     pthread_mutex_unlock(queue->sync_lock);
 
     dlog(2, "  ... processing snaps extracted from the queue\n");

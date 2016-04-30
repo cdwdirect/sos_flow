@@ -55,6 +55,10 @@
     }
 
 
+typedef struct {
+    SOS_msg_type        type;
+    SOS_pub            *pub;
+} SOSD_db_task;
 
 typedef struct {
     int                 server_socket_fd;
@@ -102,6 +106,7 @@ typedef struct {
 typedef struct {
     SOSD_sync_context    local;
     SOSD_sync_context    cloud;
+    SOSD_sync_context    db;
 } SOSD_sync_set;
 
 typedef struct {
@@ -147,6 +152,7 @@ extern "C" {
 
     void* SOSD_THREAD_local_sync(void *args);
     void* SOSD_THREAD_cloud_sync(void *args);
+    void* SOSD_THREAD_db_sync(void *args);
 
     void  SOSD_listen_loop(void);
     void  SOSD_handle_register(SOS_buffer *buffer);

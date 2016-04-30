@@ -123,6 +123,7 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
         SOS_buffer_lock(buffer);
         dlog(5, "   ... destroying mutex.\n");
         pthread_mutex_destroy(buffer->lock);
+        free(buffer->lock);
     }
     dlog(5, "   ... free'ing data\n");
     free(buffer->data);

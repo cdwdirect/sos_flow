@@ -780,10 +780,8 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
 
     }
 
-    if (sos_context->role == SOS_ROLE_CLIENT) {
-        dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
-        SOS_pipe_init((void *) SOS, &new_pub->snap_queue, sizeof(SOS_val_snap *));
-    }
+    dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
+    SOS_pipe_init((void *) SOS, &new_pub->snap_queue, sizeof(SOS_val_snap *));
 
     dlog(6, "  ... initializing the name table for values.\n");
     new_pub->name_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
@@ -1080,7 +1078,7 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     dlog(6, "  ... attempting to pop %d snaps off the queue.\n", snap_count);
 
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
-    count = pipe_pop(pub->snap_queue->outlet, snap_list,snap_count);
+    count = pipe_pop(pub->snap_queue->outlet, (void *) snap_list, snap_count);
     pub->snap_queue->elem_count -= count;
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
 
@@ -1111,9 +1109,11 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
 
         dlog(6, "     ... guid=%" SOS_GUID_FMT "\n", snap->guid);
 
-        SOS_buffer_pack(buffer, &offset, "igiidddl",
+        SOS_buffer_pack(buffer, &offset, "igiiiidddl",
                         snap->elem,
                         snap->guid,
+                        snap->mood,
+                        snap->semantic,
                         snap->type,
                         snap->val_len,
                         snap->time.pack,
@@ -1183,23 +1183,31 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         return;
     }
 
+    if (snap_queue == NULL) {
+        dlog(0, "ERROR: snap_queue == NULL!\n");
+        return;
+    }
+
     dlog(6, "     ... pushing snaps down onto the queue.\n");
-    dlog(7, "     ... LOCK snap_queue->sync_lock\n");
-    pthread_mutex_lock( snap_queue->sync_lock );
 
     while (offset < buffer->len) {
         snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
         memset(snap, '\0', sizeof(SOS_val_snap));
 
-        SOS_buffer_unpack(buffer, &offset, "igiidddl",
+        dlog(6, "    ... grabbing element @ %d ->", offset);
+        SOS_buffer_unpack(buffer, &offset, "igiiiidddl",
                           &snap->elem,
                           &snap->guid,
+                          &snap->mood,
+                          &snap->semantic,
                           &snap->type,
                           &snap->val_len,
                           &snap->time.pack,
                           &snap->time.send,
                           &snap->time.recv,
                           &snap->frame);
+
+        dlog(6, "type == %d, val_len == %d\n", snap->type, snap->val_len);
 
         switch (pub->data[snap->elem]->type) {
         case SOS_VAL_TYPE_INT:    SOS_buffer_unpack(buffer, &offset, "i", &snap->val.i_val); break;
@@ -1226,8 +1234,10 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             break;
         }
 
+        pthread_mutex_lock( snap_queue->sync_lock );
         pipe_push(snap_queue->intake, (void *) &snap, 1);
         snap_queue->elem_count++;
+        pthread_mutex_unlock( snap_queue->sync_lock );
 
         /* TODO: 
          *   Do we want to make sure the pub[elem]->... stuff is updated
@@ -1241,9 +1251,6 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
          */
 
     }
-
-    dlog(7, "     ... UNLOCK snap_queue->sync_lock\n");
-    pthread_mutex_unlock( snap_queue->sync_lock );
     dlog(6, "     ... done\n");
 
     return;
@@ -1398,6 +1405,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_announce_from_buffer");
     SOS_msg_header header;
+    SOS_data       announced_elem;
     int            offset;
     int            elem;
 
@@ -1452,11 +1460,11 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
 
-    if ((SOS->role == SOS_ROLE_DAEMON) && elem > pub->elem_max) {
+    if ((SOS->role != SOS_ROLE_CLIENT) && elem > pub->elem_max) {
         dlog(4, "AUTOGROW --\n");
         dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW -- Announced pub size: %d\n", elem);
-        dlog(4, "AUTOGROW -- In-memory pub size: %d\n", pub->elem_max);
+        dlog(4, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
+        dlog(4, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
         dlog(4, "AUTOGROW --\n");
         dlog(4, "AUTOGROW --\n");
     }
@@ -1472,20 +1480,61 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     /* Unpack the data definitions: */
     elem = 0;
     for (elem = 0; elem < pub->elem_count; elem++) {
-        SOS_buffer_unpack(buffer, &offset, "gsiiiiiii",
-            &pub->data[elem]->guid,
-            pub->data[elem]->name,
-            &pub->data[elem]->type,
-            &pub->data[elem]->meta.freq,
-            &pub->data[elem]->meta.semantic,
-            &pub->data[elem]->meta.classifier,
-            &pub->data[elem]->meta.pattern,
-            &pub->data[elem]->meta.compare,
-            &pub->data[elem]->meta.mood );
+        memset(&announced_elem, 0, sizeof(SOS_data));
 
-        dlog(6, "  ... pub->data[%d]->guid = %" SOS_GUID_FMT "\n", elem, pub->data[elem]->guid);
-        dlog(6, "  ... pub->data[%d]->name = %s\n", elem, pub->data[elem]->name);
-        dlog(6, "  ... pub->data[%d]->type = %d\n", elem, pub->data[elem]->type);
+        SOS_buffer_unpack(buffer, &offset, "gsiiiiiii",
+            &announced_elem.guid,
+            announced_elem.name,
+            &announced_elem.type,
+            &announced_elem.meta.freq,
+            &announced_elem.meta.semantic,
+            &announced_elem.meta.classifier,
+            &announced_elem.meta.pattern,
+            &announced_elem.meta.compare,
+            &announced_elem.meta.mood );
+
+        if ((    pub->data[elem]->guid            != announced_elem.guid )
+            || ( pub->data[elem]->type            != announced_elem.type )
+            || ( pub->data[elem]->meta.freq       != announced_elem.meta.freq )
+            || ( pub->data[elem]->meta.semantic   != announced_elem.meta.semantic )
+            || ( pub->data[elem]->meta.classifier != announced_elem.meta.classifier )
+            || ( pub->data[elem]->meta.pattern    != announced_elem.meta.pattern )
+            || ( pub->data[elem]->meta.compare    != announced_elem.meta.compare )
+            || ( pub->data[elem]->meta.mood       != announced_elem.meta.mood )) {
+        
+            /* This is a value we have not seen before, or that has
+             * changed.  Update the fields and set the sync flag to
+             * _RENEW so it gets stored in the database.
+             */
+
+            pub->data[elem]->sync = SOS_VAL_SYNC_RENEW;
+
+            /* Set the element name. */
+            snprintf(pub->data[elem]->name, SOS_DEFAULT_STRING_LEN, "%s", announced_elem.name);
+            /* Store the name/position pair in the name_table. */
+            pub->name_table->put(pub->name_table, pub->data[elem]->name, (void *) ((long)(elem + 1)));
+
+            pub->data[elem]->guid            = announced_elem.guid;
+            pub->data[elem]->type            = announced_elem.type;
+            pub->data[elem]->meta.freq       = announced_elem.meta.freq;
+            pub->data[elem]->meta.semantic   = announced_elem.meta.semantic;
+            pub->data[elem]->meta.classifier = announced_elem.meta.classifier;
+            pub->data[elem]->meta.pattern    = announced_elem.meta.pattern;
+            pub->data[elem]->meta.compare    = announced_elem.meta.compare;
+            pub->data[elem]->meta.mood       = announced_elem.meta.mood;
+
+            dlog(6, "  ... pub->data[%d]->guid = %" SOS_GUID_FMT "\n", elem, pub->data[elem]->guid);
+            dlog(6, "  ... pub->data[%d]->name = %s\n", elem, pub->data[elem]->name);
+            dlog(6, "  ... pub->data[%d]->type = %d\n", elem, pub->data[elem]->type);
+            
+        } else {
+            /* This pub is being re-announcd, but we already have
+             * identical data for this value.  Don't replace it or
+             * change its sync status, as already exists in the db.
+             */
+            continue;
+        }
+
     }//for
 
     pthread_mutex_unlock(pub->lock);
