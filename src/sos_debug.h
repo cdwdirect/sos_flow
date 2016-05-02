@@ -22,8 +22,8 @@
  *     +3 = VERY verbose
  *      0 = essential messages only (allows daemon logging)
  *     -1 = disabled in daemon/client (for production runs)  */
-#define SOS_DEBUG                 0
-#define SOS_DEBUG_SHOW_LOCATION   0
+#define SOS_DEBUG                 1
+#define SOS_DEBUG_SHOW_LOCATION   1
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
 #define SOSD_DAEMON_LOG           8

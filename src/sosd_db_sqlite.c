@@ -282,7 +282,7 @@ void SOSD_db_close_database() {
     dlog(2, "Closing database.   (%s)\n", SOSD.db.file);
     pthread_mutex_lock( SOSD.db.lock );
     dlog(2, "  ... finalizing statements.\n");
-    SOSD.db.ready = 0;
+    SOSD.db.ready = -1;
     CALL_SQLITE (finalize(stmt_insert_pub));
     CALL_SQLITE (finalize(stmt_insert_data));
     CALL_SQLITE (finalize(stmt_insert_val));
@@ -291,7 +291,6 @@ void SOSD_db_close_database() {
     dlog(2, "  ... closing database file.\n");
     sqlite3_close_v2(database);
     dlog(2, "  ... destroying the mutex.\n");
-    pthread_mutex_unlock(SOSD.db.lock);
     pthread_mutex_destroy(SOSD.db.lock);
     free(SOSD.db.lock);
     free(SOSD.db.file);
@@ -498,6 +497,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
             case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
             default: break;
             }
+            free(snap_list[snap_index]);
         }
 
         dlog(5, "     ... grabbing the next snap.\n");

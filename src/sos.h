@@ -32,7 +32,8 @@
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
 #define SOS_DEFAULT_TIMEOUT_SEC     2.0
-#define SOS_DEFAULT_BUFFER_LEN      1048576
+//#define SOS_DEFAULT_BUFFER_LEN      1048576
+#define SOS_DEFAULT_BUFFER_LEN      2048
 #define SOS_DEFAULT_BUFFER_MIN      2048
 #define SOS_DEFAULT_REPLY_LEN       128
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
@@ -116,7 +117,8 @@ extern "C" {
     SOS_runtime *SOS;                                                   \
     SOS = (SOS_runtime *) __SOS_context;                                \
     if (SOS == NULL) {                                                  \
-        printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n"); \
+        printf("(%s:%s) ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n", \
+               __FILE__, __LINE__);                                     \
         exit(EXIT_FAILURE);                                             \
     }
 #else
