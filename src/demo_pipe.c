@@ -15,6 +15,8 @@
 
 #define READER_BUF_SIZE 2048
 
+#define VERBOSE 0
+
 int running;
 uint64_t write_count;
 uint64_t read_count;
@@ -32,35 +34,35 @@ void *THREAD_write(void *arg);
 void *THREAD_read(void *arg);
 
 int main(int argc, char **argv) {
-    printf("\n%s\n%s\n", TITLE, USAGE);
+    if (VERBOSE) printf("\n%s\n%s\n", TITLE, USAGE);
 
     if (argc != 2) {
-        printf("ERROR: Invalid number of command line arguments.   (%d)\n", argc);
+        if (VERBOSE) printf("ERROR: Invalid number of command line arguments.   (%d)\n", argc);
         return EXIT_FAILURE;
     }
     write_count = atoll(argv[1]);
     read_count = 0;
 
-    printf("\twrite_count == %ld\n", write_count);
+    if (VERBOSE) printf("\twrite_count == %ld\n", write_count);
 
     //pipe_t *p = pipe_new(sizeof(uint64_t), 100000000)
     pipe_t *p = pipe_new(sizeof(uint64_t), 0);
     pipe_producer_t *prod  = pipe_producer_new(p);
     pipe_consumer_t *cons  = pipe_consumer_new(p);
     pipe_free(p);
-    printf("\tPipe created.\n");
+    if (VERBOSE) printf("\tPipe created.\n");
 
     pthread_t writer;
     pthread_t reader;
     pthread_create(&writer, NULL, (void *) THREAD_write, (void *) prod);
     pthread_create(&reader, NULL, (void *) THREAD_read, (void *) cons);
-    printf("\tPthreads on-line.\n");
+    if (VERBOSE) printf("\tPthreads on-line.\n");
     pthread_join(writer, NULL);
     pthread_join(reader, NULL);
 
-    printf("WRITER: %2.12lf seconds, %2.12lf per element.\n",
+    printf("WRITER: %2.12lf seconds, %2.12lf per push.\n",
            (writer_stop - writer_start), ((writer_stop - writer_start) / write_count));
-    printf("READER: %2.12lf seconds, %2.12lf per element.\n",
+    printf("READER: %2.12lf seconds, %2.12lf per pop.\n",
            (reader_stop - reader_start), ((reader_stop - reader_start) / (write_count)));
 
 
@@ -80,7 +82,7 @@ void *THREAD_write(void *arg) {
         for (i = 0; i < 10; i++) {
             buffer[i] = index;
         }
-        printf("#%ld: <<<<< push { %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }\n", index,
+        if (VERBOSE) printf("#%ld: <<<<< push { %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }\n", index,
                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
                buffer[5], buffer[6], buffer[7], buffer[8], buffer[9]);
 
@@ -109,11 +111,11 @@ void *THREAD_read(void *arg) {
 
     PUT_TIME(reader_start);
     do {
-        printf("#%d: ----> pop buffer = ", loops++);
+        if (VERBOSE) printf("#%d: ----> pop buffer = ", loops++);
 
         in_count = pipe_pop(cons, buffer, 10);
         read_count += in_count;
-        printf("{ %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }    (read_count == %ld)\n",
+        if (VERBOSE) printf("{ %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }    (read_count == %ld)\n",
                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
                buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], read_count);
 
