@@ -42,7 +42,7 @@ void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
     SOS_pipe *pipe;
     pipe = *pipe_obj = (SOS_pipe *) malloc(sizeof(SOS_pipe));
 
-    pipe_t *p_setup = pipe_new(elem_size, 0);
+    pipe_t *p_setup = pipe_new(elem_size, SOS_DEFAULT_PIPE_DEPTH);
     pipe->intake = pipe_producer_new(p_setup);
     pipe->outlet = pipe_consumer_new(p_setup);
     pipe_free(p_setup);
@@ -409,7 +409,7 @@ static inline snapshot_t make_snapshot(pipe_t* p)
 #ifdef PIPE_DEBUG
 #define DEFAULT_MINCAP  2
 #else
-#define DEFAULT_MINCAP  32
+#define DEFAULT_MINCAP  10000000
 #endif
 
 // Returns the maximum number of bytes the buffer can hold, excluding the

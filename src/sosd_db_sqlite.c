@@ -305,6 +305,11 @@ void SOSD_db_transaction_begin() {
     int   rc;
     char *err = NULL;
 
+    if (SOSD.db.ready == -1) {
+        dlog(0, "ERROR: Attempted to begin a transaction during daemon shutdown.\n");
+        return;
+    }
+
     pthread_mutex_lock(SOSD.db.lock);
 
     dlog(6, " > > > > > > > > > > > > > > > > > > > > > > > > > > > > \n");
@@ -414,7 +419,6 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     if (re_queue != NULL) { pthread_mutex_lock( re_queue->sync_lock ); }
     pthread_mutex_lock( queue->sync_lock );
     snap_count = queue->elem_count;
-
     if (queue->elem_count < 1) {
         dlog(2, "  ... nothing in the queue, returning.\n");
         pthread_mutex_unlock( queue->sync_lock);
@@ -424,6 +428,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
     dlog(2, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
     count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
+    dlog(2, "      [bbb] %d snaps were returned from the queue on request.\n", count);
     queue->elem_count -= count;
     snap_count = count;
     dlog(2, "  ... [bbb] releasing queue->lock\n");
@@ -453,6 +458,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         frame             = snap_list[snap_index]->frame;
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
         mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
+
+        dlog(2, "    ---[%s]---\n", pub->data[elem]->name);
 
         SOS_TIME( time_recv );
 
@@ -498,16 +505,14 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
             default: break;
             }
             free(snap_list[snap_index]);
+        } else {
+            pthread_mutex_lock(re_queue->sync_lock);
+            pipe_push(re_queue->intake, (void *) snap_list[snap_index], 1);
+            re_queue->elem_count++;
+            pthread_mutex_unlock(re_queue->sync_lock);
         }
 
         dlog(5, "     ... grabbing the next snap.\n");
-    }
-
-    if (re_queue != NULL) {
-        pthread_mutex_lock(re_queue->sync_lock);
-        pipe_push(re_queue->intake, (void *) snap_list, snap_count);
-        re_queue->elem_count += snap_count;
-        pthread_mutex_unlock(re_queue->sync_lock);
     }
 
     free(snap_list);

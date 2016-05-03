@@ -152,6 +152,7 @@ typedef struct {
     int                 elem_count;  // (optional) manually use for sync. behavior
     pthread_mutex_t    *sync_lock;   // (optional) manually use for sync. behavior
     pthread_cond_t     *sync_cond;   // (optional) manually use for sync. behavior
+    
 } SOS_pipe;
 
 void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size);

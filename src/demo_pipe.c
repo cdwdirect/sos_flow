@@ -1,4 +1,3 @@
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
@@ -12,12 +11,13 @@
 #include "sos_pipe.h"
 
 #define TITLE "DEMO_PIPE"
-#define USAGE " ./demo_pipe <write_count> <sleep_reader_secs>"
+#define USAGE " ./demo_pipe <write_count>"
 
 #define READER_BUF_SIZE 2048
 
 int running;
 uint64_t write_count;
+uint64_t read_count;
 uint64_t sleep_delay;
 
 double writer_start;
@@ -34,16 +34,19 @@ void *THREAD_read(void *arg);
 int main(int argc, char **argv) {
     printf("\n%s\n%s\n", TITLE, USAGE);
 
-    if (argc != 3) {
+    if (argc != 2) {
         printf("ERROR: Invalid number of command line arguments.   (%d)\n", argc);
         return EXIT_FAILURE;
     }
     write_count = atoll(argv[1]);
-    sleep_delay = atoll(argv[2]);
+    read_count = 0;
 
+    printf("\twrite_count == %ld\n", write_count);
+
+    //pipe_t *p = pipe_new(sizeof(uint64_t), 100000000)
     pipe_t *p = pipe_new(sizeof(uint64_t), 0);
-    pipe_producer_t *prod  = { pipe_producer_new(p) };
-    pipe_consumer_t *cons  = { pipe_consumer_new(p) };
+    pipe_producer_t *prod  = pipe_producer_new(p);
+    pipe_consumer_t *cons  = pipe_consumer_new(p);
     pipe_free(p);
     printf("\tPipe created.\n");
 
@@ -60,6 +63,8 @@ int main(int argc, char **argv) {
     printf("READER: %2.12lf seconds, %2.12lf per element.\n",
            (reader_stop - reader_start), ((reader_stop - reader_start) / (write_count)));
 
+
+
     return EXIT_SUCCESS;
 }
 
@@ -67,9 +72,19 @@ void *THREAD_write(void *arg) {
     pipe_producer_t *prod = (pipe_producer_t *) arg;
 
     PUT_TIME(writer_start);
-    uint64_t thing = 0;
-    for (thing = 0; thing < write_count; thing++) {
-        pipe_push(prod, (void *) &thing, 1);
+    uint64_t buffer[10];
+    uint64_t index;
+    int i;
+
+    for (index = 0; index < write_count; index++) {
+        for (i = 0; i < 10; i++) {
+            buffer[i] = index;
+        }
+        printf("#%ld: <<<<< push { %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }\n", index,
+               buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
+               buffer[5], buffer[6], buffer[7], buffer[8], buffer[9]);
+
+        pipe_push(prod, buffer, 10);
     }
     PUT_TIME(writer_stop);
     pipe_producer_free(prod);
@@ -80,8 +95,8 @@ void *THREAD_write(void *arg) {
 
 void *THREAD_read(void *arg) {
     pipe_consumer_t *cons = (pipe_consumer_t *) arg;
-    uint64_t buf[READER_BUF_SIZE];
-    size_t read = 0;
+    uint64_t buffer[10];
+    uint64_t in_count = 0;
     size_t i = 0;
 
     struct timespec til;
@@ -89,10 +104,24 @@ void *THREAD_read(void *arg) {
     til.tv_nsec = 0;
     nanosleep(&til, NULL);
 
-    PUT_TIME(reader_start);
-    while ((read = pipe_pop_eager(cons, &buf, READER_BUF_SIZE))) {
+    int loops = 0;
 
-    }
+
+    PUT_TIME(reader_start);
+    do {
+        printf("#%d: ----> pop buffer = ", loops++);
+
+        in_count = pipe_pop(cons, buffer, 10);
+        read_count += in_count;
+        printf("{ %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }    (read_count == %ld)\n",
+               buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
+               buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], read_count);
+
+        for (i = 0; i < 10; i++) {
+            buffer[i] = -1;
+        }
+
+    } while (in_count > 0);
     PUT_TIME(reader_stop);
     pipe_consumer_free(cons);
 

@@ -151,18 +151,20 @@ int main(int argc, char *argv[])  {
     default: break;
     }
 
+    sleep(10);
+
     /* Done!  Cleanup and shut down. */
     dlog(0, "Closing the sync queues:\n");
     dlog(0, "  .. SOSD.sync.local.queue\n");
     pipe_producer_free(SOSD.sync.local.queue->intake);
     dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
-    sleep(2);
     dlog(0, "  .. SOSD.sync.cloud.queue\n");
     pipe_producer_free(SOSD.sync.cloud.queue->intake);
     dlog(0, "  .. SOSD.sync.db.queue\n");
     pipe_producer_free(SOSD.sync.db.queue->intake);
 
-    /* TODO: { CLEAN UP SYNC STUFF } */
+    SOSD.db.ready = -1;
+    pthread_mutex_lock(SOSD.db.lock);
 
     dlog(0, "Destroying uid configurations.\n");
     SOS_uid_destroy( SOSD.guid );
@@ -177,7 +179,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Detaching from the cloud of sosd daemons.\n");
     SOSD_cloud_finalize();
     #endif
-    sleep(10);
+
     dlog(0, "Shutting down SOS services.\n");
     SOS_finalize(SOS);
 
@@ -378,29 +380,31 @@ void* SOSD_THREAD_db_sync(void *args) {
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
 
-        if (queue_depth < 1) {
+        dlog(6, "There are %d elements in the queue.\n", queue_depth);
+
+        if (queue_depth > 0) {
+            //task_list = (SOSD_db_task **) malloc(queue_depth * sizeof(SOSD_db_task *));
+            task_list = (SOSD_db_task **) malloc(1 * sizeof(SOSD_db_task *));
+            queue_depth = 1;                
+        } else {
+            dlog(6, "   ... going back to sleep.\n");
             pthread_mutex_unlock(my->queue->sync_lock);
-            dlog(20, "Nothing to do.  Going back to sleep.\n");
             gettimeofday(&now, NULL);
             wait.tv_sec  = 0 + (now.tv_sec);
-            wait.tv_nsec = 5000000 + (1000 * now.tv_usec);
-
+            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
-        } else {
-            dlog(6, "There are %d elements in the queue.\n", queue_depth);
-            task_list = (SOSD_db_task **) malloc(queue_depth * sizeof(SOSD_db_task *));
         }
 
         count = 0;
         count = pipe_pop_eager(my->queue->outlet, (void *) task_list, queue_depth);
-
-        dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
-
         if (count == 0) {
-            dlog(0, "ERROR: Empty (closed) queue, but elem_count > 0...\n");
+            dlog(0, "Nothing remains in the queue and the intake is closed.  Leaving thread.\n");
             free(task_list);
             break;
         }
+
+        dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
+
         my->queue->elem_count -= count;
         pthread_mutex_unlock(my->queue->sync_lock);
 
@@ -444,6 +448,11 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
         count = pipe_pop(my->queue->outlet, (void *) &buffer, 1);
+        if (count == 0) {
+            dlog(0, "Nothing in the queue and the intake is closed.  Leaving thread.\n");
+            break;
+        }
+
         dlog(5, "TODO: Destroying a queue.\n");
         SOS_buffer_destroy(buffer);
 
