@@ -145,7 +145,7 @@ typedef struct pipe_consumer_t pipe_consumer_t;
 typedef struct pipe_generic_t  pipe_generic_t;
 
 typedef struct {
-    struct SOS_runtime *sos_context;
+    void               *sos_context;
     pipe_producer_t    *intake;
     pipe_consumer_t    *outlet;
     size_t              elem_size;
