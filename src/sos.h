@@ -92,12 +92,12 @@ extern "C" {
 }
 #endif
 
-
+#ifndef max
 #define max(a,b) \
     ({ __typeof__ (a) _a = (a);                 \
         __typeof__ (b) _b = (b);                \
         _a > _b ? _a : _b; })
-
+#endif
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
 
