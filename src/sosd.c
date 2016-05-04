@@ -128,15 +128,14 @@ int main(int argc, char *argv[])  {
     SOSD_db_init_database();
 
     dlog(0, "Initializing the sync framework...\n");
+    SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), (void *) SOSD_THREAD_db_sync);
     #ifdef SOSD_CLOUD_SYNC
     SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), (void *) SOSD_THREAD_cloud_sync);
+    SOSD_cloud_start();
     #else
     #endif
     SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), (void *) SOSD_THREAD_local_sync);
-    SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), (void *) SOSD_THREAD_db_sync);
 
-    dlog(0, "Starting the cloud threads...\n");
-    SOSD_cloud_start();
 
     dlog(0, "Entering listening loop...\n");
 
@@ -151,9 +150,9 @@ int main(int argc, char *argv[])  {
     default: break;
     }
 
-    sleep(10);
-
     /* Done!  Cleanup and shut down. */
+
+
     dlog(0, "Closing the sync queues:\n");
     dlog(0, "  .. SOSD.sync.local.queue\n");
     pipe_producer_free(SOSD.sync.local.queue->intake);
@@ -163,6 +162,9 @@ int main(int argc, char *argv[])  {
     dlog(0, "  .. SOSD.sync.db.queue\n");
     pipe_producer_free(SOSD.sync.db.queue->intake);
 
+    /* TODO: { SHUTDOWN } Add cascading queue fflush here to prevent deadlocks. */
+
+    SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
     pthread_mutex_lock(SOSD.db.lock);
 
@@ -345,8 +347,10 @@ void* SOSD_THREAD_local_sync(void *args) {
             dlog(0, "ERROR: An invalid message type (%d) was placed in the local_sync queue!\n", header.msg_type);
             dlog(0, "ERROR: Destroying it.\n");
             SOS_buffer_destroy(buffer);
-            break;
-        }
+            wait.tv_sec  = 0;
+            wait.tv_nsec = 10000;
+            continue;
+         }
 
         pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
 
@@ -383,9 +387,7 @@ void* SOSD_THREAD_db_sync(void *args) {
         dlog(6, "There are %d elements in the queue.\n", queue_depth);
 
         if (queue_depth > 0) {
-            //task_list = (SOSD_db_task **) malloc(queue_depth * sizeof(SOSD_db_task *));
-            task_list = (SOSD_db_task **) malloc(1 * sizeof(SOSD_db_task *));
-            queue_depth = 1;                
+            task_list = (SOSD_db_task **) malloc(queue_depth * sizeof(SOSD_db_task *));
         } else {
             dlog(6, "   ... going back to sleep.\n");
             pthread_mutex_unlock(my->queue->sync_lock);
@@ -404,7 +406,7 @@ void* SOSD_THREAD_db_sync(void *args) {
         }
 
         dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
-
+ 
         my->queue->elem_count -= count;
         pthread_mutex_unlock(my->queue->sync_lock);
 
@@ -412,6 +414,7 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         for (task_index = 0; task_index < count; task_index++) {
             task = task_list[task_index];
+            dlog(0, "----> [ttt] task = %ld @ address %ld ...\n", (long) task_list[0], (long) &task_list[0]);
             switch(task->type) {
             case SOS_MSG_TYPE_ANNOUNCE:   dlog(6, "[zzz] ANNOUNCE\n"); SOSD_db_insert_pub(task->pub); break;
             case SOS_MSG_TYPE_PUBLISH:    dlog(6, "[zzz] PUBLISH-\n"); SOSD_db_insert_data(task->pub); break;
@@ -421,6 +424,7 @@ void* SOSD_THREAD_db_sync(void *args) {
         }
 
         SOSD_db_transaction_commit();
+
         free(task_list);
         gettimeofday(&now, NULL);
         wait.tv_sec  = 0 + (now.tv_sec);
@@ -727,6 +731,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     task->pub = pub;
     task->type = SOS_MSG_TYPE_PUBLISH;
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+    dlog(0, "<<<<< [ttt] task = %ld @ address %ld ...\n", (long) task, (long) &task);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);

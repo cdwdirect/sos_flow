@@ -15,7 +15,7 @@
 
 #define READER_BUF_SIZE 2048
 
-#define VERBOSE 0
+#define VERBOSE 1
 
 int running;
 uint64_t write_count;
@@ -37,7 +37,7 @@ int main(int argc, char **argv) {
     if (VERBOSE) printf("\n%s\n%s\n", TITLE, USAGE);
 
     if (argc != 2) {
-        if (VERBOSE) printf("ERROR: Invalid number of command line arguments.   (%d)\n", argc);
+        printf("ERROR: Invalid number of command line arguments.   (%d)\n", argc);
         return EXIT_FAILURE;
     }
     write_count = atoll(argv[1]);

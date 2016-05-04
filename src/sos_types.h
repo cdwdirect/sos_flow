@@ -31,6 +31,7 @@
 #define FOREACH_STATUS(STATUS)                  \
     STATUS(SOS_STATUS_INIT)                     \
     STATUS(SOS_STATUS_RUNNING)                  \
+    STATUS(SOS_STATUS_HALTING)                  \
     STATUS(SOS_STATUS_SHUTDOWN)                 \
     STATUS(SOS_STATUS___MAX)
     

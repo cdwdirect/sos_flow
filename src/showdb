@@ -23,6 +23,7 @@ for db in $SOS_WORK/sosd.*.db ; do
     echo ""
     echo -n "${db} [val.COUNT] = "
     sqlite3 ${db} "select max(rowid) from tblvals;"
+    sqlite3 ${db} "select max(rowid) from tblvals;" >> validate.txt
     echo -n "${db} [pub.COUNT] = "
     sqlite3 ${db} "select count(distinct guid) from tblpubs;"
     echo    "${db} [pubs.LIST] = "
