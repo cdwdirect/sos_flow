@@ -108,6 +108,7 @@ void* SOSD_THREAD_cloud_flush(void *args) {
     tsleep.tv_nsec = (1000 * tnow.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
 
     dlog(6, "  ... entering loop\n");
+
     while (SOSD.daemon.running) {
         dlog(6, "Sleeping!    (UNLOCK on queue->sync_cond)\n");
         wake_type = pthread_cond_timedwait(queue->sync_cond, queue->sync_lock, &tsleep);
@@ -202,7 +203,7 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
     if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR: buffer->len(%d) != header.msg_size(%d)", buffer->len, header.msg_size); }
 
     pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
-    pipe_push(SOSD.sync.cloud.queue->intake, (void *) buffer, sizeof(SOS_buffer *));
+    pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, sizeof(SOS_buffer *));
     SOSD.sync.cloud.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
 

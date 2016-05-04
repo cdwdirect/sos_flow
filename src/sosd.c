@@ -384,12 +384,9 @@ void* SOSD_THREAD_db_sync(void *args) {
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
 
-        dlog(6, "There are %d elements in the queue.\n", queue_depth);
-
         if (queue_depth > 0) {
             task_list = (SOSD_db_task **) malloc(queue_depth * sizeof(SOSD_db_task *));
         } else {
-            dlog(6, "   ... going back to sleep.\n");
             pthread_mutex_unlock(my->queue->sync_lock);
             gettimeofday(&now, NULL);
             wait.tv_sec  = 0 + (now.tv_sec);
@@ -441,27 +438,84 @@ void* SOSD_THREAD_db_sync(void *args) {
 void* SOSD_THREAD_cloud_sync(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
     SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_cloud_sync");
-    SOS_buffer      *buffer;
+    struct timeval   now;
     struct timespec  wait;
-    int     count;
+    SOS_buffer      *buffer;
+    SOS_buffer     **msg_list;
+    SOS_buffer      *msg;
+    SOS_msg_header   header;
+    int              msg_index;
+    int              queue_depth;
+    int              count;
+    int              offset;
+    int              msg_offset;
 
     pthread_mutex_lock(my->lock);
-    wait.tv_sec  = 0;
-    wait.tv_nsec = 10000;
+    gettimeofday(&now, NULL);
+    wait.tv_sec  = 0 + (now.tv_sec);
+    wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
-        count = pipe_pop(my->queue->outlet, (void *) &buffer, 1);
+        pthread_mutex_lock(my->queue->sync_lock);
+        queue_depth = my->queue->elem_count;
+
+        if (queue_depth > 0) {
+            msg_list = (SOS_buffer **) malloc(queue_depth * sizeof(SOS_buffer *));
+        } else {
+            //Going back to sleep.
+            pthread_mutex_unlock(my->queue->sync_lock);
+            gettimeofday(&now, NULL);
+            wait.tv_sec  = 0 + (now.tv_sec);
+            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+            continue;
+        }
+
+        count = 0;
+        count = pipe_pop_eager(my->queue->outlet, (void *) msg_list, queue_depth);
         if (count == 0) {
             dlog(0, "Nothing in the queue and the intake is closed.  Leaving thread.\n");
+            free(msg_list);
             break;
         }
 
-        dlog(5, "TODO: Destroying a queue.\n");
-        SOS_buffer_destroy(buffer);
+        my->queue->elem_count -= count;
+        pthread_mutex_unlock(my->queue->sync_lock);
 
-        wait.tv_sec  = 0;
-        wait.tv_nsec = 10000;
+        offset = 0;
+        SOS_buffer_pack(buffer, &offset, "i", count);
+        for (msg_index = 0; msg_index < count; msg_index++) {
+ 
+            msg_offset = 0;
+            msg = msg_list[msg_index];
+
+            SOS_buffer_unpack(msg, &msg_offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+
+            SOS_buffer_pack(buffer, &offset, "iigg",
+                header.msg_size,
+                header.msg_type, 
+                header.msg_from,
+                header.pub_guid);
+
+            memcpy((buffer->data + offset), (msg->data + offset), (header.msg_size - msg_offset));
+            offset += (header.msg_size - msg_offset);
+
+            SOS_buffer_destroy(msg);
+        }
+
+        dlog(0, "Sending %d bytes over MPI...\n", buffer->len);
+        SOSD_cloud_send(buffer);
+
+        SOS_buffer_wipe(buffer);
+        free(msg_list);
+
+        gettimeofday(&now, NULL);
+        wait.tv_sec  = 0 + (now.tv_sec);
+        wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     }
 
     pthread_mutex_unlock(my->lock);
