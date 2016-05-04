@@ -371,9 +371,6 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
     va_list ap;
 
-    while (*offset >= buffer->max) {
-        SOS_buffer_grow(buffer);
-    }
     char   *buf = (buffer->data + *offset);
 
     int      i;           // 32-bit
@@ -399,6 +396,12 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     va_start(ap, format);
 
     for(; *format != '\0'; format++) {
+
+        //Auto-grow a buffer if needed.
+        //while ((*offset + packed_bytes) >= (buffer->max - SOS_DEFAULT_BUFFER_MIN)) {
+        //    SOS_buffer_grow(buffer);
+        // }
+
         switch(*format) {
         case 'i': // 32-bit
             i = va_arg(ap, int);

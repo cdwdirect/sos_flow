@@ -897,24 +897,32 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         switch(data->type) {
         case SOS_VAL_TYPE_STRING:
-            data->val.c_val = strdup(pack_val.c_val);
+            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+            data->val_len = strlen(pack_val.c_val);
             break;
 
         case SOS_VAL_TYPE_BYTES:
             byte_buffer = (SOS_buffer *) pack_val.bytes;
             data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
             memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
+            data->val_len = byte_buffer->len;
             break;
 
         case SOS_VAL_TYPE_INT:
-        case SOS_VAL_TYPE_LONG:
-        case SOS_VAL_TYPE_DOUBLE:
-        default:
             data->val = pack_val;
+            data->val_len = sizeof(int);
+            break;
+
+        case SOS_VAL_TYPE_LONG:
+            data->val = pack_val;
+            data->val_len = sizeof(long);
+            break;
+
+        case SOS_VAL_TYPE_DOUBLE:
+            data->val = pack_val;
+            data->val_len = sizeof(long);
             break;
         }
-
-
 
         data->guid = SOS_uid_next(SOS->uid.my_guid_pool);
         data->type = pack_type;
