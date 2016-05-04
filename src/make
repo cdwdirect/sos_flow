@@ -47,12 +47,12 @@ else
     fi
     make -j
     #make VERBOSE=1
-    cd ..
-    cd src
-    echo ""
-    echo "Running test suite..."
-    echo "    --> For detailed memory tests: ${SOS_ROOT}/tests/grindit"
-    echo ""
-    ../bin/test
-    echo ""
+    #cd ..
+    #cd src
+    #echo ""
+    #echo "Running test suite..."
+    #echo "    --> For detailed memory tests: ${SOS_ROOT}/tests/grindit"
+    #echo ""
+    #../bin/test
+    #echo ""
 fi;

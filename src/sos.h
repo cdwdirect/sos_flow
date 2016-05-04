@@ -4,13 +4,7 @@
 /*
  * sos.h              Core API for SOS_flow project. 
  *
- *
- * [ THREAD SAFETY ]: Note that these routines do not speculatively add
- * [  INFORMATION  ]  locking mechanisms.  If you are going to share
- *                    the same pub/sub handle between several threads,
- *                    you are strongly encouraged to apply mutexes around
- *                    SOS function calls in your code.
- *
+ *                    (see also:  sos_types.h)
  *
  */
 
@@ -27,17 +21,21 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include "qhashtbl.h"
 
 /* SOS Configuration Switches... */
 
-#define SOS_CONFIG_USE_THREAD_POOL  1
 #define SOS_CONFIG_DB_STRING_ENUMS  0
+#define SOS_CONFIG_USE_THREAD_POOL  1
+#define SOS_CONFIG_FEEDBACK_ACTIVE  1
 
 #define SOS_DEFAULT_SERVER_HOST     "localhost"
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
-#define SOS_DEFAULT_BUFFER_LEN      1048576
+#define SOS_DEFAULT_TIMEOUT_SEC     2.0
+//#define SOS_DEFAULT_BUFFER_LEN      1048576
+#define SOS_DEFAULT_BUFFER_LEN      2048
+#define SOS_DEFAULT_BUFFER_MIN      2048
+#define SOS_DEFAULT_PIPE_DEPTH      1000000
 #define SOS_DEFAULT_REPLY_LEN       128
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256
@@ -48,502 +46,97 @@
 #define SOS_DEFAULT_UID_MAX         LLONG_MAX
 
 
+#include "sos_types.h"
+
+
 /* ************************************ */
-
-
-#define FOREACH_ROLE(ROLE)                      \
-    ROLE(SOS_ROLE_CLIENT)                       \
-    ROLE(SOS_ROLE_DAEMON)                       \
-    ROLE(SOS_ROLE_DB)                           \
-    ROLE(SOS_ROLE_CONTROL)                      \
-    ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
-    ROLE(SOS_ROLE___MAX)
-
-#define FOREACH_TARGET(TARGET)                  \
-    TARGET(SOS_TARGET_LOCAL_SYNC)               \
-    TARGET(SOS_TARGET_CLOUD_SYNC)               \
-    TARGET(SOS_TARGET___MAX)
-    
-#define FOREACH_STATUS(STATUS)                  \
-    STATUS(SOS_STATUS_INIT)                     \
-    STATUS(SOS_STATUS_RUNNING)                  \
-    STATUS(SOS_STATUS_SHUTDOWN)                 \
-    STATUS(SOS_STATUS___MAX)
-    
-#define FOREACH_MSG_TYPE(MSG_TYPE)              \
-    MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
-    MSG_TYPE(SOS_MSG_TYPE_GUID_BLOCK)           \
-    MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \
-    MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
-    MSG_TYPE(SOS_MSG_TYPE_VAL_SNAPS)            \
-    MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
-    MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
-    MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
-    MSG_TYPE(SOS_MSG_TYPE_CHECK_IN)             \
-    MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
-    MSG_TYPE(SOS_MSG_TYPE___MAX)
-
-#define FOREACH_FEEDBACK(FEEDBACK)              \
-    FEEDBACK(SOS_FEEDBACK_CONTINUE)             \
-    FEEDBACK(SOS_FEEDBACK_EXEC_FUNCTION)        \
-    FEEDBACK(SOS_FEEDBACK_SET_PARAMETER)        \
-    FEEDBACK(SOS_FEEDBACK_EFFECT_CHANGE)        \
-    FEEDBACK(SOS_FEEDBACK___MAX)
-    
-#define FOREACH_PRI(PRI)                        \
-    PRI(SOS_PRI_DEFAULT)                        \
-    PRI(SOS_PRI_LOW)                            \
-    PRI(SOS_PRI_IMMEDIATE)                      \
-    PRI(SOS_PRI___MAX)
-
-#define FOREACH_VAL_TYPE(VAL_TYPE)              \
-    VAL_TYPE(SOS_VAL_TYPE_INT)                  \
-    VAL_TYPE(SOS_VAL_TYPE_LONG)                 \
-    VAL_TYPE(SOS_VAL_TYPE_DOUBLE)               \
-    VAL_TYPE(SOS_VAL_TYPE_STRING)               \
-    VAL_TYPE(SOS_VAL_TYPE___MAX)
-
-#define FOREACH_VAL_STATE(VAL_STATE)            \
-    VAL_STATE(SOS_VAL_STATE_CLEAN)              \
-    VAL_STATE(SOS_VAL_STATE_DIRTY)              \
-    VAL_STATE(SOS_VAL_STATE_EMPTY)              \
-    VAL_STATE(SOS_VAL_STATE___MAX)
-
-#define FOREACH_VAL_CLASS(VAL_CLASS)            \
-    VAL_CLASS(SOS_VAL_CLASS_DATA)               \
-    VAL_CLASS(SOS_VAL_CLASS_EVENT)              \
-    VAL_CLASS(SOS_VAL_CLASS___MAX)
-
-#define FOREACH_VAL_SEMANTIC(VAL_SEM)           \
-    VAL_SEM(SOS_VAL_SEMANTIC_DEFAULT)           \
-    VAL_SEM(SOS_VAL_SEMANTIC_TIME_START)        \
-    VAL_SEM(SOS_VAL_SEMANTIC_TIME_STOP)         \
-    VAL_SEM(SOS_VAL_SEMANTIC_TIME_STAMP)        \
-    VAL_SEM(SOS_VAL_SEMANTIC_TIME_SPAN)         \
-    VAL_SEM(SOS_VAL_SEMANTIC_SAMPLE)            \
-    VAL_SEM(SOS_VAL_SEMANTIC_COUNTER)           \
-    VAL_SEM(SOS_VAL_SEMANTIC_LOG)               \
-    VAL_SEM(SOS_VAL_SEMANTIC___MAX)
-
-#define FOREACH_VAL_FREQ(VAL_FREQ)              \
-    VAL_FREQ(SOS_VAL_FREQ_DEFAULT)              \
-    VAL_FREQ(SOS_VAL_FREQ_RARE)                 \
-    VAL_FREQ(SOS_VAL_FREQ_COMMON)               \
-    VAL_FREQ(SOS_VAL_FREQ_CONTINUOUS)           \
-    VAL_FREQ(SOS_VAL_FREQ_IRREGULAR)            \
-    VAL_FREQ(SOS_VAL_FREQ___MAX)
-
-#define FOREACH_VAL_PATTERN(PATTERN)            \
-    PATTERN(SOS_VAL_PATTERN_DEFAULT)            \
-    PATTERN(SOS_VAL_PATTERN_STATIC)             \
-    PATTERN(SOS_VAL_PATTERN_RISING)             \
-    PATTERN(SOS_VAL_PATTERN_PLATEAU)            \
-    PATTERN(SOS_VAL_PATTERN_OSCILLATING)        \
-    PATTERN(SOS_VAL_PATTERN_ARC)                \
-    PATTERN(SOS_VAL_PATTERN___MAX)
-
-#define FOREACH_VAL_COMPARE(COMPARE)            \
-    COMPARE(SOS_VAL_COMPARE_SELF)               \
-    COMPARE(SOS_VAL_COMPARE_RELATIONS)          \
-    COMPARE(SOS_VAL_COMPARE___MAX)
-
-#define FOREACH_MOOD(MOOD)                      \
-    MOOD(SOS_MOOD_DEFAULT)                      \
-    MOOD(SOS_MOOD_GOOD)                         \
-    MOOD(SOS_MOOD_BAD)                          \
-    MOOD(SOS_MOOD_UGLY)                         \
-    MOOD(SOS_MOOD___MAX)
-
-#define FOREACH_SCOPE(SCOPE)                    \
-    SCOPE(SOS_SCOPE_DEFAULT)                    \
-    SCOPE(SOS_SCOPE_SELF)                       \
-    SCOPE(SOS_SCOPE_NODE)                       \
-    SCOPE(SOS_SCOPE_ENCLAVE)                    \
-    SCOPE(SOS_SCOPE___MAX)
-
-#define FOREACH_LAYER(LAYER)                    \
-    LAYER(SOS_LAYER_APP)                        \
-    LAYER(SOS_LAYER_OS)                         \
-    LAYER(SOS_LAYER_LIB)                        \
-    LAYER(SOS_LAYER_ENVIRONMENT)                \
-    LAYER(SOS_LAYER_SOS_RUNTIME)                \
-    LAYER(SOS_LAYER___MAX)
-
-#define FOREACH_NATURE(NATURE)                  \
-    NATURE(SOS_NATURE_DEFAULT)                  \
-    NATURE(SOS_NATURE_CREATE_INPUT)             \
-    NATURE(SOS_NATURE_CREATE_OUTPUT)            \
-    NATURE(SOS_NATURE_CREATE_VIZ)               \
-    NATURE(SOS_NATURE_EXEC_WORK)                \
-    NATURE(SOS_NATURE_BUFFER)                   \
-    NATURE(SOS_NATURE_SUPPORT_EXEC)             \
-    NATURE(SOS_NATURE_SUPPORT_FLOW)             \
-    NATURE(SOS_NATURE_CONTROL_FLOW)             \
-    NATURE(SOS_NATURE_SOS)                      \
-    NATURE(SOS_NATURE___MAX)
-        
-#define FOREACH_RETAIN(RETAIN)                  \
-    RETAIN(SOS_RETAIN_DEFAULT)                  \
-    RETAIN(SOS_RETAIN_SESSION)                  \
-    RETAIN(SOS_RETAIN_IMMEDIATE)                \
-    RETAIN(SOS_RETAIN___MAX)
-
-#define GENERATE_ENUM(ENUM) ENUM,
-#define GENERATE_STRING(STRING) #STRING,
-
-typedef enum { FOREACH_ROLE(GENERATE_ENUM)         } SOS_role;
-typedef enum { FOREACH_TARGET(GENERATE_ENUM)       } SOS_target;
-typedef enum { FOREACH_STATUS(GENERATE_ENUM)       } SOS_status;
-typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)     } SOS_msg_type;
-typedef enum { FOREACH_FEEDBACK(GENERATE_ENUM)     } SOS_feedback;
-typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
-typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
-typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
-typedef enum { FOREACH_VAL_SEMANTIC(GENERATE_ENUM) } SOS_val_semantic;
-typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)     } SOS_val_freq;
-typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)  } SOS_val_pattern;
-typedef enum { FOREACH_VAL_COMPARE(GENERATE_ENUM)  } SOS_val_compare;
-typedef enum { FOREACH_VAL_CLASS(GENERATE_ENUM)    } SOS_val_class;
-typedef enum { FOREACH_MOOD(GENERATE_ENUM)         } SOS_mood;
-typedef enum { FOREACH_SCOPE(GENERATE_ENUM)        } SOS_scope;
-typedef enum { FOREACH_LAYER(GENERATE_ENUM)        } SOS_layer;
-typedef enum { FOREACH_NATURE(GENERATE_ENUM)       } SOS_nature;
-typedef enum { FOREACH_RETAIN(GENERATE_ENUM)       } SOS_retain;
-
-static const char *SOS_ROLE_string[] =         { FOREACH_ROLE(GENERATE_STRING)         };
-static const char *SOS_TARGET_string[] =       { FOREACH_TARGET(GENERATE_STRING)       };
-static const char *SOS_STATUS_string[] =       { FOREACH_STATUS(GENERATE_STRING)       };
-static const char *SOS_MSG_TYPE_string[] =     { FOREACH_MSG_TYPE(GENERATE_STRING)     };
-static const char *SOS_FEEDBACK_string[] =     { FOREACH_FEEDBACK(GENERATE_STRING)     };
-static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
-static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
-static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
-static const char *SOS_VAL_FREQ_string[] =     { FOREACH_VAL_FREQ(GENERATE_STRING)     };
-static const char *SOS_VAL_SEMANTIC_string[] = { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
-static const char *SOS_VAL_PATTERN_string[] =  { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
-static const char *SOS_VAL_COMPARE_string[] =  { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
-static const char *SOS_VAL_CLASS_string[] =    { FOREACH_VAL_CLASS(GENERATE_STRING)    };
-static const char *SOS_MOOD_string[] =         { FOREACH_MOOD(GENERATE_STRING)         };
-static const char *SOS_SCOPE_string[] =        { FOREACH_SCOPE(GENERATE_STRING)        };
-static const char *SOS_LAYER_string[] =        { FOREACH_LAYER(GENERATE_STRING)        };
-static const char *SOS_NATURE_string[] =       { FOREACH_NATURE(GENERATE_STRING)       };
-static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)       };
-
-#define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
-#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
-/*  Examples:   char *pub_layer     = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
- *              char *data_type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
- *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
- */
-
-typedef     uint64_t SOS_guid;
-#define SOS_GUID_FMT PRIu64
-
-typedef union {
-    int                 i_val;
-    long                l_val;
-    double              d_val;
-    char               *c_val;
-} SOS_val;
-
-typedef struct {
-    unsigned char       data[SOS_DEFAULT_BUFFER_LEN];
-    int                 len;
-    int                 max;
-    int                 entry_count;
-    pthread_mutex_t    *lock;
-} SOS_buf;
-
-typedef struct {
-    void               *sos_context;
-    SOS_buf             a;
-    SOS_buf             b;
-    SOS_buf            *send_buf;
-    SOS_buf            *grow_buf;
-    pthread_cond_t     *flush_cond;
-    pthread_mutex_t    *flush_lock;
-} SOS_async_buf_pair;
-
-typedef struct {
-    double              pack;
-    double              send;
-    double              recv;
-} SOS_time;
-
-typedef struct {
-    SOS_val_freq        freq;
-    SOS_val_semantic    semantic;
-    SOS_val_class       classifier;
-    SOS_val_pattern     pattern;
-    SOS_val_compare     compare;
-    SOS_mood            mood;
-} SOS_val_meta;
-
-typedef struct {
-    int                 elem;
-    SOS_guid            guid;
-    SOS_val             val;
-    SOS_time            time;
-    long                frame;
-    SOS_val_semantic    semantic;
-    SOS_mood            mood;
-    void               *next;
-    int                 visits;  /* TODO: { MEMORY } Debugging snapshots going missing... */
-} SOS_val_snap;
-
-typedef struct {
-    void               *sos_context;
-    qhashtbl_t         *from;
-    pthread_mutex_t    *lock;
-} SOS_val_snap_queue;
-
-typedef struct {
-    SOS_guid            guid;
-    int                 val_len;
-    SOS_val             val;
-    SOS_val_type        type;
-    SOS_val_meta        meta;
-    SOS_val_state       state;
-    SOS_time            time;
-    char                name[SOS_DEFAULT_STRING_LEN];
-} SOS_data;
-
-typedef struct {
-    int                 channel;
-    SOS_nature          nature;
-    SOS_layer           layer;
-    SOS_pri             pri_hint;
-    SOS_scope           scope_hint;
-    SOS_retain          retain_hint;
-} SOS_pub_meta;
-
-typedef struct {
-    void               *sos_context;
-    SOS_guid            guid;
-    char                guid_str[SOS_DEFAULT_STRING_LEN];
-    int                 process_id;
-    int                 thread_id;
-    int                 comm_rank;
-    SOS_pub_meta        meta;
-    int                 announced;
-    long                frame;
-    int                 elem_max;
-    int                 elem_count;
-    int                 pragma_len;
-    unsigned char       pragma_msg[SOS_DEFAULT_STRING_LEN];
-    char                node_id[SOS_DEFAULT_STRING_LEN];
-    char                prog_name[SOS_DEFAULT_STRING_LEN];
-    char                prog_ver[SOS_DEFAULT_STRING_LEN];
-    char                title[SOS_DEFAULT_STRING_LEN];
-    SOS_data          **data;
-    qhashtbl_t         *name_table;
-    SOS_val_snap_queue *snap_queue;
-} SOS_pub;
-
-
-typedef struct {
-    SOS_guid            guid;
-    SOS_guid            client_guid;
-    char                handle[SOS_DEFAULT_STRING_LEN];
-    char                crypto_key[SOS_DEFAULT_STRING_LEN];
-    void               *target;
-    SOS_feedback        target_type;
-    int                 daemon_trigger_count;
-    int                 client_receipt_count;
-} SOS_sensitivity;
-
-
-typedef struct {
-    SOS_guid            guid;
-    SOS_guid            source_guid;
-    char                handle[SOS_DEFAULT_STRING_LEN];
-    SOS_feedback        feedback;
-    void               *data;
-    int                 data_len;
-    int                 apply_count; /* -1 == constant */
-} SOS_action;
-
-
-typedef struct {
-    char               *sql;
-    int                 sql_len;
-    SOS_action          action;
-} SOS_trigger;
-
-
-typedef struct {
-    char               *server_host;
-    char               *server_port;
-    struct addrinfo    *server_addr;
-    struct addrinfo    *result_list;
-    struct addrinfo     server_hint;
-    struct addrinfo    *client_addr;
-    int                 timeout;
-    int                 buffer_len;
-    pthread_mutex_t    *send_lock;
-} SOS_socket_set;
-
-typedef struct {
-    int                 msg_size;
-    SOS_msg_type        msg_type;
-    SOS_guid            msg_from;
-    SOS_guid            pub_guid;
-} SOS_msg_header;
-
-typedef struct {
-    int                 argc;
-    char              **argv;
-    char               *node_id;
-    int                 comm_rank;
-    int                 comm_size;
-    int                 comm_support;
-    int                 process_id;
-    int                 thread_id;
-    SOS_layer           layer;
-    bool                offline_test_mode;
-} SOS_config;
-
-typedef struct {
-    void               *sos_context;
-    long                next;
-    long                last;
-    pthread_mutex_t    *lock;
-} SOS_uid;
-
-typedef struct {
-    SOS_uid            *local_serial;
-    SOS_uid            *my_guid_pool;
-} SOS_unique_set;
-
-typedef struct {
-    void               *sos_context;
-    int                 read_elem;
-    int                 write_elem;
-    int                 elem_count;
-    int                 elem_max;
-    int                 elem_size;
-    long               *heap;
-    pthread_mutex_t    *lock;
-} SOS_ring_queue;
-
-typedef struct {
-    SOS_ring_queue     *send;
-    SOS_ring_queue     *recv;
-} SOS_ring_set;
-
-typedef struct {
-    pthread_t          *feedback;
-    pthread_mutex_t    *feedback_lock;
-    pthread_cond_t     *feedback_cond;
-    qhashtbl_t         *sense_table;
-    SOS_val_snap_queue *val_intake;
-    SOS_val_snap_queue *val_outlet;
-} SOS_task_set;
-
-typedef struct {
-    SOS_config          config;
-    SOS_role            role;
-    SOS_status          status;
-    SOS_unique_set      uid;
-    SOS_ring_set        ring;
-    SOS_task_set        task;
-    SOS_socket_set      net;
-    SOS_guid            my_guid;
-} SOS_runtime;
-
-
-
-
-/*
- *
- * ----------
- */
-
 /* Required if included by C++ code. */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
-    void      SOS_send_to_daemon(SOS_runtime *sos_context, unsigned char *buffer, int buffer_len, unsigned char *reply, int reply_len);
-    void      SOS_finalize(SOS_runtime *sos_context);
+    /* --- "public" functions for users of SOS --- */
 
-    SOS_pub*  SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
+    SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
+    SOS_pub*     SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
+    int          SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
+    int          SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
+    void         SOS_announce(SOS_pub *pub);
+    void         SOS_publish(SOS_pub *pub);
+    int          SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *your_data));
+    void         SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
+    void         SOS_finalize(SOS_runtime *sos_context);
+
+
+
+    /* --- "private" functions used by SOS / SOSD --- */
+
     SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
     int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);
-
-    int       SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data));
-    void      SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
-
-    int       SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
-    int       SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
-
-    void      SOS_announce(SOS_pub *pub);
-    void      SOS_announce_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
-    void      SOS_announce_from_buffer(SOS_pub *pub, unsigned char *buffer);
-
-    void      SOS_publish(SOS_pub *pub);
-    void      SOS_publish_to_buffer(SOS_pub *pub, unsigned char **buffer, int *buffer_len);
-    void      SOS_publish_from_buffer(SOS_pub *pub, unsigned char *buffer, SOS_val_snap_queue *opt_queue);
-
-    void      SOS_async_buf_pair_init(SOS_runtime *sos_context, SOS_async_buf_pair **buf_pair_ptr);
-    void      SOS_async_buf_pair_fflush(SOS_async_buf_pair *buf_pair);
-    void      SOS_async_buf_pair_insert(SOS_async_buf_pair *buf_pair, unsigned char *msg_ptr, int msg_len);
-    void      SOS_async_buf_pair_destroy(SOS_async_buf_pair *buf_pair);
-
+    void      SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+    void      SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub);
+    void      SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+    void      SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *optional_snap_queue);
     void      SOS_uid_init(SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
     SOS_guid  SOS_uid_next(SOS_uid *uid);
     void      SOS_uid_destroy(SOS_uid *uid);
-    
-    void      SOS_val_snap_queue_init(SOS_runtime *sos_context, SOS_val_snap_queue **queue);
-    void      SOS_val_snap_enqueue(SOS_val_snap_queue *queue, SOS_pub *pub, int elem);
-    void      SOS_val_snap_push_down(SOS_val_snap_queue *queue, char *pub_guid_str, SOS_val_snap *snap, int use_lock);
-    void      SOS_val_snap_queue_to_buffer(SOS_val_snap_queue *queue, SOS_pub *pub, unsigned char **buffer, int *buffer_len, bool drain);
-    void      SOS_val_snap_queue_from_buffer(SOS_val_snap_queue *queue, qhashtbl_t *pub_table, unsigned char *buffer, int buffer_size);
-    void      SOS_val_snap_queue_destroy(SOS_val_snap_queue *queue);
-
+    void      SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy_snaps);
+    void      SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SOS_pub *pub);
     void      SOS_strip_str(char *str);
-
-    void      SOS_ring_init(SOS_runtime *sos_context, SOS_ring_queue **ring);
-    void      SOS_ring_destroy(SOS_ring_queue *ring);
-    int       SOS_ring_put(SOS_ring_queue *ring, long item);
-    long      SOS_ring_get(SOS_ring_queue *ring);
-    long*     SOS_ring_get_all(SOS_ring_queue *ring, int *elem_returning);
-
+    void      SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
 
     /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
-
-    /* ..... [ empty stubs ] ..... */
-    void      SOS_display_pub(SOS_pub *pub, FILE *output_to);
 
 #ifdef __cplusplus
 }
 #endif
 
 
+#define max(a,b) \
+    ({ __typeof__ (a) _a = (a);                 \
+        __typeof__ (b) _b = (b);                \
+        _a > _b ? _a : _b; })
+
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
+
+#define SOS_LOCK_REENTRANT(__SOS_int_var, usec_delay)  {        \
+    timespec __SOS_spinlock_ts;                                 \
+    __SOS_spinlock_ts.tv_sec  = 0;                              \
+    __SOS_spinlock_ts.tv_usec = usec_delay;                     \
+    while (__SOS_int) {                                         \
+        nanosleep(__SOS_spinlock_ts, NULL)                      \
+    }                                                           \
+    __SOS_int += 1;
+
+#define SOS_UNLOCK_REENTRANT(__SOS_int_var) {           \
+    __SOS_int_var -= 1;
 
 #if (SOS_DEBUG < 0)
     #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
     SOS_runtime *SOS;                                                   \
-    SOS = (SOS_runtime *) __SOS_context;
+    SOS = (SOS_runtime *) __SOS_context;                                \
+    if (SOS == NULL) {                                                  \
+        printf("(%s:%s) ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n", \
+               __FILE__, __LINE__);                                     \
+        exit(EXIT_FAILURE);                                             \
+    }
 #else
     #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
     SOS_runtime *SOS;                                                   \
     SOS = (SOS_runtime *) __SOS_context;                                \
-    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
     if (SOS == NULL) {                                                  \
-        sprintf(SOS_WHOAMI, " * unknown * ");                           \
-    } else {                                                            \
-        switch (SOS->role) {                                            \
-        case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break;  \
-        case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break;       \
-        case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break;        \
-        case SOS_ROLE_CONTROL   : sprintf(SOS_WHOAMI, "control(%d).%s", SOS->config.comm_rank, __SOS_str_func); break;        \
-        default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break;       \
-        }                                                               \
+        printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n"); \
+        exit(EXIT_FAILURE);                                             \
+    }                                                                   \
+    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
+    sprintf(SOS_WHOAMI, "* ??? *");                                     \
+    switch (SOS->role) {                                                    \
+    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
+    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
+    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
+    default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
     }
 #endif
 

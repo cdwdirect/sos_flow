@@ -1,14 +1,9 @@
 
-
-
 /*
- *   Serialization code for [un]packing structs/numerics in character arrays.
- *     ... lifted from Beej's guide:  http://beej.us/guide/
- *     ... modified to prepend 'SOS_buffer_' to the function signatures.
- *     ... see end of file for an example of use.
+ *   Serialization portions of this code for [un]packing structs/numerics
+ *   inspired by Beej's guide:  http://beej.us/guide/
  *                --2015, Chad Wood
  */
-
 
 #include <stdio.h>
 #include <ctype.h>
@@ -16,11 +11,16 @@
 #include <string.h>
 #include <stdint.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "sos.h"
+#include "sos_types.h"
+#include "sos_buffer.h"
 #include "sos_debug.h"
 
-// macros for packing floats and doubles:
+
+
+// Macros for packing floats and doubles.
 #define SOS_buffer_pack754_16(f) (SOS_buffer_pack754((f), 16, 5))
 #define SOS_buffer_pack754_32(f) (SOS_buffer_pack754((f), 32, 8))
 #define SOS_buffer_pack754_64(f) (SOS_buffer_pack754((f), 64, 11))
@@ -29,12 +29,162 @@
 #define SOS_buffer_unpack754_64(i) (SOS_buffer_unpack754((i), 64, 11))
 
 
+void SOS_buffer_init(void *sos_context, SOS_buffer **buffer_obj) {
+    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_LEN, true);
+    return;
+}
+
+void SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer_obj, int max_size) {
+    SOS_buffer_init_sized_locking(sos_context, buffer_obj, max_size, true);
+    return;
+}
+
+
+void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, int max_size, bool locking) {
+    SOS_SET_CONTEXT((SOS_runtime *)sos_context, "SOS_buffer_init_sized_locking");
+    SOS_buffer *buffer;
+
+    dlog(5, "Creating buffer:\n");
+    buffer = *buffer_obj = (SOS_buffer *) malloc(sizeof(SOS_buffer));
+    memset(buffer, '\0', sizeof(SOS_buffer));
+    buffer->sos_context = sos_context;
+    buffer->max = max_size;
+    buffer->len = 0;
+
+    dlog(5, "   ... allocating storage space.\n");
+    buffer->data = (unsigned char *) malloc(buffer->max * sizeof(unsigned char));
+
+    if (buffer->data == NULL) {
+        dlog(1, "ERROR: Unable to allocate buffer space.  Terminating.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(buffer->data, 0, buffer->max);
+
+    buffer->is_locking = locking;
+    if (locking) {
+        dlog(5, "   ... creating buffer->lock.\n");
+        buffer->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        if (buffer->lock == NULL) {
+            dlog(0, "ERROR: Unable to create buffer->lock!\n");
+            exit(EXIT_FAILURE);
+        } else {
+            pthread_mutex_init(buffer->lock, NULL);
+            dlog(5, "   ... done.\n");
+        }
+    }
+
+    dlog(5, "   ...done.\n");
+
+    return;
+}
+
+
+void SOS_buffer_lock(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_lock");
+
+    if (buffer->is_locking) {
+        dlog(4, "Locking buffer: ");
+        pthread_mutex_lock(buffer->lock);
+        dlog(4, "Done.\n");
+    } else {
+        dlog(1, "WARNING: You tried to lock a non-locking buffer!\n");
+    }
+
+    return;
+}
+
+
+void SOS_buffer_unlock(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unlock");
+
+    if (buffer->is_locking) {
+        dlog(4, "Unlocking buffer: ");
+        pthread_mutex_unlock(buffer->lock);
+        dlog(4, "Done.\n");
+    } else {
+        dlog(1, "WARNING: You tried to unlock a non-locking buffer!\n");
+    }
+
+    return;
+}
+
+
+void SOS_buffer_destroy(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_destroy");
+
+    if (buffer == NULL) {
+        dlog(0, "ERROR: You called SOS_buffer_destroy() on a NULL buffer!  Terminating.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    dlog(5, "Destroying buffer:\n");
+    if (buffer->is_locking) {
+        SOS_buffer_lock(buffer);
+        dlog(5, "   ... destroying mutex.\n");
+        pthread_mutex_destroy(buffer->lock);
+        free(buffer->lock);
+    }
+    dlog(5, "   ... free'ing data\n");
+    free(buffer->data);
+    dlog(5, "   ... free'ing object\n")
+    free(buffer);
+    dlog(5, "   ... done.\n");
+    return;
+}
+
+
+void SOS_buffer_wipe(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_wipe");
+
+    dlog(5, "Wiping out buffer:\n");
+    memset(buffer->data, '\0', buffer->max);
+    buffer->len = 0;
+    dlog(5, "   ... done.   (buffer->max == %d)\n", buffer->max);
+    return;
+}
+
+
+void SOS_buffer_grow(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
+
+    dlog(5, "Growing buffer:\n");
+    buffer->max += SOS_DEFAULT_BUFFER_LEN;
+    buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
+    if (buffer->data == NULL) {
+        dlog(0, "ERROR: Unable to expand buffer!\n");
+        dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(5, "   ... done.\n");
+    }
+    return;
+
+}
+
+
+void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_trim");
+
+    if (buffer->max == to_new_max) return;
+
+    dlog(5, "Trimming buffer:\n");
+    dlog(5, "   ... realloc()'ing from %d to %zd bytes.\n", buffer->max, to_new_max);
+    buffer->data = (unsigned char *) realloc(buffer->data, to_new_max);
+    if (buffer->data == NULL) {
+        dlog(0, "ERROR: Unable to trim buffer!\n");
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(5, "   ... done.\n");
+    }
+    return;
+}
 
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format
 */ 
 
-uint64_t SOS_buffer_pack754(double f, unsigned bits, unsigned expbits)
+uint64_t SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits)
 {
     //----------
     double fnorm;
@@ -101,7 +251,7 @@ double SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits)
 /*
 ** packi32() -- store a 32-bit int into a char buffer (like htonl())
 */
-void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
+void SOS_buffer_packi32(unsigned char *buf, int i)
 {
     *buf++ = i>>24; *buf++ = i>>16;
     *buf++ = i>>8;  *buf++ = i;
@@ -111,7 +261,7 @@ void SOS_buffer_packi32(unsigned char *buf, unsigned long int i)
 /*
 ** packi64() -- store a 64-bit int into a char buffer (like htonl())
 */ 
-void SOS_buffer_packi64(unsigned char *buf, unsigned long long int i)
+void SOS_buffer_packi64(unsigned char *buf, int64_t i)
 {
     *buf++ = i>>56; *buf++ = i>>48;
     *buf++ = i>>40; *buf++ = i>>32;
@@ -212,29 +362,39 @@ uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 
 
 /*
-** pack() -- store data dictated by the format string in the buffer
+** SOS_buffer_pack() -- store data dictated by the format string in the buffer
 **
 */
 
-int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...) {
-    SOS_SET_CONTEXT(sos_context, "SOS_buffer_pack");
+int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_pack");
 
     va_list ap;
 
+    while (*offset >= buffer->max) {
+        SOS_buffer_grow(buffer);
+    }
+    char   *buf = (buffer->data + *offset);
+
     int      i;           // 32-bit
     long     l;           // 64-bit
-    SOS_guid g;           // GUID (64-bit uint)
     double   d;           // double
+    SOS_guid g;           // GUID (64-bit uint)
+    char    *s;           // strings
+    unsigned char   *b;   // bytes (raw data array, blob, etc)
+    unsigned char    false_b = '\0';
+
     uint64_t fhold;
 
-    char *s;           // strings
     int len;
+    unsigned int datalen;
 
     int packed_bytes;  // how many bytes have been packed...
 
     dlog(20, "Packing the following format string: \"%s\"\n", format);
 
     packed_bytes = 0;
+    datalen = 0;
 
     va_start(ap, format);
 
@@ -254,18 +414,18 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
             buf += 8;
             packed_bytes += 8;
             break;
-        case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
-            g = va_arg(ap, SOS_guid);
-            dlog(20, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
-            SOS_buffer_packguid(buf, g);
-            buf += 8;
-            packed_bytes += 8;
-            break;
         case 'd': // float-64
             d = va_arg(ap, double);
             dlog(20, "  ... packing d @ %d:   %lf   [64-bit float]\n", packed_bytes, (double) d);
             fhold = SOS_buffer_pack754_64(d); // convert to IEEE 754
             SOS_buffer_packi64(buf, fhold);
+            buf += 8;
+            packed_bytes += 8;
+            break;
+        case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
+            g = va_arg(ap, SOS_guid);
+            dlog(20, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
+            SOS_buffer_packguid(buf, g);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -280,11 +440,38 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
             buf += len;
             packed_bytes += len;
             break;
-        }
-    }
+        case 'b': // bytes
+            b = va_arg(ap, unsigned char*);
+            len = datalen;
+            if (len < 1) {
+                dlog(1, "  ... WARNING: You're trying to pack SOS_VAL_TYPE_BYTES w/out specifying a count!\n");
+                dlog(1, "  ... WARNING: Length is given inline before the 'b' format: \"ii##b#biisll###ggi\"... etc.\n");
+                dlog(1, "  ... WARNING: To prevent crashes, a single empty character is being packed.\n");
+                len = 1;
+                b = &false_b;
+            }
+            dlog(20, "  ... packing b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            SOS_buffer_packi32(buf, len);
+            buf += 4;
+            packed_bytes += 4;
+            memcpy(buf, b, len);
+            buf += len;
+            packed_bytes += len;
+            break;
+
+        default:
+            if (isdigit(*format)) { // track byte-data length
+                datalen = datalen * 10 + (*format-'0');
+            }
+        }//switch
+        if (!isdigit(*format)) datalen = 0;
+    }//for
 
     va_end(ap);
     dlog(20, "  ... done\n");
+
+    *offset     += packed_bytes;
+    buffer->len  = (buffer->len > *offset) ? buffer->len : *offset;
 
     return packed_bytes;
 }
@@ -296,25 +483,36 @@ int SOS_buffer_pack(SOS_runtime *sos_context, unsigned char *buf, char *format, 
 **  following the instructions in the format string.
 **
 */
-int SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format, ...) {
-    SOS_SET_CONTEXT(sos_context, "SOS_buffer_unpack");
+int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack");
 
     va_list ap;
+
+    while (*offset >= buffer->max) {
+        dlog(0, "WARNING: Attempting to read beyond the end of a buffer!\n");
+        dlog(0, "WARNING:   buffer->max == %d, SOS_unpack() w/offset == %d\n", buffer->max, *offset);
+        dlog(0, "WARNING: ...growing the buffer.\n");
+        SOS_buffer_grow(buffer);
+    }
+    char   *buf = (buffer->data + *offset);
 
     int      *i;       // 32-bit
     long     *l;       // 64-bit
     SOS_guid *g;       // GUID (64-bit uint)
     double   *d;       // double (64-bit)
+    char     *s;       // string
+    unsigned char *b;  // bytes (raw data)
+
     uint64_t  fhold;
-    char     *s;
 
-    unsigned int len, maxstrlen=0, count;
-
+    unsigned int len, count;
+    unsigned int maxlen;
     int packed_bytes;
 
     dlog(20, "Unpacking the following format string: \"%s\"\n", format);
 
     packed_bytes = 0;
+    maxlen = 0;
 
     va_start(ap, format);
 
@@ -354,7 +552,7 @@ int SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format
             len = SOS_buffer_unpacki32(buf);
             buf += 4;
             packed_bytes += 4;
-            if (maxstrlen > 0 && len > maxstrlen) count = maxstrlen - 1;
+            if (maxlen > 0 && len > maxlen) count = maxlen - 1;
             else count = len;
             if (s == NULL) {
                 s = (char *) calloc((count + 1), sizeof(char));
@@ -365,20 +563,35 @@ int SOS_buffer_unpack(SOS_runtime *sos_context, unsigned char *buf, char *format
             buf += len;
             packed_bytes += len;
             break;
+        case 'b': // bytes
+            b = va_arg(ap, unsigned char*);
+            len = SOS_buffer_unpacki32(buf);
+            buf += 4;
+            packed_bytes += 4;
+            if (maxlen > 0 && len > maxlen) count = maxlen - 1;
+            else count = len;
+            if (b == NULL) {
+                b = (unsigned char *) calloc((count + 1), sizeof(unsigned char));
+            }
+            memcpy(s, buf, count);
+            dlog(20, "  ... unpacked b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, b, len);
+            buf += len;
+            packed_bytes += len;
+            break;
 
         default:
             if (isdigit(*format)) { // track max str len
-                maxstrlen = maxstrlen * 10 + (*format-'0');
+                maxlen = maxlen * 10 + (*format-'0');
             }
-        }
-
-        if (!isdigit(*format)) maxstrlen = 0;
+        }//switch
+        if (!isdigit(*format)) maxlen = 0;
     }
 
     va_end(ap);
     dlog(20, "  ... done\n");
     
 
+    *offset += packed_bytes;
     return packed_bytes;
 }
 

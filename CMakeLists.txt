@@ -24,12 +24,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 set(PROJECT_NAME sos_flow)
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
-if(APPLE)
-    #set(CMAKE_C_COMPILER "/usr/bin/c99")
-else()
-endif()
-
 project(${PROJECT_NAME} C)
+set(CMAKE_C_FLAGS "-std=gnu99 -g -O0")
+#set(CMAKE_C_FLAGS "-std=gnu99 -Ofast")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")

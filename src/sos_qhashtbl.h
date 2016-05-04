@@ -39,7 +39,6 @@ extern "C" {
 #include <stdbool.h>
 #include <stdint.h>
 
-
 typedef struct qhnobj_s qhnobj_t;  
 typedef struct qhslot_s qhslot_t;  
 typedef struct qhashtbl_s qhashtbl_t;

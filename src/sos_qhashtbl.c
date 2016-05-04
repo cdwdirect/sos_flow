@@ -95,7 +95,8 @@
 #include <stdarg.h>
 #include <string.h>
 #include <errno.h>
-#include "qhashtbl.h"
+
+#include "sos_qhashtbl.h"
 
 
 // member methods
@@ -280,7 +281,7 @@ static bool put(qhashtbl_t *tbl, const char *fullpath, const void *data)
         return false;
 
     int keylen = strlen(fullpath);
-    char *key = strdup (fullpath);
+    char *key = strdup(fullpath);
 
     return qhput (tbl, key, keylen, data);
 }
@@ -359,7 +360,7 @@ static void *get(qhashtbl_t *tbl, const char *fullpath)
         return NULL;
 
     int keylen = strlen(fullpath);
-    char *key = strdup (fullpath);
+    char *key = strdup(fullpath);
 
     void * data = qhget (tbl, key, keylen);
     free (key);

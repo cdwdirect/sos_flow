@@ -45,9 +45,7 @@ int main(int argc, char *argv[]) {
     int    JITTER_ENABLED;
     double JITTER_INTERVAL;
 
-    #if (SOSD_CLOUD_SYNC > 0)
     MPI_Init(&argc, &argv);
-    #endif
 
     /* Process command-line arguments */
     if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -203,14 +201,9 @@ int main(int argc, char *argv[]) {
     /* Catch any stragglers. */
     SOS_publish(pub);
     dlog(0, "  ... done.\n");
-    
-    printf("demo_app finished successfully!\n"); fflush(stdout);
 
+    dlog(0, "demo_app finished successfully!\n");
     SOS_finalize(my_sos);
-
-    #if (SOSD_CLOUD_SYNC > 0)
     MPI_Finalize();
-    #endif
-    
     return (EXIT_SUCCESS);
 }
