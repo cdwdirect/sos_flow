@@ -130,8 +130,10 @@ int main(int argc, char *argv[])  {
     dlog(0, "Initializing the sync framework...\n");
     SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), (void *) SOSD_THREAD_db_sync);
     #ifdef SOSD_CLOUD_SYNC
-    SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), (void *) SOSD_THREAD_cloud_sync);
-    SOSD_cloud_start();
+    if (SOS->role == SOS_ROLE_DAEMON) {
+        SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), (void *) SOSD_THREAD_cloud_sync);
+        SOSD_cloud_start();
+    }
     #else
     #endif
     SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), (void *) SOSD_THREAD_local_sync);
@@ -269,7 +271,10 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_PUBLISH:
         case SOS_MSG_TYPE_VAL_SNAPS:
             dlog(5, "  ... [ddd] <---- pushing buffer @ [%ld] onto the local_sync queue. buffer->len == %d   (%s)\n", (long) buffer, buffer->len, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE));
+            pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
             pipe_push(SOSD.sync.local.queue->intake, (void *) &buffer, 1);
+            SOSD.sync.local.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
             buffer = NULL;
             SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_LEN, false);
             //Send generic ACK message back to the client:
@@ -303,6 +308,7 @@ void SOSD_listen_loop() {
 void* SOSD_THREAD_local_sync(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
     SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_local_sync");
+    struct timeval   now;
     struct timespec  wait;
     SOS_msg_header   header;
     SOS_buffer      *buffer;
@@ -310,8 +316,10 @@ void* SOSD_THREAD_local_sync(void *args) {
     int              count;
 
     pthread_mutex_lock(my->lock);
-    wait.tv_sec  = 0;
-    wait.tv_nsec = 10000;
+
+    gettimeofday(&now, NULL);
+    wait.tv_sec  = 0 + (now.tv_sec);
+    wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
         buffer = NULL;
@@ -327,8 +335,9 @@ void* SOSD_THREAD_local_sync(void *args) {
 
         if (buffer == NULL) {
             dlog(6, "   ... *buffer == NULL!\n");
-            wait.tv_sec  = 0;
-            wait.tv_nsec = 10000;
+            gettimeofday(&now, NULL);
+            wait.tv_sec  = 0 + (now.tv_sec);
+            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
         }
 
@@ -347,15 +356,25 @@ void* SOSD_THREAD_local_sync(void *args) {
             dlog(0, "ERROR: An invalid message type (%d) was placed in the local_sync queue!\n", header.msg_type);
             dlog(0, "ERROR: Destroying it.\n");
             SOS_buffer_destroy(buffer);
-            wait.tv_sec  = 0;
-            wait.tv_nsec = 10000;
+            gettimeofday(&now, NULL);
+            wait.tv_sec  = 0 + (now.tv_sec);
+            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
-         }
+        }
 
-        pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
+        if (SOS->role == SOS_ROLE_DAEMON) {
+            pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
+            pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
+            SOSD.sync.cloud.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
+        } else {
+            //DB role's can go ahead and release the buffer.
+            SOS_buffer_destroy(buffer);
+        }
 
-        wait.tv_sec  = 0;
-        wait.tv_nsec = 10000;
+        gettimeofday(&now, NULL);
+        wait.tv_sec  = 0 + (now.tv_sec);
+        wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     }
 
     pthread_mutex_unlock(my->lock);
@@ -450,6 +469,8 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     int              offset;
     int              msg_offset;
 
+    SOS_buffer_init_sized_locking(SOS, &buffer, (1000 * SOS_DEFAULT_BUFFER_LEN), false);
+
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
     wait.tv_sec  = 0 + (now.tv_sec);
@@ -457,8 +478,12 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
+        //dlog(0, "Waking up.\n");
+
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
+
+        //dlog(0, "   ...queue_depth == %d\n", queue_depth);
 
         if (queue_depth > 0) {
             msg_list = (SOS_buffer **) malloc(queue_depth * sizeof(SOS_buffer *));

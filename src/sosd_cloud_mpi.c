@@ -439,12 +439,14 @@ int SOSD_cloud_start() {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_start");
     int rc;
 
+    /*
     if (SOS->role != SOS_ROLE_DB) {
         if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
         SOSD.sync.cloud.handler = (pthread_t *) malloc(sizeof(pthread_t));
         rc = pthread_create(SOSD.sync.cloud.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud);
         if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     }
+    */
 
     pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
 
