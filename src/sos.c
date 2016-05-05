@@ -232,6 +232,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
             dlog(1, "   ... registration message sent.   (retval == %d)\n", retval);
         }
 
+        SOS_buffer_wipe(buffer);
+
         dlog(1, "  ... listening for the server to reply...\n");
         buffer->len = recv( server_socket_fd, (void *) buffer->data, buffer->max, 0);
         dlog(6, "  ... server responded with %d bytes.\n", retval);

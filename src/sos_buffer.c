@@ -151,6 +151,7 @@ void SOS_buffer_grow(SOS_buffer *buffer) {
     dlog(5, "Growing buffer:\n");
     buffer->max += SOS_DEFAULT_BUFFER_LEN;
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
+
     if (buffer->data == NULL) {
         dlog(0, "ERROR: Unable to expand buffer!\n");
         dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
@@ -398,9 +399,15 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     for(; *format != '\0'; format++) {
 
         //Auto-grow a buffer if needed.
-        //while ((*offset + packed_bytes) >= (buffer->max - SOS_DEFAULT_BUFFER_MIN)) {
-        //    SOS_buffer_grow(buffer);
-        // }
+        /*while ((*offset + packed_bytes) >= (buffer->max - SOS_DEFAULT_BUFFER_MIN)) {
+            dlog(0, "Growing... (%d + %d) >= (%d - %d)\n", 
+                 *offset,
+                 packed_bytes, 
+                 buffer->max,
+                 SOS_DEFAULT_BUFFER_MIN);
+
+            SOS_buffer_grow(buffer);
+            }*/
 
         switch(*format) {
         case 'i': // 32-bit

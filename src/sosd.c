@@ -271,7 +271,10 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_PUBLISH:
         case SOS_MSG_TYPE_VAL_SNAPS:
             dlog(5, "  ... [ddd] <---- pushing buffer @ [%ld] onto the local_sync queue. buffer->len == %d   (%s)\n", (long) buffer, buffer->len, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE));
+            pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
             pipe_push(SOSD.sync.local.queue->intake, (void *) &buffer, 1);
+            SOSD.sync.local.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
             buffer = NULL;
             SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_LEN, false);
             //Send generic ACK message back to the client:
@@ -333,7 +336,7 @@ void* SOSD_THREAD_local_sync(void *args) {
         if (buffer == NULL) {
             dlog(6, "   ... *buffer == NULL!\n");
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 1 + (now.tv_sec);
+            wait.tv_sec  = 0 + (now.tv_sec);
             wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
         }
@@ -354,7 +357,7 @@ void* SOSD_THREAD_local_sync(void *args) {
             dlog(0, "ERROR: Destroying it.\n");
             SOS_buffer_destroy(buffer);
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 1 + (now.tv_sec);
+            wait.tv_sec  = 0 + (now.tv_sec);
             wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
         }
@@ -370,7 +373,7 @@ void* SOSD_THREAD_local_sync(void *args) {
         }
 
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 1 + (now.tv_sec);
+        wait.tv_sec  = 0 + (now.tv_sec);
         wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     }
 
@@ -405,7 +408,7 @@ void* SOSD_THREAD_db_sync(void *args) {
         } else {
             pthread_mutex_unlock(my->queue->sync_lock);
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 1 + (now.tv_sec);
+            wait.tv_sec  = 0 + (now.tv_sec);
             wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
         }
@@ -440,7 +443,7 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         free(task_list);
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 1 + (now.tv_sec);
+        wait.tv_sec  = 0 + (now.tv_sec);
         wait.tv_nsec = 5000000 + (1000 * now.tv_usec);
 
     }
@@ -466,21 +469,21 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     int              offset;
     int              msg_offset;
 
-    SOS_buffer_init(SOS, &buffer);
+    SOS_buffer_init_sized_locking(SOS, &buffer, (1000 * SOS_DEFAULT_BUFFER_LEN), false);
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
-    wait.tv_sec  = 1 + (now.tv_sec);
+    wait.tv_sec  = 0 + (now.tv_sec);
     wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
-        dlog(0, "Waking up.\n");
+        //dlog(0, "Waking up.\n");
 
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
 
-        dlog(0, "   ...queue_depth == %d\n", queue_depth);
+        //dlog(0, "   ...queue_depth == %d\n", queue_depth);
 
         if (queue_depth > 0) {
             msg_list = (SOS_buffer **) malloc(queue_depth * sizeof(SOS_buffer *));
@@ -488,7 +491,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
             //Going back to sleep.
             pthread_mutex_unlock(my->queue->sync_lock);
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 1 + (now.tv_sec);
+            wait.tv_sec  = 0 + (now.tv_sec);
             wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
             continue;
         }
@@ -536,7 +539,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         free(msg_list);
 
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 1 + (now.tv_sec);
+        wait.tv_sec  = 0 + (now.tv_sec);
         wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
     }
 
