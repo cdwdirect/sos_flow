@@ -246,6 +246,21 @@ void SOSD_listen_loop() {
             continue;
         }
 
+        /* Check the size of the message. We may not have gotten it all. */
+        if (header.msg_size > buffer->max) {
+            int old = buffer->max;
+            while (header.msg_size > buffer->max) {
+                SOS_buffer_grow(buffer);
+            }
+            int rest = recv(SOSD.net.client_socket_fd, (void *) (buffer->data + old), buffer->max - old, 0);
+            dlog(6, "  ... recv() returned %d more bytes.\n", rest);
+
+            if (rest < 0) {
+                dlog(1, "  ... recv() call returned an errror.  (%s)\n", strerror(errno));
+            }
+            buffer->len += rest;
+        }
+
         dlog(5, "Received connection.\n");
         dlog(5, "  ... msg_size == %d         (buffer->len == %d)\n", header.msg_size, buffer->len);
         switch (header.msg_type) {
