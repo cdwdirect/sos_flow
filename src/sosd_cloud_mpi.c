@@ -331,9 +331,9 @@ void SOSD_cloud_listen_loop(void) {
             default:                      SOSD_handle_unknown    (msg); break;
             }
 
-            SOS_buffer_destroy(msg);
         }
     }
+    SOS_buffer_destroy(msg);
 
     /* Join with the daemon's and close out together... */
     MPI_Barrier(MPI_COMM_WORLD);

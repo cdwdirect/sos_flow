@@ -480,7 +480,11 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         dlog(5, "     ... binding values\n");
 
         CALL_SQLITE (bind_int64  (stmt_insert_val, 1,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, 1 + strlen(val), SQLITE_STATIC ));
+        if (val != NULL) {
+            CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, 1 + strlen(val), SQLITE_STATIC ));
+        } else {
+            CALL_SQLITE (bind_text   (stmt_insert_val, 2,  "", 1, SQLITE_STATIC ));
+        }
         CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
         __BIND_ENUM (stmt_insert_val, 4,  semantic     );
         __BIND_ENUM (stmt_insert_val, 5,  mood         );
