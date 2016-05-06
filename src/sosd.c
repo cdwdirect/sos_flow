@@ -526,6 +526,10 @@ void* SOSD_THREAD_cloud_sync(void *args) {
                 header.msg_from,
                 header.pub_guid);
 
+            while ((header.msg_size + offset) > buffer->len) {
+                SOS_buffer_grow(buffer);
+            }
+
             memcpy((buffer->data + offset), (msg->data + offset), (header.msg_size - msg_offset));
             offset += (header.msg_size - msg_offset);
 

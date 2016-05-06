@@ -259,7 +259,6 @@ void SOSD_cloud_listen_loop(void) {
     int             entry;
 
     SOS_buffer_init(SOS, &buffer);
-    SOS_buffer_init(SOS, &msg);
 
     while(SOSD.daemon.running) {
         entry_count = 0;

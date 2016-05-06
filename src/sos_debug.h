@@ -26,8 +26,8 @@
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           0
-#define SOSD_ECHO_TO_STDOUT       0
+#define SOSD_DAEMON_LOG           10
+#define SOSD_ECHO_TO_STDOUT       1
 
 int     sos_daemon_lock_fptr;
 FILE   *sos_daemon_log_fptr;

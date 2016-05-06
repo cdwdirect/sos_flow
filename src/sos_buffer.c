@@ -149,6 +149,9 @@ void SOS_buffer_grow(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
 
     dlog(5, "Growing buffer:\n");
+
+    dlog(0, "[zzz] buffer->max == %d     [ SOS_DEFAULT_BUFFER_LEN == %d ]\n", buffer->max, SOS_DEFAULT_BUFFER_LEN);
+
     buffer->max += SOS_DEFAULT_BUFFER_LEN;
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
 
