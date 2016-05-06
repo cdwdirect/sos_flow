@@ -58,7 +58,7 @@ extern "C" {
 
     SOS_runtime* SOS_init(int *argc, char ***argv, SOS_role role, SOS_layer layer);
     SOS_pub*     SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
-    int          SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val);
+    int          SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack_val_var);
     int          SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
     void         SOS_announce(SOS_pub *pub);
     void         SOS_publish(SOS_pub *pub);
@@ -91,11 +91,8 @@ extern "C" {
 }
 #endif
 
-#ifndef max
-#define max(a,b) \
-    ({ __typeof__ (a) _a = (a);                 \
-        __typeof__ (b) _b = (b);                \
-        _a > _b ? _a : _b; })
+#ifndef SOS_max
+#define SOS_max(a,b) ((a > b) ? a : b)
 #endif
 
 #define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }

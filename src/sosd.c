@@ -128,15 +128,15 @@ int main(int argc, char *argv[])  {
     SOSD_db_init_database();
 
     dlog(0, "Initializing the sync framework...\n");
-    SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), (void *) SOSD_THREAD_db_sync);
+    SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_DAEMON) {
-        SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), (void *) SOSD_THREAD_cloud_sync);
+        SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), SOSD_THREAD_cloud_sync);
         SOSD_cloud_start();
     }
     #else
     #endif
-    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), (void *) SOSD_THREAD_local_sync);
+    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
 
 
     dlog(0, "Entering listening loop...\n");
@@ -450,6 +450,9 @@ void* SOSD_THREAD_db_sync(void *args) {
             case SOS_MSG_TYPE_ANNOUNCE:   dlog(6, "[zzz] ANNOUNCE\n"); SOSD_db_insert_pub(task->pub); break;
             case SOS_MSG_TYPE_PUBLISH:    dlog(6, "[zzz] PUBLISH-\n"); SOSD_db_insert_data(task->pub); break;
             case SOS_MSG_TYPE_VAL_SNAPS:  dlog(6, "[zzz] SNAPS---\n"); SOSD_db_insert_vals(task->pub, task->pub->snap_queue, NULL); break;
+            default:
+                dlog(0, "WARNING: Invalid task->type value at task_list[%d].   (%d)\n",
+                     task_index, task->type);
             }
             free(task);
         }
@@ -892,7 +895,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 void SOSD_handle_check_in(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_check_in");
     SOS_msg_header header;
-    unsigned char  function_name[SOS_DEFAULT_STRING_LEN] = {0};
+    char           function_name[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_buffer    *reply;
     int            offset;
     int            i;
@@ -1220,13 +1223,13 @@ void SOSD_init() {
 
     pthread_mutex_init(sync_context->lock, NULL);
     pthread_cond_init(sync_context->cond, NULL);
-    pthread_create(sync_context->handler, NULL, (void *) thread_func, (void *) sync_context);
+    pthread_create(sync_context->handler, NULL, thread_func, (void *) sync_context);
 
     return;
 }
 
 
-void SOSD_claim_guid_block(SOS_uid *id, int size, long *pool_from, long *pool_to) {
+void SOSD_claim_guid_block(SOS_uid *id, int size, SOS_guid *pool_from, SOS_guid *pool_to) {
     SOS_SET_CONTEXT(id->sos_context, "SOSD_guid_claim_range");
 
     pthread_mutex_lock( id->lock );
