@@ -37,16 +37,17 @@ sleep 1
 echo ""
 echo ""
 echo ""
-echo "*** Shutting down the daemon..."
+#echo "*** Shutting down the daemon..."
+#echo ""
+#echo ""
+#$SOS_ROOT/bin/sosd_stop
+echo "SKIPPING SHUTDOWN!"
 echo ""
 echo ""
-$SOS_ROOT/bin/sosd_stop
 echo ""
-echo ""
-echo ""
-echo "*** Pausing for I/O flush (sleep 2) and displaying [showdb] results..."
-echo ""
-echo ""
-sleep 2
-$SOS_ROOT/src/showdb
-echo ""
+#echo "*** Pausing for I/O flush (sleep 2) and displaying [showdb] results..."
+#echo ""
+#echo ""
+#sleep 2
+#$SOS_ROOT/src/showdb
+#echo ""

@@ -27,6 +27,16 @@
 #define SOSD_PUB_ANN_LOCAL           77
 #define SOSD_PUB_ANN_CLOUD           88
 
+#define SOSD_LOCAL_SYNC_WAIT_SEC     0
+#define SOSD_CLOUD_SYNC_WAIT_SEC     1
+#define SOSD_DB_SYNC_WAIT_SEC        1
+
+#define SOSD_LOCAL_SYNC_WAIT_NSEC    50000000
+#define SOSD_CLOUD_SYNC_WAIT_NSEC    50000000
+#define SOSD_DB_SYNC_WAIT_NSEC       50000000
+
+
+
 #define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
 
 #define SOSD_PACK_ACK(__buffer) {                                       \

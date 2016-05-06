@@ -36,6 +36,7 @@
     STATUS(SOS_STATUS___MAX)
     
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
+    MSG_TYPE(SOS_MSG_TYPE_NULLMSG)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
     MSG_TYPE(SOS_MSG_TYPE_GUID_BLOCK)           \
     MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \

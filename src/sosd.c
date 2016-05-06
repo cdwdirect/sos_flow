@@ -333,8 +333,8 @@ void* SOSD_THREAD_local_sync(void *args) {
     pthread_mutex_lock(my->lock);
 
     gettimeofday(&now, NULL);
-    wait.tv_sec  = 0 + (now.tv_sec);
-    wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+    wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+    wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
         buffer = NULL;
@@ -351,8 +351,8 @@ void* SOSD_THREAD_local_sync(void *args) {
         if (buffer == NULL) {
             dlog(6, "   ... *buffer == NULL!\n");
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 0 + (now.tv_sec);
-            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+            wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+            wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
             continue;
         }
 
@@ -372,8 +372,8 @@ void* SOSD_THREAD_local_sync(void *args) {
             dlog(0, "ERROR: Destroying it.\n");
             SOS_buffer_destroy(buffer);
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 0 + (now.tv_sec);
-            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+            wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+            wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
             continue;
         }
 
@@ -388,8 +388,8 @@ void* SOSD_THREAD_local_sync(void *args) {
         }
 
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 0 + (now.tv_sec);
-        wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+        wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+        wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     }
 
     pthread_mutex_unlock(my->lock);
@@ -410,8 +410,8 @@ void* SOSD_THREAD_db_sync(void *args) {
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
-    wait.tv_sec  = 0 + (now.tv_sec);
-    wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+    wait.tv_sec  = SOSD_DB_SYNC_WAIT_SEC  + (now.tv_sec);
+    wait.tv_nsec = SOSD_DB_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
@@ -423,8 +423,8 @@ void* SOSD_THREAD_db_sync(void *args) {
         } else {
             pthread_mutex_unlock(my->queue->sync_lock);
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 0 + (now.tv_sec);
-            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+            wait.tv_sec  = SOSD_DB_SYNC_WAIT_SEC  + (now.tv_sec);
+            wait.tv_nsec = SOSD_DB_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
             continue;
         }
 
@@ -458,8 +458,8 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         free(task_list);
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 0 + (now.tv_sec);
-        wait.tv_nsec = 5000000 + (1000 * now.tv_usec);
+        wait.tv_sec  = SOSD_DB_SYNC_WAIT_SEC  + (now.tv_sec);
+        wait.tv_nsec = SOSD_DB_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
 
     }
 
@@ -488,8 +488,8 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
-    wait.tv_sec  = 0 + (now.tv_sec);
-    wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+    wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
+    wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
@@ -506,8 +506,8 @@ void* SOSD_THREAD_cloud_sync(void *args) {
             //Going back to sleep.
             pthread_mutex_unlock(my->queue->sync_lock);
             gettimeofday(&now, NULL);
-            wait.tv_sec  = 0 + (now.tv_sec);
-            wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+            wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
+            wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
             continue;
         }
 
@@ -535,33 +535,32 @@ void* SOSD_THREAD_cloud_sync(void *args) {
                 &header.msg_from,
                 &header.pub_guid);
 
-            SOS_buffer_pack(buffer, &offset, "iigg",
-                header.msg_size,
-                header.msg_type, 
-                header.msg_from,
-                header.pub_guid);
-
             while ((header.msg_size + offset) > buffer->max) {
                 dlog(1, "(header.msg_size == %d   +   offset == %d)  >  buffer->max == %d    (growing...)\n",
                      header.msg_size, offset, buffer->max);
                 SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
             }
 
-            memcpy((buffer->data + offset), (msg->data + offset), (header.msg_size - msg_offset));
-            offset += (header.msg_size - msg_offset);
+            dlog(1, "[ccc] (%d of %d) --> packing in msg(%15s).size == %d @ offset:%d\n",
+                (msg_index + 1), count, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+                header.msg_size, offset);
+
+            memcpy((buffer->data + offset), msg->data, header.msg_size);
+            offset += header.msg_size;
 
             SOS_buffer_destroy(msg);
         }
 
-        dlog(0, "Sending %d bytes over MPI...\n", buffer->len);
-        SOSD_cloud_send(buffer);
+        buffer->len = offset;
+        dlog(0, "[ccc] Sending %d messages in %d bytes over MPI...\n", count, buffer->len);
 
+        SOSD_cloud_send(buffer);
         SOS_buffer_wipe(buffer);
         free(msg_list);
 
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 0 + (now.tv_sec);
-        wait.tv_nsec = 50000000 + (1000 * now.tv_usec);
+        wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
+        wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     }
 
     pthread_mutex_unlock(my->lock);
