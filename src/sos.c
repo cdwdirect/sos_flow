@@ -874,9 +874,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     SOS_val     pack_val;
 
     switch(pack_type) {
-    case SOS_VAL_TYPE_INT:    pack_val.i_val = (int)    *(int *)pack_val_var; break;
-    case SOS_VAL_TYPE_LONG:   pack_val.l_val = (long)   *(long *)pack_val_var; break;
-    case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = (double) *(double *)pack_val_var; break;
+    case SOS_VAL_TYPE_INT:    pack_val.i_val = (intptr_t)pack_val_var; break;
+    case SOS_VAL_TYPE_LONG:   pack_val.l_val = (long)pack_val_var; break;
+    case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = *(double *)pack_val_var; break;
     case SOS_VAL_TYPE_STRING: pack_val.c_val = (char *)pack_val_var; break;
     case SOS_VAL_TYPE_BYTES:  pack_val.bytes = (SOS_buffer *)pack_val_var; break;
     default:
