@@ -246,6 +246,21 @@ void SOSD_listen_loop() {
             continue;
         }
 
+        /* Check the size of the message. We may not have gotten it all. */
+        if (header.msg_size > buffer->max) {
+            int old = buffer->max;
+            while (header.msg_size > buffer->max) {
+                SOS_buffer_grow(buffer);
+            }
+            int rest = recv(SOSD.net.client_socket_fd, (void *) (buffer->data + old), buffer->max - old, 0);
+            dlog(6, "  ... recv() returned %d more bytes.\n", rest);
+
+            if (rest < 0) {
+                dlog(1, "  ... recv() call returned an errror.  (%s)\n", strerror(errno));
+            }
+            buffer->len += rest;
+        }
+
         dlog(5, "Received connection.\n");
         dlog(5, "  ... msg_size == %d         (buffer->len == %d)\n", header.msg_size, buffer->len);
         switch (header.msg_type) {
@@ -1089,9 +1104,9 @@ void SOSD_init() {
      *      system logging initialize
      */
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.%d.log", SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s.local.log", SOSD.daemon.name);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Opening log file: %s\n", SOSD.daemon.log_file); fflush(stdout); }
     sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w"); /* Open a log file, even if we don't use it... */
@@ -1169,8 +1184,9 @@ void SOSD_init() {
      */
     dlog(1, "Obtaining this instance's guid range...\n");
     #if (SOSD_CLOUD_SYNC > 0)
-    SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
+        SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
         SOS_guid guid_my_first   = (SOS_guid) SOS->config.comm_rank * guid_block_size;
+        printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT, SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
         SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
         dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");

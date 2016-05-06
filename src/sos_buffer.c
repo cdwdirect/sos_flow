@@ -393,6 +393,14 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     int packed_bytes;  // how many bytes have been packed...
 
     dlog(20, "Packing the following format string: \"%s\"\n", format);
+    /* Check if the offset is more than half the buffer. this is
+     * VERY conservative, but we likely won't have to check when
+     * packing strings, later. */
+    if (*offset > ((buffer->max) >> 1)) {
+        SOS_buffer_grow(buffer);
+        // just in case the buffer moved.
+        buf = (buffer->data + *offset);
+    }
 
     packed_bytes = 0;
     datalen = 0;
@@ -570,7 +578,9 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             if (s == NULL) {
                 s = (char *) calloc((count + 1), sizeof(char));
             }
-            memcpy(s, buf, count);
+            if (count > 0) {
+                memcpy(s, buf, count);
+            }
             s[count] = '\0';
             dlog(20, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             buf += len;

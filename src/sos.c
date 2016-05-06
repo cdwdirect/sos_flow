@@ -370,19 +370,20 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
         if (recv_part->len == -1) {
             dlog(0, "Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n",
                  retval, errno, strerror(errno));
+            break;
+        } else {
+            while (reply_buffer->max < (reply_buffer->len + recv_part->len)) {
+                SOS_buffer_grow(reply_buffer);
+            }
+
+            dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
+
+            memcpy((reply_buffer->data + offset), recv_part->data, recv_part->len);
+            offset += recv_part->len;
+
+            SOS_buffer_wipe(recv_part);
+            recv_part->len = recv(server_socket_fd, recv_part->data, recv_part->max, 0);
         }
-        
-        while (reply_buffer->max < (reply_buffer->len + recv_part->len)) {
-            SOS_buffer_grow(reply_buffer);
-        }
-
-        dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
-
-        memcpy((reply_buffer->data + offset), recv_part->data, recv_part->len);
-        offset += recv_part->len;
-
-        SOS_buffer_wipe(recv_part);
-        recv_part->len = recv(server_socket_fd, recv_part->data, recv_part->max, 0);
     }
     reply_buffer->len = offset;
     close( server_socket_fd );

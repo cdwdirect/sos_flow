@@ -35,27 +35,27 @@ else
 export MPI_C_INCLUDE_PATH=$CRAY_MPICH2_DIR/include
 export MPI_C_LIBRARIES="-L$CRAY_MPICH2_DIR/lib -lmpi"
 
-      cmake \
-         -G "Unix Makefiles" \
-         -DCMAKE_BUILD_TYPE=Debug \
-         -DCMAKE_C_FLAGS=-O0 -m64\
-         -DCMAKE_EXE_LINKER_FLAGS=-dynamic \
-         --prefix=$SOS_ROOT/bin \
-         -DCMAKE_C_COMPILER=cc \
-         -DCMAKE_CXX_COMPILER=CC \
-         -DUSE_TAU=FALSE \
-         -DTAU_ROOT=$HOME/src/tau2 \
-         -DTAU_ARCH=x86_64 \
-         -DTAU_OPTIONS=-mpi-pthread \
-         -DSOSD_CLOUD_SYNC=TRUE \
-         -DSOSD_CLOUD_SYNC_WITH_MPI=TRUE \
--DMPI_C_INCLUDE_PATH=$MPI_C_INCLUDE_PATH \
--DMPI_CXX_INCLUDE_PATH=$MPI_C_INCLUDE_PATH \
--DMPI_C_LIBRARIES=$MPI_C_LIBRARIES \
--DMPI_CXX_LIBRARIES=$MPI_C_LIBRARIES \
--DMPI_C_COMPILER=cc \
--DMPI_CXX_COMPILER=CC \
--DBUILD_SHARED_LIBS=TRUE \
+    cmake \
+        -G "Unix Makefiles" \
+        -DCMAKE_BUILD_TYPE=Debug \
+        -DCMAKE_C_FLAGS=-O0 -m64\
+        -DCMAKE_EXE_LINKER_FLAGS=-dynamic \
+        --prefix=$SOS_ROOT/bin \
+        -DCMAKE_C_COMPILER=cc \
+        -DCMAKE_CXX_COMPILER=CC \
+        -DUSE_TAU=TRUE \
+        -DTAU_ROOT=$HOME/src/tau2 \
+        -DTAU_ARCH=x86_64 \
+        -DTAU_OPTIONS=-mpi-pthread \
+        -DSOSD_CLOUD_SYNC=TRUE \
+        -DSOSD_CLOUD_SYNC_WITH_MPI=TRUE \
+        -DMPI_C_INCLUDE_PATH=$MPI_C_INCLUDE_PATH \
+        -DMPI_CXX_INCLUDE_PATH=$MPI_C_INCLUDE_PATH \
+        -DMPI_C_LIBRARIES=$MPI_C_LIBRARIES \
+        -DMPI_CXX_LIBRARIES=$MPI_C_LIBRARIES \
+        -DMPI_C_COMPILER=cc \
+        -DMPI_CXX_COMPILER=CC \
+        -DBUILD_SHARED_LIBS=TRUE \
          ..
     fi
     #make -j
