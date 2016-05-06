@@ -506,7 +506,7 @@ void debug(qhashtbl_t *tbl, FILE *out, bool detailed)
         if (len < lenmin) lenmin = len;
         if (len > lenmax) lenmax = len;
     }
-    fprintf(out, "Hash table %p\n", tbl);
+    fprintf(out, "Hash table %p\n", (void *) tbl);
     fprintf(out, "Hash table size = %d\n", tbl->range);
     fprintf(out, "Number of elements = %d\n", tbl->num);
     fprintf(out, "Shortest collision list size = %d\n", lenmin);

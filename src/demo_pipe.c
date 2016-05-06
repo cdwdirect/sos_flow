@@ -54,8 +54,8 @@ int main(int argc, char **argv) {
 
     pthread_t writer;
     pthread_t reader;
-    pthread_create(&writer, NULL, (void *) THREAD_write, (void *) prod);
-    pthread_create(&reader, NULL, (void *) THREAD_read, (void *) cons);
+    pthread_create(&writer, NULL, THREAD_write, (void *) prod);
+    pthread_create(&reader, NULL, THREAD_read, (void *) cons);
     if (VERBOSE) printf("\tPthreads on-line.\n");
     pthread_join(writer, NULL);
     pthread_join(reader, NULL);

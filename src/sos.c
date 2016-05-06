@@ -110,7 +110,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
             SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
             SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
             SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-            retval = pthread_create( SOS->task.feedback, NULL, (void *) SOS_THREAD_feedback, (void *) SOS );
+            retval = pthread_create( SOS->task.feedback, NULL, SOS_THREAD_feedback, (void *) SOS );
             if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
             retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
             if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
@@ -856,7 +856,7 @@ int SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic) {
         val = 1;
     }
 
-    pos = SOS_pack(pub, name, SOS_VAL_TYPE_INT, (SOS_val) val);
+    pos = SOS_pack(pub, name, SOS_VAL_TYPE_INT, &val);
 
     pub->data[pos]->meta.classifier = SOS_VAL_CLASS_EVENT;
     pub->data[pos]->meta.semantic   = semantic;
@@ -865,11 +865,26 @@ int SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic) {
 }
 
 
-int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pack_val ) {
+int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack_val_var ) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack");
     SOS_buffer *byte_buffer;
     SOS_data   *data;
     int         pos;
+
+    SOS_val     pack_val;
+
+    switch(pack_type) {
+    case SOS_VAL_TYPE_INT:    pack_val.i_val = (int)    *(int *)pack_val_var; break;
+    case SOS_VAL_TYPE_LONG:   pack_val.l_val = (long)   *(long *)pack_val_var; break;
+    case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = (double) *(double *)pack_val_var; break;
+    case SOS_VAL_TYPE_STRING: pack_val.c_val = (char *)pack_val_var; break;
+    case SOS_VAL_TYPE_BYTES:  pack_val.bytes = (SOS_buffer *)pack_val_var; break;
+    default:
+        dlog(0, "ERROR: Invalid pack_type sent to SOS_pack.   (%d)\n", (int) pack_type);
+        return -1;
+        break;
+    }
+
 
     pthread_mutex_lock(pub->lock);
 
@@ -910,16 +925,31 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
         
     case SOS_VAL_TYPE_STRING:
         if (data->val.c_val != NULL) { free(data->val.c_val); }
-        data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
-        data->val_len   = strlen(pack_val.c_val);
+        if (pack_val.c_val != NULL) {
+            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+            data->val_len   = strlen(pack_val.c_val);
+        } else {
+            dlog(0, "WARNING: You packed a null value for pub(%s)->data[%d]!\n",
+                 pub->title, pos);
+            data->val.c_val = (char *) malloc(1 * sizeof(unsigned char));
+            *data->val.c_val = '\0';
+            data->val_len = 0;
+        }
         break;
-        
+
     case SOS_VAL_TYPE_BYTES:
         byte_buffer = (SOS_buffer *) pack_val.bytes;
-        if (data->val.bytes != NULL) { free(data->val.bytes); }
-        data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
-        memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
-        data->val_len = byte_buffer->len;
+        if (byte_buffer != NULL) {
+            if (data->val.bytes != NULL) { free(data->val.bytes); }
+            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
+            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
+            data->val_len = byte_buffer->len;
+        } else {
+            dlog(0, "WARNING: You packed a null (SOS_buffer *) for pub(%s)->data[%d]!\n",
+                 pub->title, pos);
+            SOS_buffer_init_sized(SOS, (SOS_buffer **) &data->val.bytes, SOS_DEFAULT_BUFFER_MIN);
+            data->val_len = SOS_DEFAULT_BUFFER_MIN;
+        }
         break;
         
     case SOS_VAL_TYPE_INT:

@@ -374,7 +374,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
     va_list ap;
 
-    char   *buf = (buffer->data + *offset);
+    unsigned char *buf = (buffer->data + *offset);
 
     int      i;           // 32-bit
     long     l;           // 64-bit
@@ -514,7 +514,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
         dlog(0, "WARNING: ...growing the buffer.\n");
         SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
     }
-    char   *buf = (buffer->data + *offset);
+    unsigned char *buf = (buffer->data + *offset);
 
     int      *i;       // 32-bit
     long     *l;       // 64-bit
