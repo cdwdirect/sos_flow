@@ -78,106 +78,6 @@ void SOSD_cloud_shutdown_notice(void) {
 
 
 
-void* SOSD_THREAD_cloud_flush(void *args) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_THREAD_cloud_flush(MPI)");
-    struct timespec  tsleep;
-    struct timeval   tnow;
-    SOSD_sync_context *my = (SOSD_sync_context *) args;
-    SOS_pipe        *queue = my->queue;
-    SOS_buffer      *send_buffer;
-    SOS_buffer     **msg_list;
-    int              msg_count;
-    int              msg_index;
-    char             embedded_msg_format[SOS_DEFAULT_STRING_LEN] = {0};
-    int              offset;
-    int              bytes;
-    int              wake_type;
-
-    /* Since the log files are not even open yet, we must wait to use dlog() */
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Starting thread.\n"); }
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... LOCK queue->sync_lock\n"); }
-    pthread_mutex_lock(queue->sync_lock);
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... COND_WAIT for daemon to finish initializing.\n"); }
-    pthread_cond_wait(queue->sync_cond, queue->sync_lock);
-    dlog(6, "  ... AWAKE and running now.\n");
-
-    SOS_buffer_init(SOS, &send_buffer);
-
-    gettimeofday(&tnow, NULL);
-    tsleep.tv_sec  = tnow.tv_sec  + 0;
-    tsleep.tv_nsec = (1000 * tnow.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
-
-    dlog(6, "  ... entering loop\n");
-
-    while (SOSD.daemon.running) {
-        dlog(6, "Sleeping!    (UNLOCK on queue->sync_cond)\n");
-        wake_type = pthread_cond_timedwait(queue->sync_cond, queue->sync_lock, &tsleep);
-        dlog(6, "Waking up!   (LOCK on queue->sync_lock)\n");
-
-        if (SOSD_cloud_shutdown_underway) {
-            dlog(6, "  ... shutdown is imminent, bailing out\n");
-            break;
-        }
-
-        dlog(6, "  ... queue->elem_count == %d\n", queue->elem_count);
-        if (queue->elem_count == 0) {
-            dlog(6, "  ... nothing to do, going back to sleep.\n");
-            gettimeofday(&tnow, NULL);
-            tsleep.tv_sec  = tnow.tv_sec  + 0;
-            tsleep.tv_nsec = (1000 * tnow.tv_usec) + 122500000UL;   /* ~ 0.12 seconds */
-            continue;
-        }
-
-        msg_list  = (SOS_buffer **) malloc(msg_count * sizeof(SOS_buffer *));
-        msg_count = pipe_pop(queue->outlet, (void *) &msg_list, queue->elem_count);
-        queue->elem_count = 0;
-
-        /* Release the lock while we build and send the MPI message, so
-         * other threads are not blocked from adding to the queue while
-         * we do this.
-         *
-         * We'll obtain the lock again before immediately going to sleep,
-         * to prevent "bad things" from happening.
-         */
-        pthread_mutex_unlock(queue->sync_lock);
-
-        if (wake_type == ETIMEDOUT) {
-            dlog(6, "  ... timed-out\n");
-        } else {
-            dlog(6, "  ... manually triggered\n");
-        }
-
-        offset = 0;
-        SOS_buffer_wipe(send_buffer);
-        SOS_buffer_pack(send_buffer, &offset, "i", msg_count);
-        
-        for (msg_index = 0; msg_index < msg_count; msg_index++) {
-
-            snprintf(embedded_msg_format, SOS_DEFAULT_STRING_LEN, "%db", msg_list[msg_index]->len);
-            SOS_buffer_pack(send_buffer, &offset, embedded_msg_format,
-                            msg_list[msg_index]->data);
-
-            /* Clean up the buffer we just packed, we no longer need it. */
-            SOS_buffer_destroy(msg_list[msg_index]);
-        }
-        free(msg_list);
-
-        SOSD_cloud_send(send_buffer);
-
-        /* Done.  Grab the lock again and go back to sleep. */
-        pthread_mutex_lock(queue->sync_lock);
-        gettimeofday(&tnow, NULL);
-        tsleep.tv_sec  = tnow.tv_sec  + 5;
-        tsleep.tv_nsec = tnow.tv_usec + 62500000;   /* ~ 0.06 seconds. */
-    }
-
-    dlog(6, "  ... UNLOCK queue->sync_lock\n");
-    pthread_mutex_unlock(queue->sync_lock);
-    dlog(1, "  ... exiting thread safely.\n");
-
-    return NULL;
-}
-
 
 void SOSD_cloud_enqueue(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
@@ -271,68 +171,62 @@ void SOSD_cloud_listen_loop(void) {
         MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
 
         while(buffer->max < mpi_msg_len) {
-            SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
+            SOS_buffer_grow(buffer, (1 + (mpi_msg_len - buffer->max)), SOS_WHOAMI);
         }
 
         MPI_Recv((void *) buffer->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-        dlog(5, "  ... message received from rank %d!\n", status.MPI_SOURCE);
+        dlog(1, "  ... message of %d bytes received from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);
+
         offset = 0;
         SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
-        dlog(5, "  ... message contains %d entries.\n", entry_count);
+        dlog(1, "  ... message contains %d entries.\n", entry_count);
+
+        int displaced = 0;
 
         /* Extract one-at-a-time single messages into 'msg' */
-        for (entry = 1; entry <= entry_count; entry++) {
-            dlog(6, "  ... processing entry %d of %d @ offset == %d \n", entry, entry_count, offset);
+        for (entry = 0; entry < entry_count; entry++) {
+            dlog(1, "[ccc] ... processing entry %d of %d @ offset == %d \n", (entry + 1), entry_count, offset);
             memset(&header, '\0', sizeof(SOS_msg_header));
-            SOS_buffer_wipe(msg);
-            SOS_buffer_unpack(buffer, &offset, "iigg",
+            displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
                               &header.pub_guid);
-            dlog(6, "     ... header.msg_size == %d\n", header.msg_size);
-            dlog(6, "     ... header.msg_type == %s  (%d)\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
-            dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
-            dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
+            dlog(1, "     ... header.msg_size == %d\n", header.msg_size);
+            dlog(1, "     ... header.msg_type == %s  (%d)\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
+            dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+            dlog(1, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
-            /* TODO: { THREAD POOL }
-             *    could alloc a new message and put it in a dispatch queue
-             *    for worker threads to grab and handle.
-             *    ...would need to make sure __everything__ was thread safe.
-             *
-             *    For now, we handle it one at a time, prolly not the best.
-             */
+            offset -= displaced;
 
-            SOS_buffer_init_sized_locking(SOS, &msg, (1 + SOS_DEFAULT_BUFFER_MIN + header.msg_size), true);
+            //Create a new message buffer:
+            SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
 
-            msg_offset = 0;
-            SOS_buffer_pack(msg, &msg_offset, "iigg",
-                            header.msg_size,
-                            header.msg_type,
-                            header.msg_from,
-                            header.pub_guid);
+            dlog(1, "[ccc] (%d of %d) <<< bringing in msg(%15s).size == %d from offset:%d\n",
+                 (entry + 1), entry_count, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+                 header.msg_size, offset);
 
-            /* Unpack the embedded message body directly into the new buffer. */
-            snprintf(unpack_format, SOS_DEFAULT_STRING_LEN, "%zdb",
-                     (header.msg_size - sizeof(SOS_msg_header)));
-            SOS_buffer_unpack(buffer, &offset, unpack_format, (msg->data + sizeof(SOS_msg_header)));
+            //Copy the data into the new message directly:
+            memcpy(msg->data, (buffer->data + offset), header.msg_size);
+            msg->len = header.msg_size;
+            offset += header.msg_size;
 
-            /* Now let's handle the message we've moved over into buffer bp-b.data */
+            //Enqueue this new message into the local_sync:
             switch (header.msg_type) {
+            case SOS_MSG_TYPE_ANNOUNCE:
+            case SOS_MSG_TYPE_PUBLISH:
+            case SOS_MSG_TYPE_VAL_SNAPS:
+                pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+                pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
+                SOSD.sync.local.queue->elem_count++;
+                pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+                break;
 
-            case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (msg); break;
-            case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (msg); break;
-            case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (msg); break;
             case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
-            case SOS_MSG_TYPE_REGISTER:   /* Not for the cloud. */
-            case SOS_MSG_TYPE_GUID_BLOCK: /* Not for the cloud. */
-            case SOS_MSG_TYPE_ECHO:       /* Not for the cloud. */
             default:                      SOSD_handle_unknown    (msg); break;
             }
-
         }
     }
-    SOS_buffer_destroy(msg);
 
     /* Join with the daemon's and close out together... */
     MPI_Barrier(MPI_COMM_WORLD);

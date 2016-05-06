@@ -87,8 +87,6 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
-    snprintf(var_string, 100, "Hello, world!");
-
     my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
@@ -112,11 +110,13 @@ int main(int argc, char *argv[]) {
 
 
     dlog(0, "Packing a couple values...\n");
-    var_double = 0.0;
-    var_int = 0;
+    var_int = 1234567890;
+    snprintf(var_string, 100, "Hello, world!");
 
     SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    (SOS_val) var_int         );
     SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, (SOS_val) var_string      );
+
+    var_double = 0.0;
 
     var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);
     var_double += 0.00001; SOS_pack(pub, "example_dbl_01", SOS_VAL_TYPE_DOUBLE, (SOS_val) var_double);

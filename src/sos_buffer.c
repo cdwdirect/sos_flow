@@ -55,7 +55,7 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
     buffer->data = (unsigned char *) malloc(buffer->max * sizeof(unsigned char));
 
     if (buffer->data == NULL) {
-        dlog(1, "ERROR: Unable to allocate buffer space.  Terminating.\n");
+        dlog(8, "ERROR: Unable to allocate buffer space.  Terminating.\n");
         exit(EXIT_FAILURE);
     }
 
@@ -118,18 +118,18 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
         exit(EXIT_FAILURE);
     }
 
-    dlog(5, "Destroying buffer:\n");
+    dlog(8, "Destroying buffer:\n");
     if (buffer->is_locking) {
         SOS_buffer_lock(buffer);
-        dlog(5, "   ... destroying mutex.\n");
+        dlog(8, "   ... destroying mutex.\n");
         pthread_mutex_destroy(buffer->lock);
         free(buffer->lock);
     }
-    dlog(5, "   ... free'ing data\n");
+    dlog(8, "   ... free'ing data\n");
     free(buffer->data);
-    dlog(5, "   ... free'ing object\n")
+    dlog(8, "   ... free'ing object\n")
     free(buffer);
-    dlog(5, "   ... done.\n");
+    dlog(8, "   ... done.\n");
     return;
 }
 
@@ -137,10 +137,10 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
 void SOS_buffer_wipe(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_wipe");
 
-    dlog(5, "Wiping out buffer:\n");
+    dlog(8, "Wiping out buffer:\n");
     memset(buffer->data, '\0', buffer->max);
     buffer->len = 0;
-    dlog(5, "   ... done.   (buffer->max == %d)\n", buffer->max);
+    dlog(8, "   ... done.   (buffer->max == %d)\n", buffer->max);
     return;
 }
 
@@ -148,7 +148,7 @@ void SOS_buffer_wipe(SOS_buffer *buffer) {
 void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
 
-    dlog(0, "[zzz] Growing buffer(%ld)->max == %d  +  %zd   (called by: %s)\n",
+    dlog(8, "[zzz] Growing buffer(%ld)->max == %d  +  %zd   (called by: %s)\n",
          (long) buffer, buffer->max, grow_amount, from_func);
 
     buffer->max += grow_amount;
@@ -159,7 +159,7 @@ void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
         dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
         exit(EXIT_FAILURE);
     } else {
-        dlog(5, "   ... done.\n");
+        dlog(8, "   ... done.\n");
     }
     return;
 
@@ -391,7 +391,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
     int packed_bytes;  // how many bytes have been packed...
 
-    dlog(1, "Packing the following format string: \"%s\"\n", format);
+    dlog(8, "Packing the following format string: \"%s\"\n", format);
     /* Check if the offset is more than half the buffer. this is
      * VERY conservative, but we likely won't have to check when
      * packing strings, later. */
@@ -422,21 +422,21 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
         switch(*format) {
         case 'i': // 32-bit
             i = va_arg(ap, int);
-            dlog(1, "  ... packing i @ %d:   %d   [32-bit]\n", packed_bytes, (int) i);
+            dlog(8, "  ... packing i @ %d:   %d   [32-bit]\n", packed_bytes, (int) i);
             SOS_buffer_packi32(buf, i);
             buf += 4;
             packed_bytes += 4;
             break;
         case 'l': // 64-bit
             l = va_arg(ap, long);
-            dlog(1, "  ... packing l @ %d:   %ld   [64-bit]\n", packed_bytes, (long) l);
+            dlog(8, "  ... packing l @ %d:   %ld   [64-bit]\n", packed_bytes, (long) l);
             SOS_buffer_packi64(buf, l);
             buf += 8;
             packed_bytes += 8;
             break;
         case 'd': // float-64
             d = va_arg(ap, double);
-            dlog(1, "  ... packing d @ %d:   %lf   [64-bit float]\n", packed_bytes, (double) d);
+            dlog(8, "  ... packing d @ %d:   %lf   [64-bit float]\n", packed_bytes, (double) d);
             fhold = SOS_buffer_pack754_64(d); // convert to IEEE 754
             SOS_buffer_packi64(buf, fhold);
             buf += 8;
@@ -444,7 +444,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
             break;
         case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
             g = va_arg(ap, SOS_guid);
-            dlog(1, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
+            dlog(8, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
             SOS_buffer_packguid(buf, g);
             buf += 8;
             packed_bytes += 8;
@@ -452,7 +452,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
-            dlog(1, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(8, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;
             packed_bytes += 4;
@@ -470,7 +470,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
                 len = 1;
                 b = &false_b;
             }
-            dlog(1, "  ... packing b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(8, "  ... packing b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;
             packed_bytes += 4;
@@ -488,7 +488,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     }//for
 
     va_end(ap);
-    dlog(1, "  ... done\n");
+    dlog(8, "  ... done\n");
 
     *offset     += packed_bytes;
     buffer->len  = (buffer->len > *offset) ? buffer->len : *offset;
@@ -529,7 +529,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     unsigned int maxlen;
     int packed_bytes;
 
-    dlog(1, "Unpacking the following format string: \"%s\"\n", format);
+    dlog(8, "Unpacking the following format string: \"%s\"\n", format);
 
     packed_bytes = 0;
     maxlen = 0;
@@ -541,21 +541,21 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
         case 'i': // 32-bit
             i = va_arg(ap, int*);
             *i = SOS_buffer_unpacki32(buf);
-            dlog(1, "  ... unpacked i @ %d:   %d   [32-bit]\n", packed_bytes, *i);
+            dlog(8, "  ... unpacked i @ %d:   %d   [32-bit]\n", packed_bytes, *i);
             buf += 4;
             packed_bytes += 4;
             break;
         case 'l': // 64-bit
             l = va_arg(ap, long*);
             *l = SOS_buffer_unpacki64(buf);
-            dlog(1, "  ... unpacked l @ %d:   %ld   [64-bit]\n", packed_bytes, *l);
+            dlog(8, "  ... unpacked l @ %d:   %ld   [64-bit]\n", packed_bytes, *l);
             buf += 8;
             packed_bytes += 8;
             break;
         case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
             g = va_arg(ap, SOS_guid*);
             *g = SOS_buffer_unpackguid(buf);
-            dlog(1, "  ... unpacked g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, *g);
+            dlog(8, "  ... unpacked g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, *g);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -563,7 +563,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             d = va_arg(ap, double*);
             fhold = SOS_buffer_unpacku64(buf);
             *d = SOS_buffer_unpack754_64(fhold);
-            dlog(1, "  ... unpacked d @ %d:   %lf   [64-bit double]\n", packed_bytes, *d);
+            dlog(8, "  ... unpacked d @ %d:   %lf   [64-bit double]\n", packed_bytes, *d);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -581,7 +581,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
                 memcpy(s, buf, count);
             }
             s[count] = '\0';
-            dlog(1, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(8, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             buf += len;
             packed_bytes += len;
             break;
@@ -596,7 +596,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
                 b = (unsigned char *) calloc((count + 1), sizeof(unsigned char));
             }
             memcpy(s, buf, count);
-            dlog(1, "  ... unpacked b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, b, len);
+            dlog(8, "  ... unpacked b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, b, len);
             buf += len;
             packed_bytes += len;
             break;
@@ -610,7 +610,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     }
 
     va_end(ap);
-    dlog(1, "  ... done\n");
+    dlog(8, "  ... done\n");
     
 
     *offset += packed_bytes;
