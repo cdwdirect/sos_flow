@@ -23,6 +23,7 @@ endif()
 add_executable( "test"
   "test.c"
   "pack.c"
+  "buffer.c"
   "pub.c"
 )
 

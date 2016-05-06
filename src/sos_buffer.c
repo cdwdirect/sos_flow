@@ -145,11 +145,13 @@ void SOS_buffer_wipe(SOS_buffer *buffer) {
 }
 
 
-void SOS_buffer_grow(SOS_buffer *buffer) {
+void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
 
-    dlog(5, "Growing buffer:\n");
-    buffer->max += SOS_DEFAULT_BUFFER_LEN;
+    dlog(0, "[zzz] Growing buffer(%ld)->max == %d  +  %zd   (called by: %s)\n",
+         (long) buffer, buffer->max, grow_amount, from_func);
+
+    buffer->max += grow_amount;
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
 
     if (buffer->data == NULL) {
@@ -389,12 +391,12 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
     int packed_bytes;  // how many bytes have been packed...
 
-    dlog(20, "Packing the following format string: \"%s\"\n", format);
+    dlog(1, "Packing the following format string: \"%s\"\n", format);
     /* Check if the offset is more than half the buffer. this is
      * VERY conservative, but we likely won't have to check when
      * packing strings, later. */
     if (*offset > ((buffer->max) >> 1)) {
-        SOS_buffer_grow(buffer);
+        SOS_buffer_grow(buffer, *offset, SOS_WHOAMI);
         // just in case the buffer moved.
         buf = (buffer->data + *offset);
     }
@@ -420,21 +422,21 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
         switch(*format) {
         case 'i': // 32-bit
             i = va_arg(ap, int);
-            dlog(20, "  ... packing i @ %d:   %d   [32-bit]\n", packed_bytes, (int) i);
+            dlog(1, "  ... packing i @ %d:   %d   [32-bit]\n", packed_bytes, (int) i);
             SOS_buffer_packi32(buf, i);
             buf += 4;
             packed_bytes += 4;
             break;
         case 'l': // 64-bit
             l = va_arg(ap, long);
-            dlog(20, "  ... packing l @ %d:   %ld   [64-bit]\n", packed_bytes, (long) l);
+            dlog(1, "  ... packing l @ %d:   %ld   [64-bit]\n", packed_bytes, (long) l);
             SOS_buffer_packi64(buf, l);
             buf += 8;
             packed_bytes += 8;
             break;
         case 'd': // float-64
             d = va_arg(ap, double);
-            dlog(20, "  ... packing d @ %d:   %lf   [64-bit float]\n", packed_bytes, (double) d);
+            dlog(1, "  ... packing d @ %d:   %lf   [64-bit float]\n", packed_bytes, (double) d);
             fhold = SOS_buffer_pack754_64(d); // convert to IEEE 754
             SOS_buffer_packi64(buf, fhold);
             buf += 8;
@@ -442,7 +444,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
             break;
         case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
             g = va_arg(ap, SOS_guid);
-            dlog(20, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
+            dlog(1, "  ... packing g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, (SOS_guid) g);
             SOS_buffer_packguid(buf, g);
             buf += 8;
             packed_bytes += 8;
@@ -450,7 +452,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
-            dlog(20, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(1, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;
             packed_bytes += 4;
@@ -468,7 +470,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
                 len = 1;
                 b = &false_b;
             }
-            dlog(20, "  ... packing b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(1, "  ... packing b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;
             packed_bytes += 4;
@@ -486,7 +488,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     }//for
 
     va_end(ap);
-    dlog(20, "  ... done\n");
+    dlog(1, "  ... done\n");
 
     *offset     += packed_bytes;
     buffer->len  = (buffer->len > *offset) ? buffer->len : *offset;
@@ -510,7 +512,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
         dlog(0, "WARNING: Attempting to read beyond the end of a buffer!\n");
         dlog(0, "WARNING:   buffer->max == %d, SOS_unpack() w/offset == %d\n", buffer->max, *offset);
         dlog(0, "WARNING: ...growing the buffer.\n");
-        SOS_buffer_grow(buffer);
+        SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
     }
     char   *buf = (buffer->data + *offset);
 
@@ -527,7 +529,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     unsigned int maxlen;
     int packed_bytes;
 
-    dlog(20, "Unpacking the following format string: \"%s\"\n", format);
+    dlog(1, "Unpacking the following format string: \"%s\"\n", format);
 
     packed_bytes = 0;
     maxlen = 0;
@@ -539,21 +541,21 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
         case 'i': // 32-bit
             i = va_arg(ap, int*);
             *i = SOS_buffer_unpacki32(buf);
-            dlog(20, "  ... unpacked i @ %d:   %d   [32-bit]\n", packed_bytes, *i);
+            dlog(1, "  ... unpacked i @ %d:   %d   [32-bit]\n", packed_bytes, *i);
             buf += 4;
             packed_bytes += 4;
             break;
         case 'l': // 64-bit
             l = va_arg(ap, long*);
             *l = SOS_buffer_unpacki64(buf);
-            dlog(20, "  ... unpacked l @ %d:   %ld   [64-bit]\n", packed_bytes, *l);
+            dlog(1, "  ... unpacked l @ %d:   %ld   [64-bit]\n", packed_bytes, *l);
             buf += 8;
             packed_bytes += 8;
             break;
         case 'g': // 64-bit (SOSflow GUID, traditionally 64-bit uint)
             g = va_arg(ap, SOS_guid*);
             *g = SOS_buffer_unpackguid(buf);
-            dlog(20, "  ... unpacked g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, *g);
+            dlog(1, "  ... unpacked g @ %d:   %" SOS_GUID_FMT "   [GUID]\n", packed_bytes, *g);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -561,7 +563,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             d = va_arg(ap, double*);
             fhold = SOS_buffer_unpacku64(buf);
             *d = SOS_buffer_unpack754_64(fhold);
-            dlog(20, "  ... unpacked d @ %d:   %lf   [64-bit double]\n", packed_bytes, *d);
+            dlog(1, "  ... unpacked d @ %d:   %lf   [64-bit double]\n", packed_bytes, *d);
             buf += 8;
             packed_bytes += 8;
             break;
@@ -579,7 +581,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
                 memcpy(s, buf, count);
             }
             s[count] = '\0';
-            dlog(20, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(1, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
             buf += len;
             packed_bytes += len;
             break;
@@ -594,7 +596,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
                 b = (unsigned char *) calloc((count + 1), sizeof(unsigned char));
             }
             memcpy(s, buf, count);
-            dlog(20, "  ... unpacked b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, b, len);
+            dlog(1, "  ... unpacked b @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, b, len);
             buf += len;
             packed_bytes += len;
             break;
@@ -608,7 +610,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     }
 
     va_end(ap);
-    dlog(20, "  ... done\n");
+    dlog(1, "  ... done\n");
     
 
     *offset += packed_bytes;

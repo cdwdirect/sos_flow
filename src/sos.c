@@ -373,7 +373,7 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
             break;
         } else {
             while (reply_buffer->max < (reply_buffer->len + recv_part->len)) {
-                SOS_buffer_grow(reply_buffer);
+                SOS_buffer_grow(reply_buffer, reply_buffer->max, SOS_WHOAMI);
             }
 
             dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
@@ -897,90 +897,94 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, SOS_val pa
 
         data = pub->data[pos];
         data->type = pack_type;
-
-        switch(data->type) {
-        case SOS_VAL_TYPE_STRING:
-            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
-            data->val_len = strlen(pack_val.c_val);
-            break;
-
-        case SOS_VAL_TYPE_BYTES:
-            byte_buffer = (SOS_buffer *) pack_val.bytes;
-            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
-            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
-            data->val_len = byte_buffer->len;
-            break;
-
-        case SOS_VAL_TYPE_INT:
-            data->val = pack_val;
-            data->val_len = sizeof(int);
-            break;
-
-        case SOS_VAL_TYPE_LONG:
-            data->val = pack_val;
-            data->val_len = sizeof(long);
-            break;
-
-        case SOS_VAL_TYPE_DOUBLE:
-            data->val = pack_val;
-            data->val_len = sizeof(long);
-            break;
-        }
-
         data->guid = SOS_uid_next(SOS->uid.my_guid_pool);
-        data->type = pack_type;
         strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
-        SOS_TIME( data->time.pack );
 
     } else {
-        /* Name ALREADY EXISTS in the pub... (update new/enqueue old) */
-
+        /* Name ALREADY EXISTS in the pub... */
         data = pub->data[pos];
-        /* If the value is dirty, smash it down into the queue. */
-        if (data->state == SOS_VAL_STATE_DIRTY) {
-            SOS_val_snap *snap;
-            snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
-
-            snap->elem     = pos;
-            snap->guid     = data->guid;
-            snap->mood     = data->meta.mood;
-            snap->semantic = data->meta.semantic;
-            snap->type     = data->type;
-            snap->val      = data->val;    /* Take over extant string/bytes. */
-            snap->val_len  = data->val_len;
-            snap->time     = data->time;
-            snap->frame    = pub->frame;
-
-            pthread_mutex_lock(pub->snap_queue->sync_lock);
-            pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
-            pub->snap_queue->elem_count++;
-            pthread_mutex_unlock(pub->snap_queue->sync_lock);
-        }
-
-        /* Update the value in the pub->data[elem] position. */
-        switch(data->type) {
-
-        case SOS_VAL_TYPE_STRING:
-            data->val.c_val = strdup(pack_val.c_val);
-            break;
-
-        case SOS_VAL_TYPE_BYTES:
-            byte_buffer = (SOS_buffer *) pack_val.bytes;
-            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
-            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
-            break;
-
-        case SOS_VAL_TYPE_INT:
-        case SOS_VAL_TYPE_LONG:
-        case SOS_VAL_TYPE_DOUBLE:
-        default:
-            data->val = pack_val;
-            break;
-        }
-
-        data->state = SOS_VAL_STATE_DIRTY;
-        SOS_TIME( data->time.pack );
     }
+
+    /* Update the value in the pub->data[elem] position. */
+    switch(data->type) {
+        
+    case SOS_VAL_TYPE_STRING:
+        if (data->val.c_val != NULL) { free(data->val.c_val); }
+        data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+        data->val_len   = strlen(pack_val.c_val);
+        break;
+        
+    case SOS_VAL_TYPE_BYTES:
+        byte_buffer = (SOS_buffer *) pack_val.bytes;
+        if (data->val.bytes != NULL) { free(data->val.bytes); }
+        data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
+        memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
+        data->val_len = byte_buffer->len;
+        break;
+        
+    case SOS_VAL_TYPE_INT:
+        data->val.i_val = pack_val.i_val;
+        data->val_len   = sizeof(int);
+        break;
+
+    case SOS_VAL_TYPE_LONG:
+        data->val.l_val = pack_val.l_val;
+        data->val_len   = sizeof(long);
+        break;
+
+    case SOS_VAL_TYPE_DOUBLE:
+        data->val.d_val = pack_val.d_val;
+        data->val_len   = sizeof(double);
+        break;
+
+    default:
+        dlog(0, "ERROR: Invalid data type was specified.   (%d)\n", data->type);
+        exit(EXIT_FAILURE);
+
+    }
+
+    data->state = SOS_VAL_STATE_DIRTY;
+    SOS_TIME( data->time.pack );
+
+    /* Place the packed value into the snap_queue... */
+    SOS_val_snap *snap;
+    snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
+    
+    snap->elem     = pos;
+    snap->guid     = data->guid;
+    snap->mood     = data->meta.mood;
+    snap->semantic = data->meta.semantic;
+    snap->type     = data->type;
+    snap->val_len = data->val_len;
+    
+    switch(snap->type) {
+    case SOS_VAL_TYPE_BYTES:
+        snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
+        memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
+
+    case SOS_VAL_TYPE_STRING:
+        snap->val.c_val = strndup(data->val.c_val, SOS_DEFAULT_STRING_LEN);
+
+    case SOS_VAL_TYPE_INT:
+    case SOS_VAL_TYPE_LONG:
+    case SOS_VAL_TYPE_DOUBLE:
+        snap->val = data->val;
+        break;
+
+    default:
+        dlog(0, "Invalid data->type at pos == %d   (%d)\n", pos, snap->type);
+        exit(EXIT_FAILURE);
+    }
+
+    snap->time     = data->time;
+    snap->frame    = pub->frame;
+    
+    pthread_mutex_lock(pub->snap_queue->sync_lock);
+    pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
+    pub->snap_queue->elem_count++;
+    pthread_mutex_unlock(pub->snap_queue->sync_lock);
+
+    /* Done. */
 
     pthread_mutex_unlock(pub->lock);
 
@@ -1138,16 +1142,16 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_pack(buffer, &offset, "d", snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING: SOS_buffer_pack(buffer, &offset, "s", snap->val.c_val); break;
         case SOS_VAL_TYPE_BYTES:
-            memset(pack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
             snprintf(pack_fmt, SOS_DEFAULT_STRING_LEN, "%db", snap->val_len);
             SOS_buffer_pack(buffer, &offset, pack_fmt, snap->val.bytes);
         default:
-            dlog(0, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
+            dlog(0, "ERROR: Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
             break;
         }//switch
 
         if (destroy_snaps == true) {
             if (pub->data[snap->elem]->type == SOS_VAL_TYPE_STRING) { free(snap->val.c_val); }
+            if (pub->data[snap->elem]->type == SOS_VAL_TYPE_BYTES) { free(snap->val.bytes); }
             free(snap);
         }
 
@@ -1157,8 +1161,6 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     offset = 0;
     SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
     dlog(6, "     ... done   (buf_len == %d)\n", header.msg_size);
-
-    
    
     return;
 }
@@ -1205,7 +1207,6 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
         memset(snap, '\0', sizeof(SOS_val_snap));
 
-        dlog(6, "    ... grabbing element @ %d ->", offset);
         SOS_buffer_unpack(buffer, &offset, "igiiiidddl",
                           &snap->elem,
                           &snap->guid,
@@ -1218,7 +1219,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
                           &snap->time.recv,
                           &snap->frame);
 
-        dlog(6, "type == %d, val_len == %d\n", snap->type, snap->val_len);
+        dlog(6, "    ... grabbing element @ %d -> type == %d, val_len == %d\n", snap->type, snap->val_len, offset);
 
         switch (pub->data[snap->elem]->type) {
         case SOS_VAL_TYPE_INT:    SOS_buffer_unpack(buffer, &offset, "i", &snap->val.i_val); break;
@@ -1226,9 +1227,11 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_unpack(buffer, &offset, "d", &snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING:
             /* Extract only the length at first, so we know how much space to allocate. */
-            offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
-            snap->val.c_val = (char *) malloc(1 + string_len);
-            memset(snap->val.c_val, '\0', (1 + string_len));
+            //offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
+            //snap->val.c_val = (char *) malloc(1 + string_len);
+            //memset(snap->val.c_val, '\0', (1 + string_len));
+
+            snap->val.c_val = NULL; //unpack will automatically malloc for it.
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
             dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
             break;
@@ -1237,11 +1240,11 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
             snap->val_len = string_len;
             snap->val.bytes = (void *) malloc((1 + string_len) * sizeof(unsigned char));
-            snprintf(unpack_fmt, SOS_DEFAULT_STRING_LEN, "%db", string_len);
+            snprintf(unpack_fmt, SOS_DEFAULT_STRING_LEN, "%db", string_len);   //No really needed got unpacking, since the length is already in there...
             SOS_buffer_unpack(buffer, &offset, unpack_fmt, snap->val.bytes);
             break;
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
+            dlog(6, "ERROR: Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
             break;
         }
 
@@ -1261,7 +1264,8 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
          *             -Chad
          */
 
-    }
+    }//loop
+
     dlog(6, "     ... done\n");
 
     return;
@@ -1342,7 +1346,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     long             this_frame;
     double           send_time;
     int              offset;
-    int              elem;
+    int              elem;    
 
     /* TODO: { ASYNC CLIENT, TIME }
      *       If client-side gets async send, this wont be true.
