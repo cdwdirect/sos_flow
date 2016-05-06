@@ -46,7 +46,7 @@ void         SOS_buffer_destroy(SOS_buffer *buffer);
              // The following functions do *NOT* lock the buffer...
              // (You should hold the lock already, manually)
 void         SOS_buffer_wipe(SOS_buffer *buffer);
-void         SOS_buffer_grow(SOS_buffer *buffer);
+void         SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func);
 void         SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max);
 int          SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...);
 int          SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...);

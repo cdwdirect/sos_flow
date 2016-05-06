@@ -271,7 +271,7 @@ void SOSD_cloud_listen_loop(void) {
         MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
 
         while(buffer->max < mpi_msg_len) {
-            SOS_buffer_grow(buffer);
+            SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
         }
 
         MPI_Recv((void *) buffer->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);

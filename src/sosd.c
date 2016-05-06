@@ -250,7 +250,7 @@ void SOSD_listen_loop() {
         if (header.msg_size > buffer->max) {
             int old = buffer->max;
             while (header.msg_size > buffer->max) {
-                SOS_buffer_grow(buffer);
+                SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
             }
             int rest = recv(SOSD.net.client_socket_fd, (void *) (buffer->data + old), buffer->max - old, 0);
             dlog(6, "  ... recv() returned %d more bytes.\n", rest);
@@ -541,8 +541,10 @@ void* SOSD_THREAD_cloud_sync(void *args) {
                 header.msg_from,
                 header.pub_guid);
 
-            while ((header.msg_size + offset) > buffer->len) {
-                SOS_buffer_grow(buffer);
+            while ((header.msg_size + offset) > buffer->max) {
+                dlog(1, "(header.msg_size == %d   +   offset == %d)  >  buffer->max == %d    (growing...)\n",
+                     header.msg_size, offset, buffer->max);
+                SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
             }
 
             memcpy((buffer->data + offset), (msg->data + offset), (header.msg_size - msg_offset));
