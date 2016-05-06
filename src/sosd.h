@@ -175,7 +175,7 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
 
-    void  SOSD_claim_guid_block( SOS_uid *uid, int size, long *pool_from, long *pool_to );
+    void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
     void  SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer );
 
