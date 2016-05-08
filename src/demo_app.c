@@ -17,13 +17,8 @@
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
 
-#define NUM_VALUES     20
+#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> -p <pub_elem_count> [-j <jittertime.sec>]"
 
-#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> [-j <jittertime.sec>]"
-
-
-//#undef SOS_DEBUG
-//#define SOS_DEBUG 1
 
 #include "sos.h"
 #include "sos_debug.h"
@@ -35,13 +30,15 @@ int main(int argc, char *argv[]) {
     int i;
     int elem;
     int next_elem;
-    char pub_title[SOS_DEFAULT_STRING_LEN];
+    char pub_title[SOS_DEFAULT_STRING_LEN] = {0};
+    char elem_name[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_pub *pub;
     double time_now;
     double time_start;
 
     int    MAX_SEND_COUNT;
     int    ITERATION_SIZE;
+    int    PUB_ELEM_COUNT;
     int    JITTER_ENABLED;
     double JITTER_INTERVAL;
 
@@ -52,6 +49,7 @@ int main(int argc, char *argv[]) {
 
     MAX_SEND_COUNT  = -1;
     ITERATION_SIZE  = -1;
+    PUB_ELEM_COUNT  = -1;
     JITTER_ENABLED  = 0;
     JITTER_INTERVAL = 0.0;
 
@@ -65,6 +63,8 @@ int main(int argc, char *argv[]) {
             ITERATION_SIZE  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-m"  ) == 0) {
             MAX_SEND_COUNT  = atoi(argv[next_elem]);
+        } else if ( strcmp(argv[elem], "-p"  ) == 0) {
+            PUB_ELEM_COUNT  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-j"  ) == 0) {
             JITTER_INTERVAL = strtod(argv[next_elem], NULL);
             JITTER_ENABLED = 1;
@@ -76,6 +76,7 @@ int main(int argc, char *argv[]) {
 
     if ( (MAX_SEND_COUNT < 1)
          || (ITERATION_SIZE < 1)
+         || (PUB_ELEM_COUNT < 1)
          || (JITTER_INTERVAL < 0.0) )
         { fprintf(stderr, "%s\n", USAGE); exit(1); }
 
@@ -118,27 +119,12 @@ int main(int argc, char *argv[]) {
 
     var_double = 0.0;
 
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_01", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_02", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_03", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_04", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_05", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_06", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_07", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_08", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_09", SOS_VAL_TYPE_DOUBLE, &var_double);
-    
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_10", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_11", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_12", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_13", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_14", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_15", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_16", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, &var_double);
-    var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, &var_double);
+        for (i = 0; i < PUB_ELEM_COUNT; i++) {
+            snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+            SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+            var_double += 0.000000000001;
+        }
+
 
     dlog(0, "  ... Announcing\n");
     SOS_announce(pub);
@@ -146,52 +132,37 @@ int main(int argc, char *argv[]) {
     SOS_publish(pub);
 
     dlog(0, "  ... Re-packing --> Publishing %d values for %d times per iteration:\n",
-           NUM_VALUES,
+           PUB_ELEM_COUNT,
            ITERATION_SIZE);
            
     SOS_TIME( time_start );
     int mils = 0;
     int ones = 0;
-    while ((ones * NUM_VALUES) < MAX_SEND_COUNT) {
+    while ((ones * PUB_ELEM_COUNT) < MAX_SEND_COUNT) {
         ones += 1;
         if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
             dlog(0, "     ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
                    ITERATION_SIZE,
-                   NUM_VALUES,
+                   PUB_ELEM_COUNT,
                    (time_now - time_start),
-                   ((time_now - time_start) / (double) (NUM_VALUES * ITERATION_SIZE)),
-                   (ones * NUM_VALUES));
+                   ((time_now - time_start) / (double) (PUB_ELEM_COUNT * ITERATION_SIZE)),
+                   (ones * PUB_ELEM_COUNT));
             if (JITTER_ENABLED) {
                 usleep((random() * 1000000) % (int)(JITTER_INTERVAL * 1000000));
             }
             SOS_TIME( time_start);
         }
-        if (((ones * NUM_VALUES)%1000000) == 0) {
+        if (((ones * PUB_ELEM_COUNT)%1000000) == 0) {
             dlog(0, "     ... 1,000,000 value milestone ---------\n");
         }
 
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_00", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_01", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_02", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_03", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_04", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_05", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_06", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_07", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_08", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_09", SOS_VAL_TYPE_DOUBLE, &var_double);
 
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_10", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_11", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_12", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_13", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_14", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_15", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_16", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_17", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_18", SOS_VAL_TYPE_DOUBLE, &var_double);
-        var_double += 0.00001; SOS_pack(pub, "example_dbl_19", SOS_VAL_TYPE_DOUBLE, &var_double);
+        for (i = 0; i < PUB_ELEM_COUNT; i++) {
+            snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+            SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+            var_double += 0.000000000001;
+        }
 
         if (ones % 2) {
             /* Publish every other iteration to force local snap-queue use. */
