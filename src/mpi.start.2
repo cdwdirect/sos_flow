@@ -15,8 +15,8 @@ if [ -z $1 ]; then echo ""; echo "*** Removing any files left by previous sosd d
 ${SOS_ROOT}/src/mpi.cleanall
 if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; fi;
 
-daemon0=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 10 --work_dir ${SOS_WORK} "
-daemon1=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 10 --work_dir ${SOS_WORK} "
+daemon0=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK} "
+daemon1=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK} "
 
 #surplus=""
 #surplus=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22501 --buffer_len 8097152 --listen_backlog 10 --work_dir ${SOS_WORK} " 
