@@ -815,24 +815,22 @@ void SOS_expand_data( SOS_pub *pub ) {
      *       already hold the lock on the pub.
      */
 
-    int n;
-    SOS_data **expanded_data;
-
     dlog(6, "Growing pub(\"%s\")->elem_max from %d to %d...\n",
             pub->title,
             pub->elem_max,
             (pub->elem_max + SOS_DEFAULT_ELEM_MAX));
 
-    expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
-    memset(expanded_data, '\0', ((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *)));
+    int n = 0;
+    int from_old_max = pub->elem_max;
+    int to_new_max   = pub->elem_max + SOS_DEFAULT_ELEM_MAX;
 
-    memcpy(expanded_data, pub->data, (pub->elem_max * sizeof(SOS_data *)));
-    for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_MAX); n++) {
-        expanded_data[n] = malloc(sizeof(SOS_data));
-        memset(expanded_data[n], '\0', sizeof(SOS_data)); }
-    free(pub->data);
-    pub->data = expanded_data;
-    pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
+    pub->data = (SOS_data **) realloc(pub->data, (to_new_max * sizeof(SOS_data *)));
+
+    for (n = from_old_max; n < to_new_max; n++) {
+        pub->data[n] = calloc(1, sizeof(SOS_data));
+    }
+
+    pub->elem_max = to_new_max;
 
     dlog(6, "  ... done.\n");
 
@@ -1523,12 +1521,12 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
 
     if ((SOS->role != SOS_ROLE_CLIENT)) {
-        dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
-        dlog(4, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
-        dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
+        dlog(1, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
+        dlog(1, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW --\n");
     }
 
     /* Ensure there is room in this pub to handle incoming data definitions. */

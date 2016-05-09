@@ -119,11 +119,11 @@ int main(int argc, char *argv[]) {
 
     var_double = 0.0;
 
-        for (i = 0; i < PUB_ELEM_COUNT; i++) {
-            snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
-            SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-            var_double += 0.000000000001;
-        }
+    //        for (i = 0; i < PUB_ELEM_COUNT; i++) {
+    //        snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+    //        SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+    //        var_double += 0.000000000001;
+    //    }
 
 
     dlog(0, "  ... Announcing\n");
@@ -163,9 +163,11 @@ int main(int argc, char *argv[]) {
             SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
             var_double += 0.000000000001;
             if (ones < 2) {
-                SOS_publish(pub);
+                if (i % 20) {
+                    printf("SOS_publish()   pub->elem_max == %d\n", pub->elem_max);
+                    SOS_publish(pub);
+                }
             }
-
         }
 
         if (ones % 2) {
