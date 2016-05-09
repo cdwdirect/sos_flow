@@ -49,7 +49,7 @@ echo "=========="
 echo ""
 
 if [ "x${surplus}" == "x" ] ; then
-    mpirun -np 1  ${daemon0} : -np 1 ${valgrind_cmd} ${daemon1}
+    mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}
 else
     mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1} : -np 1 ${surplus}
 fi

@@ -459,7 +459,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
         mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
 
-        dlog(2, "    ---[%s]---\n", pub->data[elem]->name);
+        dlog(5, "    ---[%s]---\n", pub->data[elem]->name);
 
         SOS_TIME( time_recv );
 
