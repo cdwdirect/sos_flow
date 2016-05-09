@@ -827,7 +827,7 @@ void SOS_expand_data( SOS_pub *pub ) {
     pub->data = (SOS_data **) realloc(pub->data, (to_new_max * sizeof(SOS_data *)));
 
     for (n = from_old_max; n < to_new_max; n++) {
-        pub->data[n] = malloc(sizeof(SOS_data));
+        pub->data[n] = calloc(1, sizeof(SOS_data));
     }
 
     pub->elem_max = to_new_max;
