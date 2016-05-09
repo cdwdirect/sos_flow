@@ -96,8 +96,18 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
     dlog(1, "Initializing SOS ...\n");
     dlog(1, "  ... setting argc / argv\n");
-    SOS->config.argc = *argc;
-    SOS->config.argv = *argv;
+
+    if (argc == NULL || argv == NULL) {
+        dlog(1, "NOTE: argc == NULL || argv == NULL, using safe but meaningles values.\n");
+        SOS->config.argc = 2;
+        SOS->config.argv = (char **) malloc(2 * sizeof(char *));
+        SOS->config.argv[0] = strdup("[NULL]");
+        SOS->config.argv[1] = strdup("[NULL]");
+    } else {
+        SOS->config.argc = *argc;
+        SOS->config.argv = *argv;
+    }
+
     SOS->config.process_id = (int) getpid();
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
