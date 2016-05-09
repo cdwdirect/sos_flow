@@ -96,8 +96,18 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
     dlog(1, "Initializing SOS ...\n");
     dlog(1, "  ... setting argc / argv\n");
-    SOS->config.argc = *argc;
-    SOS->config.argv = *argv;
+
+    if (argc == NULL || argv == NULL) {
+        dlog(1, "NOTE: argc == NULL || argv == NULL, using safe but meaningles values.\n");
+        SOS->config.argc = 2;
+        SOS->config.argv = (char **) malloc(2 * sizeof(char *));
+        SOS->config.argv[0] = strdup("[NULL]");
+        SOS->config.argv[1] = strdup("[NULL]");
+    } else {
+        SOS->config.argc = *argc;
+        SOS->config.argv = *argv;
+    }
+
     SOS->config.process_id = (int) getpid();
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
@@ -805,24 +815,22 @@ void SOS_expand_data( SOS_pub *pub ) {
      *       already hold the lock on the pub.
      */
 
-    int n;
-    SOS_data **expanded_data;
-
     dlog(6, "Growing pub(\"%s\")->elem_max from %d to %d...\n",
             pub->title,
             pub->elem_max,
             (pub->elem_max + SOS_DEFAULT_ELEM_MAX));
 
-    expanded_data = malloc((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *));
-    memset(expanded_data, '\0', ((pub->elem_max + SOS_DEFAULT_ELEM_MAX) * sizeof(SOS_data *)));
+    int n = 0;
+    int from_old_max = pub->elem_max;
+    int to_new_max   = pub->elem_max + SOS_DEFAULT_ELEM_MAX;
 
-    memcpy(expanded_data, pub->data, (pub->elem_max * sizeof(SOS_data *)));
-    for (n = pub->elem_max; n < (pub->elem_max + SOS_DEFAULT_ELEM_MAX); n++) {
-        expanded_data[n] = malloc(sizeof(SOS_data));
-        memset(expanded_data[n], '\0', sizeof(SOS_data)); }
-    free(pub->data);
-    pub->data = expanded_data;
-    pub->elem_max = (pub->elem_max + SOS_DEFAULT_ELEM_MAX);
+    pub->data = (SOS_data **) realloc(pub->data, (to_new_max * sizeof(SOS_data *)));
+
+    for (n = from_old_max; n < to_new_max; n++) {
+        pub->data[n] = calloc(1, sizeof(SOS_data));
+    }
+
+    pub->elem_max = to_new_max;
 
     dlog(6, "  ... done.\n");
 
@@ -901,6 +909,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
         if (pub->elem_count >= pub->elem_max) {
             SOS_expand_data(pub);
         }
+
+        // Force a pub announce.
+        pub->announced = 0;
 
         /* Insert the value... */
         pos = pub->elem_count;
@@ -1266,7 +1277,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
             break;
         case SOS_VAL_TYPE_BYTES:
-            memset(unpack_fmt, '\0', SOS_DEFAULT_BUFFER_LEN);
+            memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
             offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
             snap->val_len = string_len;
             snap->val.bytes = (void *) malloc((1 + string_len) * sizeof(unsigned char));
@@ -1417,6 +1428,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
              elem, pub->data[elem]->time.pack,
              elem, pub->data[elem]->time.send);
 
+        dlog(1, "[eee] PACKING elem %d at offset %d\n", elem, offset);
         SOS_buffer_pack(buffer, &offset, "iddill",
                         elem,
                         pub->data[elem]->time.pack,
@@ -1429,7 +1441,10 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
         case SOS_VAL_TYPE_INT:     SOS_buffer_pack(buffer, &offset, "i", pub->data[elem]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:    SOS_buffer_pack(buffer, &offset, "l", pub->data[elem]->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE:  SOS_buffer_pack(buffer, &offset, "d", pub->data[elem]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING:  SOS_buffer_pack(buffer, &offset, "s", pub->data[elem]->val.c_val); break;
+        case SOS_VAL_TYPE_STRING:  SOS_buffer_pack(buffer, &offset, "s", pub->data[elem]->val.c_val);
+            dlog(8, "[STRING]: Packing in -> \"%s\" ...\n", pub->data[elem]->val.c_val);
+            break;
+        case SOS_VAL_TYPE_BYTES:   SOS_buffer_pack(buffer, &offset, "b", pub->data[elem]->val.bytes); break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
             break;
@@ -1505,13 +1520,13 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
 
-    if ((SOS->role != SOS_ROLE_CLIENT) && elem > pub->elem_max) {
-        dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
-        dlog(4, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
-        dlog(4, "AUTOGROW --\n");
-        dlog(4, "AUTOGROW --\n");
+    if ((SOS->role != SOS_ROLE_CLIENT)) {
+        dlog(1, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
+        dlog(1, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
+        dlog(1, "AUTOGROW --\n");
+        dlog(1, "AUTOGROW --\n");
     }
 
     /* Ensure there is room in this pub to handle incoming data definitions. */
@@ -1625,12 +1640,15 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
     SOS_buffer_unpack(buffer, &offset, "l", &this_frame);
     pub->frame = this_frame;
 
+    int eeetest = 0;
     /* Unpack in the data elements. */
     while (offset < header.msg_size) {
         dlog(7, "Unpacking next message @ offset %d of %d...\n", offset, header.msg_size);
 
+        eeetest = offset;
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
         data = pub->data[elem];
+        dlog(1, "[eee] UN-PACKED elem %d at offset %d\n", elem, eeetest);
 
         SOS_buffer_unpack(buffer, &offset, "ddill",
                           &data->time.pack,
@@ -1650,11 +1668,11 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
         case SOS_VAL_TYPE_STRING:
             if (data->val.c_val != NULL) {
                 free(data->val.c_val );
-                data->val.c_val = (char *) malloc(1 + data->val_len);
-                memset(data->val.c_val, '\0', (1 + data->val_len));
             }
+            data->val.c_val = (char *) malloc(1 + data->val_len);
+            memset(data->val.c_val, '\0', (1 + data->val_len));
             SOS_buffer_unpack(buffer, &offset, "s", data->val.c_val);
-            dlog(7, "[STRING] Extracted pub message string: %s\n", data->val.c_val);
+            dlog(8, "[STRING] Extracted pub message string: %s\n", data->val.c_val);
             break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", data->type, elem, pub->guid);
@@ -1701,7 +1719,10 @@ void SOS_announce( SOS_pub *pub ) {
 
     dlog(6, "Preparing an announcement message...\n");
 
-    if (pub->announced != 0) { return; }
+    if (pub->announced != 0) {
+        dlog(0, "WARNING: This publication has already been announced!  Doing nothing.\n");
+        return;
+    }
 
     dlog(6, "  ... placing the announce message in a buffer.\n");
     SOS_announce_to_buffer(pub, ann_buf);

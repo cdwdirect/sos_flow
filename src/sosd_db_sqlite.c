@@ -343,6 +343,8 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_pub");
     int i;
 
+    pthread_mutex_lock( pub->lock );
+
     dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 
     /*
@@ -401,6 +403,8 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     CALL_SQLITE (reset (stmt_insert_pub));
     CALL_SQLITE (clear_bindings (stmt_insert_pub));
 
+    pthread_mutex_unlock( pub->lock );
+
     dlog(5, "  ... done.  returning to loop.\n");
     return;
 }
@@ -413,6 +417,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     int            snap_count;
     int            count;
 
+    pthread_mutex_lock( pub->lock );
+
     dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
 
     dlog(2, "  ... getting lock for queues\n");
@@ -421,6 +427,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     snap_count = queue->elem_count;
     if (queue->elem_count < 1) {
         dlog(2, "  ... nothing in the queue, returning.\n");
+        pthread_mutex_unlock( pub->lock );
         pthread_mutex_unlock( queue->sync_lock);
         return;
     }
@@ -459,7 +466,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
         mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
 
-        dlog(2, "    ---[%s]---\n", pub->data[elem]->name);
+        dlog(5, "    ---[%s]---\n", pub->data[elem]->name);
 
         SOS_TIME( time_recv );
 
@@ -522,6 +529,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     free(snap_list);
     free(val_alloc);
 
+    pthread_mutex_unlock( pub->lock );
     dlog(5, "  ... done.  returning to loop.\n");
 
     return;
@@ -531,6 +539,8 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;
+
+    pthread_mutex_lock( pub->lock );
 
     dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 
@@ -582,6 +592,8 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     }
     
     dlog(5, "  ... done.  returning to loop.\n");
+
+    pthread_mutex_unlock( pub->lock );
 
     return;
 }
