@@ -162,6 +162,10 @@ int main(int argc, char *argv[]) {
             snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
             SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
             var_double += 0.000000000001;
+            if (ones < 2) {
+                SOS_publish(pub);
+            }
+
         }
 
         if (ones % 2) {

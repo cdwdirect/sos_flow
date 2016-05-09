@@ -67,8 +67,10 @@ void SOSD_cloud_shutdown_notice(void) {
         dlog(1, "  ... sent successfully\n");
     }
     
-    dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
-    MPI_Barrier(MPI_COMM_WORLD);
+    //dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
+    //MPI_Barrier(MPI_COMM_WORLD);
+    dlog(1, "  ... calling MPI_Finalize();\n");
+    MPI_Finalize();
     dlog(1, "  ... done\n");
 
     SOS_buffer_destroy(shutdown_msg);

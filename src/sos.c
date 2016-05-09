@@ -912,6 +912,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
             SOS_expand_data(pub);
         }
 
+        // Force a pub announce.
+        pub->announced = 0;
+
         /* Insert the value... */
         pos = pub->elem_count;
         pub->elem_count++;
@@ -1427,6 +1430,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
              elem, pub->data[elem]->time.pack,
              elem, pub->data[elem]->time.send);
 
+        dlog(1, "[eee] PACKING elem %d at offset %d\n", elem, offset);
         SOS_buffer_pack(buffer, &offset, "iddill",
                         elem,
                         pub->data[elem]->time.pack,
@@ -1518,7 +1522,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
 
-    if ((SOS->role != SOS_ROLE_CLIENT) && elem > pub->elem_max) {
+    if ((SOS->role != SOS_ROLE_CLIENT)) {
         dlog(4, "AUTOGROW --\n");
         dlog(4, "AUTOGROW --\n");
         dlog(4, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
@@ -1638,12 +1642,15 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
     SOS_buffer_unpack(buffer, &offset, "l", &this_frame);
     pub->frame = this_frame;
 
+    int eeetest = 0;
     /* Unpack in the data elements. */
     while (offset < header.msg_size) {
         dlog(7, "Unpacking next message @ offset %d of %d...\n", offset, header.msg_size);
 
+        eeetest = offset;
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
         data = pub->data[elem];
+        dlog(1, "[eee] UN-PACKED elem %d at offset %d\n", elem, eeetest);
 
         SOS_buffer_unpack(buffer, &offset, "ddill",
                           &data->time.pack,
@@ -1714,7 +1721,10 @@ void SOS_announce( SOS_pub *pub ) {
 
     dlog(6, "Preparing an announcement message...\n");
 
-    if (pub->announced != 0) { return; }
+    if (pub->announced != 0) {
+        dlog(0, "WARNING: This publication has already been announced!  Doing nothing.\n");
+        return;
+    }
 
     dlog(6, "  ... placing the announce message in a buffer.\n");
     SOS_announce_to_buffer(pub, ann_buf);
