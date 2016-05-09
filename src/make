@@ -31,11 +31,11 @@ then
 else
     cd ..
     cd bin
+    #-DCMAKE_C_FLAGS='-O0 -m64 -pedantic -Wall -Werror' \
     if [ ! -f CMakeCache.txt ] ; then
       cmake \
          -G "Unix Makefiles" \
          -DCMAKE_BUILD_TYPE=Debug \
-         -DCMAKE_C_FLAGS=-O0 -m64\
          --prefix=$SOS_ROOT/bin \
          -DCMAKE_C_COMPILER=gcc \
          -DCMAKE_CXX_COMPILER=g++ \

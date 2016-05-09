@@ -1643,6 +1643,7 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
         dlog(7, "Unpacking next message @ offset %d of %d...\n", offset, header.msg_size);
 
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
+        printf("Elem: %d\n", elem); fflush(stdout);
         data = pub->data[elem];
 
         SOS_buffer_unpack(buffer, &offset, "ddill",
