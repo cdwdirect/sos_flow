@@ -112,7 +112,7 @@ int SOS_test_pub_duplicates() {
         SOS_pack(pub, "name0", SOS_VAL_TYPE_INT, &i_val);
         SOS_pack(pub, "name1", SOS_VAL_TYPE_LONG, &l_val);
         SOS_pack(pub, "name2", SOS_VAL_TYPE_DOUBLE, &d_val);
-        SOS_pack(pub, "name3", SOS_VAL_TYPE_STRING, &c_val);
+        SOS_pack(pub, "name3", SOS_VAL_TYPE_STRING, c_val);
     }
 
     if (pub->elem_count != 4) {
