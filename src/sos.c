@@ -1649,7 +1649,6 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
 
         eeetest = offset;
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
-        printf("Elem: %d\n", elem); fflush(stdout);
         data = pub->data[elem];
         dlog(1, "[eee] UN-PACKED elem %d at offset %d\n", elem, eeetest);
 
