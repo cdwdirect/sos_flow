@@ -41,7 +41,7 @@
 #define SOS_DEFAULT_RING_SIZE       65536
 #define SOS_DEFAULT_TABLE_SIZE      128
 #define SOS_DEFAULT_GUID_BLOCK      512
-#define SOS_DEFAULT_ELEM_MAX        1024
+#define SOS_DEFAULT_ELEM_MAX        256
 #define SOS_DEFAULT_UID_MAX         LLONG_MAX
 
 

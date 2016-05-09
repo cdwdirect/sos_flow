@@ -452,7 +452,7 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
-            dlog(8, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(8, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)   [STRING]\n", packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;
             packed_bytes += 4;
@@ -575,13 +575,14 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             if (maxlen > 0 && len > maxlen) count = maxlen - 1;
             else count = len;
             if (s == NULL) {
+                dlog(8, "WARNING: Having to calloc() space for a string, NULL (char *) provided.   [STRING]\n");
                 s = (char *) calloc((count + 1), sizeof(char));
             }
             if (count > 0) {
                 memcpy(s, buf, count);
             }
             s[count] = '\0';
-            dlog(8, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)\n", packed_bytes, s, len);
+            dlog(8, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)   [STRING]\n", packed_bytes, s, len);
             buf += len;
             packed_bytes += len;
             break;
