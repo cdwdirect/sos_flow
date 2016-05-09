@@ -11,6 +11,7 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
   echo "Please set the SOS_CMD_PORT environment variable."
   kill -INT $$
 fi
+{
 echo ""
 echo ""
 echo "*** Terminating any prior daemons using [sosd_stop]..."
@@ -51,3 +52,4 @@ echo ""
 #sleep 2
 #$SOS_ROOT/src/showdb
 #echo ""
+}
