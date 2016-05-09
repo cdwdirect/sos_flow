@@ -96,8 +96,18 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
     dlog(1, "Initializing SOS ...\n");
     dlog(1, "  ... setting argc / argv\n");
-    SOS->config.argc = *argc;
-    SOS->config.argv = *argv;
+
+    if (argc == NULL || argv == NULL) {
+        dlog(1, "NOTE: argc == NULL || argv == NULL, using safe but meaningles values.\n");
+        SOS->config.argc = 2;
+        SOS->config.argv = (char **) malloc(2 * sizeof(char *));
+        SOS->config.argv[0] = strdup("[NULL]");
+        SOS->config.argv[1] = strdup("[NULL]");
+    } else {
+        SOS->config.argc = *argc;
+        SOS->config.argv = *argv;
+    }
+
     SOS->config.process_id = (int) getpid();
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
@@ -1266,7 +1276,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
             break;
         case SOS_VAL_TYPE_BYTES:
-            memset(unpack_fmt, '\0', SOS_DEFAULT_BUFFER_LEN);
+            memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
             offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
             snap->val_len = string_len;
             snap->val.bytes = (void *) malloc((1 + string_len) * sizeof(unsigned char));
@@ -1429,7 +1439,10 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
         case SOS_VAL_TYPE_INT:     SOS_buffer_pack(buffer, &offset, "i", pub->data[elem]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:    SOS_buffer_pack(buffer, &offset, "l", pub->data[elem]->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE:  SOS_buffer_pack(buffer, &offset, "d", pub->data[elem]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING:  SOS_buffer_pack(buffer, &offset, "s", pub->data[elem]->val.c_val); break;
+        case SOS_VAL_TYPE_STRING:  SOS_buffer_pack(buffer, &offset, "s", pub->data[elem]->val.c_val);
+            dlog(8, "[STRING]: Packing in -> \"%s\" ...\n", pub->data[elem]->val.c_val);
+            break;
+        case SOS_VAL_TYPE_BYTES:   SOS_buffer_pack(buffer, &offset, "b", pub->data[elem]->val.bytes); break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
             break;
@@ -1650,11 +1663,11 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
         case SOS_VAL_TYPE_STRING:
             if (data->val.c_val != NULL) {
                 free(data->val.c_val );
-                data->val.c_val = (char *) malloc(1 + data->val_len);
-                memset(data->val.c_val, '\0', (1 + data->val_len));
             }
+            data->val.c_val = (char *) malloc(1 + data->val_len);
+            memset(data->val.c_val, '\0', (1 + data->val_len));
             SOS_buffer_unpack(buffer, &offset, "s", data->val.c_val);
-            dlog(7, "[STRING] Extracted pub message string: %s\n", data->val.c_val);
+            dlog(8, "[STRING] Extracted pub message string: %s\n", data->val.c_val);
             break;
         default:
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", data->type, elem, pub->guid);

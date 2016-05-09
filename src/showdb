@@ -28,9 +28,11 @@ for db in $SOS_WORK/sosd.*.db ; do
     sqlite3 ${db} "select max(rowid) from tblvals;" >> validate.txt
     sqlite3 ${db} -nullvalue "<NULL>" -header -column "select * from tblvals where rowid < 5;"
     echo "..."
-    echo -n "[####]: count(PUBS w/unique(guid)) = "
-    sqlite3 ${db} "select count(distinct guid) from tblpubs;"
-    sqlite3 ${db} -nullvalue "<NULL>" -header -column "${PUBLIST_SQL}"
+    if [ "x$1" == "x" ] ; then
+        echo -n "[####]: count(PUBS w/unique(guid)) = "
+        sqlite3 ${db} "select count(distinct guid) from tblpubs;"
+        sqlite3 ${db} -nullvalue "<NULL>" -header -column "${PUBLIST_SQL}"
+    fi
     echo ""
     echo ""
     echo ""
