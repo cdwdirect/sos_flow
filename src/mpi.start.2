@@ -49,9 +49,10 @@ echo ""
 echo "=========="
 echo ""
 
+xterm="xterm -hold -e ${valgrind_cmd} "
+
 if [ "x${surplus}" == "x" ] ; then
-    #mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${valgrind_cmd} ${daemon1}
-    mpirun -np 1 xterm -hold -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -hold -e ${daemon1} &
+    mpirun -np 1 ${daemon0} : -np 1 ${daemon1} &
 else
     mpirun -np 1 xterm -hold -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -hold -e ${valgrind_cmd} ${daemon1} : -np 1 ${surplus} &
 fi

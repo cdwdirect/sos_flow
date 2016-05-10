@@ -451,7 +451,7 @@ void* SOS_THREAD_feedback( void *args ) {
     SOS_buffer_init(SOS, &check_in_buffer);
     SOS_buffer_init(SOS, &feedback_buffer);
 
-    while (SOS->status != SOS_STATUS_RUNNING) {
+    while (SOS->status != SOS_STATUS_RUNNING && SOS->status != SOS_STATUS_SHUTDOWN) {
         usleep(1000);
     };
 
