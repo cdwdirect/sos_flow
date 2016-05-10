@@ -280,7 +280,7 @@ void SOSD_db_close_database() {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_close_database");
 
     dlog(2, "Closing database.   (%s)\n", SOSD.db.file);
-    pthread_mutex_lock( SOSD.db.lock );
+    //pthread_mutex_lock( SOSD.db.lock );
     dlog(2, "  ... finalizing statements.\n");
     SOSD.db.ready = -1;
     CALL_SQLITE (finalize(stmt_insert_pub));
