@@ -71,6 +71,7 @@
     VAL_TYPE(SOS_VAL_TYPE___MAX)
 
 #define FOREACH_VAL_SYNC(VAL_SYNC)              \
+    VAL_SYNC(SOS_VAL_SYNC_DEFAULT)              \
     VAL_SYNC(SOS_VAL_SYNC_RENEW)                \
     VAL_SYNC(SOS_VAL_SYNC_LOCAL)                \
     VAL_SYNC(SOS_VAL_SYNC_CLOUD)                \
@@ -363,8 +364,8 @@ typedef struct {
 
 typedef struct {
     void               *sos_context;
-    long                next;
-    long                last;
+    SOS_guid            next;
+    SOS_guid            last;
     pthread_mutex_t    *lock;
 } SOS_uid;
 

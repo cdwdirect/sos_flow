@@ -343,6 +343,11 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_pub");
     int i;
 
+    if (pub->announced == 1) {
+        dlog(1, "Skipping database insertion, this pub is already marked as announced.\n");
+        return;
+    }
+
     pthread_mutex_lock( pub->lock );
 
     dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
@@ -466,7 +471,11 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
         mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
 
-        dlog(5, "    ---[%s]---\n", pub->data[elem]->name);
+        if (time_send > 0.1) {
+            dlog(5, "    ---[%s]---\n", pub->data[elem]->name);
+        } else {
+            dlog(1, "WARNING: pub->data[%d]->name == \"%s\", time.send == %lf\n", elem, pub->data[elem]->name, time_send);
+        }
 
         SOS_TIME( time_recv );
 
@@ -545,6 +554,12 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 
     for (i = 0; i < pub->elem_count; i++) {
+
+        if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
+            dlog(1, "Skipping pub->data[%d]->sync == %s\n", i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
+            continue;
+        }
+
         /*
          *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
          */
@@ -589,6 +604,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         CALL_SQLITE (reset(stmt_insert_data));
         CALL_SQLITE (clear_bindings (stmt_insert_data));
 
+        pub->data[i]->sync = SOS_VAL_SYNC_LOCAL;
     }
     
     dlog(5, "  ... done.  returning to loop.\n");

@@ -21,6 +21,12 @@
 
 
 #include "sos.h"
+
+#ifdef SOS_DEBUG
+#undef SOS_DEBUG
+#endif
+#define SOS_DEBUG 1
+
 #include "sos_debug.h"
 
 int main(int argc, char *argv[]) {
@@ -114,24 +120,26 @@ int main(int argc, char *argv[]) {
     var_int = 1234567890;
     snprintf(var_string, 100, "Hello, world!");
 
-    SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
-    SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
+    //SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
+    //SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
 
     var_double = 0.0;
 
-    //        for (i = 0; i < PUB_ELEM_COUNT; i++) {
-    //        snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
-    //        SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-    //        var_double += 0.000000000001;
-    //    }
+    int pos = -1;
+    for (i = 0; i < PUB_ELEM_COUNT; i++) {
+        snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+        pos = SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+        dlog(0, "   pub->data[%d]->guid == %" SOS_GUID_FMT "\n", pos, pub->data[pos]->guid);
+        var_double += 0.0000001;
+    }
 
 
-    dlog(0, "  ... Announcing\n");
+    dlog(0, "Announcing\n");
     SOS_announce(pub);
     dlog(0, "  ... Publishing (initial)\n");
     SOS_publish(pub);
 
-    dlog(0, "  ... Re-packing --> Publishing %d values for %d times per iteration:\n",
+    dlog(0, "Re-packing --> Publishing %d values for %d times per iteration:\n",
            PUB_ELEM_COUNT,
            ITERATION_SIZE);
            
@@ -157,17 +165,10 @@ int main(int argc, char *argv[]) {
             dlog(0, "     ... 1,000,000 value milestone ---------\n");
         }
 
-
         for (i = 0; i < PUB_ELEM_COUNT; i++) {
             snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
             SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
             var_double += 0.000000000001;
-            if (ones < 2) {
-                if (i % 20) {
-                    printf("SOS_publish()   pub->elem_max == %d\n", pub->elem_max);
-                    SOS_publish(pub);
-                }
-            }
         }
 
         if (ones % 2) {
