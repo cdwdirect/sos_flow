@@ -10,7 +10,10 @@
 #include "sos_error.h"
 #include "sosd.h"
 #include "sosd_cloud_mpi.h"
-#include "pack_buffer.h"
+#include "sos_types.h"
+#include "sos_buffer.h"
+#include "sos_qhashtbl.h"
+#include "sos_pipe.h"
 
 pthread_t *SOSD_cloud_flush;
 bool SOSD_cloud_shutdown_underway;
@@ -22,6 +25,9 @@ void SOSD_cloud_shutdown_notice(void) {
      *       Only certain ranks will participate in it.
      */
 
+    SOS_buffer *shutdown_msg;
+    SOS_buffer_init(SOS, &shutdown_msg);
+
     dlog(1, "Providing shutdown notice to the cloud_sync backend...\n");
     SOSD_cloud_shutdown_underway = true;
 
@@ -29,161 +35,110 @@ void SOSD_cloud_shutdown_notice(void) {
         dlog(1, "  ... preparing notice to SOS_ROLE_DB at rank %d\n", SOSD.daemon.cloud_sync_target);
         /* The first N ranks will notify the N databases... */
         SOS_msg_header header;
-        unsigned char shutdown_msg[128];
-        int count;
-        int pack_inset;
-        int offset;
-        count = 1;
-        memset(shutdown_msg, '\0', 128);
+        SOS_buffer    *shutdown_msg;
+        int            embedded_msg_count;
+        int            offset;
+        int            msg_inset;
+
+        SOS_buffer_init(SOS, &shutdown_msg);
+
+        embedded_msg_count = 1;
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
         header.msg_from = SOS->my_guid;
         header.pub_guid = 0;
-        pack_inset = SOS_buffer_pack(SOS, shutdown_msg, "i", count);
-        offset = SOS_buffer_pack(SOS, (shutdown_msg + pack_inset), "iill",
-                                 header.msg_size,
-                                 header.msg_type,
-                                 header.msg_from,
-                                 header.pub_guid  );
-        header.msg_size = offset;
-        SOS_buffer_pack(SOS, shutdown_msg, "ii", count, header.msg_size);
+
+        offset = 0;
+        SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
+        msg_inset = offset;
+
+        header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
+                                          header.msg_size,
+                                          header.msg_type,
+                                          header.msg_from,
+                                          header.pub_guid);
+        offset = 0;
+        SOS_buffer_pack(shutdown_msg, &offset, "ii",
+                        embedded_msg_count,
+                        header.msg_size);
 
         dlog(1, "  ... sending notice\n");
-        MPI_Ssend((void *) shutdown_msg, header.msg_size, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+        MPI_Ssend((void *) shutdown_msg->data, shutdown_msg->len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
         dlog(1, "  ... sent successfully\n");
     }
     
-    dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
-    MPI_Barrier(MPI_COMM_WORLD);
+    //dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
+    //MPI_Barrier(MPI_COMM_WORLD);
     dlog(1, "  ... done\n");
+
+    SOS_buffer_destroy(shutdown_msg);
 
     return;
 }
 
 
 
-void* SOSD_THREAD_cloud_flush(void *params) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_THREAD_cloud_flush(MPI)");
-    SOS_async_buf_pair *bp = (SOS_async_buf_pair *) params;
-    struct timespec tsleep;
-    struct timeval  tnow;
-    int wake_type;
 
-    /* Since the log files are not even open yet, we must wait to use dlog() */
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Starting thread.\n"); }
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... LOCK bp->flush_lock\n"); }
-    pthread_mutex_lock(bp->flush_lock);
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... UNLOCK bp->flush_lock, waiting for daemon to finish initializing.\n"); }
-    pthread_cond_wait(bp->flush_cond, bp->flush_lock);
-    dlog(6, "  ... Woken up!  (LOCK on bp->flush_lock)\n");
-
-    if (SOS->role == SOS_ROLE_DB) {
-        dlog(0, "WARNING!  Returning from the SOSD_THREAD_cloud_flush routine, not used by DB.\n");
-        return NULL;
-    }
-
-    gettimeofday(&tnow, NULL);
-    tsleep.tv_sec  = tnow.tv_sec  + 0;
-    tsleep.tv_nsec = (1000 * tnow.tv_usec) + 62500000;   /* ~ 0.06 seconds. */
-
-    dlog(6, "  ... entering loop\n");
-    while (SOSD.daemon.running) {
-        dlog(6, "Sleeping!    (UNLOCK on bp->flush_lock)\n");
-        wake_type = pthread_cond_timedwait(bp->flush_cond, bp->flush_lock, &tsleep);
-        dlog(6, "Waking up!   (LOCK on bp->flush_lock)\n");
-
-        if (SOSD_cloud_shutdown_underway) {
-            dlog(6, "  ... shutdown is imminent, bailing out\n");
-            break;
-        }
-
-        dlog(6, "  ... bp->grow_buf->entry_count == %d\n", bp->grow_buf->entry_count);
-        dlog(6, "  ... bp->send_buf->entry_count == %d\n", bp->send_buf->entry_count);
-        if (wake_type == ETIMEDOUT) {
-            dlog(6, "  ... timed-out\n");
-        } else {
-            dlog(6, "  ... manually triggered\n");
-        }
-
-        if (bp->send_buf->entry_count == 0) {
-            dlog(6, "  ... nothing to do, going back to sleep.\n");
-            gettimeofday(&tnow, NULL);
-            tsleep.tv_sec  = tnow.tv_sec  + 0;
-            tsleep.tv_nsec = (1000 * tnow.tv_usec) + 122500000UL;   /* ~ 0.12 seconds */
-            continue;
-        }
-
-        SOSD_cloud_send(bp->send_buf->data, bp->send_buf->len);
-
-        bp->send_buf->len = 0;
-        bp->send_buf->entry_count = 0;
-        memset(bp->send_buf->data, '\0', bp->send_buf->max);
-
-        /* Done.  Go back to sleep. */
-        gettimeofday(&tnow, NULL);
-        tsleep.tv_sec  = tnow.tv_sec  + 5;
-        tsleep.tv_nsec = tnow.tv_usec + 62500000;   /* ~ 0.06 seconds. */
-    }
-
-    dlog(6, "  ... UNLOCK bp->flush_lock\n");
-    pthread_mutex_unlock(bp->flush_lock);
-    dlog(1, "  ... exiting thread safely.\n");
-
-    return NULL;
-}
-
-
-void SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
+void SOSD_cloud_enqueue(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
+    SOS_msg_header header;
+    int offset;
 
     if (SOSD_cloud_shutdown_underway) { return; }
-    if (msg_len == 0) {
+    if (buffer->len == 0) {
         dlog(1, "ERROR: You attempted to enqueue a zero-length message.\n");
         return;
     }
 
-    SOS_msg_header header;
     memset(&header, '\0', sizeof(SOS_msg_header));
 
-    SOS_buffer_unpack(SOS, msg, "iill",
+    offset = 0;
+    SOS_buffer_unpack(buffer, &offset, "iigg",
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);           
+                      &header.pub_guid);
 
-    dlog(6, "Enqueueing a %s message of %d bytes...\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), msg_len);
-    if (msg_len != header.msg_size) { dlog(1, "  ... ERROR: msg_size(%d) != header.msg_size(%d)", msg_len, header.msg_size); }
-    SOS_async_buf_pair_insert(SOSD.cloud_bp, msg, msg_len);
+    dlog(6, "Enqueueing a %s message of %d bytes...\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
+    if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR: buffer->len(%d) != header.msg_size(%d)", buffer->len, header.msg_size); }
+
+    pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
+    pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, sizeof(SOS_buffer *));
+    SOSD.sync.cloud.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
+
     dlog(1, "  ... done.\n");
-
     return;
 }
 
 
 void SOSD_cloud_fflush(void) {
-    SOS_async_buf_pair_fflush(SOSD.cloud_bp);
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush");
+    dlog(5, "Signaling SOSD.sync.cloud.queue->sync_cond ...\n");
+    pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
     return;
 }
 
 
-int SOSD_cloud_send(unsigned char *msg, int msg_len) {
+int SOSD_cloud_send(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send(MPI)");
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
+    int   offset;
     int   rc;
-
     int   entry_count;
 
-    SOS_buffer_unpack(SOS, msg, "i", &entry_count);
+    offset = 0;
+    SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
 
     dlog(5, "-----------> ----> -------------> ----------> ------------->\n");
     dlog(5, "----> --> >>Transporting off-node!>> ---(%d entries)---->\n", entry_count);
     dlog(5, "---------------> ---------> --------------> ----> -----> -->\n");
 
     /* At this point, it's pretty simple: */
-    MPI_Ssend((void *) msg, msg_len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+    MPI_Ssend((void *) buffer->data, buffer->len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
 
-
+    /* TODO: { FEEDBACK } Turn this into send/recv combo... */
 
     return 0;
 }
@@ -192,69 +147,95 @@ int SOSD_cloud_send(unsigned char *msg, int msg_len) {
 
 void SOSD_cloud_listen_loop(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop(MPI)");
-    MPI_Status status;
-    SOS_async_buf_pair *bp;
-    unsigned char *ptr;
-    int offset;
-    int entry_count, entry;
-    SOS_msg_header header;
+    MPI_Status      status;
+    SOS_msg_header  header;
+    SOS_buffer     *buffer;
+    SOS_buffer     *msg;
+    char            unpack_format[SOS_DEFAULT_STRING_LEN] = {0};
+    int             msg_waiting;
+    int             mpi_msg_len;
+    int             offset;
+    int             msg_offset;
+    int             entry_count;
+    int             entry;
 
-    SOS_async_buf_pair_init(SOS, &bp);  /* Since MPI_ is serial here, we can simply ignore the mutexes. */
+    SOS_buffer_init(SOS, &buffer);
 
     while(SOSD.daemon.running) {
         entry_count = 0;
         offset = 0;
-        ptr = (bp->a.data + offset);
-        memset(bp->a.data, '\0', bp->a.max); bp->a.len = 0;
-        memset(bp->b.data, '\0', bp->b.max); bp->b.len = 0;
 
         /* Receive a composite message from a daemon: */
         dlog(5, "Waiting for a message from MPI...\n");
-        MPI_Recv((void *) bp->a.data, bp->a.max, MPI_CHAR, MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        dlog(5, "  ... message received!\n");
 
-        offset += SOS_buffer_unpack(SOS, bp->a.data, "i", &entry_count);
-        ptr = (bp->a.data + offset);
-        dlog(5, "  ... message contains %d entries.\n", entry_count);
+        msg_waiting = 0;
+        do {
+            MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
+            usleep(1000);
+        } while (msg_waiting == 0);
 
-        /* Extract one-at-a-time single messages into bp->b.data: */
-        for (entry = 1; entry <= entry_count; entry++) {
-            dlog(6, "  ... processing entry %d of %d @ offset == %d \n", entry, entry_count, offset);
+        MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
+
+        while(buffer->max < mpi_msg_len) {
+            SOS_buffer_grow(buffer, (1 + (mpi_msg_len - buffer->max)), SOS_WHOAMI);
+        }
+
+        MPI_Recv((void *) buffer->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+        dlog(1, "  ... message of %d bytes received from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);
+
+        offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
+        dlog(1, "  ... message contains %d entries.\n", entry_count);
+
+        int displaced = 0;
+
+        /* Extract one-at-a-time single messages into 'msg' */
+        for (entry = 0; entry < entry_count; entry++) {
+            dlog(1, "[ccc] ... processing entry %d of %d @ offset == %d \n", (entry + 1), entry_count, offset);
             memset(&header, '\0', sizeof(SOS_msg_header));
-            memset(bp->b.data, '\0', bp->b.max);
-            SOS_buffer_unpack(SOS, ptr, "iill",
+            displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
                               &header.pub_guid);
-            dlog(6, "     ... header.msg_size == %d\n", header.msg_size);
-            dlog(6, "     ... header.msg_type == %s  (%d)\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
-            dlog(6, "     ... header.msg_from == %ld\n", header.msg_from);
-            dlog(6, "     ... header.pub_guid == %ld\n", header.pub_guid);
+            dlog(1, "     ... header.msg_size == %d\n", header.msg_size);
+            dlog(1, "     ... header.msg_type == %s  (%d)\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
+            dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+            dlog(1, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
-            memcpy(bp->b.data, ptr, header.msg_size);
+            offset -= displaced;
+
+            //Create a new message buffer:
+            SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
+
+            dlog(1, "[ccc] (%d of %d) <<< bringing in msg(%15s).size == %d from offset:%d\n",
+                 (entry + 1), entry_count, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+                 header.msg_size, offset);
+
+            //Copy the data into the new message directly:
+            memcpy(msg->data, (buffer->data + offset), header.msg_size);
+            msg->len = header.msg_size;
             offset += header.msg_size;
-            ptr = (bp->a.data + offset);
 
-            /* Now let's handle the message we've moved over into buffer bp-b.data */
+            //Enqueue this new message into the local_sync:
             switch (header.msg_type) {
-
-            case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (bp->b.data, header.msg_size); break;
-            case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (bp->b.data, header.msg_size); break;
-            case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (bp->b.data, header.msg_size); break;
+            case SOS_MSG_TYPE_ANNOUNCE:
+            case SOS_MSG_TYPE_PUBLISH:
+            case SOS_MSG_TYPE_VAL_SNAPS:
+                pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+                pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
+                SOSD.sync.local.queue->elem_count++;
+                pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+                break;
 
             case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
-
-            case SOS_MSG_TYPE_REGISTER:   /* SOSD_handle_register   (bp->b.data, header.msg_size); break; */
-            case SOS_MSG_TYPE_GUID_BLOCK: /* SOSD_handle_guid_block (bp->b.data, header.msg_size); break; */
-            case SOS_MSG_TYPE_ECHO:       /* SOSD_handle_echo       (bp->b.data, header.msg_size); break; */
-            default:                      SOSD_handle_unknown    (bp->b.data, header.msg_size); break;
+            default:                      SOSD_handle_unknown    (msg); break;
             }
         }
     }
 
     /* Join with the daemon's and close out together... */
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     return;
 }
@@ -348,20 +329,29 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     /* -------------------- */
 
-    if (SOSD_ECHO_TO_STDOUT) printf("Initializing cloud_sync buffers...\n");
-    SOS_async_buf_pair_init(SOS, &SOSD.cloud_bp);
-    if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
-
-    /* All DAEMON except the DB need the cloud_sync flush thread. */
-    if (SOS->role != SOS_ROLE_DB) {
-        if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
-        SOSD_cloud_flush = (pthread_t *) malloc(sizeof(pthread_t));
-        rc = pthread_create(SOSD_cloud_flush, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) SOSD.cloud_bp);
-        if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
-    }
 
     return 0;
 }
+
+
+int SOSD_cloud_start() {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_start");
+    int rc;
+
+    /*
+    if (SOS->role != SOS_ROLE_DB) {
+        if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
+        SOSD.sync.cloud.handler = (pthread_t *) malloc(sizeof(pthread_t));
+        rc = pthread_create(SOSD.sync.cloud.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud);
+        if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
+    }
+    */
+
+    pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+
+    return 0;
+}
+
 
 int SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize(MPI)");
@@ -369,21 +359,16 @@ int SOSD_cloud_finalize(void) {
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
     int   rc;
 
-    if (SOS->role != SOS_ROLE_DB) {
-        dlog(1, "Shutting down SOSD cloud services...\n");
-        dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
-        SOS_async_buf_pair_fflush(SOSD.cloud_bp);
-        pthread_cond_signal(SOSD.cloud_bp->flush_cond);
-        dlog(1, "  ... joining the cloud_sync flush thread.\n");
-        pthread_join(*SOSD_cloud_flush, NULL);
-        free(SOSD_cloud_flush);
-    }
+    dlog(1, "Shutting down SOSD cloud services...\n");
+    //dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
+    //SOSD_cloud_fflush();
+    //dlog(1, "  ... joining the cloud_sync flush thread.\n");
+    //pthread_join(*SOSD.sync.cloud.handler, NULL);
+    //free(SOSD.sync.cloud.handler);
 
     dlog(1, "  ... cleaning up the cloud_sync_set list.\n");
     memset(SOSD.daemon.cloud_sync_target_set, '\0', (SOSD.daemon.cloud_sync_target_count * sizeof(int)));
     free(SOSD.daemon.cloud_sync_target_set);
-    dlog(1, "  ... destroying the cloud-send buffers.\n");
-    SOS_async_buf_pair_destroy(SOSD.cloud_bp);
 
     dlog(1, "Leaving the MPI communicator...\n");
     rc = MPI_Finalize();

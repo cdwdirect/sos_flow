@@ -20,12 +20,22 @@ PUBLIST_SQL="${PUBLIST_SQL}  WHERE     row_id IN (SELECT MAX(row_id) FROM tblpub
 PUBLIST_SQL="${PUBLIST_SQL}  ORDER BY  prog_name, comm_rank, title;"
 
 for db in $SOS_WORK/sosd.*.db ; do
-    echo ""
-    echo -n "${db} [val.COUNT] = "
+    echo "[##########################################################################]"
+    echo "[##########################################################################]"
+    echo "[####]: ${db}"
+    echo -n "[####]: count(distinct guid) = "
+    sqlite3 ${db} "select count(distinct guid) from tblvals;"
+    echo -n "[####]: max(rowid)           = "
     sqlite3 ${db} "select max(rowid) from tblvals;"
-    echo -n "${db} [pub.COUNT] = "
-    sqlite3 ${db} "select count(distinct guid) from tblpubs;"
-    echo    "${db} [pubs.LIST] = "
-    sqlite3 ${db} -column -header "${PUBLIST_SQL}"
+    sqlite3 ${db} -nullvalue "<NULL>" -header -column "select * from tblvals where rowid < 5;"
+    echo "..."
+    if [ "x$1" == "x" ] ; then
+        echo -n "[####]: count(PUBS w/unique(guid)) = "
+        sqlite3 ${db} "select count(distinct guid) from tblpubs;"
+        sqlite3 ${db} -nullvalue "<NULL>" -header -column "${PUBLIST_SQL}"
+    fi
+    echo ""
+    echo ""
+    echo ""
 done
 

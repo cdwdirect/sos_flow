@@ -100,7 +100,7 @@ static void SOS_custom_signal_handler(int sig) {
     }
     
     dlog(0, "\n");
-    dlog(0, "***************************************");
+    dlog(0, "***************************************\n");
     dlog(0, "\n");
     dlog(0, "\n");
     exit(99);

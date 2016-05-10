@@ -66,7 +66,7 @@ int SOS_test_pub_growth() {
     for (attempt = 0; attempt < (ATTEMPT_MAX / 2); attempt++) {
         random_string(some_string, 25);
         snprintf(val_name, 512, "%d%s", attempt, some_string);
-        SOS_pack(pub, val_name, SOS_VAL_TYPE_INT, (SOS_val) attempt);
+        SOS_pack(pub, val_name, SOS_VAL_TYPE_INT, &attempt);
         if (SOS_RUN_MODE == SOS_ROLE_CLIENT) {
             SOS_announce(pub);
             SOS_publish(pub);
@@ -109,10 +109,10 @@ int SOS_test_pub_duplicates() {
         random_double(&d_val);
         random_string(c_val, 60);
 
-        SOS_pack(pub, "name0", SOS_VAL_TYPE_INT, (SOS_val) i_val);
-        SOS_pack(pub, "name1", SOS_VAL_TYPE_LONG, (SOS_val) l_val);
-        SOS_pack(pub, "name2", SOS_VAL_TYPE_DOUBLE, (SOS_val) d_val);
-        SOS_pack(pub, "name3", SOS_VAL_TYPE_STRING, (SOS_val) c_val);
+        SOS_pack(pub, "name0", SOS_VAL_TYPE_INT, &i_val);
+        SOS_pack(pub, "name1", SOS_VAL_TYPE_LONG, &l_val);
+        SOS_pack(pub, "name2", SOS_VAL_TYPE_DOUBLE, &d_val);
+        SOS_pack(pub, "name3", SOS_VAL_TYPE_STRING, c_val);
     }
 
     if (pub->elem_count != 4) {
@@ -151,13 +151,13 @@ int SOS_test_pub_values() {
     /* Push the values into the pub handle. */
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
         snprintf(val_handle, 100, "INT(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_INT, (SOS_val) reference_i[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_INT, &reference_i[attempt]);
         snprintf(val_handle, 100, "LONG(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_LONG, (SOS_val) reference_l[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_LONG, &reference_l[attempt]);
         snprintf(val_handle, 100, "DOUBLE(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_DOUBLE, (SOS_val) reference_d[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_DOUBLE, &reference_d[attempt]);
         snprintf(val_handle, 100, "STRING(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_STRING, (SOS_val) reference_c[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_STRING, &reference_c[attempt]);
     }
 
     if (pub->elem_count != (ATTEMPT_MAX * 4)) {
@@ -232,13 +232,13 @@ int SOS_test_pub_values() {
     /* Push the values into the pub handle. */
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
         snprintf(val_handle, 100, "INT(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_INT, (SOS_val) reference_i[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_INT, &reference_i[attempt]);
         snprintf(val_handle, 100, "LONG(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_LONG, (SOS_val) reference_l[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_LONG, &reference_l[attempt]);
         snprintf(val_handle, 100, "DOUBLE(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_DOUBLE, (SOS_val) reference_d[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_DOUBLE, &reference_d[attempt]);
         snprintf(val_handle, 100, "STRING(%d)", attempt);
-        SOS_pack(pub, val_handle, SOS_VAL_TYPE_STRING, (SOS_val) reference_c[attempt]);
+        SOS_pack(pub, val_handle, SOS_VAL_TYPE_STRING, &reference_c[attempt]);
     }
 
     if (pub->elem_count != (ATTEMPT_MAX * 4)) {

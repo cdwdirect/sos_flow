@@ -9,7 +9,14 @@
 #include <string.h>
 
 #include "sos.h"
-#include "pack_buffer.h"
+#include "sos_buffer.h"
+
+#ifdef SOS_DEBUG
+    #undef SOS_DEBUG
+    #define SOS_DEBUG 1
+#endif
+
+#include "sos_debug.h"
 
 #define USAGE "USAGE: stopd [--cmd_port <port>]\n"
 
@@ -24,15 +31,9 @@
 
 int main(int argc, char *argv[]) {
     SOS_msg_header  header;
-    unsigned char  *msg_out;
-    unsigned char  *msg_reply;
-    int             buf_len;
-    SOS_runtime    *SOS;
-
-    msg_out = (unsigned char *) malloc(SOS_DEFAULT_BUFFER_LEN);
-    msg_reply = (unsigned char *) malloc(SOS_DEFAULT_REPLY_LEN);
-    memset(msg_out, '\0', SOS_DEFAULT_BUFFER_LEN);
-    memset(msg_reply, '\0', SOS_DEFAULT_REPLY_LEN);
+    SOS_buffer     *buffer;
+    SOS_runtime    *my_SOS;
+    int             offset;
 
     /* Process command line arguments: format for options is:   --argv[i] <argv[j]>    */
     int i, j;
@@ -52,30 +53,35 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
-    fprintf(stdout, "Connecting to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    my_SOS = SOS_init(&argc, &argv, SOS_ROLE_RUNTIME_UTILITY, SOS_LAYER_SOS_RUNTIME);
+    SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
-    SOS = SOS_init(&argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_SOS_RUNTIME);
+    dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+
+    SOS_buffer_init(SOS, &buffer);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
     header.msg_from = SOS->my_guid;
     header.pub_guid = 0;
 
-    buf_len = SOS_buffer_pack(SOS, msg_out, "iill",
+    offset = 0;
+    SOS_buffer_pack(buffer, &offset, "iigg",
                               header.msg_size,
                               header.msg_type,
                               header.msg_from,
                               header.pub_guid);
 
-    header.msg_size = buf_len;
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
 
-    SOS_buffer_pack(SOS, msg_out, "i", header.msg_size);
+    dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    fprintf(stdout, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
+    SOS_send_to_daemon(buffer, buffer);
 
-    SOS_send_to_daemon(SOS, msg_out, header.msg_size, msg_reply, SOS_DEFAULT_REPLY_LEN);
-
-    fprintf(stdout, "Done.\n");
+    SOS_buffer_destroy(buffer);
+    dlog(0, "Done.\n");
 
     SOS_finalize(SOS);
     return (EXIT_SUCCESS);

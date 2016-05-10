@@ -1,5 +1,6 @@
 CMakeFiles
 src/go_output/*
+examples/general/sos_flow_working
 bin
 lib
 examples/synthetic_1/tau.conf

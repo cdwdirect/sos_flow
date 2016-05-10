@@ -5,6 +5,7 @@
 #include "sos.h"
 #include "test.h"
 #include "pack.h"
+#include "buffer.h"
 #include "pub.h"
 
 
@@ -47,6 +48,7 @@ int SOS_test_all() {
 
     total_errors += SOS_test_pack();
     total_errors += SOS_test_pub();
+    total_errors += SOS_test_buffer();
 
     /* ... */
 
