@@ -35,8 +35,8 @@ exec_path="${proj_path}"
 
 #### sos: ##########
 
-daemon0=" -npernode 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
-db0="     -np  3 ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /tmp/sos_data"
+daemon0=" -npernode 1 ${proj_path}/bin/sosd --role SOS_ROLE_DAEMON --port ${SOS_CMD_PORT} --buffer_len 512000 --listen_backlog 10 --work_dir /dev/shm/sos_data"
+db0="     -np  3      ${proj_path}/bin/sosd --role SOS_ROLE_DB     --port 22505           --buffer_len 512000 --listen_backlog 10 --work_dir /dev/shm/sos_data"
 
 sosd_programs=""
 sosd_programs="${sosd_programs} ${daemon0} : "
@@ -51,9 +51,9 @@ sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
 #### flow: ##########
 
 flow_app="${proj_path}/bin/demo_app"
-flow_app="${flow_app} --iteration_size 200"
-flow_app="${flow_app} --max_send_count 800000"
-flow_app="${flow_app} --jitter 3.0"
+flow_app="${flow_app} -i 20"
+flow_app="${flow_app} -max_send_count 800000"
+flow_app="${flow_app} -p 1000"
 
 flow_programs=""
 flow_programs="${flow_programs} -npernode 8 ${flow_app} "

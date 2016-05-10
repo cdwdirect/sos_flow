@@ -136,8 +136,6 @@ int main(int argc, char *argv[]) {
 
     dlog(0, "Announcing\n");
     SOS_announce(pub);
-    dlog(0, "  ... Publishing (initial)\n");
-    SOS_publish(pub);
 
     dlog(0, "Re-packing --> Publishing %d values for %d times per iteration:\n",
            PUB_ELEM_COUNT,
@@ -168,16 +166,18 @@ int main(int argc, char *argv[]) {
         for (i = 0; i < PUB_ELEM_COUNT; i++) {
             snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
             SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-            var_double += 0.000000000001;
+            var_double += 0.000001;
         }
 
-        if (ones % 2) {
+        //if (ones % 2) {
             /* Publish every other iteration to force local snap-queue use. */
-            SOS_publish(pub);
-        }
+        //    SOS_publish(pub);
+        //}
+        SOS_publish(pub);
     }
+
     /* Catch any stragglers. */
-    SOS_publish(pub);
+    //SOS_publish(pub);
     dlog(0, "  ... done.\n");
 
     dlog(0, "demo_app finished successfully!\n");
