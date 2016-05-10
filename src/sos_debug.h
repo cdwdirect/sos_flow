@@ -22,11 +22,13 @@
  *     +3 = VERY verbose
  *      0 = essential messages only (allows daemon logging)
  *     -1 = disabled in daemon/client (for production runs)  */
+#ifndef SOS_DEBUG
 #define SOS_DEBUG                 0
+#endif
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           1
+#define SOSD_DAEMON_LOG           0
 #define SOSD_ECHO_TO_STDOUT       0
 
 int     sos_daemon_lock_fptr;
