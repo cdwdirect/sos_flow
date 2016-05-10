@@ -158,13 +158,14 @@ int main(int argc, char *argv[])  {
     dlog(0, "Closing the sync queues:\n");
     dlog(0, "  .. SOSD.sync.local.queue\n");
     pipe_producer_free(SOSD.sync.local.queue->intake);
-    dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
-    dlog(0, "  .. SOSD.sync.cloud.queue\n");
-    pipe_producer_free(SOSD.sync.cloud.queue->intake);
-    dlog(0, "  .. SOSD.sync.db.queue\n");
-    pipe_producer_free(SOSD.sync.db.queue->intake);
 
     /* TODO: { SHUTDOWN } Add cascading queue fflush here to prevent deadlocks. */
+    //dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
+    //dlog(0, "  .. SOSD.sync.cloud.queue\n");
+    //pipe_producer_free(SOSD.sync.cloud.queue->intake);
+    //dlog(0, "  .. SOSD.sync.db.queue\n");
+    //pipe_producer_free(SOSD.sync.db.queue->intake);
+
 
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
@@ -1266,7 +1267,7 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
 
 void SOSD_display_logo(void) {
 
-    int choice = 3;
+    int choice = 0;
 
     //srand(getpid());
     //choice = rand() % 6;
@@ -1276,11 +1277,11 @@ void SOSD_display_logo(void) {
 
     switch (choice) {
     case 0:
-        printf("               _/_/_/    _/_/      _/_/_/    ))) ))  )    Scalable\n");
-        printf("            _/        _/    _/  _/          ((( ((  (     Observation\n");
-        printf("             _/_/    _/    _/    _/_/        ))) ))  )    System\n");
-        printf("                _/  _/    _/        _/      ((( ((  (     for Scientific\n");
-        printf("         _/_/_/      _/_/    _/_/_/          ))) ))  )    Workflows\n");
+        printf("               _/_/_/    _/_/      _/_/_/    )))})))    Scalable\n");
+        printf("            _/        _/    _/  _/          ((({(((     Observation\n");
+        printf("             _/_/    _/    _/    _/_/        )))})))    System\n");
+        printf("                _/  _/    _/        _/      ((({(((     for Scientific\n");
+        printf("         _/_/_/      _/_/    _/_/_/          )))})))    Workflows\n");
         break;
 
     case 1:
