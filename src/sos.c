@@ -211,13 +211,13 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         dlog(1, "  ... registering this instance with SOS->   (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
 
-        header.msg_size = sizeof(SOS_msg_header);
+        header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = 0;
         header.pub_guid = 0;
 
         SOS_buffer *buffer;
-        SOS_buffer_init(SOS, &buffer);
+        SOS_buffer_init_sized_locking(SOS, &buffer, 64, false);
         
         int offset = 0;
         SOS_buffer_pack(buffer, &offset, "iigg", 
@@ -225,6 +225,10 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
             header.msg_type,
             header.msg_from,
             header.pub_guid);
+
+        header.msg_size = offset;
+        offset = 0;
+        SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
 
         pthread_mutex_lock(SOS->net.send_lock);
 
@@ -307,8 +311,6 @@ void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer,
 void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     SOS_SET_CONTEXT(send_buffer->sos_context, "SOS_send_to_daemon");
     SOS_msg_header header;
-    SOS_buffer    *recv_part   = SOS->net.recv_part;
-    char           recv_pack_fmt[SOS_DEFAULT_STRING_LEN];
     int            server_socket_fd;
     int            offset      = 0;
     int            inset       = 0;
@@ -371,31 +373,10 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     dlog(6, "Send complete, waiting for a reply...\n");
 
     offset = 0;
-    inset = 0;
-    SOS_buffer_wipe(recv_part);
 
-    recv_part->len = recv(server_socket_fd, recv_part->data, recv_part->max, 0);
+    /* TODO: { COMMUNICATION, SOCKET } Make this a nice loop like the daemon... */
+    reply_buffer->len = recv(server_socket_fd, reply_buffer->data, reply_buffer->max, 0);
 
-    while(recv_part->len != 0) {
-        if (recv_part->len == -1) {
-            dlog(0, "Error receiving message from daemon.  (retval = %d, errno = %d:\"%s\")\n",
-                 retval, errno, strerror(errno));
-            break;
-        } else {
-            while (reply_buffer->max < (reply_buffer->len + recv_part->len)) {
-                SOS_buffer_grow(reply_buffer, reply_buffer->max, SOS_WHOAMI);
-            }
-
-            dlog(6, "  ... recv() returned %d bytes.\n", recv_part->len);
-
-            memcpy((reply_buffer->data + offset), recv_part->data, recv_part->len);
-            offset += recv_part->len;
-
-            SOS_buffer_wipe(recv_part);
-            recv_part->len = recv(server_socket_fd, recv_part->data, recv_part->max, 0);
-        }
-    }
-    reply_buffer->len = offset;
     close( server_socket_fd );
     pthread_mutex_unlock(SOS->net.send_lock);
 
@@ -496,7 +477,7 @@ void* SOS_THREAD_feedback( void *args ) {
         dlog(4, "Building a check-in message.\n");
 
         offset = 0;
-        offset += SOS_buffer_pack(check_in_buffer, &offset, "iigg",
+        SOS_buffer_pack(check_in_buffer, &offset, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -668,7 +649,7 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
             /* NOTE: There is no recourse if a DAEMON runs out of GUIDs.
              *       That should *never* happen.
              */
-            dlog(0, "ERROR!  This sosd instance has run out of GUIDs!  Terminating.\n");
+            dlog(0, "ERROR:  This sosd instance has run out of GUIDs!  Terminating.\n");
             exit(EXIT_FAILURE);
         } else {
             /* Acquire a fresh block of GUIDs from the DAEMON... */
@@ -676,31 +657,40 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
             SOS_buffer *buf;
             int offset;
 
-            SOS_buffer_init_sized(SOS, &buf, 2 * sizeof(SOS_msg_header));
+            SOS_buffer_init_sized_locking(SOS, &buf, sizeof(SOS_msg_header), false);
             
             dlog(1, "The last guid has been used from SOS->uid.my_guid_pool!  Requesting a new block...\n");
-            header.msg_size = sizeof(SOS_msg_header);
-            header.msg_from = SOS->my_guid;
+            header.msg_size = -1;
             header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
+            header.msg_from = SOS->my_guid;
             header.pub_guid = 0;
 
             offset = 0;
             SOS_buffer_pack(buf, &offset, "iigg",
                             header.msg_size,
-                            header.msg_from,
                             header.msg_type,
+                            header.msg_from,
                             header.pub_guid);
 
-            SOS_send_to_daemon(buf, buf);
+            header.msg_size = offset;
+            offset = 0;
+            SOS_buffer_pack(buf, &offset, "i", header.msg_size);
+
+            SOS_buffer *reply;
+            SOS_buffer_init_sized_locking(SOS, &reply, (2 * sizeof(uint64_t)), false);
+
+            SOS_send_to_daemon(buf, reply);
+
             if (SOS->config.offline_test_mode == true) {
                 /* NOTE: In OFFLINE_TEST_MODE there is zero chance of exhausting GUID's... seriously. */
             } else {
                 offset = 0;
-                SOS_buffer_unpack(buf, &offset, "g", &id->next);
-                SOS_buffer_unpack(buf, &offset, "g", &id->last);
+                SOS_buffer_unpack(reply, &offset, "g", &id->next);
+                SOS_buffer_unpack(reply, &offset, "g", &id->last);
+                dlog(1, "  ... recieved a new guid block from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", id->next, id->last);
             }
-            dlog(1, "  ... recieved a new guid block from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", id->next, id->last);
             SOS_buffer_destroy(buf);
+            SOS_buffer_destroy(reply);
         }
     }
 
@@ -922,8 +912,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
         pub->name_table->put(pub->name_table, name, (void *) ((long)(pos + 1)));
 
         data = pub->data[pos];
-        data->type = pack_type;
-        data->guid = SOS_uid_next(SOS->uid.my_guid_pool);
+
+        data->type  = pack_type;
+        data->guid  = SOS_uid_next(SOS->uid.my_guid_pool);
         strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
 
     } else {
@@ -996,6 +987,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     snap->mood     = data->meta.mood;
     snap->semantic = data->meta.semantic;
     snap->type     = data->type;
+    snap->time     = data->time;
+    snap->frame    = pub->frame;
+
     snap->val_len = data->val_len;
     
     switch(snap->type) {
@@ -1016,9 +1010,6 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
         dlog(0, "Invalid data->type at pos == %d   (%d)\n", pos, snap->type);
         exit(EXIT_FAILURE);
     }
-
-    snap->time     = data->time;
-    snap->frame    = pub->frame;
     
     pthread_mutex_lock(pub->snap_queue->sync_lock);
     pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
@@ -1119,11 +1110,13 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     int offset;
     int count;
 
+    pthread_mutex_lock(pub->lock);
     pthread_mutex_lock(pub->snap_queue->sync_lock);
 
     if (pub->snap_queue->elem_count < 1) {
         dlog(4, "  ... nothing to do for pub(%s)\n", pub->guid_str);
         pthread_mutex_unlock(pub->snap_queue->sync_lock);
+        pthread_mutex_unlock(pub->lock);
         return;
     }
 
@@ -1165,6 +1158,8 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
 
         dlog(6, "     ... guid=%" SOS_GUID_FMT "\n", snap->guid);
 
+        SOS_TIME(snap->time.send);
+
         SOS_buffer_pack(buffer, &offset, "igiiiidddl",
                         snap->elem,
                         snap->guid,
@@ -1202,6 +1197,8 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
     offset = 0;
     SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
     dlog(6, "     ... done   (buf_len == %d)\n", header.msg_size);
+
+    pthread_mutex_unlock(pub->lock);
    
     return;
 }
@@ -1215,6 +1212,17 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
     char           unpack_fmt[SOS_DEFAULT_STRING_LEN] = {0};
     int            offset;
     int            string_len;
+
+    if (pub == NULL) {
+        dlog(1, "WARNING! Attempting to build snap_queue for a pub we don't know about.\n");
+        dlog(1, "  ... skipping this request.\n");
+        return;
+    }
+
+    if (snap_queue == NULL) {
+        dlog(0, "ERROR: snap_queue == NULL!\n");
+        return;
+    }
 
     dlog(6, "  ... building val_snap queue from a buffer:\n");
     dlog(6, "     ... processing header\n");
@@ -1230,21 +1238,13 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
     dlog(6, "     ... header.msg_type == %d\n", header.msg_type);
     dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
-    
-    if (pub == NULL) {
-        dlog(1, "WARNING! Attempting to build snap_queue for a pub we don't know about.\n");
-        dlog(1, "  ... skipping this request.\n");
-        return;
-    }
-
-    if (snap_queue == NULL) {
-        dlog(0, "ERROR: snap_queue == NULL!\n");
-        return;
-    }
 
     dlog(6, "     ... pushing snaps down onto the queue.\n");
 
-    while (offset < buffer->len) {
+    pthread_mutex_lock(pub->lock);
+    pthread_mutex_lock( snap_queue->sync_lock );
+
+    while (offset < header.msg_size) {
         snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
         memset(snap, '\0', sizeof(SOS_val_snap));
 
@@ -1260,18 +1260,13 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
                           &snap->time.recv,
                           &snap->frame);
 
-        dlog(6, "    ... grabbing element @ %d -> type == %d, val_len == %d\n", snap->type, snap->val_len, offset);
+        dlog(6, "    ... grabbing element[%d] @ %d/%d(%d) -> type == %d, val_len == %d\n", snap->elem, offset, header.msg_size, buffer->len, snap->type, snap->val_len);
 
         switch (pub->data[snap->elem]->type) {
         case SOS_VAL_TYPE_INT:    SOS_buffer_unpack(buffer, &offset, "i", &snap->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   SOS_buffer_unpack(buffer, &offset, "l", &snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_unpack(buffer, &offset, "d", &snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING:
-            /* Extract only the length at first, so we know how much space to allocate. */
-            //offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
-            //snap->val.c_val = (char *) malloc(1 + string_len);
-            //memset(snap->val.c_val, '\0', (1 + string_len));
-
             snap->val.c_val = NULL; //unpack will automatically malloc for it.
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
             dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
@@ -1289,10 +1284,8 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             break;
         }
 
-        pthread_mutex_lock( snap_queue->sync_lock );
         pipe_push(snap_queue->intake, (void *) &snap, 1);
         snap_queue->elem_count++;
-        pthread_mutex_unlock( snap_queue->sync_lock );
 
         /* TODO: 
          *   Do we want to make sure the pub[elem]->... stuff is updated
@@ -1308,6 +1301,9 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
     }//loop
 
     dlog(6, "     ... done\n");
+
+    pthread_mutex_unlock( snap_queue->sync_lock );
+    pthread_mutex_unlock( pub->lock );
 
     return;
 }
@@ -1388,6 +1384,9 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     double           send_time;
     int              offset;
     int              elem;    
+
+
+    pthread_mutex_lock(pub->lock);
 
     /* TODO: { ASYNC CLIENT, TIME }
      *       If client-side gets async send, this wont be true.
@@ -1621,8 +1620,9 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
         exit(EXIT_FAILURE);
     }
 
-    dlog(7, "Unpacking the values from the buffer...\n");
     pthread_mutex_lock(pub->lock);
+
+    dlog(7, "Unpacking the values from the buffer...\n");
 
     offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
@@ -1678,6 +1678,8 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
             dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", data->type, elem, pub->guid);
             break;
         }
+
+        data->state = SOS_VAL_STATE_CLEAN;
 
         /* Enqueue this value for writing out to local_sync and cloud_sync. */
         if (snap_queue != NULL) {

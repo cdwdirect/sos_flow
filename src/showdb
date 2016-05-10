@@ -23,9 +23,10 @@ for db in $SOS_WORK/sosd.*.db ; do
     echo "[##########################################################################]"
     echo "[##########################################################################]"
     echo "[####]: ${db}"
-    echo -n "[####]: count(VALUES) = "
+    echo -n "[####]: count(distinct guid) = "
+    sqlite3 ${db} "select count(distinct guid) from tblvals;"
+    echo -n "[####]: max(rowid)           = "
     sqlite3 ${db} "select max(rowid) from tblvals;"
-    sqlite3 ${db} "select max(rowid) from tblvals;" >> validate.txt
     sqlite3 ${db} -nullvalue "<NULL>" -header -column "select * from tblvals where rowid < 5;"
     echo "..."
     if [ "x$1" == "x" ] ; then

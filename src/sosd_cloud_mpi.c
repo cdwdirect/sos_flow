@@ -154,6 +154,7 @@ void SOSD_cloud_listen_loop(void) {
     SOS_buffer     *buffer;
     SOS_buffer     *msg;
     char            unpack_format[SOS_DEFAULT_STRING_LEN] = {0};
+    int             msg_waiting;
     int             mpi_msg_len;
     int             offset;
     int             msg_offset;
@@ -169,7 +170,12 @@ void SOSD_cloud_listen_loop(void) {
         /* Receive a composite message from a daemon: */
         dlog(5, "Waiting for a message from MPI...\n");
 
-        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        msg_waiting = 0;
+        do {
+            MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
+            usleep(1000);
+        } while (msg_waiting == 0);
+
         MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
 
         while(buffer->max < mpi_msg_len) {
