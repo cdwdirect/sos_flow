@@ -1277,11 +1277,11 @@ void SOSD_display_logo(void) {
 
     switch (choice) {
     case 0:
-        printf("               _/_/_/    _/_/      _/_/_/    )))})))    Scalable\n");
-        printf("            _/        _/    _/  _/          ((({(((     Observation\n");
-        printf("             _/_/    _/    _/    _/_/        )))})))    System\n");
-        printf("                _/  _/    _/        _/      ((({(((     for Scientific\n");
-        printf("         _/_/_/      _/_/    _/_/_/          )))})))    Workflows\n");
+        printf("               _/_/_/    _/_/      _/_/_/   |[]}))))}][]    Scalable\n");
+        printf("            _/        _/    _/  _/          [][{(((({[]|    Observation\n");
+        printf("             _/_/    _/    _/    _/_/       |[]}))))}][]    System\n");
+        printf("                _/  _/    _/        _/      [][{(((({[]|    for Scientific\n");
+        printf("         _/_/_/      _/_/    _/_/_/         |[]}))))}][]    Workflows\n");
         break;
 
     case 1:

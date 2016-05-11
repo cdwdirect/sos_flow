@@ -1,52 +1,5 @@
 
-\input{preamble.tex}
-
-\begin{document}
-
-\title{SOSflow and a Semantic Workflow Performance Model
-\todo[inline]{Need a new title} }
-
-\author{\IEEEauthorblockN{Chad Wood}
-	\IEEEauthorblockN{Kevin Huck}
-	\IEEEauthorblockN{Allen Malony}
-\IEEEauthorblockA{Department of Computer and Information Science\\
-University of Oregon\\
-Eugene, OR United States\\
-Email: \{cdw,khuck,malony\}@cs.uoregon.edu}
-}
-
-
-\maketitle
-
-
-\begin{abstract}
-SOSflow provides a run-time system and performance model designed to enable the 
-characterization and analysis of complex scientific workflow performance at scale.
-
-
-\end{abstract}
-
-\begin{IEEEkeywords}
-hpc; exascale; in situ; performance; monitoring; introspection; scientific 
-workflow;
-
-\end{IEEEkeywords}
-
-
-\IEEEpeerreviewmaketitle
-
-
-\section{Introduction}
-% no \IEEEPARstart
-Here we set up the problem space we are addressing.
-
-It will be a good time!
-
-\todo[inline]{Come back and flesh out the INTRO and ABSTRACT at the end, once 
-we're sure the content we are after is a part of the paper.}
-
-
-\section{Motivations for Tracking Variability}
+\section{Tracking Variability}
 \todo[inline]{More than simply demonstrating that there are different and 
 possibly incompatible motivations for variability research, this section is 
 setting up the necessity for a new performance model.}
@@ -136,6 +89,7 @@ significance relative to the observed performance gain. When it comes to the
 behavior of codes at extreme scales, accuracy validation using traditional 
 models of component-based performance analysis will become cost prohibitive in 
 both allocation consumption and developer time.
+
 \subsubsection{Reproduction of Experimental Results}
 Scientific workflows attempt to yield results that have truth-coorespondence 
 with the physical world with some overt degree of significance.
@@ -157,7 +111,7 @@ Don't have to burn 1,000,000 hours of allocation to learn that you just re-creat
 
 
 
-\section{A Performance Model for Scientific Workflows}
+\section{A New Performance Model}
 Traditionally, HPC performance monitoring is focused on low-level efficiency of 
 an application binary on some particular iron.  Higher-level systems (TACC 
 Stats) allow the tracking and exploration of execution wall-time for various 
@@ -338,44 +292,4 @@ for improvement in various software engineering facets:
 memory subsystem interaction, diversity of storage and transport mechanisms, 
 and quality-of-service guarantees to both producers and consumers of 
 SOSflow data.
-\subsection{Results of Initial Benchmarking}
-\todo{Fill in various configuration subsections.}
-\section{Conclusion}
-Given a diverse set of motivations for variability studies, and a seemingly 
-intractable problem space when classical performance models are applied to 
-scientific workflows at extreme scale, we argue that a new performance model is 
-required. SOSflow was developed to enable the exploration and validation of new 
-performance models, especially those built for reasoning over high-level and 
-human-understandable semantic annotation that is affixed to all captured data and 
-events.
-\subsection{Recommendations}
-Our research initiative is oriented towards on line and in 
-situ monitoring and  analytics. A system should be designed that is efficient 
-enough that it need not 
-be disabled for full-scale production runs of scientific workflows. This creates 
-the important case that the lessons learned through the use of such a 
-monitoring system are in fact applicable to future full-scale production runs, 
-and do not only apply to smaller sample test runs where the workflow's behavior 
-has been heavily perturbed by invasive monitoring technologies.
-The conclusion goes here. this is more of the conclusion
-\subsection{Future Work}
-
-% use section* for acknowledgement
-\section*{Acknowledgment}
-Research has been conducted under the following grants:\\
-\todo[inline]{INSERT GRANT INFORMATION HERE}
-
-\begin{thebibliography}{1}
-
-
-
-\bibitem{IEEEhowto:kopka}
-H.~Kopka and P.~W. Daly, \emph{A Guide to \LaTeX}, 3rd~ed.\hskip 1em plus
-  0.5em minus 0.4em\relax Harlow, England: Addison-Wesley, 1999.
-
-\end{thebibliography}
-
-% that's all folks
-\end{document}
-
 
