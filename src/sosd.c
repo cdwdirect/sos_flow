@@ -156,19 +156,29 @@ int main(int argc, char *argv[])  {
 
 
     dlog(0, "Closing the sync queues:\n");
-    dlog(0, "  .. SOSD.sync.local.queue\n");
-    pipe_producer_free(SOSD.sync.local.queue->intake);
-    dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
-    dlog(0, "  .. SOSD.sync.cloud.queue\n");
-    pipe_producer_free(SOSD.sync.cloud.queue->intake);
-    dlog(0, "  .. SOSD.sync.db.queue\n");
-    pipe_producer_free(SOSD.sync.db.queue->intake);
+    if (SOSD.sync.local.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.local.queue\n");
+        pipe_producer_free(SOSD.sync.local.queue->intake);
+    }
+    if (SOSD.sync.cloud.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.cloud.queue\n");
+        pipe_producer_free(SOSD.sync.cloud.queue->intake);
+    }
+    if (SOSD.sync.db.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.db.queue\n");
+        pipe_producer_free(SOSD.sync.db.queue->intake);
+    }
 
     /* TODO: { SHUTDOWN } Add cascading queue fflush here to prevent deadlocks. */
+    //dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
+    //dlog(0, "  .. SOSD.sync.cloud.queue\n");
+    //pipe_producer_free(SOSD.sync.cloud.queue->intake);
+    //dlog(0, "  .. SOSD.sync.db.queue\n");
+    //pipe_producer_free(SOSD.sync.db.queue->intake);
+
 
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
-    pthread_mutex_lock(SOSD.db.lock);
 
     dlog(0, "Destroying uid configurations.\n");
     SOS_uid_destroy( SOSD.guid );
@@ -247,33 +257,28 @@ void SOSD_listen_loop() {
         }
 
         /* Check the size of the message. We may not have gotten it all. */
-        if (header.msg_size > buffer->max) {
-            int old = buffer->max;
+        while (header.msg_size > buffer->len) {
+            int old = buffer->len;
             while (header.msg_size > buffer->max) {
-                SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
+                SOS_buffer_grow(buffer, 1 + (header.msg_size - buffer->max), SOS_WHOAMI);
             }
-            int rest = recv(SOSD.net.client_socket_fd, (void *) (buffer->data + old), buffer->max - old, 0);
-            dlog(6, "  ... recv() returned %d more bytes.\n", rest);
-
+            int rest = recv(SOSD.net.client_socket_fd, (void *) (buffer->data + old), header.msg_size - old, 0);
             if (rest < 0) {
                 dlog(1, "  ... recv() call returned an errror.  (%s)\n", strerror(errno));
+            } else {
+                dlog(6, "  ... recv() returned %d more bytes.\n", rest);
             }
             buffer->len += rest;
         }
 
         dlog(5, "Received connection.\n");
         dlog(5, "  ... msg_size == %d         (buffer->len == %d)\n", header.msg_size, buffer->len);
-        switch (header.msg_type) {
-        case SOS_MSG_TYPE_REGISTER:   dlog(5, "  ... msg_type = REGISTER (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_GUID_BLOCK: dlog(5, "  ... msg_type = GUID_BLOCK (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_ANNOUNCE:   dlog(5, "  ... msg_type = ANNOUNCE (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_PUBLISH:    dlog(5, "  ... msg_type = PUBLISH (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_VAL_SNAPS:  dlog(5, "  ... msg_type = VAL_SNAPS (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_ECHO:       dlog(5, "  ... msg_type = ECHO (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_SHUTDOWN:   dlog(5, "  ... msg_type = SHUTDOWN (%d)\n", header.msg_type); break;
-        case SOS_MSG_TYPE_CHECK_IN:   dlog(5, "  ... msg_type = CHECK_IN (%d)\n", header.msg_type); break;
-        default:                      dlog(1, "  ... msg_type = UNKNOWN (%d)\n", header.msg_type); break;
+        dlog(5, "  ... msg_type == %s\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE));
+        if ((header.msg_size != buffer->len) || (header.msg_size > buffer->max)) {
+            dlog(0, "ERROR:  BUFFER not correctly sized!  header.msg_size == %d, buffer->len == %d / %d\n",
+                 header.msg_size, buffer->len, buffer->max);
         }
+
         dlog(5, "  ... msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
         dlog(5, "  ... pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
@@ -445,7 +450,7 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         for (task_index = 0; task_index < count; task_index++) {
             task = task_list[task_index];
-            dlog(0, "----> [ttt] task = %ld @ address %ld ...\n", (long) task_list[0], (long) &task_list[0]);
+            dlog(0, "----> [ttt] task->type(%d) == \"%s\"\n", task->type, SOS_ENUM_STR(task->type, SOS_MSG_TYPE));
             switch(task->type) {
             case SOS_MSG_TYPE_ANNOUNCE:   dlog(6, "[zzz] ANNOUNCE\n"); SOSD_db_insert_pub(task->pub); break;
             case SOS_MSG_TYPE_PUBLISH:    dlog(6, "[zzz] PUBLISH-\n"); SOSD_db_insert_data(task->pub); break;
@@ -565,6 +570,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
         wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     }
+    SOS_buffer_destroy(buffer);
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
@@ -695,7 +701,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
 
 void SOSD_handle_guid_block(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_register");
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_guid_block");
     SOS_msg_header header;
     SOS_guid       block_from   = 0;
     SOS_guid       block_to     = 0;
@@ -705,14 +711,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n");
 
-    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
-
-    offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
+    SOS_buffer_init_sized_locking(SOS, &reply, (2 * sizeof(uint64_t)), false);
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
 
@@ -779,6 +778,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
+    SOS_buffer_destroy(reply);
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
 
     dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n", pub->guid, pub->elem_count);
@@ -836,6 +836,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     dlog(0, "<<<<< [ttt] task = %ld @ address %ld ...\n", (long) task, (long) &task);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
+    SOS_buffer_destroy(reply);
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
     
     return;
@@ -1190,7 +1191,7 @@ void SOSD_init() {
     #if (SOSD_CLOUD_SYNC > 0)
         SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
         SOS_guid guid_my_first   = (SOS_guid) SOS->config.comm_rank * guid_block_size;
-        printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT, SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
+        //printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT, SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
         SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
         dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");
@@ -1230,7 +1231,7 @@ void SOSD_init() {
 
 
 void SOSD_claim_guid_block(SOS_uid *id, int size, SOS_guid *pool_from, SOS_guid *pool_to) {
-    SOS_SET_CONTEXT(id->sos_context, "SOSD_guid_claim_range");
+    SOS_SET_CONTEXT(id->sos_context, "SOSD_claim_guid_block");
 
     pthread_mutex_lock( id->lock );
 
@@ -1243,6 +1244,8 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, SOS_guid *pool_from, SOS_guid 
         *pool_from = id->next;
         *pool_to   = id->next + size;
         id->next   = id->next + size + 1;
+        dlog(0, "served GUID block: %" SOS_GUID_FMT " ----> %" SOS_GUID_FMT "\n",
+             *pool_from, *pool_to);
     }
 
     pthread_mutex_unlock( id->lock );
@@ -1275,21 +1278,22 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
 
 
 void SOSD_display_logo(void) {
+
     int choice = 0;
 
-    srand(getpid());
-    choice = rand() % 6;
+    //srand(getpid());
+    //choice = rand() % 6;
 
     printf("--------------------------------------------------------------------------------\n");
     printf("\n");
 
     switch (choice) {
     case 0:
-        printf("               _/_/_/    _/_/      _/_/_/    ))) ))  )    Scalable\n");
-        printf("            _/        _/    _/  _/          ((( ((  (     Observation\n");
-        printf("             _/_/    _/    _/    _/_/        ))) ))  )    System\n");
-        printf("                _/  _/    _/        _/      ((( ((  (     for Scientific\n");
-        printf("         _/_/_/      _/_/    _/_/_/          ))) ))  )    Workflows\n");
+        printf("               _/_/_/    _/_/      _/_/_/    )))})))    Scalable\n");
+        printf("            _/        _/    _/  _/          ((({(((     Observation\n");
+        printf("             _/_/    _/    _/    _/_/        )))})))    System\n");
+        printf("                _/  _/    _/        _/      ((({(((     for Scientific\n");
+        printf("         _/_/_/      _/_/    _/_/_/          )))})))    Workflows\n");
         break;
 
     case 1:

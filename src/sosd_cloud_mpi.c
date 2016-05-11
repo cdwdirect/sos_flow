@@ -69,8 +69,6 @@ void SOSD_cloud_shutdown_notice(void) {
     
     //dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
     //MPI_Barrier(MPI_COMM_WORLD);
-    dlog(1, "  ... calling MPI_Finalize();\n");
-    MPI_Finalize();
     dlog(1, "  ... done\n");
 
     SOS_buffer_destroy(shutdown_msg);
@@ -117,7 +115,9 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
 void SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush");
     dlog(5, "Signaling SOSD.sync.cloud.queue->sync_cond ...\n");
-    pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+    if (SOSD.sync.cloud.queue != NULL) {
+        pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+    }
     return;
 }
 
@@ -154,6 +154,7 @@ void SOSD_cloud_listen_loop(void) {
     SOS_buffer     *buffer;
     SOS_buffer     *msg;
     char            unpack_format[SOS_DEFAULT_STRING_LEN] = {0};
+    int             msg_waiting;
     int             mpi_msg_len;
     int             offset;
     int             msg_offset;
@@ -169,7 +170,12 @@ void SOSD_cloud_listen_loop(void) {
         /* Receive a composite message from a daemon: */
         dlog(5, "Waiting for a message from MPI...\n");
 
-        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        msg_waiting = 0;
+        do {
+            MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
+            usleep(1000);
+        } while (msg_waiting == 0);
+
         MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
 
         while(buffer->max < mpi_msg_len) {
@@ -229,9 +235,10 @@ void SOSD_cloud_listen_loop(void) {
             }
         }
     }
+    SOS_buffer_destroy(buffer);
 
     /* Join with the daemon's and close out together... */
-    MPI_Barrier(MPI_COMM_WORLD);
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     return;
 }
@@ -359,8 +366,10 @@ int SOSD_cloud_finalize(void) {
     dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
     SOSD_cloud_fflush();
     dlog(1, "  ... joining the cloud_sync flush thread.\n");
-    pthread_join(*SOSD.sync.cloud.handler, NULL);
-    free(SOSD.sync.cloud.handler);
+    if (SOSD.sync.cloud.handler != NULL) {
+        pthread_join(*SOSD.sync.cloud.handler, NULL);
+        free(SOSD.sync.cloud.handler);
+    }
 
     dlog(1, "  ... cleaning up the cloud_sync_set list.\n");
     memset(SOSD.daemon.cloud_sync_target_set, '\0', (SOSD.daemon.cloud_sync_target_count * sizeof(int)));
