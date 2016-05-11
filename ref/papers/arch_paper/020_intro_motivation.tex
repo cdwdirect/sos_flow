@@ -3,7 +3,77 @@
 % no \IEEEPARstart
 
 
-
 \section{Motivation}
+
+\todo[inline]{explain terms: cores, nodes, loosely-coupled, etc.}
+\todo[inline]{set up the necessity for a new performance model....  }
+The designs of SOS and its semantic performance model reflect many of
+the new challenges introduced by exascale HPC clusters, and the
+programming models that come with them.
+
+One such challenge is the high cost of synchronization and
+coordination across the vastly increased number of cores which might
+be allocated to a single job.
+
+Low-cost communication and synchronization between nodes is a luxury
+that the HPC researcher can no longer rely on moving forward. There
+are simply too many nodes! Information moving near the speed of light,
+sent to issue coordinating instructions to all of the processes
+running on an exascale cluster, would introduce such delays and
+``bubbles'' in the computation that the simulation may as well have
+been run on a present-generation petascale
+machine. \todo[inline]{cite} Solutions like task-based runtime
+environments (HPX, charm++, etc.)  are being developed to facilitate
+general-purpose programming models that will work on both present day
+petascale machines, and future exascale architectures. These
+architectures forgo fixed synchronous behaviors, but also remove many
+of the guarantees that formed the basis for much of the performance
+models and evaluation techniques in our current paradigm.
+
+Intelligent modern processors have been able to do branch-prediction,
+out-of-order instruction execution, dynamic clock scaling, data
+pre-fetch, and more, each of which introduce emergent deviations from
+the a priori provable behavior characteristics of any given piece of
+software. For most purposes other than optimizing low-level
+infrastructure codes, this ``jitter'' was indistinguishable from
+normal background noise.
+
+Systems programmers, however, lamented this lack of predictive power
+over fine-grained behavior, especially considering the potential
+meaninglessness of any given observed
+deviation. \todo[inline]{cite:schultz on fans/turbo mode/etc.}  This
+problem only grows worse in proportion to the size and complexity of
+a cluster, and the consumption of shared resources by the various tasks
+that are executing concurrently.  Differences in available power, core
+clock rates, communication times, filesystem latency, and more, within
+the same job, each can confound the observed performance data at any
+point and overall.
+
+How can ``performance'' mean anything intelligible at all in the
+exascale world, when the fine-grained code-sharpening it entailed is now
+no longer observable or possibly converged at?
+
+There are many motivations to observe HPC application performance in
+the ways described in this paper:
+\begin{itemize}
+\item Attribution of blame in a shared execution environment
+\item Compare job runs across various platforms
+\item Compare performance data between runs that were parameterized differently.
+\item The ability to support orthognoal perspectives:
+  \begin{itemize}
+     \item Researchers may want to know how their simulation code is
+       performing at various scales, document its interactions with other
+       codes, and be able to profile their runs for purposes of
+       reproducibility and verification of the validity of their science.
+       They want to maximize their consumption of resources, exclusively
+       benefitting their own interests and compute budget.
+     \item System administrators want to get the most value out of the
+       hardware they support, in addition to providing optimal
+       outcomes for the researchers they support. They want to fairly
+       share the resources between all users, and consume as little
+       system resources as necessary for the administrative software
+       stack to facilitate a useful and stable HPC platform for their users.
+  \end{itemize}
+\end{itemize}
 
 

@@ -1,79 +1,12 @@
 
 \section{The Need to Observe}
-\todo[inline]{explain terms: cores, nodes, loosely-coupled, etc.}
-\todo[inline]{set up the necessity for a new performance model....  }
-The designs of SOS and its semantic performance model reflect many of
-the new challenges introduced by exascale HPC clusters, and the
-programming models that come with them.
+To realize a model for performance that is suited for exascale
+archictures, it is necessary to collect and analyze information as
+close as possible to its source. This in situ runtime design
+effectively parallelizes the execution of the observation
+system and gives opportunities to cut down on coordination
+overhead when providing mechanisms for on-line feedback and control.
 
-One such challenge is the high cost of synchronization and
-coordination across the vastly increased number of cores which might
-be allocated to a single job.
-
-Low-cost communication and synchronization between nodes is a luxury
-that the HPC researcher can no longer rely on moving forward. There
-are simply too many nodes! Information moving near the speed of light,
-sent to issue coordinating instructions to all of the processes
-running on an exascale cluster, would introduce such delays and
-``bubbles'' in the computation that the simulation may as well have
-been run on a present-generation petascale
-machine. \todo[inline]{cite} Solutions like task-based runtime
-environments (HPX, charm++, etc.)  are being developed to facilitate
-general-purpose programming models that will work on both present day
-petascale machines, and future exascale architectures. These
-architectures forgo fixed synchronous behaviors, but also remove many
-of the guarantees that formed the basis for much of the performance
-models and evaluation techniques in our current paradigm.
-
-Intelligent modern processors have been able to do branch-prediction,
-out-of-order instruction execution, dynamic clock scaling, data
-pre-fetch, and more, each of which introduce emergent deviations from
-the a priori provable behavior characteristics of any given piece of
-software. For most purposes other than optimizing low-level
-infrastructure codes, this ``jitter'' was indistinguishable from
-normal background noise.
-
-Systems programmers, however, lamented this lack of predictive power
-over fine-grained behavior, especially considering the potential
-meaninglessness of any given observed
-deviation. \todo[inline]{cite:schultz on fans/turbo mode/etc.}  This
-problem only grows worse in proportion to the size and complexity of
-the cluster, and the consumption of shared resources by the various
-that are executing concurrently.  Variation in available power, core
-clock rates, communication times, filesystem latency, and more, each
-can confound the observed performance data for a program.
-
-How can ``performance'' mean anything intelligible at all in the
-exascale world, when the fine-grained code-sharpening it entailed is now
-no longer observable or possibly converged at?
-
-
-
-
-
-
-%the idea that traditional models of performance were 
-%urces of noise are similar in concept or behavior to what is
-%anticipated to play out at exascale.
-
-
-
-
-There are many motivations to observe HPC application performance in
-the ways described in this paper:
-\begin{itemize}
-\item Attribution of 
-\item The ability to support orthognoal perspectives:
-  \begin{itemize}
-     \item Researchers may want to know how their simulation code is
-       performing at various scales, document its interactions with other
-       codes, and be able to profile their runs for purposes of
-       reproducibility and verification of the validity of their science.
-     \item System administrators want to get the most value out of the
-       hardware they support, in addition to providing optimal outcomes for
-       the researchers they support.
-  \end{itemize}
-\end{itemize}
 
 \subsection{What is Observed}
 Many factors have contributed to the emergence of variability studies
@@ -132,13 +65,8 @@ attempt to both quantify it and render reasonable attributions of its
 source[s]. Significant variability between runs is seen (SCHULTZ
 paper/graph) when tracking a single simple experiment, even if the
 input data, job queue parameters, and hardware allocation is held
-constant. At extreme scales, on line detection and attribution of
-variability of a scientific workflow will require well-annotated
-metadata to facilitate "apples to apples" comparisons driven by
-unsupervised machine learning rather than a priori developer knowledge
-or offline centralized analysis. It is important to characterize a
-code's sensitivity to variability, as well as a cluster's propensity
-for creating performance variability.
+constant.
+
 
 \subsubsection{Accuracy in Performance Research}
 \todo[inline]{This section is intended to motivate a new model for
@@ -165,9 +93,6 @@ Scientific workflows attempt to yield results that have
 truth-coorespondence with the physical world with some overt degree of
 significance.
 
-\subsection{How Variability is Tracked}
-\subsubsection{Concepts and Methods}
-\subsubsection{Existing Models and Tools}
 
 \subsection{The Utility a Comprehensive Workflow Performance Model}
 \subsubsection{Attribution}
@@ -178,7 +103,6 @@ hotspots *really* are and not
 \subsubsection{Intelligent Compiler Hints}
 Don't have to burn 1,000,000 hours of allocation to learn that you
 just re-created last year's mistaken
-
 \subsubsection{Intelligent Job Scheduling}
 
 
@@ -201,15 +125,29 @@ problem, especially when considering the extreme scales of parallelism
 to which scientific workflows are being driven.
 
 \subsection{Figures Revealed by Background: Invariant Meaning}
+So long as the input data and result output is the same, what never
+changes about a simulation, nomatter how it is tuned or allocated or
+configured for a run, is the meaning of what is happening.  Whether a
+simulation is executing as a single process on a single node, or
+billions of independent tasks in a cloud computing environment, the
+meaning of what is being computed holds the same.
+
+At extreme scales, on line detection and attribution of variability of
+a scientific workflow will require well-annotated metadata to
+facilitate "apples to apples" comparisons driven by unsupervised
+machine learning rather than a priori developer knowledge or offline
+centralized analysis. This kind of semantic invariance, in the face of
+wild performance variance, is important to characterize a code's
+sensitivity to performance perturbation, as well as a cluster's
+propensity for creating and propagating performance variability.
 
 \subsection{Levels of Description and "The View from Anywhere"}
 Not knowing \textit{a priori} what component or layer of the workflow
-will be responsible for the introduction of variability, the workflow
+will be interesting for the analysis of performance, the workflow
 performance model needs to be populated by a diversity of information
 sources that provide metrics with tailored metadata and both logical
 and concrete events, arriving in real-time from many different layers
 of activity in a workflow:
-
 \begin{itemize}
     \item Simulation
     \item Algorithm
@@ -277,18 +215,16 @@ learning over gathered workflow performance data.
 Applying a novel semantic workflow performance model to actual
 run-time environments necessitated the development of new
 infrastructure software, and so the second contribution to the general
-challenges of monitoring scientific workflows is the SOSflow software
-artifact.
+challenges of monitoring scientific workflows is the SOSflow middleware.
 
-The initial design goals of SOSflow are:
-
+SOSflow is designed to:
 \begin{enumerate}
 \item Facilitate capture of scientific workflow performance data and
-  events in situ (i.e. "on node") from a variety of sources and
+  events in situ (i.e. ``on node'') from a variety of sources and
   perspectives at the same time.
 \item Annotate the gathered data's semantic meaning with expressive
-  "high-level" tags that facilitate contextualization and
-  introspective analytics.
+  ``high-level'' tags that facilitate contextualization and
+  introspective analytics (SOSmind).
 \item Store the captured data on node in a way that can be searched
   with dynamic queries in real-time as well as being suitable for
   long-term centralized archival.
