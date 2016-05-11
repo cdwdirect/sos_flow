@@ -1,7 +1,17 @@
+\todofilebegin{020\_intro\_motivation.tex}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% NOTE: no \IEEEPARstart
 
 \section{Introduction}
-% no \IEEEPARstart
 
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Motivation}
 
@@ -49,9 +59,34 @@ clock rates, communication times, filesystem latency, and more, within
 the same job, each can confound the observed performance data at any
 point and overall.
 
+Performance research is classically concerned with decreasing the
+resource consumption and compute time required by low-level components
+and libraries that are used when persuing answers to higher-level
+scientific questions. For example: In order to validate some
+percentage increase in some code's performance, it will be necessary
+to show that the performance increase was observed across a large
+number of runs and assorted hardware allocations, especially if it is
+the case that a particular HPC cluster (when in an overall state
+similar to the one it was in during those workflow runs) has a history
+of performance variability with any statistical significance relative
+to the observed performance gain. When it comes to the behavior of
+codes at extreme scales, accuracy validation using traditional models
+of component-based performance analysis will become cost prohibitive
+in both allocation consumption and developer time.
+
 How can ``performance'' mean anything intelligible at all in the
-exascale world, when the fine-grained code-sharpening it entailed is now
-no longer observable or possibly converged at?
+exascale world, when the fine-grained code-sharpening it entails is
+now no longer observable or possibly converged on?  There is a clear
+need for a new model for performance, and yet, even in cases where
+nothing can be done to influence the variations in lower-level
+performance metrics, it is important to recognize that performance
+variability is present and to \textit{attempt to both quantify it and
+render reasonable attributions of its source[s]}. There are tractible
+concerns (demonstrating sensitivity to variance) and inherently
+intractible concerns (perfectly controlling variance across runs) that
+the performance model should be designed to represent and that the
+runtime middleware should be savvy to in its analytics, feedback, and
+control mechanisms.
 
 There are many motivations to observe HPC application performance in
 the ways described in this paper:
@@ -76,4 +111,8 @@ the ways described in this paper:
   \end{itemize}
 \end{itemize}
 
+
+
+
+\todofileend{020\_intro\_motivation.tex}
 
