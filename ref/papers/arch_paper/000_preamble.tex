@@ -350,6 +350,9 @@
 % to submit to, of course. )
 
 \usepackage{todonotes}
+\presetkeys{todonotes}{fancyline,color=blue!30}{}
+\newcommand{\todofilebegin}[1]{\todo[inline,color=green!20]{\texttt{\textbf{START: #1}}}}
+\newcommand{\todofileend}[1]{\todo[inline,color=red!20]{\texttt{\textbf{END: #1}}}}
 
 % correct bad hyphenation here
 % \hyphenation{op-tical net-works semi-conduc-tor}
