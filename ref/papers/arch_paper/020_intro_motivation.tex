@@ -52,66 +52,89 @@ Systems programmers, however, lamented this lack of predictive power
 over fine-grained behavior, especially considering the potential
 meaninglessness of any given observed
 deviation. \todo[inline]{cite:schultz on fans/turbo mode/etc.}  This
-problem only grows worse in proportion to the size and complexity of
-a cluster, and the consumption of shared resources by the various tasks
+problem only grows worse in proportion to the size and complexity of a
+cluster, and the consumption of shared resources by the various tasks
 that are executing concurrently.  Differences in available power, core
 clock rates, communication times, filesystem latency, and more, within
 the same job, each can confound the observed performance data at any
 point and overall.
 
-Performance research is classically concerned with decreasing the
-resource consumption and compute time required by low-level components
-and libraries that are used when persuing answers to higher-level
-scientific questions. For example: In order to validate some
-percentage increase in some code's performance, it will be necessary
-to show that the performance increase was observed across a large
-number of runs and assorted hardware allocations, especially if it is
-the case that a particular HPC cluster (when in an overall state
-similar to the one it was in during those workflow runs) has a history
-of performance variability with any statistical significance relative
-to the observed performance gain. When it comes to the behavior of
-codes at extreme scales, accuracy validation using traditional models
-of component-based performance analysis will become cost prohibitive
-in both allocation consumption and developer time.
+But it gets worse.  Performance research is classically concerned with
+decreasing the resource consumption and compute time required by
+lower-level components and libraries that are used when persuing
+answers to higher-level scientific questions.  When there is a lot of
+noise in the information due to unpredictable interference, the only
+way to validate performance increases is to perform a large number of
+runs. When the variation in performance is only observable at large
+scales, the tests have to be repeated at large scales, and so the
+classic model for performance fails again to be useful, as code
+characteristic validation becomes cost-prohibitive.
 
-How can ``performance'' mean anything intelligible at all in the
-exascale world, when the fine-grained code-sharpening it entails is
-now no longer observable or possibly converged on?  There is a clear
-need for a new model for performance, and yet, even in cases where
-nothing can be done to influence the variations in lower-level
-performance metrics, it is important to recognize that performance
-variability is present and to \textit{attempt to both quantify it and
-render reasonable attributions of its source[s]}. There are tractible
-concerns (demonstrating sensitivity to variance) and inherently
-intractible concerns (perfectly controlling variance across runs) that
-the performance model should be designed to represent and that the
-runtime middleware should be savvy to in its analytics, feedback, and
-control mechanisms.
+As an example of scaling validation issues with classic models,
+consider that in order to validate some percentage increase in some
+code's performance, it will be necessary to show that the performance
+increase was observed across a large number of runs and also assorted
+hardware allocations.  This is especially true when that particular
+HPC cluster, even if in an overall similar state across each run, has
+a history of performance variability with statistical significance
+relative to the claimed performance gain. When it comes to the
+behavior of codes at extreme scales, accuracy of validation tests
+using traditional models of component-based performance analysis will
+become cost prohibitive in both allocation consumption and developer
+time.
 
-There are many motivations to observe HPC application performance in
-the ways described in this paper:
+
+Does ``performance'' mean anything intelligible at all in the exascale
+world, when the fine-grained code-sharpening it entails is now no
+longer observable and cannot possibly be converged on? How do we
+assess the coarse-grained and state-contingent performance gains
+that \textit{are} observable?
+
+There is a clear need for a new model for performance, but even in
+cases where nothing can be done to influence the fine-grained
+variations in lower-level performance metrics, it remains important to
+recognize and capture the fact that performance variability is present
+and to \textit{attempt to both quantify it and render reasonable
+attributions of its source[s]}. There are tractible concerns
+(demonstrating sensitivity to variance) and inherently intractible
+concerns (perfectly controlling variance across runs) that the
+performance model should be designed to represent and that the runtime
+middleware should be savvy to in its analytics, feedback, and control
+mechanisms.
+
+There are thus many motivations to observe HPC application performance
+in the ways described in this paper:
 \begin{itemize}
-\item Attribution of blame in a shared execution environment
-\item Compare job runs across various platforms
-\item Compare performance data between runs that were parameterized differently.
-\item The ability to support orthognoal perspectives:
-  \begin{itemize}
-     \item Researchers may want to know how their simulation code is
-       performing at various scales, document its interactions with other
-       codes, and be able to profile their runs for purposes of
-       reproducibility and verification of the validity of their science.
-       They want to maximize their consumption of resources, exclusively
-       benefitting their own interests and compute budget.
-     \item System administrators want to get the most value out of the
-       hardware they support, in addition to providing optimal
-       outcomes for the researchers they support. They want to fairly
-       share the resources between all users, and consume as little
-       system resources as necessary for the administrative software
-       stack to facilitate a useful and stable HPC platform for their users.
-  \end{itemize}
+\item Capture metrics that represent useful facts about the exascale
+runtime context, and are not merely measurements of meaningless noise.
+\item Attribution of 'blame' for performance purterbation in a shared execution environment
+\item Compare performance across varying implementations, HPC platforms,
+      hardware allocations, parameterizations, and system loads, all in an
+      ``apples to apples'' way.
+\item Productively combine performance data sets to make novel correlations
+      and gain understanding that was not anticipated at the time the
+      codes were written or instrumented.  (Emergent knowledge requires
+      some semantic framework to guide this productive combination of
+      datum.)
+\item The ability to provide value from a variety of perspectives with
+      a common :
+  \begin{itemize} \item Researchers may want to know how their
+     simulation code is performing at various scales, document its
+     interactions with other codes, and be able to profile their runs
+     for purposes of reproducibility and verification of the validity
+     of their science.  They want to maximize their consumption of
+     resources, exclusively benefitting their own interests and
+     compute budget.  \item System administrators want to get the most
+     value out of the hardware they support, in addition to providing
+     optimal outcomes for the researchers they support. They want to
+     fairly share the resources between all users, and consume as
+     little system resources as necessary for the administrative
+     software stack to facilitate a useful and stable HPC platform for
+     their users.  \end{itemize}
 \end{itemize}
 
-
+We now look at our proposal for this new performance model and an
+implementation of it as a programmable middleware layer.
 
 
 \todofileend{020\_intro\_motivation.tex}

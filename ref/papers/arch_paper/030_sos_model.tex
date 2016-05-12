@@ -3,7 +3,9 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{The Need to Observe}
+\section{The Design and Architecture of SOS}
+
+\subsection{The Need to Observe}
 To realize a model for performance that is suited for exascale
 architecures, it is necessary to collect and analyze information as
 close as possible to its source. This in situ runtime design
@@ -149,13 +151,14 @@ sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
 %-----------------------------------------------------------------------------
 
 \subsection{Limitations and Concerns}
-The value of SOSflow is directly proportional to the quantity and
-quality of the sources that are pushing semantically-annotated data
-into it. At this time the use-case development has centered on the
-ADIOS scalable I/O library, due to its deep integration with many
-existing scientific workflows and industry standard tools like
-VisIt. ADIOS instrumentation is a source of significant observable
-data and an actionable target for effective feedback and control.
+SOSflow is a programmable middleware platform.  The value of SOSflow is
+directly proportional to the quantity and quality of the sources that
+are pushing semantically-annotated data into it.
+%At this time the use-case development has centered on the
+%ADIOS scalable I/O library, due to its deep integration with many
+%existing scientific workflows and industry standard tools like
+%VisIt. instrumentation is a source of significant observable
+%data and an actionable target for effective feedback and control.
 
 The more sources that are instrumented with SOSflow the less limited
 the workflow performance model will be. When only one or two layers
