@@ -6,24 +6,25 @@
 
 \section{Introduction}
 
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\todo[inline]{\textbf{quickly explain terms}:
+                              \\cores
+                              \\nodes
+                              \\loosely-coupled
+                              \\exascale
+                              \\performance
+                              \\...etc.}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Motivation}
 
-\todo[inline]{explain terms: cores, nodes, loosely-coupled, etc.}
-\todo[inline]{set up the necessity for a new performance model....  }
 The designs of SOS and its semantic performance model reflect many of
 the new challenges introduced by exascale HPC clusters, and the
-programming models that come with them.
-
-One such challenge is the high cost of synchronization and
-coordination across the vastly increased number of cores which might
-be allocated to a single job.
+programming models that come with them. One such challenge that is
+representative of the general difficulty is the high cost of
+synchronization and coordination across the vastly increased number of
+cores which might be allocated to a single job.
 
 Low-cost communication and synchronization between nodes is a luxury
 that the HPC researcher can no longer rely on moving forward. There
@@ -86,8 +87,8 @@ time.
 
 Does ``performance'' mean anything intelligible at all in the exascale
 world, when the fine-grained code-sharpening it entails is now no
-longer observable and cannot possibly be converged on? How do we
-assess the coarse-grained and state-contingent performance gains
+longer practically observable and cannot possibly be converged on? How
+do we assess the coarse-grained and state-contingent performance gains
 that \textit{are} observable?
 
 There is a clear need for a new model for performance, but even in

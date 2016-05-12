@@ -6,16 +6,24 @@
 \section{The Design and Architecture of SOS}
 
 \subsection{The Need to Observe}
-To realize a model for performance that is suited for exascale
-architecures, it is necessary to collect and analyze information as
-close as possible to its source. This in situ runtime design
+Because the features we are interested in are going to emerge at run
+time, it is necessary to obtain observations of real-world
+applications, libraries, data transmissions, and hardware state. To
+realize a model for performance that is practically suited for
+exascale architecures, it is further necessary to collect and analyze
+information as close as possible to its source, and to accept metrics
+submitted from an arbitrary array of sources.
+
+This in situ runtime design
 effectively parallelizes the execution of the observation
 system and gives opportunities to cut down on coordination
 overhead when providing mechanisms for on-line feedback and control.
 
+
 %-----------------------------------------------------------------------------
 
 \subsection{What is Observed}
+
 Many factors have contributed to the emergence of variability studies
 as an important research topic within the HPC community. At a
 low-level, HPC node engineering has grown in complexity and
@@ -53,46 +61,73 @@ Performance of HPC codes can be impacted from many different sources:
       perturbation and further complexity.
 \end{itemize}
 
+
 %-----------------------------------------------------------------------------
 
 \subsection{How to Observe}
-Need a sink for every source to use.
+SOS has been designed as a voluntary-participation runtime daemon
+offering a programmable middleware layer allowing adaptivity in metric
+expression, combination, feedback, and response.
 
 \subsubsection{``Put the Data Somewhere Useful''}
-Stop using printf();
+Because of the variety of metrics of interest, the fact that they may
+not always be expressed in any given runtime, and that all possible
+metrics are not known a priori to be hardcoded into a system, it is
+imperative from an architectural point of view that performance
+observations are gatherd in common from all sources.  Some programm
+spinning snapshots of its internal state out into a proprietary
+database is denying all other parts of the environment the ability to
+learn more about each other, themselves, and that program.
+
+\subsubsection{Simple, Clean, Universal}
+Rather than seeing yet another printf()-style instrumentation
+dead-end, a well-designed observation system will provide a clean and
+flexible interface for suitable for capturing and annotating metrics
+within their context, and will bring the metrics from all sources
+together to be operated over following a shared set of semantics.
+
+\subsubsection{Observation vs. Action}
+The need to observe, what to observe, and how to observe it are
+individually and collectively decoupled from the programming logic of
+any given source of data. Where the observation system comes back and
+interfaces with the application logic is in the full fuition of the
+SOS architecture, where applications express sensitivity to various
+triggers, and independent analytics agents are able to fire those triggers
+based on looking at the wholistic store of data.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{The Scalable Observation System}
+\section{SOS: Scalable Observation System}
 
-%-----------------------------------------------------------------------------
-
-\subsection{SOS}
-
-
+SOS is concieved of as an architectural addition to the general fabric of
+exascale clusters. It is intended to be a deeply-integrated service with low-level
+optimizations and a set of functionality that is available to all users of an exascale
+cluster.
 
 %-----------------------------------------------------------------------------
 
 \subsection{SOSflow}
-Applying a novel semantic workflow performance model to actual
+Applying the semantic workflow performance model to actual
 run-time environments necessitated the development of new
 infrastructure software, and so the second contribution to the general
 challenges of monitoring scientific workflows is the SOSflow middleware.
 SOSflow is designed to:
+
 \begin{enumerate}
-\item Facilitate capture of scientific workflow performance data and
-  events in situ (i.e. ``on node'') from a variety of sources and
+\item Facilitate on-line capture of performance data and various system
+  events in situ (i.e. ``on node'') from arbitrary sources and
   perspectives at the same time.
 \item Annotate the gathered data's semantic meaning with expressive
   ``high-level'' tags that facilitate contextualization and
-  introspective analytics (SOSmind).
+  introspective analytics.
 \item Store the captured data on node in a way that can be searched
   with dynamic queries in real-time as well as being suitable for
   long-term centralized archival.
 \end{enumerate}
+
 SOSflow is divided into two main parts in it's current incarnation:
 \begin{itemize}
 \item sosd - Daemon process running on each node
@@ -178,6 +213,7 @@ consumers of SOSflow data.
 
 
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -201,7 +237,15 @@ to which scientific workflows are being driven.
 
 %-----------------------------------------------------------------------------
 
-\subsection{Figures Revealed by Background: Invariant Meaning}
+\subsection{Invariant Meaning}
+
+%Figures are revealed by their background, as they break up the continuity
+%of the background they stand-out in the world. By defining an invariant
+%background for performance variation, the meaning of the codes, the
+%...metaphor breaks down.  It's really about mapping disanalogous sets of
+%metrics over each other according to a set of organizing principles that
+%are the invariant for that computation.
+
 So long as the input data and result output is the same, what never
 changes about a simulation, nomatter how it is tuned or allocated or
 configured for a run, is the meaning of what is happening.  Whether a
