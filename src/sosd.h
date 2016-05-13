@@ -53,7 +53,7 @@ typedef struct {
  *        Use:   SOSD_countof(buffer_bytes_on_heap -= 1024)
  */
 typedef struct {
-    pthread_mutex_t     lock_stats;   
+    pthread_mutex_t    *lock_stats;   
     uint64_t            thread_local_wakeup;   
     uint64_t            thread_cloud_wakeup;   
     uint64_t            thread_db_wakeup;      
@@ -182,6 +182,7 @@ extern "C" {
     void  SOSD_handle_val_snaps(SOS_buffer *buffer);
     void  SOSD_handle_shutdown(SOS_buffer *buffer);
     void  SOSD_handle_check_in(SOS_buffer *buffer);
+    void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
@@ -200,11 +201,11 @@ extern "C" {
 
 #define SOSD_countof(__stat__plus_or_minus__value) {                    \
         if (SOS_DEBUG > 0) {                                            \
-            pthread_mutex_lock(&SOSD.daemon.countof.lock_stats);         \
+            pthread_mutex_lock(SOSD.daemon.countof.lock_stats);         \
         }                                                               \
         SOSD.daemon.countof.__stat__plus_or_minus__value;               \
         if (SOS_DEBUG > 0) {                                            \
-            pthread_mutex_unlock(&SOSD.daemon.countof.lock_stats);       \
+            pthread_mutex_unlock(SOSD.daemon.countof.lock_stats);       \
         }                                                               \
     }
 

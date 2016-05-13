@@ -193,10 +193,31 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosd" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+
 #TARGET ---> sosd_stop
-#            (command-line interface)
+#            (shut down the daemon)
 add_executable("sosd_stop" "sosd_stop.c")
-target_link_libraries("sosd_stop" "sos")
+target_link_libraries("sosd_stop" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosd_stop" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosd_stop" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+#TARGET ---> sosd_probe
+#            (get daemon satus and display it)
+add_executable("sosd_probe" "sosd_probe.c")
+target_link_libraries("sosd_probe" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosd_probe" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosd_probe" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
 
 
 #TARGET ---> demo_app

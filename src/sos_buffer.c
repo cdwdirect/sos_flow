@@ -166,8 +166,8 @@ void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
 
     if (buffer->data == NULL) {
-        dlog(0, "ERROR: Unable to expand buffer!\n");
-        dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
+        dlog(0, "ERROR: Unable to expand buffer!  (called by: %s)\n", from_func);
+        dlog(0, "ERROR: Requested grow_amount == %zd\n", grow_amount);
         exit(EXIT_FAILURE);
     } else {
 

@@ -54,7 +54,8 @@ int main(int argc, char *argv[])  {
      */
     memset(&SOSD.daemon.countof, 0, sizeof(SOSD_counts));
     if (SOS_DEBUG > 0) {
-        pthread_mutex_init(&SOSD.daemon.countof.lock_stats, NULL);
+        SOSD.daemon.countof.lock_stats = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        pthread_mutex_init(SOSD.daemon.countof.lock_stats, NULL);
     }
 
     SOSD.daemon.work_dir    = (char *) &SOSD_DEFAULT_DIR;
@@ -199,8 +200,9 @@ int main(int argc, char *argv[])  {
     if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
     if (SOSD_DAEMON_LOG) { free(SOSD.daemon.log_file); }
     if (SOS_DEBUG > 0)   {
-        pthread_mutex_lock(&SOSD.daemon.countof.lock_stats);
-        pthread_mutex_destroy(&SOSD.daemon.countof.lock_stats);
+        pthread_mutex_lock(SOSD.daemon.countof.lock_stats);
+        pthread_mutex_destroy(SOSD.daemon.countof.lock_stats);
+        free(SOSD.daemon.countof.lock_stats);
     }
 
     close(sos_daemon_lock_fptr);
@@ -316,6 +318,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (buffer); break;
         case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer); break;
         case SOS_MSG_TYPE_CHECK_IN:   SOSD_handle_check_in   (buffer); break;
+        case SOS_MSG_TYPE_PROBE:      SOSD_handle_probe      (buffer); break;
         default:                      SOSD_handle_unknown    (buffer); break;
         }
 
@@ -590,7 +593,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         dlog(0, "[ccc] Sending %d messages in %d bytes over MPI...\n", count, buffer->len);
 
         SOSD_cloud_send(buffer);
-        SOS_buffer_destroy(buffer);
+        SOS_buffer_wipe(buffer);
         free(msg_list);
 
         gettimeofday(&now, NULL);
@@ -992,6 +995,78 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
 
     return;
 }
+
+
+
+void SOSD_handle_probe(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_handle_probe");
+    SOS_buffer    *reply;
+    int            i;
+
+    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_LEN, false);
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_PROBE;
+    header.msg_from = SOS->config.comm_rank;
+    header.pub_guid = -1;
+
+    int offset = 0;
+    SOS_buffer_pack(reply, &offset, "iigg",
+                    header.msg_size,
+                    header.msg_type,
+                    header.msg_from,
+                    header.pub_guid);
+
+    /* Don't need to lock for probing because it doesn't matter if we're a little off. */
+    uint64_t queue_depth_local = SOSD.sync.local.queue->elem_count;
+    uint64_t queue_depth_cloud = SOSD.sync.cloud.queue->elem_count;
+    uint64_t queue_depth_db    = SOSD.sync.db.queue->elem_count;
+
+    SOS_buffer_pack(reply, &offset, "ggg",
+                    queue_depth_local,
+                    queue_depth_cloud,
+                    queue_depth_db);
+
+    SOSD_counts current;
+    if (SOS_DEBUG > 0) { pthread_mutex_lock(SOSD.daemon.countof.lock_stats); }
+    current = SOSD.daemon.countof;
+    if (SOS_DEBUG > 0) { pthread_mutex_unlock(SOSD.daemon.countof.lock_stats); }
+
+    SOS_buffer_pack(reply, &offset, "ggggggggggggggggggggg",
+                    current.thread_local_wakeup,
+                    current.thread_cloud_wakeup,
+                    current.thread_db_wakeup,
+                    current.feedback_checkin_messages,
+                    current.socket_messages,
+                    current.socket_bytes_recv,
+                    current.socket_bytes_sent,
+                    current.mpi_sends,
+                    current.mpi_bytes,
+                    current.db_transactions,
+                    current.db_insert_announce,
+                    current.db_insert_announce_nop,
+                    current.db_insert_publish,
+                    current.db_insert_publish_nop,
+                    current.db_insert_val_snaps,
+                    current.db_insert_val_snaps_nop,
+                    current.buffer_creates,
+                    current.buffer_bytes_on_heap,
+                    current.buffer_destroys,
+                    current.pipe_creates,
+                    current.pub_handles);
+
+    i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
+    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
+    else {
+        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
+    }
+
+    SOS_buffer_destroy(reply);
+    return;
+}
+
 
 
 void SOSD_handle_unknown(SOS_buffer *buffer) {
