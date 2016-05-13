@@ -19,3 +19,4 @@ TAU=$HOME/src/tau2
 
 PATH=$TAU/craycnl/bin:$SQLITE_ROOT/bin:$PATH
 export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-mpi-pthread-pdt
+#export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-ompt-mpi-pdt-openmp

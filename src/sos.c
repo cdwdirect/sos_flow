@@ -1427,7 +1427,6 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
              elem, pub->data[elem]->time.pack,
              elem, pub->data[elem]->time.send);
 
-        dlog(1, "[eee] PACKING elem %d at offset %d\n", elem, offset);
         SOS_buffer_pack(buffer, &offset, "iddill",
                         elem,
                         pub->data[elem]->time.pack,
@@ -1640,15 +1639,12 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
     SOS_buffer_unpack(buffer, &offset, "l", &this_frame);
     pub->frame = this_frame;
 
-    int eeetest = 0;
     /* Unpack in the data elements. */
     while (offset < header.msg_size) {
         dlog(7, "Unpacking next message @ offset %d of %d...\n", offset, header.msg_size);
 
-        eeetest = offset;
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
         data = pub->data[elem];
-        dlog(1, "[eee] UN-PACKED elem %d at offset %d\n", elem, eeetest);
 
         SOS_buffer_unpack(buffer, &offset, "ddill",
                           &data->time.pack,

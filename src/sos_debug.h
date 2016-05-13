@@ -23,7 +23,7 @@
  *      0 = essential messages only (allows daemon logging)
  *     -1 = disabled in daemon/client (for production runs)  */
 #ifndef SOS_DEBUG
-#define SOS_DEBUG                 0
+#define SOS_DEBUG                -1
 #endif
 #define SOS_DEBUG_SHOW_LOCATION   0
 
