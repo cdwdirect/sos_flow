@@ -18,6 +18,9 @@
 #include "sos_buffer.h"
 #include "sos_debug.h"
 
+#ifdef SOSD_DAEMON_SRC
+#include "sosd.h"
+#endif
 
 
 // Macros for packing floats and doubles.
@@ -74,6 +77,12 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
         }
     }
 
+    #ifdef SOSD_DAEMON_SRC
+    SOSD_countof(buffer_creates++);
+    SOSD_countof(buffer_bytes_on_heap += buffer->max);
+    #endif
+
+
     dlog(5, "   ...done.\n");
 
     return;
@@ -118,6 +127,11 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
         exit(EXIT_FAILURE);
     }
 
+    #ifdef SOSD_DAEMON_SRC
+    SOSD_countof(buffer_destroys++);
+    SOSD_countof(buffer_bytes_on_heap -= buffer->max);
+    #endif
+
     dlog(8, "Destroying buffer:\n");
     if (buffer->is_locking) {
         SOS_buffer_lock(buffer);
@@ -148,9 +162,6 @@ void SOS_buffer_wipe(SOS_buffer *buffer) {
 void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
 
-    dlog(8, "[zzz] Growing buffer(%ld)->max == %d  +  %zd   (called by: %s)\n",
-         (long) buffer, buffer->max, grow_amount, from_func);
-
     buffer->max += grow_amount;
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
 
@@ -159,6 +170,10 @@ void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
         dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
         exit(EXIT_FAILURE);
     } else {
+
+        #ifdef SOSD_DAEMON_SRC
+        SOSD_countof(buffer_bytes_on_heap += grow_amount);
+        #endif
         dlog(8, "   ... done.\n");
     }
     return;
@@ -171,6 +186,8 @@ void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
 
     if (buffer->max == to_new_max) return;
 
+    int original_max = buffer->max;
+
     dlog(5, "Trimming buffer:\n");
     dlog(5, "   ... realloc()'ing from %d to %zd bytes.\n", buffer->max, to_new_max);
     buffer->data = (unsigned char *) realloc(buffer->data, to_new_max);
@@ -178,6 +195,10 @@ void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
         dlog(0, "ERROR: Unable to trim buffer!\n");
         exit(EXIT_FAILURE);
     } else {
+        buffer->max = to_new_max;
+        #ifdef SOSD_DAEMON_SRC
+        SOSD_countof(buffer_bytes_on_heap -= (original_max - to_new_max));
+        #endif
         dlog(5, "   ... done.\n");
     }
     return;

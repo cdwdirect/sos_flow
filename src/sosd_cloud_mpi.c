@@ -65,6 +65,7 @@ void SOSD_cloud_shutdown_notice(void) {
         dlog(1, "  ... sending notice\n");
         MPI_Ssend((void *) shutdown_msg->data, shutdown_msg->len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
         dlog(1, "  ... sent successfully\n");
+
     }
     
     //dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
@@ -137,6 +138,11 @@ int SOSD_cloud_send(SOS_buffer *buffer) {
 
     /* At this point, it's pretty simple: */
     MPI_Ssend((void *) buffer->data, buffer->len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+
+    SOSD_countof(mpi_sends++);
+    SOSD_countof(mpi_bytes += buffer->len);
+
+    /* NOTE: buffer gets destroyed by the calling function. */
 
     /* TODO: { FEEDBACK } Turn this into send/recv combo... */
 

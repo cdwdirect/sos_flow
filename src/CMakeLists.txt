@@ -211,6 +211,19 @@ if(MPI_LINK_FLAGS)
 endif()
 
 
+#TARGET ---> proc_app
+#            (demonstration / example)
+add_executable("proc_app" "proc_app.c")
+target_link_libraries("proc_app" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("proc_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+
 
 #TARGET ---> demo_pipe
 #            (test / benchmark queue structure)

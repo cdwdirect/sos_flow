@@ -49,6 +49,14 @@ int main(int argc, char *argv[])  {
     int retval;
     SOS_role my_role;
 
+    /* [countof]
+     *    statistics for daemon activity.
+     */
+    memset(&SOSD.daemon.countof, 0, sizeof(SOSD_counts));
+    if (SOS_DEBUG > 0) {
+        pthread_mutex_init(&SOSD.daemon.countof.lock_stats, NULL);
+    }
+
     SOSD.daemon.work_dir    = (char *) &SOSD_DEFAULT_DIR;
     SOSD.daemon.name        = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
     SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
@@ -190,6 +198,10 @@ int main(int argc, char *argv[])  {
 
     if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
     if (SOSD_DAEMON_LOG) { free(SOSD.daemon.log_file); }
+    if (SOS_DEBUG > 0)   {
+        pthread_mutex_lock(&SOSD.daemon.countof.lock_stats);
+        pthread_mutex_destroy(&SOSD.daemon.countof.lock_stats);
+    }
 
     close(sos_daemon_lock_fptr);
     remove(SOSD.daemon.lock_file);
@@ -273,6 +285,8 @@ void SOSD_listen_loop() {
         dlog(5, "  ... msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
         dlog(5, "  ... pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
+        SOSD_countof(socket_messages++);
+        SOSD_countof(socket_bytes_recv += header.msg_size);
 
         switch (header.msg_type) {
         case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register   (buffer); break; 
@@ -292,7 +306,10 @@ void SOSD_listen_loop() {
             dlog(5, "  ... sending ACK w/reply->len == %d\n", rapid_reply->len);
             i = send( SOSD.net.client_socket_fd, (void *) rapid_reply->data, rapid_reply->len, 0);
             if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-            else { dlog(5, "  ... send() returned the following bytecount: %d\n", i); }    
+            else {
+                dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+                SOSD_countof(socket_bytes_sent += i);
+            }    
             dlog(5, "  ... Done.\n");
             break;
 
@@ -334,6 +351,8 @@ void* SOSD_THREAD_local_sync(void *args) {
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
         buffer = NULL;
+
+        SOSD_countof(thread_local_wakeup++);
 
         count = pipe_pop(my->queue->outlet, (void *) &buffer, 1);
         if (count == 0) {
@@ -411,6 +430,8 @@ void* SOSD_THREAD_db_sync(void *args) {
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
+        SOSD_countof(thread_db_wakeup++);
+
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
 
@@ -441,17 +462,30 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         for (task_index = 0; task_index < count; task_index++) {
             task = task_list[task_index];
-            dlog(0, "----> [ttt] task->type(%d) == \"%s\"\n", task->type, SOS_ENUM_STR(task->type, SOS_MSG_TYPE));
             switch(task->type) {
-            case SOS_MSG_TYPE_ANNOUNCE:   dlog(6, "[zzz] ANNOUNCE\n"); SOSD_db_insert_pub(task->pub); break;
-            case SOS_MSG_TYPE_PUBLISH:    dlog(6, "[zzz] PUBLISH-\n"); SOSD_db_insert_data(task->pub); break;
-            case SOS_MSG_TYPE_VAL_SNAPS:  dlog(6, "[zzz] SNAPS---\n"); SOSD_db_insert_vals(task->pub, task->pub->snap_queue, NULL); break;
+            case SOS_MSG_TYPE_ANNOUNCE:
+                dlog(6, "Sending ANNOUNCE to the database...\n");
+                SOSD_db_insert_pub(task->pub);
+                break;
+
+            case SOS_MSG_TYPE_PUBLISH:
+                dlog(6, "Sending PUBLISH to the database...\n");
+                SOSD_db_insert_data(task->pub);
+                break;
+
+            case SOS_MSG_TYPE_VAL_SNAPS:
+                dlog(6, "Sendiong VAL_SNAPS to the database...\n");
+                SOSD_db_insert_vals(task->pub, task->pub->snap_queue, NULL);
+                break;
+
             default:
                 dlog(0, "WARNING: Invalid task->type value at task_list[%d].   (%d)\n",
                      task_index, task->type);
             }
             free(task);
         }
+
+        SOSD_countof(db_transactions++);
 
         SOSD_db_transaction_commit();
 
@@ -493,6 +527,8 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
         //dlog(0, "Waking up.\n");
+        SOSD_countof(thread_cloud_wakeup++);
+
 
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
@@ -554,7 +590,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         dlog(0, "[ccc] Sending %d messages in %d bytes over MPI...\n", count, buffer->len);
 
         SOSD_cloud_send(buffer);
-        SOS_buffer_wipe(buffer);
+        SOS_buffer_destroy(buffer);
         free(msg_list);
 
         gettimeofday(&now, NULL);
@@ -585,8 +621,12 @@ void SOSD_handle_echo(SOS_buffer *buffer) {
         &header.pub_guid);
 
     rc = send(SOSD.net.client_socket_fd, (void *) buffer->data, buffer->len, 0);
-    if (rc == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-        
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+       
     return;
 }
 
@@ -682,6 +722,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
     }
 
     SOS_buffer_destroy(reply);
@@ -714,6 +755,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
     }
 
     SOS_buffer_destroy(reply);
@@ -750,6 +792,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
         pub = SOS_pub_create(SOS, pub_guid_str, SOS_NATURE_DEFAULT);
+        SOSD_countof(pub_handles++);
         strncpy(pub->guid_str, pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.pub_guid;
         SOSD.pub_table->put(SOSD.pub_table, pub_guid_str, pub);
@@ -808,6 +851,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT ") NOT FOUND! (WEIRD!)\n", header.pub_guid);
     dlog(0, "ERROR: .... ADDING previously unknown pub to the table... (this is bogus, man)\n");
         pub = SOS_pub_create(SOS, pub_guid_str, SOS_NATURE_DEFAULT);
+        SOSD_countof(pub_handles++);
         strncpy(pub->guid_str, pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.pub_guid;
         SOSD.pub_table->put(SOSD.pub_table, pub_guid_str, pub);
@@ -822,7 +866,6 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     task->pub = pub;
     task->type = SOS_MSG_TYPE_PUBLISH;
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-    dlog(0, "<<<<< [ttt] task = %ld @ address %ld ...\n", (long) task, (long) &task);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
@@ -855,7 +898,10 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
         
         i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
         if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-        else { dlog(5, "  ... send() returned the following bytecount: %d\n", i); }
+        else {
+            dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+            SOSD_countof(socket_bytes_sent += i);
+        }
     }
 
     #if (SOSD_CLOUD_SYNC > 0)
@@ -890,6 +936,8 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
     int            i;
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_CHECK_IN\n");
+
+    SOSD_countof(feedback_checkin_messages++);
 
     SOS_buffer_init(SOS, &reply);
 
@@ -931,7 +979,12 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
 
         i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
         if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-        else { dlog(5, "  ... send() returned the following bytecount: %d\n", i); }
+        else {
+            dlog(5, "  ... send() returned the following bytecount: %d\n", i); 
+            SOSD_countof(socket_bytes_sent += i);
+        }
+        
+
     }
 
     SOS_buffer_destroy(reply);
@@ -973,7 +1026,10 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
 
     i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-    else { dlog(5, "  ... send() returned the following bytecount: %d\n", i); }
+    else {
+        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
+    }
 
     SOS_buffer_destroy(reply);
 

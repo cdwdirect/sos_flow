@@ -34,6 +34,9 @@
 #include <string.h>
 #include <pthread.h>
 
+#ifdef SOSD_DAEMON_SRC
+#include "sosd.h"
+#endif
 
 
 void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
@@ -56,6 +59,10 @@ void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
     pipe->sync_cond = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
     pthread_mutex_init(pipe->sync_lock, NULL);
     pthread_cond_init(pipe->sync_cond, NULL);
+
+    #ifdef SOSD_DAEMON_SRC
+    SOSD_countof(pipe_creates++);
+    #endif
 
     return;
 }

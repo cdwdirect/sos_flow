@@ -345,8 +345,12 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
 
     if (pub->announced == 1) {
         dlog(1, "Skipping database insertion, this pub is already marked as announced.\n");
+
+        SOSD_countof(db_insert_announce_nop++);
         return;
     }
+
+    SOSD_countof(db_insert_announce++);
 
     pthread_mutex_lock( pub->lock );
 
@@ -424,6 +428,7 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
 
     pthread_mutex_lock( pub->lock );
 
+
     dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
 
     dlog(2, "  ... getting lock for queues\n");
@@ -434,8 +439,12 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         dlog(2, "  ... nothing in the queue, returning.\n");
         pthread_mutex_unlock( pub->lock );
         pthread_mutex_unlock( queue->sync_lock);
+
+        SOSD_countof(db_insert_val_snaps_nop++);
         return;
     }
+
+    SOSD_countof(db_insert_val_snaps++);
 
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
     dlog(2, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
@@ -548,17 +557,22 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;
+    int inserted_count = 0;
 
     pthread_mutex_lock( pub->lock );
 
     dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 
+    inserted_count = 0;
     for (i = 0; i < pub->elem_count; i++) {
 
         if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
             dlog(1, "Skipping pub->data[%d]->sync == %s\n", i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
             continue;
+        } else {
+            inserted_count++;
         }
+
 
         /*
          *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
@@ -608,6 +622,12 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     }
     
     dlog(5, "  ... done.  returning to loop.\n");
+
+    if (inserted_count > 0) {
+        SOSD_countof(db_insert_publish++);
+    } else {
+        SOSD_countof(db_insert_publish_nop++);
+    }
 
     pthread_mutex_unlock( pub->lock );
 
