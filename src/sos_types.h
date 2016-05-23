@@ -19,6 +19,7 @@
     ROLE(SOS_ROLE_CLIENT)                       \
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_DB)                           \
+    ROLE(SOS_ROLE_ANALYTICS)                    \
     ROLE(SOS_ROLE_RUNTIME_UTILITY)              \
     ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)

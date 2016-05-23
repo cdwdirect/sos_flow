@@ -83,9 +83,10 @@ extern "C" {
     void      SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy_snaps);
     void      SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SOS_pub *pub);
     void      SOS_strip_str(char *str);
+    char*     SOS_uint64_to_str(uint64_t val, char *result, int result_len);
     void      SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
-
     /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
+
 
 #ifdef __cplusplus
 }
@@ -104,10 +105,12 @@ extern "C" {
     while (__SOS_int) {                                         \
         nanosleep(__SOS_spinlock_ts, NULL)                      \
     }                                                           \
-    __SOS_int += 1;
+    __SOS_int_var += 1;                                         \
+    }
 
 #define SOS_UNLOCK_REENTRANT(__SOS_int_var) {           \
-    __SOS_int_var -= 1;
+    __SOS_int_var -= 1;                                 \
+    }
 
 #if (SOS_DEBUG < 0)
     #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
@@ -119,7 +122,7 @@ extern "C" {
         exit(EXIT_FAILURE);                                             \
     }
 #else
-    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
+    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_funcname)              \
     SOS_runtime *SOS;                                                   \
     SOS = (SOS_runtime *) __SOS_context;                                \
     if (SOS == NULL) {                                                  \
@@ -127,12 +130,13 @@ extern "C" {
         exit(EXIT_FAILURE);                                             \
     }                                                                   \
     char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
-    sprintf(SOS_WHOAMI, "* ??? *");                                     \
+    snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");             \
     switch (SOS->role) {                                                    \
-    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
-    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
-    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
-    default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
+    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break; \
+    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_funcname); break; \
+    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_funcname); break; \
+    case SOS_ROLE_ANALYTICS : sprintf(SOS_WHOAMI, "analytics(%d).%s",   SOS->config.comm_rank, __SOS_str_funcname); break; \
+    default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break; \
     }
 #endif
 

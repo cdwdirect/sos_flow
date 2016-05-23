@@ -841,6 +841,31 @@ void SOS_strip_str( char *str ) {
 }
 
 
+char* SOS_uint64_to_str(uint64_t val, char *result, int result_len) {
+    if (result_len < 128) {
+        snprintf(result, result_len, "ERROR: result buffer < 128");
+        return result;
+    } else {
+        snprintf(result, result_len, "%" SOS_GUID_FMT, val);
+    }
+
+    size_t i = 0;
+    size_t i2 = i + (i / 3);
+    int c = 0;
+    result[i2 + 1] = 0;
+
+    for(i = (strlen(result) - 1) ; i != 0; i-- ) {
+        result[i2--] = result[i];
+        c++;
+        if( c % 3 == 0 ) {
+            result[i2--] = ',';
+        }
+    }
+
+    return result;  
+}
+
+
 int SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_event");
     int pos = 0;

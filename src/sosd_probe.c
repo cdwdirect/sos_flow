@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <mpi.h>
 
-#define USAGE "./sosd_probe -d <loop_delay_seconds> [-o json]"
+#define USAGE "./sosd_probe [-l loop_delay_seconds] [-header only] [-o json] [-p force_sos_port]"
 
 #define OUTPUT_CSV   1
 #define OUTPUT_JSON  2
@@ -21,6 +21,9 @@
 
 int GLOBAL_sleep_delay;
 int GLOBAL_output_type;
+int GLOBAL_header_on;
+char *GLOBAL_forced_sos_port;
+int GLOBAL_forced_sos_port_on;
 
 int main(int argc, char *argv[]) {
     int   i;
@@ -29,18 +32,18 @@ int main(int argc, char *argv[]) {
 
     MPI_Init(&argc, &argv);
 
-    /* Process command-line arguments */
-    if ( argc < 3 )  { fprintf(stderr, "%s\n", USAGE); exit(1); }
-
-    GLOBAL_sleep_delay = -1;
-    GLOBAL_output_type = OUTPUT_CSV;
+    GLOBAL_header_on          = -1;
+    GLOBAL_sleep_delay        = 0;
+    GLOBAL_forced_sos_port    = NULL;
+    GLOBAL_forced_sos_port_on = -1;
+    GLOBAL_output_type        = OUTPUT_CSV;
 
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
             exit(1);
         }
-        if ( strcmp(argv[elem], "-d"  ) == 0) {
+        if ( strcmp(argv[elem], "-l"  ) == 0) {
             GLOBAL_sleep_delay  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-o"  ) == 0) {
             if ( strcmp(argv[next_elem], "json" ) == 0) {
@@ -49,16 +52,31 @@ int main(int argc, char *argv[]) {
                 printf("WARNING: Unknown output type specified.  Defaulting to CSV.   (%s)\n", argv[next_elem]);
                 GLOBAL_output_type = OUTPUT_CSV;
             }
+        } else if ( strcmp(argv[elem], "-p" ) == 0) {
+            GLOBAL_forced_sos_port = argv[next_elem];
+            GLOBAL_forced_sos_port_on = 1;
+        } else if ( strcmp(argv[elem], "-header"  ) == 0) {
+            if ( strcmp(argv[next_elem], "only" ) == 0) {
+                printf("timestamp,sosd_comm_rank,queue_depth_local,queue_depth_cloud,"
+                       "queue_depth_db,thread_local_wakeup,thread_cloud_wakeup,"
+                       "thread_db_wakeup,feedback_checkin_messages,socket_messages,"
+                       "socket_bytes_recv,socket_bytes_sent,mpi_sends,mpi_bytes,"
+                       "db_transactions,db_insert_announce,db_insert_announce_nop,"
+                       "db_insert_publish,db_insert_publish_nop,buffer_creates,"
+                       "buffer_bytes_on_heap,buffer_destroys,pipe_creates,pub_handles\n");
+                exit(0);
+            }
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
         }
         elem = next_elem + 1;
     }
 
-    if (GLOBAL_sleep_delay < 1) { fprintf(stderr, "%s\n", USAGE); exit(1); }
-
     SOS_runtime *my_sos;
     my_sos = SOS_init( &argc, &argv, SOS_ROLE_RUNTIME_UTILITY, SOS_LAYER_ENVIRONMENT);
+    if (GLOBAL_forced_sos_port_on > 0) {
+        my_sos->net.server_port = GLOBAL_forced_sos_port;
+    }
     srandom(my_sos->my_guid);
 
     SOS_buffer *request;
@@ -83,11 +101,9 @@ int main(int argc, char *argv[]) {
 
     SOS_buffer_pack(request, &offset, "i", header.msg_size);
 
-
     while (getenv("SOS_SHUTDOWN") == NULL) {
-        sleep(GLOBAL_sleep_delay);
-        SOS_buffer_wipe(reply);
-        
+
+        SOS_buffer_wipe(reply);        
         SOS_send_to_daemon(request, reply);
 
         if (reply->len < sizeof(SOS_msg_header)) {
@@ -140,7 +156,7 @@ int main(int argc, char *argv[]) {
         
         switch(GLOBAL_output_type) {
         case OUTPUT_CSV:    //--------------------------------------------------
-            printf("%lf,"
+            printf("%lf,%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
@@ -150,6 +166,7 @@ int main(int argc, char *argv[]) {
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT "\n",
                    time_now,
+                   header.msg_from,
                    queue_depth_local,
                    queue_depth_cloud,
                    queue_depth_db,
@@ -181,7 +198,12 @@ int main(int argc, char *argv[]) {
         case OUTPUT_JSON:  //--------------------------------------------------
 
             printf("{\"sosd_probe\": {\n");
-            printf("\t\"time_stamp\": \"%lf\",\n", time_now);
+            if (GLOBAL_forced_sos_port_on > 0) {
+                printf("\t\"__comment\" \"SOS_CMD_PORT overridden to %s\"\n",
+                       my_sos->net.server_port);
+            }
+            printf("\t\"timestamp\": \"%lf\",\n", time_now);
+            printf("\t\"sosd_comm_rank\": \"%"            SOS_GUID_FMT "\",\n", header.msg_from);
             printf("\t\"queue_depth_local\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_local);
             printf("\t\"queue_depth_cloud\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_cloud);
             printf("\t\"queue_depth_db\": \"%"            SOS_GUID_FMT "\",\n", queue_depth_db);
@@ -214,6 +236,11 @@ int main(int argc, char *argv[]) {
             break;
         }
 
+        if (GLOBAL_sleep_delay) {
+            sleep(GLOBAL_sleep_delay);
+        } else {
+            break;
+        }
 
     }//while
     SOS_buffer_destroy(request);

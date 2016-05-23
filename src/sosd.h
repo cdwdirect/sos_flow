@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <time.h>
 
+#include <mpi.h>
+
 #include "sos.h"
 #include "sos_types.h"
 
@@ -28,7 +30,7 @@
 #define SOSD_PUB_ANN_CLOUD           88
 
 #define SOSD_LOCAL_SYNC_WAIT_SEC     0
-#define SOSD_CLOUD_SYNC_WAIT_SEC     0
+#define SOSD_CLOUD_SYNC_WAIT_SEC     1
 #define SOSD_DB_SYNC_WAIT_SEC        1
 
 /* 0.05 seconds: 50000000 */
@@ -106,6 +108,7 @@ typedef struct {
     int                 cloud_sync_target_count;
     int                 cloud_sync_target;
     SOSD_counts         countof;
+    MPI_Comm            comm;
 } SOSD_runtime;
 
 typedef struct {

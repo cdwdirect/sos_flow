@@ -194,6 +194,31 @@ if(CMAKE_THREAD_LIBS_INIT)
 endif()
 
 
+#TARGET ---> sosa
+#            (library)
+add_library("sosa" "sosa.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
+if(THREADS_HAVE_PTHREAD_ARG)
+  target_compile_options(TARGET "sosa" PROPERTY COMPILE_OPTIONS "-pthread")
+  target_compile_options(TARGET "sosa" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries("sosa"
+    "sos_buffer"
+    "sos_qhashtbl"
+    "sos_pipe"
+    "${CMAKE_THREAD_LIBS_INIT}"
+    "${MPI_LIBRARIES}")
+endif()
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosa" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosa" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+
+
 #TARGET ---> sosd_stop
 #            (shut down the daemon)
 add_executable("sosd_stop" "sosd_stop.c")
@@ -219,6 +244,19 @@ endif()
 
 
 
+#TARGET ---> sosa_shell
+#            (core sosa analytics code, to be cloned for new analytics modules)
+add_executable("sosa_shell" "sosa.c" "sosa_shell.c")
+target_link_libraries("sosa_shell" "sos" "sosa" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosa_shell" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosa_shell" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+
 
 #TARGET ---> demo_app
 #            (demonstration / example)
@@ -230,6 +268,9 @@ endif()
 if(MPI_LINK_FLAGS)
   set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
+
+
+
 
 
 #TARGET ---> proc_app
