@@ -17,7 +17,7 @@
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
 
-#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> -p <pub_elem_count> [-j <jittertime.sec>]"
+#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> -p <pub_elem_count> [-d <delay_usec>]"
 
 
 #include "sos.h"
@@ -45,8 +45,8 @@ int main(int argc, char *argv[]) {
     int    MAX_SEND_COUNT;
     int    ITERATION_SIZE;
     int    PUB_ELEM_COUNT;
-    int    JITTER_ENABLED;
-    double JITTER_INTERVAL;
+    int    DELAY_ENABLED;
+    double DELAY_IN_USEC;
 
     MPI_Init(&argc, &argv);
 
@@ -56,8 +56,8 @@ int main(int argc, char *argv[]) {
     MAX_SEND_COUNT  = -1;
     ITERATION_SIZE  = -1;
     PUB_ELEM_COUNT  = -1;
-    JITTER_ENABLED  = 0;
-    JITTER_INTERVAL = 0.0;
+    DELAY_ENABLED   = 0;
+    DELAY_IN_USEC   = 0;
 
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
@@ -71,9 +71,9 @@ int main(int argc, char *argv[]) {
             MAX_SEND_COUNT  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-p"  ) == 0) {
             PUB_ELEM_COUNT  = atoi(argv[next_elem]);
-        } else if ( strcmp(argv[elem], "-j"  ) == 0) {
-            JITTER_INTERVAL = strtod(argv[next_elem], NULL);
-            JITTER_ENABLED = 1;
+        } else if ( strcmp(argv[elem], "-d"  ) == 0) {
+            DELAY_IN_USEC = strtod(argv[next_elem], NULL);
+            DELAY_ENABLED = 1;
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
         }
@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     if ( (MAX_SEND_COUNT < 1)
          || (ITERATION_SIZE < 1)
          || (PUB_ELEM_COUNT < 1)
-         || (JITTER_INTERVAL < 0.0) )
+         || (DELAY_IN_USEC  < 0) )
         { fprintf(stderr, "%s\n", USAGE); exit(1); }
 
 
@@ -154,8 +154,8 @@ int main(int argc, char *argv[]) {
                    (time_now - time_start),
                    ((time_now - time_start) / (double) (PUB_ELEM_COUNT * ITERATION_SIZE)),
                    (ones * PUB_ELEM_COUNT));
-            if (JITTER_ENABLED) {
-                usleep((random() * 1000000) % (int)(JITTER_INTERVAL * 1000000));
+            if (DELAY_ENABLED) {
+                usleep(DELAY_IN_USEC);
             }
             SOS_TIME( time_start);
         }

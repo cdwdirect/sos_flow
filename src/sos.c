@@ -352,26 +352,31 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
         exit(1);
     }
 
-    int more_to_send = 1;
+    int more_to_send      = 1;
+    int failed_send_count = 0;
+    int total_bytes_sent  = 0;
     retval = 0;
+
     SOS_TIME(time_start);
     while (more_to_send) {
-        retval += send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
-        if (retval >= send_buffer->len) { more_to_send = 0; }
-        if (retval == -1) {
-            SOS_TIME(time_out);
-            if (more_to_send < 2) {
-                dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
-                more_to_send = 2;
-            }
-            usleep(1000);
-            if ((time_out - time_start) > SOS_DEFAULT_TIMEOUT_SEC) {
-                dlog(0, "ERROR: Unable to communicate w/daemon for more than %lf seconds.  Terminating.\n",
-                     SOS_DEFAULT_TIMEOUT_SEC);
-                exit(EXIT_FAILURE);
-            }
+        if (failed_send_count > 99) {
+            dlog(0, "ERROR: Unable to contact sosd daemon after 100 attempts. Terminating.\n");
+            exit(EXIT_FAILURE);
         }
-    }
+        retval = send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
+        if (retval < 0) {
+            failed_send_count++;
+            dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
+            dlog(0, "ERROR:    ...retrying %d more times after a brief delay.\n", (100 - failed_send_count));
+            usleep(100000);
+            continue;
+        } else {
+            total_bytes_sent += retval;
+        }
+        if (total_bytes_sent >= send_buffer->len) {
+            more_to_send = 0;
+        }
+    }//while
 
     dlog(6, "Send complete, waiting for a reply...\n");
 
