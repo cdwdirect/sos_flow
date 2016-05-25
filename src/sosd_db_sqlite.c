@@ -217,6 +217,7 @@ void SOSD_db_init_database() {
     }
 
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
+    SOSD.db.snap_queue->sync_pending = 0;
 
     SOSD_db_create_tables();
 

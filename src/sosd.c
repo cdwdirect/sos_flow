@@ -677,6 +677,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     task->pub = pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
 
+    pthread_mutex_lock(SOSD.db.snap_queue->sync_lock);
     if (SOSD.db.snap_queue->sync_pending == 0) {
         SOSD.db.snap_queue->sync_pending = 1;
         pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
