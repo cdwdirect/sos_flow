@@ -115,6 +115,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     dlog(1, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->role == SOS_ROLE_CLIENT) {
+        SOS->config.locale = SOS_LOCALE_APPLICATION;
+
         if (SOS->config.runtime_utility == false) {
             dlog(1, "  ... launching libsos runtime thread[s].\n");
             SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
@@ -279,6 +281,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
          */
 
         dlog(1, "  ... skipping socket setup (becase we're the daemon).\n");
+        
     }
 
     SOS->status = SOS_STATUS_RUNNING;
@@ -723,6 +726,8 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
     pthread_mutex_init(new_pub->lock, NULL);
     pthread_mutex_lock(new_pub->lock);
 
+    new_pub->sync_pending = 0; // Used by daemon/db to coordinate db injection.
+
     if (SOS->role != SOS_ROLE_CLIENT) {
         new_pub->guid = -1;
     } else {
@@ -783,8 +788,10 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
 
     }
 
-    dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
-    SOS_pipe_init((void *) SOS, &new_pub->snap_queue, sizeof(SOS_val_snap *));
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
+        SOS_pipe_init((void *) SOS, &new_pub->snap_queue, sizeof(SOS_val_snap *));
+    }
 
     dlog(6, "  ... initializing the name table for values.\n");
     new_pub->name_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
@@ -1702,7 +1709,9 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
 
         data->state = SOS_VAL_STATE_CLEAN;
 
-        /* Enqueue this value for writing out to local_sync and cloud_sync. */
+        /* NOTE: ALL values go into the snap queue, so this need not happen anymore.
+         *
+         * Enqueue this value for writing out to local_sync and cloud_sync.
         if (snap_queue != NULL) {
             dlog(7, "Enqueing a val_snap for \"%s\"\n", pub->data[elem]->name);
             SOS_val_snap *snap;
@@ -1713,7 +1722,7 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
             snap->mood     = data->meta.mood;
             snap->semantic = data->meta.semantic;
             snap->type     = data->type;
-            snap->val      = data->val;    /* Take over extant string. */
+            snap->val      = data->val;    // Take over extant string.
             snap->val_len  = data->val_len;
             snap->time     = data->time;
             snap->frame    = pub->frame;
@@ -1723,6 +1732,8 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
             snap_queue->elem_count++;
             pthread_mutex_unlock(snap_queue->sync_lock);
         }//if
+        */
+
     }//while
 
     pthread_mutex_unlock(pub->lock);

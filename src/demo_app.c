@@ -169,15 +169,13 @@ int main(int argc, char *argv[]) {
             var_double += 0.000001;
         }
 
-        //if (ones % 2) {
+        if (ones % 2) {
             /* Publish every other iteration to force local snap-queue use. */
-        //    SOS_publish(pub);
-        //}
-        SOS_publish(pub);
+            SOS_publish(pub);
+        }
+        //SOS_publish(pub);
     }
 
-    /* Catch any stragglers. */
-    //SOS_publish(pub);
     dlog(0, "  ... done.\n");
 
     dlog(0, "demo_app finished successfully!\n");

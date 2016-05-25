@@ -216,6 +216,8 @@ void SOSD_db_init_database() {
         dlog(1, "Successfully opened database.\n");
     }
 
+    SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
+
     SOSD_db_create_tables();
 
     dlog(2, "Preparing transactions...\n");
@@ -418,28 +420,21 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     return;
 }
 
+/* tblVals : The snap_queue of a pub handle. */
 /* NOTE: re_queue can be NULL, and snaps are then free()'ed. */
-void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
+void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_vals");
     SOS_val_snap **snap_list;
     int            snap_index;
     int            snap_count;
     int            count;
 
-    pthread_mutex_lock( pub->lock );
-
-
-    dlog(2, "Attempting to inject val_snap queue for pub->title = \"%s\":\n", pub->title);
-
-    dlog(2, "  ... getting lock for queues\n");
-    if (re_queue != NULL) { pthread_mutex_lock( re_queue->sync_lock ); }
+    dlog(5, "Flushing SOSD.db.snap_queue into database...\n");
     pthread_mutex_lock( queue->sync_lock );
     snap_count = queue->elem_count;
     if (queue->elem_count < 1) {
-        dlog(2, "  ... nothing in the queue, returning.\n");
-        pthread_mutex_unlock( pub->lock );
+        dlog(5, "  ... nothing in the queue, returning.\n");
         pthread_mutex_unlock( queue->sync_lock);
-
         SOSD_countof(db_insert_val_snaps_nop++);
         return;
     }
@@ -447,15 +442,16 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOSD_countof(db_insert_val_snaps++);
 
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
-    dlog(2, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
+    dlog(5, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
     count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
-    dlog(2, "      [bbb] %d snaps were returned from the queue on request.\n", count);
+    dlog(5, "      [bbb] %d snaps were returned from the queue on request.\n", count);
     queue->elem_count -= count;
     snap_count = count;
-    dlog(2, "  ... [bbb] releasing queue->lock\n");
+    queue->sync_pending = 0;
+    dlog(5, "  ... [bbb] releasing queue->lock\n");
     pthread_mutex_unlock(queue->sync_lock);
 
-    dlog(2, "  ... processing snaps extracted from the queue\n");
+    dlog(5, "  ... processing snaps extracted from the queue\n");
 
     int           elem;
     char         *val, *val_alloc;
@@ -466,7 +462,10 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
     long          frame;
     __ENUM_C_TYPE semantic;
     __ENUM_C_TYPE mood;
+
+    SOS_val_type      val_type;
     
+
     val_alloc = (char *) malloc(SOS_DEFAULT_STRING_LEN);
 
     for (snap_index = 0; snap_index < snap_count ; snap_index++) {
@@ -480,26 +479,21 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
         mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
 
-        if (time_send > 0.1) {
-            dlog(5, "    ---[%s]---\n", pub->data[elem]->name);
-        } else {
-            dlog(1, "WARNING: pub->data[%d]->name == \"%s\", time.send == %lf\n", elem, pub->data[elem]->name, time_send);
-        }
-
+        val_type = snap_list[snap_index]->type;
         SOS_TIME( time_recv );
 
-        if (pub->data[snap_list[snap_index]->elem]->type != SOS_VAL_TYPE_STRING) {
+        if (val_type != SOS_VAL_TYPE_STRING) {
             val = val_alloc;
             memset(val, '\0', SOS_DEFAULT_STRING_LEN);
         }
 
-        switch (pub->data[snap_list[snap_index]->elem]->type) {
+        switch (val_type) {
         case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap_list[snap_index]->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; dlog(0, "Injecting snap->val.c_val = \"%s\"\n", snap_list[snap_index]->val.c_val); break;
         default:
-            dlog(5, "     ... error: invalid value type.  (%d)\n", pub->data[snap_list[snap_index]->elem]->type); break;
+            dlog(5, "     ... error: invalid value type.  (%d)\n", val_type); break;
         }
 
         dlog(5, "     ... binding values\n");
@@ -526,40 +520,43 @@ void SOSD_db_insert_vals( SOS_pub *pub, SOS_pipe *queue, SOS_pipe *re_queue ) {
         CALL_SQLITE (reset (stmt_insert_val));
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
-        if (re_queue == NULL) {
-            /* Free the snapshots as we process them. */
-            switch(snap_list[snap_index]->type) {
+        dlog(5, "     ... grabbing the next snap.\n");
+    }
+
+    if (re_queue == NULL) {
+        // Roll through and free the snaps.
+        for (snap_index = 0; snap_index < snap_count ; snap_index++) {
+            switch(val_type) {
             case SOS_VAL_TYPE_STRING: free(snap_list[snap_index]->val.c_val); break;
             case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
             default: break;
             }
             free(snap_list[snap_index]);
-        } else {
-            pthread_mutex_lock(re_queue->sync_lock);
-            pipe_push(re_queue->intake, (void *) snap_list[snap_index], 1);
-            re_queue->elem_count++;
-            pthread_mutex_unlock(re_queue->sync_lock);
         }
-
-        dlog(5, "     ... grabbing the next snap.\n");
+    } else {
+       // Inject this snap queue into the next one en masse.
+       pthread_mutex_lock(re_queue->sync_lock);
+       pipe_push(re_queue->intake, (void *) snap_list, snap_count);
+       re_queue->elem_count += snap_count;
+       pthread_mutex_unlock(re_queue->sync_lock);
     }
 
     free(snap_list);
     free(val_alloc);
 
-    pthread_mutex_unlock( pub->lock );
     dlog(5, "  ... done.  returning to loop.\n");
 
     return;
 }
 
-
+/* tblData : Data definitions / metadata that comes with a SOS_publish() call. */
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;
     int inserted_count = 0;
 
     pthread_mutex_lock( pub->lock );
+    pub->sync_pending = 0;
 
     dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
 

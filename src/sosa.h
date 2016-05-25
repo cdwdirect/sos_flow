@@ -13,8 +13,13 @@
 
 typedef struct {
     SOS_runtime *sos_context;
-    char        *analytics_handle;
     MPI_Comm     comm;
+    int         *analytics_locales;
+    int          world_rank;
+    int          world_size;
+    int         *world_roles;
+    char        *world_hosts;
+    int          world_db_target_rank;
 } SOSA_runtime;
 
 extern SOSA_runtime SOSA;
@@ -26,9 +31,8 @@ extern "C" {
 
     SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color);
 
-    void SOSA_lock_db(void);
+    void SOSA_guid_request(SOS_uid *uid);
     void SOSA_run_query(char *sql_string, SOS_buffer *result);
-    void SOSA_unlock_db(void);
 
     void SOSA_finalize(void);
 

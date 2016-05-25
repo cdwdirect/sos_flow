@@ -14,7 +14,7 @@
 #include <mpi.h>
 #endif
 
-#define USAGE "./sosd_sense -d <initial_delay_seconds> [...]"
+#define USAGE "./sosd_shell -d <initial_delay_seconds>"
 
 #include "sos.h"
 #include "sosd.h"
@@ -47,12 +47,14 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-    sleep(initial_delay_seconds);
 
     SOSA.sos_context = SOSA_init( &argc, &argv, 800);
     SOS_SET_CONTEXT(SOSA.sos_context, "main");
     srandom(SOS->my_guid);
     dlog(1, "Initialization complete.\n");
+
+    sleep(initial_delay_seconds);
+
 
     /*
      *   [ insert your analytics code here ]

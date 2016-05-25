@@ -22,7 +22,7 @@ void SOSD_db_close_database(void);
 void SOSD_db_create_tables(void);
 void SOSD_db_insert_pub(SOS_pub *pub);
 void SOSD_db_insert_data(SOS_pub *pub);
-void SOSD_db_insert_vals(SOS_pub *pub, SOS_pipe *from_queue, SOS_pipe *optional_re_queue);
+void SOSD_db_insert_vals(SOS_pipe *from_queue, SOS_pipe *optional_re_queue);
 void SOSD_db_transaction_begin(void);
 void SOSD_db_transaction_commit(void);
 

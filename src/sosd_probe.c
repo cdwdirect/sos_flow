@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <mpi.h>
 
-#define USAGE "./sosd_probe [-l loop_delay_seconds] [-header only] [-o json] [-p force_sos_port]"
+#define USAGE "./sosd_probe [-l loop_delay_usec] [-header only] [-o json] [-p force_sos_port]"
 
 #define OUTPUT_CSV   1
 #define OUTPUT_JSON  2
@@ -58,7 +58,7 @@ int main(int argc, char *argv[]) {
         } else if ( strcmp(argv[elem], "-header"  ) == 0) {
             if ( strcmp(argv[next_elem], "only" ) == 0) {
                 printf("timestamp,sosd_comm_rank,queue_depth_local,queue_depth_cloud,"
-                       "queue_depth_db,thread_local_wakeup,thread_cloud_wakeup,"
+                       "queue_depth_db_tasks,queue_depth_db_snaps,thread_local_wakeup,thread_cloud_wakeup,"
                        "thread_db_wakeup,feedback_checkin_messages,socket_messages,"
                        "socket_bytes_recv,socket_bytes_sent,mpi_sends,mpi_bytes,"
                        "db_transactions,db_insert_announce,db_insert_announce_nop,"
@@ -118,14 +118,16 @@ int main(int argc, char *argv[]) {
                           &header.msg_from,
                           &header.pub_guid);
 
-        uint64_t queue_depth_local = 0;
-        uint64_t queue_depth_cloud = 0;
-        uint64_t queue_depth_db    = 0;
+        uint64_t queue_depth_local       = 0;
+        uint64_t queue_depth_cloud       = 0;
+        uint64_t queue_depth_db_tasks    = 0;
+        uint64_t queue_depth_db_snaps    = 0;
 
-        SOS_buffer_unpack(reply, &offset, "ggg",
+        SOS_buffer_unpack(reply, &offset, "gggg",
                           &queue_depth_local,
                           &queue_depth_cloud,
-                          &queue_depth_db);
+                          &queue_depth_db_tasks,
+                          &queue_depth_db_snaps);
 
         SOSD_counts current;
         SOS_buffer_unpack(reply, &offset, "ggggggggggggggggggggg",
@@ -157,7 +159,7 @@ int main(int argc, char *argv[]) {
         switch(GLOBAL_output_type) {
         case OUTPUT_CSV:    //--------------------------------------------------
             printf("%lf,%" SOS_GUID_FMT ","
-                   "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
+                   "%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
@@ -169,7 +171,8 @@ int main(int argc, char *argv[]) {
                    header.msg_from,
                    queue_depth_local,
                    queue_depth_cloud,
-                   queue_depth_db,
+                   queue_depth_db_tasks,
+                   queue_depth_db_snaps,
                    current.thread_local_wakeup,
                    current.thread_cloud_wakeup,
                    current.thread_db_wakeup,
@@ -206,7 +209,8 @@ int main(int argc, char *argv[]) {
             printf("\t\"sosd_comm_rank\": \"%"            SOS_GUID_FMT "\",\n", header.msg_from);
             printf("\t\"queue_depth_local\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_local);
             printf("\t\"queue_depth_cloud\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_cloud);
-            printf("\t\"queue_depth_db\": \"%"            SOS_GUID_FMT "\",\n", queue_depth_db);
+            printf("\t\"queue_depth_db_tasks\": \"%"      SOS_GUID_FMT "\",\n", queue_depth_db_tasks);
+            printf("\t\"queue_depth_db_snaps\": \"%"      SOS_GUID_FMT "\",\n", queue_depth_db_snaps);
             printf("\t\"thread_local_wakeup\": \"%"       SOS_GUID_FMT "\",\n", current.thread_local_wakeup);
             printf("\t\"thread_cloud_wakeup\": \"%"       SOS_GUID_FMT "\",\n", current.thread_cloud_wakeup);
             printf("\t\"thread_db_wakeup\": \"%"          SOS_GUID_FMT "\",\n", current.thread_db_wakeup);
@@ -237,7 +241,7 @@ int main(int argc, char *argv[]) {
         }
 
         if (GLOBAL_sleep_delay) {
-            sleep(GLOBAL_sleep_delay);
+            usleep(GLOBAL_sleep_delay);
         } else {
             break;
         }

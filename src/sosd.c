@@ -115,7 +115,6 @@ int main(int argc, char *argv[])  {
 
     SOS_SET_CONTEXT(SOSD.sos_context, "main");
     dlog(0, "Initializing SOSD:\n");
-
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( my_role, SOS_ROLE ));
     SOSD.sos_context = SOS_init_with_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
 
@@ -152,8 +151,13 @@ int main(int argc, char *argv[])  {
 
     /* Go! */
     switch (SOS->role) {
-    case SOS_ROLE_DAEMON:   SOSD_listen_loop(); break;
+    case SOS_ROLE_DAEMON:
+        SOS->config.locale = SOS_LOCALE_APPLICATION;
+        SOSD_listen_loop();
+        break;
+
     case SOS_ROLE_DB:
+        SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
         #ifdef SOSD_CLOUD_SYNC
         SOSD_cloud_listen_loop();
         #endif
@@ -357,10 +361,14 @@ void* SOSD_THREAD_local_sync(void *args) {
 
         SOSD_countof(thread_local_wakeup++);
 
-        count = pipe_pop(my->queue->outlet, (void *) &buffer, 1);
+        count = pipe_pop_eager(my->queue->outlet, (void *) &buffer, 1);
         if (count == 0) {
             dlog(6, "Nothing remains in the queue, and the intake is closed.  Leaving thread.\n");
             break;
+        } else {
+            pthread_mutex_lock(my->queue->sync_lock);
+            my->queue->elem_count -= count;
+            pthread_mutex_unlock(my->queue->sync_lock);
         }
 
         dlog(6, "  [ddd] >>>>> Popped a buffer @ [%ld] off the queue. ... buffer->len == %d   [&my == %ld]\n", (long) buffer, buffer->len, (long) my);
@@ -477,8 +485,8 @@ void* SOSD_THREAD_db_sync(void *args) {
                 break;
 
             case SOS_MSG_TYPE_VAL_SNAPS:
-                dlog(6, "Sendiong VAL_SNAPS to the database...\n");
-                SOSD_db_insert_vals(task->pub, task->pub->snap_queue, NULL);
+                dlog(6, "Sending VAL_SNAPS to the database...\n");
+                SOSD_db_insert_vals(SOSD.db.snap_queue, NULL);
                 break;
 
             default:
@@ -531,7 +539,6 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
         //dlog(0, "Waking up.\n");
         SOSD_countof(thread_cloud_wakeup++);
-
 
         pthread_mutex_lock(my->queue->sync_lock);
         queue_depth = my->queue->elem_count;
@@ -661,18 +668,25 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
         return;
     }
 
-    dlog(5, "Injecting snaps into pub->snap_queue...\n");
-    SOS_val_snap_queue_from_buffer(buffer, pub->snap_queue, pub);
+    dlog(5, "Injecting snaps into SOSD.db.snap_queue...\n");
+    SOS_val_snap_queue_from_buffer(buffer, SOSD.db.snap_queue, pub);
 
 
     dlog(5, "Queue these val snaps up for the database...\n");
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
     task->pub = pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
-    pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-    pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-    SOSD.sync.db.queue->elem_count++;
-    pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+
+    if (SOSD.db.snap_queue->sync_pending == 0) {
+        SOSD.db.snap_queue->sync_pending = 1;
+        pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
+        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+        SOSD.sync.db.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+    } else {
+        pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
+    }
 
     dlog(5, "  ... done.\n");
         
@@ -868,10 +882,17 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
     task->pub = pub;
     task->type = SOS_MSG_TYPE_PUBLISH;
-    pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-    pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-    SOSD.sync.db.queue->elem_count++;
-    pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+    pthread_mutex_lock(pub->lock);
+    if (pub->sync_pending == 0) {
+        pub->sync_pending = 1;
+        pthread_mutex_unlock(pub->lock);
+        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+        SOSD.sync.db.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+    } else {
+        pthread_mutex_unlock(pub->lock);
+    }
     
     return;
 }
@@ -1019,14 +1040,16 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
                     header.pub_guid);
 
     /* Don't need to lock for probing because it doesn't matter if we're a little off. */
-    uint64_t queue_depth_local = SOSD.sync.local.queue->elem_count;
-    uint64_t queue_depth_cloud = SOSD.sync.cloud.queue->elem_count;
-    uint64_t queue_depth_db    = SOSD.sync.db.queue->elem_count;
+    uint64_t queue_depth_local     = SOSD.sync.local.queue->elem_count;
+    uint64_t queue_depth_cloud     = SOSD.sync.cloud.queue->elem_count;
+    uint64_t queue_depth_db_tasks  = SOSD.sync.db.queue->elem_count;
+    uint64_t queue_depth_db_snaps  = SOSD.db.snap_queue->elem_count;
 
-    SOS_buffer_pack(reply, &offset, "ggg",
+    SOS_buffer_pack(reply, &offset, "gggg",
                     queue_depth_local,
                     queue_depth_cloud,
-                    queue_depth_db);
+                    queue_depth_db_tasks,
+                    queue_depth_db_snaps);
 
     SOSD_counts current;
     if (SOS_DEBUG > 0) { pthread_mutex_lock(SOSD.daemon.countof.lock_stats); }
@@ -1387,7 +1410,7 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_apply_publish");
 
     dlog(6, "Calling SOS_publish_from_buffer()...\n");
-    SOS_publish_from_buffer(buffer, pub, pub->snap_queue);
+    SOS_publish_from_buffer(buffer, pub, SOSD.db.snap_queue);
 
     return;
 }
@@ -1401,13 +1424,22 @@ void SOSD_display_logo(void) {
     int choice = 0;
 
     //srand(getpid());
-    //choice = rand() % 6;
+    //choice = rand() % 3;
 
     printf("--------------------------------------------------------------------------------\n");
     printf("\n");
 
     switch (choice) {
     case 0:
+        printf("           _/_/_/    _/_/      _/_/_/ ||[]||[]}))))}][]||||  Scalable\n");
+        printf("        _/        _/    _/  _/        |||||[][{(((({[]|[]||  Observation\n");
+        printf("         _/_/    _/    _/    _/_/     |[][]|[]}))))}][]||[]  System\n");
+        printf("            _/  _/    _/        _/    []|||[][{(((({[]|[]||  for Scientific\n");
+        printf("     _/_/_/      _/_/    _/_/_/       ||[]||[]}))))}][]||[]  Workflows\n");
+        break;
+
+
+    case 1:
         printf("               _/_/_/    _/_/      _/_/_/   |[]}))))}][]    Scalable\n");
         printf("            _/        _/    _/  _/          [][{(((({[]|    Observation\n");
         printf("             _/_/    _/    _/    _/_/       |[]}))))}][]    System\n");
@@ -1415,36 +1447,7 @@ void SOSD_display_logo(void) {
         printf("         _/_/_/      _/_/    _/_/_/         |[]}))))}][]    Workflows\n");
         break;
 
-    case 1:
-        printf("     @@@@@@    @@@@@@    @@@@@@   @@@@@@@@  @@@        @@@@@@   @@@  @@@  @@@\n");
-        printf("    @@@@@@@   @@@@@@@@  @@@@@@@   @@@@@@@@  @@@       @@@@@@@@  @@@  @@@  @@@\n");
-        printf("    !@@       @@!  @@@  !@@       @@!       @@!       @@!  @@@  @@!  @@!  @@!\n");
-        printf("    !@!       !@!  @!@  !@!       !@!       !@!       !@!  @!@  !@!  !@!  !@!\n");
-        printf("    !!@@!!    @!@  !@!  !!@@!!    @!!!:!    @!!       @!@  !@!  @!!  !!@  @!@\n");
-        printf("     !!@!!!   !@!  !!!   !!@!!!   !!!!!:    !!!       !@!  !!!  !@!  !!!  !@!\n");
-        printf("         !:!  !!:  !!!       !:!  !!:       !!:       !!:  !!!  !!:  !!:  !!:\n");
-        printf("        !:!   :!:  !:!      !:!   :!:        :!:      :!:  !:!  :!:  :!:  :!:\n");
-        printf("    :::: ::   ::::: ::  :::: ::    ::        :: ::::  ::::: ::   :::: :: ::: \n");
-        printf("    :: : :     : :  :   :: : :     :        : :: : :   : :  :     :: :  : :  \n");
-        printf("\n");
-        printf("       |                                                                |    \n");
-        printf("    -- + --   Scalable Observation System for Scientific Workflows   -- + -- \n");
-        printf("       |                                                                |    \n");
-        break;
-
     case 2:
-        printf("      {__ __      {____       {__ __      {__ {__                      \n");
-        printf("    {__    {__  {__    {__  {__    {__  {_    {__                      \n");
-        printf("     {__      {__        {__ {__      {_{_ {_ {__   {__    {__     {___\n");
-        printf("       {__    {__        {__   {__      {__   {__ {__  {__  {__  _  {__\n");
-        printf("          {__ {__        {__      {__   {__   {__{__    {__ {__ {_  {__\n");
-        printf("    {__    {__  {__     {__ {__    {__  {__   {__ {__  {__  {_ {_ {_{__\n");
-        printf("      {__ __      {____       {__ __    {__  {___   {__    {___    {___\n");
-        printf("\n");
-        printf("     [...Scalable..Observation..System..for..Scientific..Workflows...]\n");
-        break;
-
-    case 3:
         printf("               ._____________________________________________________ ___  _ _\n");
         printf("              /_____/\\/\\/\\/\\/\\____/\\/\\/\\/\\______/\\/\\/\\/\\/\\________ ___ _ _\n");
         printf("             /___/\\/\\__________/\\/\\____/\\/\\__/\\/\\_______________ ___  _   __ _\n");
@@ -1463,7 +1466,7 @@ void SOSD_display_logo(void) {
         break;
 
 
-    case 4:
+    case 3:
         printf("_._____. .____  .____.._____. _  ..\n");
         printf("__  ___/_  __ \\_  ___/__  __/__  /________      __    .:|   Scalable\n");
         printf(".____ \\_  / / /.___ \\__  /_ ._  /_  __ \\_ | /| / /    .:|   Observation\n");
@@ -1471,20 +1474,6 @@ void SOSD_display_logo(void) {
         printf("/____/ \\____/ /____/ /_/    /_/  \\____/____/|__/      .:|   Workflows\n");
         break;
 
-    case 5:
-        printf("     O)) O)      O))))       O)) O)      O)) O))                      \n");
-        printf("   O))    O))  O))    O))  O))    O))  O)    O))                      \n");
-        printf("    O))      O))        O)) O))      O)O) O) O))   O))    O))     O)))\n");
-        printf("      O))    O))        O))   O))      O))   O)) O))  O))  O))     O))\n");
-        printf("         O)) O))        O))      O))   O))   O))O))    O)) O)) O)  O))\n");
-        printf("   O))    O))  O))     O)) O))    O))  O))   O)) O))  O))  O) O) O)O))\n");
-        printf("     O)) O)      O))))       O)) O)    O))  O)))   O))    O)))    O)))\n");
-        printf("\n");
-        printf("       +------------------------------------------------------+\n");
-        printf("       | Scalable Observation System for Scientific Workflows |\n");
-        printf("       +------------------------------------------------------+\n");
-        printf("\n");
-        break;
     }
 
     printf("\n");

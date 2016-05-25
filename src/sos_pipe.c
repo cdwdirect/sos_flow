@@ -45,7 +45,7 @@ void SOS_pipe_init(void *sos_context, SOS_pipe **pipe_obj, size_t elem_size) {
     SOS_pipe *pipe;
     pipe = *pipe_obj = (SOS_pipe *) malloc(sizeof(SOS_pipe));
 
-    pipe_t *p_setup = pipe_new(elem_size, SOS_DEFAULT_PIPE_DEPTH);
+    pipe_t *p_setup = pipe_new(elem_size, 0);
     pipe->intake = pipe_producer_new(p_setup);
     pipe->outlet = pipe_consumer_new(p_setup);
     pipe_free(p_setup);
@@ -112,7 +112,7 @@ const char _pipe_copyright[] =
 // it to 0 if you want the implementation to decide, a low number if you are
 // copying many objects into pipes at once (or a few large objects), and a high
 // number if you are coping small or few objects into pipes at once.
-#define MUTEX_SPINS 8192
+#define MUTEX_SPINS 2048
 
 // Standard threading stuff. This lets us support simple synchronization
 // primitives on multiple platforms painlessly.

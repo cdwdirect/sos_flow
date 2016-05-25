@@ -165,6 +165,13 @@
     RETAIN(SOS_RETAIN_IMMEDIATE)                \
     RETAIN(SOS_RETAIN___MAX)
 
+#define FOREACH_LOCALE(SOS_LOCALE)              \
+    SOS_LOCALE(SOS_LOCALE_INDEPENDENT)          \
+    SOS_LOCALE(SOS_LOCALE_DAEMON_DBMS)          \
+    SOS_LOCALE(SOS_LOCALE_APPLICATION)          \
+    SOS_LOCALE(SOS_LOCALE___MAX)
+
+
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
@@ -187,6 +194,7 @@ typedef enum { FOREACH_SCOPE(GENERATE_ENUM)        } SOS_scope;
 typedef enum { FOREACH_LAYER(GENERATE_ENUM)        } SOS_layer;
 typedef enum { FOREACH_NATURE(GENERATE_ENUM)       } SOS_nature;
 typedef enum { FOREACH_RETAIN(GENERATE_ENUM)       } SOS_retain;
+typedef enum { FOREACH_LOCALE(GENERATE_ENUM)       } SOS_locale;
 
 static const char *SOS_ROLE_string[] =         { FOREACH_ROLE(GENERATE_STRING)         };
 static const char *SOS_TARGET_string[] =       { FOREACH_TARGET(GENERATE_STRING)       };
@@ -207,6 +215,7 @@ static const char *SOS_SCOPE_string[] =        { FOREACH_SCOPE(GENERATE_STRING) 
 static const char *SOS_LAYER_string[] =        { FOREACH_LAYER(GENERATE_STRING)        };
 static const char *SOS_NATURE_string[] =       { FOREACH_NATURE(GENERATE_STRING)       };
 static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)       };
+static const char *SOS_LOCALE_string[] =       { FOREACH_LOCALE(GENERATE_STRING)       };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
 #define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
@@ -280,6 +289,7 @@ typedef struct {
 typedef struct {
     void               *sos_context;
     pthread_mutex_t    *lock;
+    int                 sync_pending;
     SOS_guid            guid;
     char                guid_str[SOS_DEFAULT_STRING_LEN];
     int                 process_id;
@@ -361,6 +371,7 @@ typedef struct {
     int                 process_id;
     int                 thread_id;
     SOS_layer           layer;
+    SOS_locale          locale;
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;
