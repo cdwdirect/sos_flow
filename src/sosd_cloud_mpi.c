@@ -10,6 +10,7 @@
 #include "sos_error.h"
 #include "sosd.h"
 #include "sosd_cloud_mpi.h"
+#include "sosd_db_sqlite.h"
 #include "sos_types.h"
 #include "sos_buffer.h"
 #include "sos_qhashtbl.h"
@@ -157,6 +158,7 @@ void SOSD_cloud_listen_loop(void) {
     SOS_msg_header  header;
     SOS_buffer     *buffer;
     SOS_buffer     *msg;
+    SOS_buffer     *response;
     char            unpack_format[SOS_DEFAULT_STRING_LEN] = {0};
     int             msg_waiting;
     int             mpi_msg_len;
@@ -240,7 +242,20 @@ void SOSD_cloud_listen_loop(void) {
                 SOS_guid guid_from = 0;
                 SOS_guid guid_to   = 0;
                 SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_from, &guid_to);
-                
+                //TODO: Reply with some unique IDs...
+                break;
+
+            case SOS_MSG_TYPE_QUERY:
+                // Allocate space for a response.
+                SOS_buffer_init_sized_locking(SOS, &response, 2048, false);
+                // Service the query w/locking.  (Packs the results in 'response' ready to send.)
+                SOSD_db_handle_sosa_query(msg, response);
+                // Send the results back to the asking analytics rank.
+                MPI_Ssend((void *) response->data, response->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                // Clean up our buffers.
+                SOS_buffer_destroy(msg);
+                SOS_buffer_destroy(response);
+                break;
 
             case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
             default:                      SOSD_handle_unknown    (msg); break;

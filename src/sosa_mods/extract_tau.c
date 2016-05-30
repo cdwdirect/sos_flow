@@ -1,6 +1,6 @@
 
 /*
- * sosa_shell.c    (template analytics module)
+ * extract_tau.c    (pull out tau values and forward them to independent sosa module)
  *
  */
 
@@ -14,7 +14,7 @@
 #include <mpi.h>
 #endif
 
-#define USAGE "./sosd_shell -d <initial_delay_seconds>"
+#define USAGE "./extract_tau -d <initial_delay_seconds>"
 
 #include "sos.h"
 #include "sosd.h"
@@ -57,8 +57,14 @@ int main(int argc, char *argv[]) {
 
 
     /*
-     *   [ insert your analytics code here ]
+  ****   [ insert your analytics code here ]
      *
+     */
+
+
+
+    /*
+  ****
      */
 
     dlog(0, "Finished successfully!\n");

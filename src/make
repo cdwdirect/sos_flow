@@ -13,7 +13,9 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
 fi
 if [ "$1" == "clean" ]
 then
-   rm -rf *~
+   echo "Removing temp~ file cruft."
+   rm -f *~
+   rm -f ./sosa_mods/*~
    echo "Removing all binary objects."
    cd ..
    rm -rf ./bin

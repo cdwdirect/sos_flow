@@ -20,17 +20,174 @@
 SOSA_runtime SOSA;
 
 
+// NOTE: Only call this when you already hold the uid->lock
+void SOSA_guid_request(SOS_uid *uid) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_guid_request");
 
-/* PRIVATE FUNCTION: Make sure you know what you're doing... this is
- * not a part of the API for a reason, as specific handlers have to be
- * written for each message type, and the messages have to be
- * hand-packed in the correct way. If you're having to use this for
- * some common functionality, perhaps it would be better to extend and
- * enrich the API to provide much safer function calls. It exists to
- * consolidate all MPI calls in one place for use by such functions.
- */
-void SOSA_send_to_target_db(SOS_buffer *message, SOS_buffer *reply);
+    dlog(7, "Obtaining new guid range...\n");
 
+    SOS_buffer *msg;
+    SOS_buffer *reply;
+    SOS_buffer_init_sized_locking(SOS, &msg,   256, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 256, false);
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
+    header.msg_from = SOSA.world_rank;
+    header.pub_guid = 0;
+
+    int offset = 0;
+    SOS_buffer_pack(msg, &offset, "iigg",
+                    header.msg_size,
+                    header.msg_type,
+                    header.msg_from,
+                    header.pub_guid);
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(msg, &offset, "i",
+                    header.msg_size);
+
+    SOSA_send_to_target_db(msg, reply);
+
+    if (reply->len < (2 * sizeof(double))) {
+        dlog(0, "WARNING: Malformed UID reply from sosd (db) ...\n");
+        uid->next = -1;
+        uid->last = 0;
+    } else {
+        offset = 0;
+        SOS_buffer_unpack(reply, &offset, "gg",
+                          &uid->next,
+                          &uid->last);
+    }
+
+    dlog(7, "    ... %" SOS_GUID_FMT " -> %" SOS_GUID_FMT " assigned.  Done.\n", uid->next, uid->last);
+
+    SOS_buffer_destroy(msg);
+    SOS_buffer_destroy(reply);
+
+    return;
+}
+
+
+
+
+void SOSA_exec_query(char *query, SOSA_results *result) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_exec_query");
+
+    return;
+}
+
+
+
+void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_init");
+
+    return;
+}
+
+
+void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_to_buffer");
+
+    return;
+}
+
+
+
+void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_from_buffer");
+
+    return;
+}
+
+
+
+
+void SOSA_results_output_to(FILE *file, SOSA_results *results, int options) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_output_to");
+
+    return;
+}
+
+
+void SOSA_results_wipe(SOSA_results *results_object) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_wipe");
+
+    return;
+}
+
+
+void SOSA_results_destroy(SOSA_results *results_object) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_destroy");
+
+    return;
+}
+
+
+
+
+
+void SOSA_finalize(void) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_finalize");    
+
+    free(SOSA.analytics_locales);
+    free(SOSA.world_roles);
+    free(SOSA.world_hosts);
+
+    return;
+}
+
+
+
+void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_send_to_target_db");
+
+    if ((msg == NULL) || (reply == NULL)) {
+        dlog(0, "ERROR: Buffer pointer supplied with NULL value!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    SOS_buffer *wrapper;
+    SOS_buffer_init_sized_locking(SOS, &wrapper, (1 + msg->len + sizeof(int)), false);
+
+    // All messages to DB ranks come with a wrapper that supports multiple-message
+    // packing. We treat this function as a 1:1::call:message packager, so just
+    // pack a 1 in it and call it good.
+    int offset = 0;
+    SOS_buffer_pack(wrapper, &offset, "i", 1);
+
+    // Copy the message memory directly into the wrapper's data area:
+    memcpy((wrapper->data + offset), msg->data, msg->len);
+    wrapper->len += msg->len;
+
+    dlog(7, "Sending message of %d bytes...\n", wrapper->len);
+    MPI_Ssend((void *) wrapper->data, wrapper->len, MPI_CHAR, SOSA.world_db_target_rank, 0, MPI_COMM_WORLD);
+
+
+    dlog(7, "Waiting for a reply...\n");
+    MPI_Status status;
+    int msg_waiting = 0;
+    do {
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
+        usleep(1000);
+    } while (msg_waiting == 0);
+
+    int mpi_reply_len = -1;
+    MPI_Get_count(&status, MPI_CHAR, &mpi_reply_len);
+
+    while(reply->max < mpi_reply_len) {
+        SOS_buffer_grow(reply, (1 + (mpi_reply_len - reply->max)), SOS_WHOAMI);
+    }
+
+    MPI_Recv((void *) reply->data, mpi_reply_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+    reply->len = mpi_reply_len;
+    dlog(7, "  ... reply of %d bytes received from rank %d!\n", mpi_reply_len, status.MPI_SOURCE);
+    dlog(7, "Done.\n");
+
+    return;
+}
 
 
 SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
@@ -114,82 +271,4 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
 
 
 
-void SOSA_guid_request(SOS_uid *uid) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_guid_request");
 
-    
-
-    return;
-}
-
-
-
-
-void SOSA_exec_query(char *sql_string, SOS_buffer *result) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_exec_query");
-
-    return;
-}
-
-
-
-
-void SOSA_finalize(void) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_finalize");    
-
-    free(SOSA.analytics_locales);
-    free(SOSA.world_roles);
-    free(SOSA.world_hosts);
-
-    return;
-}
-
-
-
-void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_send_to_target_db");
-
-    if ((msg == NULL) || (reply == NULL)) {
-        dlog(0, "ERROR: Buffer pointer supplied with NULL value!\n");
-        exit(EXIT_FAILURE);
-    }
-
-    SOS_buffer *wrapper;
-    SOS_buffer_init_sized_locking(SOS, &wrapper, (1 + msg->len + sizeof(int)), false);
-
-    // All messages to DB ranks come with a wrapper that supports multiple-message
-    // packing. We treat this function as a 1:1::call:message packager, so just
-    // pack a 1 in it and call it good.
-    int offset = 0;
-    SOS_buffer_pack(wrapper, &offset, "i", 1);
-
-    // Copy the message memory directly into the wrapper's data area:
-    memcpy((wrapper->data + offset), msg->data, msg->len);
-    wrapper->len += msg->len;
-
-    dlog(7, "Sending message of %d bytes...\n", wrapper->len);
-    MPI_Ssend((void *) wrapper->data, wrapper->len, MPI_CHAR, SOSA.world_db_target_rank, 0, MPI_COMM_WORLD);
-
-
-    dlog(7, "Waiting for a reply...\n");
-    MPI_Status status;
-    int msg_waiting = 0;
-    do {
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
-        usleep(1000);
-    } while (msg_waiting == 0);
-
-    int mpi_reply_len = -1;
-    MPI_Get_count(&status, MPI_CHAR, &mpi_reply_len);
-
-    while(reply->max < mpi_reply_len) {
-        SOS_buffer_grow(reply, (1 + (mpi_reply_len - reply->max)), SOS_WHOAMI);
-    }
-
-    MPI_Recv((void *) reply->data, mpi_reply_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-    reply->len = mpi_reply_len;
-    dlog(7, "  ... reply of %d bytes received from rank %d!\n", mpi_reply_len, status.MPI_SOURCE);
-    dlog(7, "Done.\n");
-
-    return;
-}

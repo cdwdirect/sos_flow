@@ -342,6 +342,23 @@ void SOSD_db_transaction_commit() {
 }
 
 
+
+void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
+
+    pthread_mutex_lock(SOSD.db.lock);
+
+
+
+
+    pthread_mutex_unlock(SOSD.db.lock);
+    return;
+}
+
+
+
+
+
 void SOSD_db_insert_pub( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_pub");
     int i;

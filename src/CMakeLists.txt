@@ -5,6 +5,10 @@ include_directories("${MPI_INCLUDE_PATH}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
    link_directories("${sos_flow_SOURCE_DIR}/lib")
 
+
+subdirs (sosa_mods)
+
+
 if(DEFINED SQLITE3_INCLUDE_DIR)
     include_directories("${SQLITE3_INCLUDE_DIR}")
 else()
@@ -240,19 +244,6 @@ if(MPI_COMPILE_FLAGS)
 endif()
 if(MPI_LINK_FLAGS)
   set_target_properties("sosd_probe" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
-endif()
-
-
-
-#TARGET ---> sosa_shell
-#            (core sosa analytics code, to be cloned for new analytics modules)
-add_executable("sosa_shell" "sosa.c" "sosa_shell.c")
-target_link_libraries("sosa_shell" "sos" "sosa" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("sosa_shell" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("sosa_shell" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
 
 
