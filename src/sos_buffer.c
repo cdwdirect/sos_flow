@@ -596,7 +596,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             if (maxlen > 0 && len > maxlen) count = maxlen - 1;
             else count = len;
             if (s == NULL) {
-                dlog(8, "WARNING: Having to calloc() space for a string, NULL (char *) provided.   [STRING]\n");
+                dlog(0, "WARNING: Having to calloc() space for a string, NULL (char *) provided.   [STRING]\n");
                 s = (char *) calloc((count + 1), sizeof(char));
             }
             if (count > 0) {
@@ -639,6 +639,23 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     return packed_bytes;
 }
 
+
+// NOTE: Shortcut routine, since this sort of thing is helpful all over SOS.
+void SOS_buffer_unpack_safestr(SOS_buffer *buffer, int *offset, char **dest) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack_string_safely");
+
+    int tmp_offset = *offset;
+    int str_length  = 0;
+
+    SOS_buffer_unpack(buffer, &tmp_offset, "i", &str_length);
+    
+    if (*dest != NULL) { free(*dest); }
+    *dest = calloc((1 + str_length), sizeof(unsigned char));
+
+    SOS_buffer_unpack(buffer, offset, "s", *dest);
+
+    return;
+}
 
 
 

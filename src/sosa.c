@@ -28,6 +28,46 @@ void SOSA_exec_query(char *query, SOSA_results *results) {
         exit(EXIT_FAILURE);
     }
 
+    dlog(7, "Running query (%25s) ...\n", query);
+
+    SOS_buffer *msg;
+    SOS_buffer *reply;
+    SOS_buffer_init_sized_locking(SOS, &msg,   1024, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
+
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_QUERY;
+    header.msg_from = SOS->config.comm_rank;
+    header.pub_guid = 0;
+
+    int offset = 0;
+
+    dlog(7, "   ... creating msg.\n");
+
+    SOS_buffer_pack(msg, &offset, "iigg",
+                    header.msg_size,
+                    header.msg_type,
+                    header.msg_from,
+                    header.pub_guid);
+
+    SOS_buffer_pack(msg, &offset, "s", query);
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(msg, &offset, "i", header.msg_size);
+
+    dlog(7, "   ... sending to db(world_rank:%d)\n", SOSA.db_target_rank);
+    SOSA_send_to_target_db(msg, reply);
+
+    dlog(7, "   ... extracting response into result set.\n");
+    SOSA_results_from_buffer(results, reply);
+
+    SOS_buffer_destroy(msg);
+    SOS_buffer_destroy(reply);
+
+    dlog(7, "   ... done.\n");
     return;
 }
 
@@ -35,6 +75,39 @@ void SOSA_exec_query(char *query, SOSA_results *results) {
 
 void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_to_buffer");
+
+    if (results == NULL) {
+        dlog(0, "ERROR: (SOSA_resutls *) results == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+    if (buffer == NULL) {
+        dlog(0, "ERROR: (SOS_buffer *) buffer == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    dlog(7, "Packing %d rows of %d columns into buffer...\n", results->row_count, results->col_count);
+
+    int offset = 0;
+    SOS_buffer_pack(buffer, &offset, "ii",
+                    results->col_count,
+                    results->row_count);
+
+    int col = 0;
+    int row = 0;
+
+    dlog(7, "   ... packing column names.\n");
+    for (col = 0; col < results->col_count; col++) {
+        SOS_buffer_pack(buffer, &offset, "s", results->col_names[col]);
+    }
+
+    dlog(7, "   ... packing data.\n");
+    for (row = 0; row < results->row_count; row++) {
+        for (col = 0; col < results->col_count; col++) {
+            SOS_buffer_pack(buffer, &offset, "s", results->data[row][col]);
+        }
+    }
+
+    dlog(7, "   ... done.\n");
 
     return;
 }
@@ -44,8 +117,48 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
 void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_from_buffer");
 
+    if (results == NULL) {
+        dlog(0, "ERROR: (SOSA_resutls *) results == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+    if (buffer == NULL) {
+        dlog(0, "ERROR: (SOS_buffer *) buffer == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+
+
+    int col_incoming = 0;
+    int row_incoming = 0;
+    int offset = 0;
+
+    SOS_buffer_unpack(buffer, &offset, "ii",
+                      &col_incoming,
+                      &row_incoming);
+
+    SOSA_results_grow_to(results, col_incoming, row_incoming);
+    SOSA_results_wipe(results);
+
+    int col = 0;
+    int row = 0;
+
+    dlog(7, "Unpacking %d columns for %d rows...\n", col_incoming, row_incoming);
+    dlog(7, "   ... headers.\n");
+    for (col = 0; col < col_incoming; col++) {
+        SOS_buffer_unpack_safestr(buffer, &offset, &results->col_names[col]);
+    }
+
+    dlog(7, "   ... data.\n");
+    for (row = 0; row < row_incoming; row++) {
+        for (col = 0; col < col_incoming; col++) {
+            SOS_buffer_unpack_safestr(buffer, &offset, &results->data[row][col]);
+        }
+    }
+
+    dlog(7, "   ... done.\n");
     return;
 }
+
+
 
 
 
