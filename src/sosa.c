@@ -72,9 +72,44 @@ void SOSA_exec_query(char *query, SOSA_results *results) {
 }
 
 
+void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) {
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_put");
+    
+    const char nullstr[] = "NULL";
+    const char *strval   = (const char *) val;
+    if (strval == NULL) {
+        strval = nullstr;
+    }
+
+    if ((col >= results->col_max) || (row >= results->row_max)) {
+        SOSA_results_grow_to(results, col, row);
+    }
+
+    if (results->data[row][col] != NULL) { free(results->data[row][col]); }
+
+    results->data[row][col] = strdup((const char *) strval);
+
+    return;
+}
+
+
+void SOSA_results_put_name(SOSA_results *results, int col, const char *name) {
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_col_name");
+
+    if (col >= results->col_max) {
+        SOSA_results_grow_to(results, col, results->row_max);
+    }
+
+    if (results->col_names[col] != NULL) { free(results->col_names[col]); }
+
+    results->col_names[col] = strdup((const char *) name);
+
+    return;
+}
+
 
 void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_to_buffer");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_to_buffer");
 
     if (results == NULL) {
         dlog(0, "ERROR: (SOSA_resutls *) results == NULL!\n");
@@ -115,7 +150,7 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
 
 
 void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_from_buffer");
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSA_results_from_buffer");
 
     if (results == NULL) {
         dlog(0, "ERROR: (SOSA_resutls *) results == NULL!\n");
@@ -154,6 +189,9 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
         }
     }
 
+    results->col_count = col_incoming;
+    results->row_count = row_incoming;
+
     dlog(7, "   ... done.\n");
     return;
 }
@@ -164,7 +202,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
 
 
 void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int options) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_output_to");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_output_to");
 
     if (fptr == NULL) {
         dlog(0, "ERROR: (FILE *) fptr == NULL!\n");
@@ -202,8 +240,8 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
         for (row = 0; row < results->row_count; row++) {
             fprintf(fptr, "\t{\n"); //row:begin
-            fprintf(fptr, "\t\"row\": \"%d\"\n", row);
 
+            fprintf(fptr, "\t\t\"row_id\": \"%d\"\n", row);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\t\t\"%s\": \"%s\"", results->col_names[col], results->data[row][col]);
                 if (col < (results->col_count - 1)) {
@@ -221,17 +259,18 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
             }//if
         }//for:row
         fprintf(fptr, " ]\n");  //data
-        fprintf(fptr, "}\n");   //json
+        fprintf(fptr, "}\n\n\n");   //json
 
         fflush(fptr);
 
         break;
 
-
+        
 
     default://OUTPUT_CSV:
         // Display header (optional)
         if (options & SOSA_OUTPUT_W_HEADER) {
+            fprintf(fptr, "\"time_stamp\",\"row_id\",");
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);
                 if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
@@ -241,6 +280,8 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
         // Display data
         for (row = 0; row < results->row_count; row++) {
+            fprintf(fptr, "\"%lf\",", time_now);
+            fprintf(fptr, "\"%d\",",  row);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->data[row][col]);
                 if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
@@ -315,7 +356,7 @@ void SOSA_guid_request(SOS_uid *uid) {
 
 
 void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_init");
+    SOS_SET_CONTEXT(sos_context, "SOSA_results_init");
     int col = 0;
     int row = 0;
 
@@ -352,7 +393,7 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
 
 void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_grow_to");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_grow_to");
     int row;
     int col;
 
@@ -362,13 +403,23 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
              new_row_max, new_col_max );
         dlog(7, "NOTE: Nothing to do, returning.\n");
         return;
-    } else {
-        dlog(7, "Growing results->data[row_max:%d][col_max:%d] to handle size[row_max:%d][col_max:%d] ...\n",
-             results->row_max, results->col_max,
-             new_row_max, new_col_max );
     }
 
+    // Grow by a minimum amount to make sure we don't realloc too often.
+    if (new_col_max < (results->col_max + SOSA_DEFAULT_RESULT_COL_MAX)) {
+        new_col_max =  results->col_max + SOSA_DEFAULT_RESULT_COL_MAX;
+    }
+    if (new_row_max < (results->row_max + SOSA_DEFAULT_RESULT_ROW_MAX)) {
+        new_row_max =  results->row_max + SOSA_DEFAULT_RESULT_ROW_MAX;
+    }
+
+
+    dlog(7, "Growing results->data[row_max:%d][col_max:%d] to handle size[row_max:%d][col_max:%d] ...\n",
+         results->row_max, results->col_max,
+         new_row_max, new_col_max );
+
     if (new_col_max > results->col_max) {
+
         // Add column space to column names...
         results->col_names = (char **) realloc(results->col_names, (new_col_max * sizeof(char *)));
         // Initialize it.
@@ -409,7 +460,7 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
 
 
 void SOSA_results_wipe(SOSA_results *results) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_wipe");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_wipe");
 
     int row = 0;
     int col = 0;
@@ -446,7 +497,7 @@ void SOSA_results_wipe(SOSA_results *results) {
 // NOTE: Better to wipe and re-use a small results table if possible rather
 //       than malloc/free a lot.  But... whatever works best.
 void SOSA_results_destroy(SOSA_results *results) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_destroy");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_destroy");
 
     dlog(7, "Destroying results set...\n");
     dlog(7, "    ... results->col_count == %d of %d\n", results->col_count, results->col_max);

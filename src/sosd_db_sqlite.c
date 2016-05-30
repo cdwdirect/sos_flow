@@ -17,7 +17,7 @@
 #include "sos.h"
 #include "sos_debug.h"
 #include "sosd_db_sqlite.h"
-
+#include "sosa.h"
 
 #define SOSD_DB_PUBS_TABLE_NAME "tblPubs"
 #define SOSD_DB_DATA_TABLE_NAME "tblData"
@@ -348,10 +348,63 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     pthread_mutex_lock(SOSD.db.lock);
 
+    SOS_msg_header   header;
+    char            *sosa_query      = NULL;
+    sqlite3_stmt    *sosa_statement  = NULL;
 
+    int offset = 0;
+    SOS_buffer_unpack(msg, &offset, "iigg",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
 
+    SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
 
+    int rc = 0;
+    rc = sqlite3_prepare_v2( database, sosa_query, -1, &sosa_statement, NULL);
+    if (rc != SQLITE_OK) {
+    dlog(0, "ERROR: Unable to prepare statement for analytics(rank:%" SOS_GUID_FMT ")'s query:    (%d: %s)\n\n\t%s\n\n",
+        header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
+        exit(EXIT_FAILURE);
+    }
+
+    dlog(7, "Building result set...\n");
+
+    SOSA_results *results;
+    SOSA_results_init(SOS, &results);
+
+    int col = 0;
+    int col_incoming = sqlite3_column_count( sosa_statement );
+
+    dlog(7, "   ... col_incoming == %d\n", col_incoming);
+    results->col_count = col_incoming;
+
+    SOSA_results_grow_to(results, col_incoming, results->row_max);
+    for (col = 0; col < col_incoming; col++) {
+        dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col, sqlite3_column_name(sosa_statement, col));
+        SOSA_results_put_name(results, col, sqlite3_column_name(sosa_statement, col));
+    }
+
+    int row_incoming = 0;
+    const char *val  = NULL;
+
+    while( sqlite3_step( sosa_statement ) == SQLITE_ROW ) {
+        dlog(7, "   ... results->data[%d][ | | | ... | ]\n", row_incoming);
+        SOSA_results_grow_to(results, col_incoming, row_incoming);
+        for (col = 0; col < col_incoming; col++) {
+            val = (const char *) sqlite3_column_text(sosa_statement, col);
+            SOSA_results_put(results, col, row_incoming, val);
+        }//for:col
+        row_incoming++;
+        results->row_count = row_incoming;
+    }//while:rows
+
+    sqlite3_finalize(sosa_statement);
     pthread_mutex_unlock(SOSD.db.lock);
+
+    SOSA_results_to_buffer(response, results);
+
     return;
 }
 

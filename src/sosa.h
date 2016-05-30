@@ -61,6 +61,8 @@ extern "C" {
 
     void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr);
     void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max);
+    void SOSA_results_put_name(SOSA_results *results, int col, const char *name);
+    void SOSA_results_put(SOSA_results *results, int col, int row, const char *value);
     void SOSA_results_output_to(FILE *file, SOSA_results *results, char *title, int options);
     void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results);
     void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer);

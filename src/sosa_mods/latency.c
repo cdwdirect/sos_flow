@@ -70,13 +70,17 @@ int main(int argc, char *argv[]) {
     char *query    = "SELECT max(rowid), time_pack, time_recv FROM tblvals;";
     int   count    = 0;
 
+    FILE *fptr = fopen("/tmp/sosa_latency.csv", "a");
+
     for (count = 0; count < 10; count++) {
         SOSA_results_wipe(results);
         dlog(0, "Submitting query request #%d...\n", count);
         SOSA_exec_query(query, results);
-        SOSA_results_output_to(stdout, results, "latency", 0);
+        SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_W_HEADER);
         usleep(1000000); //1,000,000 = 1 sec.
     }
+
+    fclose(fptr);
 
     SOSA_results_destroy(results);
     
