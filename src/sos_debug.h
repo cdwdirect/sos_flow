@@ -18,18 +18,24 @@
  */
 
 
-/* The debug logging sensitivity level.
+/* GLOBAL
  *     +3 = VERY verbose
- *      0 = essential messages only (allows daemon logging)
- *     -1 = disabled in daemon/client (for production runs)  */
+ *      0 = essential messages only   IMPORTANT! This *allows* sosd/sosa logging.
+ *     -1 = disable logging entirely  <--- Faster, but HIDES ALL sosd/sosa logs, too!
+ */
 #ifndef SOS_DEBUG
 #define SOS_DEBUG                 0
 #endif
 #define SOS_DEBUG_SHOW_LOCATION   0
 
-/* Daemon logging sensitivity. (Requires SOS_DEBUG >= 0) */
+/* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
 #define SOSD_DAEMON_LOG           0
 #define SOSD_ECHO_TO_STDOUT       0
+
+
+/* Analytics module output verbosity.  (Req. SOS_DEBUG >= 0) */
+#define SOSA_DEBUG_LEVEL          7
+
 
 int     sos_daemon_lock_fptr;
 FILE   *sos_daemon_log_fptr;
@@ -47,25 +53,36 @@ FILE   *sos_daemon_log_fptr;
     /* Simple debug output, no locking: */
     #define dlog(level, ...);                                           \
     if (SOS->role != SOS_ROLE_CLIENT) {                                 \
-        if (SOSD_DAEMON_LOG >= level) {                                  \
-            if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
-                if (sos_daemon_log_fptr != NULL) {                      \
-                    fprintf(sos_daemon_log_fptr, "(%s:%d)",             \
-                            __FILE__, __LINE__ );                       \
-                }                                                       \
-            }                                                           \
-            if (sos_daemon_log_fptr != NULL) {                          \
-                fprintf(sos_daemon_log_fptr, "[%s]: ", SOS_WHOAMI);     \
-                fprintf(sos_daemon_log_fptr, __VA_ARGS__);              \
-                fflush(sos_daemon_log_fptr);                            \
-            }                                                           \
-            if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {       \
+        if (SOS->role == SOS_ROLE_ANALYTICS) {                          \
+            if (SOSA_DEBUG_LEVEL >= level) {                            \
                 if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
                     printf("(%s:%d)", __FILE__, __LINE__ );             \
                 }                                                       \
                 printf("[%s]: ", SOS_WHOAMI);                           \
                 printf(__VA_ARGS__);                                    \
-                fflush(stdout);                                         \
+                if (stdout) fflush(stdout);                             \
+            }                                                           \
+        } else {                                                        \
+            if (SOSD_DAEMON_LOG >= level) {                             \
+                if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
+                    if (sos_daemon_log_fptr != NULL) {                  \
+                        fprintf(sos_daemon_log_fptr, "(%s:%d)",         \
+                                __FILE__, __LINE__ );                   \
+                    }                                                   \
+                }                                                       \
+                if (sos_daemon_log_fptr != NULL) {                      \
+                    fprintf(sos_daemon_log_fptr, "[%s]: ", SOS_WHOAMI); \
+                    fprintf(sos_daemon_log_fptr, __VA_ARGS__);          \
+                    fflush(sos_daemon_log_fptr);                        \
+                }                                                       \
+                if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {   \
+                    if (SOS_DEBUG_SHOW_LOCATION > 0) {                  \
+                        printf("(%s:%d)", __FILE__, __LINE__ );         \
+                    }                                                   \
+                    printf("[%s]: ", SOS_WHOAMI);                       \
+                    printf(__VA_ARGS__);                                \
+                    fflush(stdout);                                     \
+                }                                                       \
             }                                                           \
         }                                                               \
     } else {                                                            \

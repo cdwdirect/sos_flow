@@ -231,7 +231,7 @@ int main(int argc, char *argv[]) {
             printf("\t\"buffer_bytes_on_heap\": \"%"      SOS_GUID_FMT "\",\n", current.buffer_bytes_on_heap);
             printf("\t\"buffer_destroys\": \"%"           SOS_GUID_FMT "\",\n", current.buffer_destroys);
             printf("\t\"pipe_creates\": \"%"              SOS_GUID_FMT "\",\n", current.pipe_creates);
-            printf("\t\"pub_handles\": \"%"               SOS_GUID_FMT "\",\n", current.pub_handles);
+            printf("\t\"pub_handles\": \"%"               SOS_GUID_FMT "\"\n", current.pub_handles);
             printf("}}\n\n");
             break;
 

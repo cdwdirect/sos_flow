@@ -16,6 +16,9 @@
 
 #define USAGE "./latency -d <initial_delay_seconds>"
 
+// NOTE:SOSA_MODULE_COLOR ....... should be unique among active sosa modules.
+#define SOSA_MODULE_COLOR   808
+
 #include "sos.h"
 #include "sosd.h"
 #include "sosa.h"
@@ -48,11 +51,11 @@ int main(int argc, char *argv[]) {
     }
 
 
-    SOSA.sos_context = SOSA_init( &argc, &argv, 800);
-    SOS_SET_CONTEXT(SOSA.sos_context, "main");
+    SOSA.sos_context = SOSA_init( &argc, &argv, SOSA_MODULE_COLOR);
+    SOS_SET_CONTEXT(SOSA.sos_context, "latency:main()");
     srandom(SOS->my_guid);
-    dlog(1, "Initialization complete.\n");
-
+    dlog(0, "Initialization complete.\n");
+    dlog(0, "Waiting for %d seconds...\n", initial_delay_seconds);
     sleep(initial_delay_seconds);
 
 
@@ -69,8 +72,9 @@ int main(int argc, char *argv[]) {
 
     for (count = 0; count < 10; count++) {
         SOSA_results_wipe(results);
+        dlog(0, "Submitting query request #%d...\n", count);
         SOSA_exec_query(query, results);
-        SOSA_results_output_to(stdout, results, 0);
+        SOSA_results_output_to(stdout, results, "latency", 0);
         usleep(1000000); //1,000,000 = 1 sec.
     }
 
@@ -80,9 +84,9 @@ int main(int argc, char *argv[]) {
   ****
      */
 
-    dlog(0, "Finished successfully!\n");
+    dlog(0, "Finalizing analytics module...  (will block until SOS runtime is stopped)\n");
     SOSA_finalize();
     MPI_Finalize();
-
+    dlog(0, "    ... done.\n");
     return (EXIT_SUCCESS);
 }

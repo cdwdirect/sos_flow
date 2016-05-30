@@ -20,6 +20,133 @@
 SOSA_runtime SOSA;
 
 
+void SOSA_exec_query(char *query, SOSA_results *results) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_exec_query");
+
+    if (results == NULL) {
+        dlog(0, "ERROR: Attempted to exec a query w/NULL results object!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    return;
+}
+
+
+
+void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_to_buffer");
+
+    return;
+}
+
+
+
+void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_from_buffer");
+
+    return;
+}
+
+
+
+
+void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int options) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_output_to");
+
+    if (fptr == NULL) {
+        dlog(0, "ERROR: (FILE *) fptr == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+    if (results == NULL) {
+        dlog(0, "ERROR: (SOSA_results *) results == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+    if (title == NULL) {
+        dlog(0, "ERROR: (char *) title == NULL!\n");
+        exit(EXIT_FAILURE);
+    }
+
+    int output_mode;
+    if (options & SOSA_OUTPUT_JSON) {
+        output_mode = SOSA_OUTPUT_JSON;
+    } else {
+        output_mode = SOSA_OUTPUT_DEFAULT;  // CSV
+    }
+
+    int    row = 0;
+    int    col = 0;
+    double time_now = 0.0;
+    SOS_TIME(time_now);
+
+    switch(output_mode) {
+    case SOSA_OUTPUT_JSON:
+        
+        fprintf(fptr, "{\"title\"      : \"%s\",\n",  title);
+        fprintf(fptr, " \"time_stamp\" : \"%lf\",\n", time_now);
+        fprintf(fptr, " \"col_count\"  : \"%d\",\n",  results->col_count);
+        fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
+        fprintf(fptr, " \"data\"       : [\n");
+
+        for (row = 0; row < results->row_count; row++) {
+            fprintf(fptr, "\t{\n"); //row:begin
+            fprintf(fptr, "\t\"row\": \"%d\"\n", row);
+
+            for (col = 0; col < results->col_count; col++) {
+                fprintf(fptr, "\t\t\"%s\": \"%s\"", results->col_names[col], results->data[row][col]);
+                if (col < (results->col_count - 1)) {
+                    fprintf(fptr, ",\n");
+                } else {
+                    fprintf(fptr, "\n");
+                }//if
+
+            }//for:col
+            fprintf(fptr, "\t}"); //row:end
+            if (row < (results->row_count - 1)) {
+                fprintf(fptr, ",\n");
+            } else {
+                fprintf(fptr, "\n");
+            }//if
+        }//for:row
+        fprintf(fptr, " ]\n");  //data
+        fprintf(fptr, "}\n");   //json
+
+        fflush(fptr);
+
+        break;
+
+
+
+    default://OUTPUT_CSV:
+        // Display header (optional)
+        if (options & SOSA_OUTPUT_W_HEADER) {
+            for (col = 0; col < results->col_count; col++) {
+                fprintf(fptr, "\"%s\"", results->col_names[col]);
+                if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
+                else { fprintf(fptr, ","); }
+            }//for:col
+        }//if:header
+
+        // Display data
+        for (row = 0; row < results->row_count; row++) {
+            for (col = 0; col < results->col_count; col++) {
+                fprintf(fptr, "\"%s\"", results->data[row][col]);
+                if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
+                else { fprintf(fptr, ","); }
+            }//for:col
+        }//for:row
+        break;
+
+    }//select
+
+    return;
+}
+
+
+
+
+
+
+
 // NOTE: Only call this when you already hold the uid->lock
 void SOSA_guid_request(SOS_uid *uid) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_guid_request");
@@ -73,54 +200,168 @@ void SOSA_guid_request(SOS_uid *uid) {
 
 
 
-void SOSA_exec_query(char *query, SOSA_results *result) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_exec_query");
-
-    return;
-}
-
-
 
 void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_init");
+    int col = 0;
+    int row = 0;
+
+    dlog(7, "Allocating space for a new results set...\n");
+
+    SOSA_results *results = *results_object_ptraddr = (SOSA_results *) calloc(1, sizeof(SOSA_results));
+
+    results->sos_context = SOS;
+
+    results->col_count   = 0;
+    results->row_count   = 0;
+    results->col_max     = SOSA_DEFAULT_RESULT_COL_MAX;
+    results->row_max     = SOSA_DEFAULT_RESULT_ROW_MAX;
+
+    results->data = (char ***) calloc(results->row_max, sizeof(char **));
+    for (row = 0; row < results->row_max; row++) {
+        results->data[row] = (char **) calloc(results->col_max, sizeof(char *));
+        for (col = 0; col < results->col_max; col++) {
+            results->data[row][col] = NULL;
+        }
+    }
+
+    results->col_names = (char **) calloc(results->col_max, sizeof(char *));
+    for (col = 0; col < results->col_max; col++) {
+        results->col_names[col] = NULL;
+    }
+
+    dlog(7, "    ... results->col_max = %d\n", results->col_max);
+    dlog(7, "    ... results->row_max = %d\n", results->row_max);
+    dlog(7, "    ... done.\n");
 
     return;
 }
 
 
-void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_to_buffer");
+void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max) {
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_grow_to");
+    int row;
+    int col;
 
+    if ((new_col_max <= results->col_max) && (new_row_max <= results->row_max)) {
+        dlog(7, "NOTE: results->data[%d][%d] can already handle requested size[%d][%d].\n",
+             results->row_max, results->col_max,
+             new_row_max, new_col_max );
+        dlog(7, "NOTE: Nothing to do, returning.\n");
+        return;
+    } else {
+        dlog(7, "Growing results->data[row_max:%d][col_max:%d] to handle size[row_max:%d][col_max:%d] ...\n",
+             results->row_max, results->col_max,
+             new_row_max, new_col_max );
+    }
+
+    if (new_col_max > results->col_max) {
+        // Add column space to column names...
+        results->col_names = (char **) realloc(results->col_names, (new_col_max * sizeof(char *)));
+        // Initialize it.
+        for (col = results->col_max; col < new_col_max; col++) {
+            results->col_names[col] = NULL;
+        }
+
+        // Add column space to existing rows...
+        for (row = 0; row < results->row_max; row++) {
+            results->data[row] = (char **) realloc(results->data[row], (new_col_max * sizeof(char *)));
+            // Initialize it.
+            for (col = results->col_max; col < new_col_max; col++) {
+                results->data[row][col] = NULL;
+            }
+        }
+        results->col_max = new_col_max;
+    }
+    
+
+    if (new_row_max > results->row_max) {
+        // Add additional rows space
+        results->data = (char ***) realloc(results->data, (new_row_max * sizeof(char **)));
+        // For each new row...
+        for (row = results->row_max; row < new_row_max; row++) {
+            // ...add space for columns
+            results->data[row] = (char **) calloc(results->col_max, sizeof(char **));
+            for (col = 0; col < results->col_max; col++) {
+                // ...and initialize each one.
+                results->data[row][col] = NULL;
+            }
+        }
+        results->row_max = new_row_max;
+    }
+
+    dlog(7, "    ... done.\n");
     return;
 }
 
 
-
-void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_from_buffer");
-
-    return;
-}
-
-
-
-
-void SOSA_results_output_to(FILE *file, SOSA_results *results, int options) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_output_to");
-
-    return;
-}
-
-
-void SOSA_results_wipe(SOSA_results *results_object) {
+void SOSA_results_wipe(SOSA_results *results) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_wipe");
 
+    int row = 0;
+    int col = 0;
+
+    dlog(7, "Wiping results set...\n");
+    dlog(7, "    ... results->col_max = %d\n", results->col_max);
+    dlog(7, "    ... results->row_max = %d\n", results->row_max);
+
+    for (row = 0; row < results->row_max; row++) {
+        for (col = 0; col < results->col_max; col++) {
+            if (results->data[row][col] != NULL) {
+                free(results->data[row][col]);
+                results->data[row][col] = NULL;
+            }
+        }
+    }
+
+    for (col = 0; col < results->col_max; col++) {
+        if (results->col_names[col] != NULL) {
+            free(results->col_names[col]);
+            results->col_names[col] = NULL;
+        }
+    }
+
+    results->col_count = 0;
+    results->row_count = 0;
+
+    dlog(7, "    ... done.\n");
+
     return;
 }
 
 
-void SOSA_results_destroy(SOSA_results *results_object) {
+// NOTE: Better to wipe and re-use a small results table if possible rather
+//       than malloc/free a lot.  But... whatever works best.
+void SOSA_results_destroy(SOSA_results *results) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_results_destroy");
+
+    dlog(7, "Destroying results set...\n");
+    dlog(7, "    ... results->col_count == %d of %d\n", results->col_count, results->col_max);
+    dlog(7, "    ... results->row_count == %d of %d\n", results->row_count, results->row_max);
+
+    int row = 0;
+    int col = 0;
+    for (row = 0; row < results->row_count; row++) {
+        for (col = 0; col < results->col_count; col++) {
+            free(results->data[row][col]);
+        }
+    }
+
+    for (row = 0; row < results->row_max; row++) {
+        free(results->data[row]);
+    }
+
+    free(results->data);
+
+    for (col = 0; col < results->col_max; col++) {
+        if (results->col_names[col] != NULL) {
+            free(results->col_names[col]);
+        }
+    }
+    free(results->col_names);
+    free(results);
+
+    dlog(7, "    ... done.\n");
 
     return;
 }
@@ -131,6 +372,8 @@ void SOSA_results_destroy(SOSA_results *results_object) {
 
 void SOSA_finalize(void) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_finalize");    
+
+    // TODO: Clean up any SOS.sos_context stuff?
 
     free(SOSA.analytics_locales);
     free(SOSA.world_roles);
@@ -241,7 +484,7 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
     SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_init");
 
     dlog(0, "Bringing analytics module online...\n");
-    dlog(0, "    ... SOSA.analytics_color == %d\n", SOSA.analytics_color);
+    dlog(0, "    ... SOSA.analytics_color     == %d\n", SOSA.analytics_color);
     int i;
 
     // Count the number of database roles  (The 'i' index == MPI rank)
@@ -252,7 +495,7 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
         }
     }
 
-    dlog(0, "    ... SOSA.db_role_count == %d\n", SOSA.db_role_count);
+    dlog(0, "    ... SOSA.db_role_count       == %d\n", SOSA.db_role_count);
 
     // Construct a list of sosd database role MPI ranks:
     if (SOSA.db_role_count < 1) {
@@ -264,7 +507,7 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
         for (i = 0; i < world_size; i++) {
             if (world_roles[i] == SOS_ROLE_DB) {
                 SOSA.db_role_ranks[found_db_index++] = i;
-                dlog(0, "       ... SOSA.db_role_ranks[%d] == %d\n", (found_db_index - 1), i);
+                dlog(0, "    ... SOSA.db_role_ranks[%3d]  == %d\n", (found_db_index - 1), i);
             }
         }
     }
@@ -282,17 +525,17 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
         }
     }
 
+    dlog(0, "    ... SOSA.db_target_rank      == %d (MPI_COMM_WORLD)\n", SOSA.db_target_rank);
+
     if (SOSA.db_target_rank == -1) {
         SOS->config.locale = SOS_LOCALE_INDEPENDENT;
         // Give this rank a database to talk to for GUID-request purposes...
         SOSA.db_target_rank = (SOS->config.comm_rank % SOSA.db_role_count);
-        dlog(0, "    ... INDEPENDENT MODE aligned with DB(world_rank:%d)\n", SOSA.db_target_rank);
+        dlog(0, "    ... SOSA.sos_context->config.locale == SOS_LOCALE_INDEPENDENT\n");
     } else {
         SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
-        dlog(0, "    ... CO-LOCATED w/DATABASE ....... DB(world_rank:%d)\n", SOSA.db_target_rank);
+        dlog(0, "    ... SOSA.sos_context->config.locale == SOS_LOCALE_DAEMON_DBMS\n");
     }
-
-    dlog(0, "    ... host: %s\n", my_host);
 
     // ANALYTICS discover: ------
     SOSA.analytics_locales = (int *) calloc(SOS->config.comm_size, sizeof(int));
@@ -306,7 +549,7 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
     SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
     SOSA_guid_request(SOS->uid.my_guid_pool);
 
-    dlog(0, "   ... assigned GUID range %" SOS_GUID_FMT " -> %" SOS_GUID_FMT "\n",
+    dlog(0, "   ... SOSA.sos_context->uid.my_guid_pool == %" SOS_GUID_FMT " -> %" SOS_GUID_FMT "\n",
          SOS->uid.my_guid_pool->next,
          SOS->uid.my_guid_pool->last);
 
