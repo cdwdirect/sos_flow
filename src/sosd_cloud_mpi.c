@@ -236,14 +236,27 @@ void SOSD_cloud_listen_loop(void) {
                 pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
                 break;
 
+
             case SOS_MSG_TYPE_GUID_BLOCK:
+                // Discard the message, all that matters is that it is a GUID request.
                 SOS_buffer_destroy(msg);
+                // Re-use the pointer variable to assemble a response.
                 SOS_buffer_init_sized_locking(SOS, &msg, (1 + (sizeof(SOS_guid) * 2)), false);
+                // Break off some GUIDs for this request.
                 SOS_guid guid_from = 0;
                 SOS_guid guid_to   = 0;
                 SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_from, &guid_to);
-                //TODO: Reply with some unique IDs...
+                // Pack them into a reply.   (No message header needed)
+                offset = 0;
+                SOS_buffer_pack(msg, &offset, "gg",
+                                guid_from,
+                                guid_to);
+                // Send GUIDs back to the requesting (likely analytics) rank.
+                MPI_Ssend((void *) msg->data, msg->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                // Clean up
+                SOS_buffer_destroy(msg);
                 break;
+
 
             case SOS_MSG_TYPE_QUERY:
                 // Allocate space for a response.

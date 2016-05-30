@@ -16,6 +16,7 @@
 #include "sos_buffer.h"
 
 #define FOREACH_ROLE(ROLE)                      \
+    ROLE(SOS_ROLE_UNASSIGNED)                   \
     ROLE(SOS_ROLE_CLIENT)                       \
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_DB)                           \

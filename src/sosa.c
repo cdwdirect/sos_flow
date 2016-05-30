@@ -163,7 +163,7 @@ void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
     wrapper->len += msg->len;
 
     dlog(7, "Sending message of %d bytes...\n", wrapper->len);
-    MPI_Ssend((void *) wrapper->data, wrapper->len, MPI_CHAR, SOSA.world_db_target_rank, 0, MPI_COMM_WORLD);
+    MPI_Ssend((void *) wrapper->data, wrapper->len, MPI_CHAR, SOSA.db_target_rank, 0, MPI_COMM_WORLD);
 
 
     dlog(7, "Waiting for a reply...\n");
@@ -232,40 +232,85 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
 
     // SPLIT: -------------------
     //   (ANALYTICS ranks peel off into their own communicator)
-    MPI_Comm_split(MPI_COMM_WORLD, (unique_color + SOS_ROLE_ANALYTICS), world_rank, &SOSA.comm);
+
+    SOSA.analytics_color = unique_color;
+    MPI_Comm_split(MPI_COMM_WORLD, SOSA.analytics_color, world_rank, &SOSA.comm);
     MPI_Comm_size(SOSA.comm, &SOSA.sos_context->config.comm_size);
     MPI_Comm_rank(SOSA.comm, &SOSA.sos_context->config.comm_rank);
 
-    SOSA.world_db_target_rank       = -1;
-    SOSA.sos_context->config.locale = -1;
+    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_init");
+
+    dlog(0, "Bringing analytics module online...\n");
+    dlog(0, "    ... SOSA.analytics_color == %d\n", SOSA.analytics_color);
+    int i;
+
+    // Count the number of database roles  (The 'i' index == MPI rank)
+    SOSA.db_role_count = 0;
+    for (i = 0; i < world_size; i++) {
+        if (world_roles[i] == SOS_ROLE_DB) {
+            SOSA.db_role_count++;
+        }
+    }
+
+    dlog(0, "    ... SOSA.db_role_count == %d\n", SOSA.db_role_count);
+
+    // Construct a list of sosd database role MPI ranks:
+    if (SOSA.db_role_count < 1) {
+        fprintf(stderr, "SOSA ERROR: No database roles were discovered!\n");
+        exit(EXIT_FAILURE);
+    } else {
+        int found_db_index = 0;
+        SOSA.db_role_ranks = (int *) calloc(SOSA.db_role_count, sizeof(int));
+        for (i = 0; i < world_size; i++) {
+            if (world_roles[i] == SOS_ROLE_DB) {
+                SOSA.db_role_ranks[found_db_index++] = i;
+                dlog(0, "       ... SOSA.db_role_ranks[%d] == %d\n", (found_db_index - 1), i);
+            }
+        }
+    }
 
     // See if we're aligned with a database rank:
-    int i;
+    SOSA.db_target_rank             = -1;
+    SOS->config.locale = -1;
     for (i = 0; i < world_size; i++) {
         if (world_roles[i] == SOS_ROLE_DB) {
             if (strncmp(my_host, (world_hosts + (i * MPI_MAX_PROCESSOR_NAME)), MPI_MAX_PROCESSOR_NAME) == 0) {
                 // We're on the same node as this database...
-                SOSA.world_db_target_rank = i;
+                SOSA.db_target_rank = i;
                 break;
             }
         }
     }
 
-    if (SOSA.world_db_target_rank == -1) {
-        SOSA.sos_context->config.locale = SOS_LOCALE_INDEPENDENT;
-        printf("[ANALYTICS(%d)]: Independent.\n", SOSA.sos_context->config.comm_rank);
-        
+    if (SOSA.db_target_rank == -1) {
+        SOS->config.locale = SOS_LOCALE_INDEPENDENT;
+        // Give this rank a database to talk to for GUID-request purposes...
+        SOSA.db_target_rank = (SOS->config.comm_rank % SOSA.db_role_count);
+        dlog(0, "    ... INDEPENDENT MODE aligned with DB(world_rank:%d)\n", SOSA.db_target_rank);
     } else {
-        SOSA.sos_context->config.locale = SOS_LOCALE_DAEMON_DBMS;
-        printf("[ANALYTICS(%d)]: Co-located with SOS_ROLE_DB at MPI_COMM_WORLD rank %d on host %s.\n",
-               SOSA.sos_context->config.comm_rank, SOSA.world_db_target_rank, my_host);
+        SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
+        dlog(0, "    ... CO-LOCATED w/DATABASE ....... DB(world_rank:%d)\n", SOSA.db_target_rank);
     }
 
+    dlog(0, "    ... host: %s\n", my_host);
+
     // ANALYTICS discover: ------
-    SOSA.analytics_locales = (int *) calloc(SOSA.sos_context->config.comm_size, sizeof(int));
-    MPI_Allgather((void *) &SOSA.sos_context->config.locale, 1, MPI_INT,
+    SOSA.analytics_locales = (int *) calloc(SOS->config.comm_size, sizeof(int));
+    MPI_Allgather((void *) &SOS->config.locale, 1, MPI_INT,
                   (void *) SOSA.analytics_locales, 1, MPI_INT, SOSA.comm);
-    
+
+
+
+    // Pick up some GUIDs from our target db:
+    SOS_uid_init(SOS, &SOS->uid.my_guid_pool, -1, -1);
+    SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
+    SOSA_guid_request(SOS->uid.my_guid_pool);
+
+    dlog(0, "   ... assigned GUID range %" SOS_GUID_FMT " -> %" SOS_GUID_FMT "\n",
+         SOS->uid.my_guid_pool->next,
+         SOS->uid.my_guid_pool->last);
+
+    dlog(0, "   ... done.\n");
     return SOSA.sos_context;
 }
 
