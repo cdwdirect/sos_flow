@@ -38,6 +38,7 @@ IF (APPLE)
 ENDIF (APPLE)
 
 FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h
+  "$ENV{SQLITE_ROOT}/include"
   "$ENV{SQLITE}/include"
   "$ENV{LIB_DIR}/include"
   "$ENV{LIB_DIR}/include/sqlite"
@@ -48,6 +49,7 @@ FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h
 FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h)
 
 FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3 sqlite3_i PATHS
+  "$ENV{SQLITE_ROOT}/lib"
   "$ENV{SQLITE}/lib"
   $ENV{LIB} 
   /usr/lib 
