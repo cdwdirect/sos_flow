@@ -33,6 +33,10 @@ then
 else
     cd ..
     cd bin
+      others=""
+      if [ "x${NERSC_HOST}" != "x" ] ; then
+        others="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpichf90_gnu_51_mt.so"
+      fi
     if [ ! -f CMakeCache.txt ] ; then
       cmake \
          -G "Unix Makefiles" \
@@ -45,6 +49,7 @@ else
          -DTAU_ROOT=$HOME/src/tau2 \
          -DTAU_ARCH=x86_64 \
          -DTAU_OPTIONS=-mpi-pthread \
+         $others \
          ..
     fi
     make -j
