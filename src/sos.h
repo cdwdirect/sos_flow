@@ -96,7 +96,9 @@ extern "C" {
 #define SOS_max(a,b) ((a > b) ? a : b)
 #endif
 
-#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
+
+#define SOS_TIME(__SOS_now)       { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6)); }
+
 
 #define SOS_LOCK_REENTRANT(__SOS_int_var, usec_delay)  {        \
     timespec __SOS_spinlock_ts;                                 \

@@ -33,3 +33,19 @@ or
 SELECT A.ABC_ID, A.VAL LEFT OUTER JOIN B 
     ON A.ABC_ID = B.ABC_ID AND A.VAL = B.VAL WHERE B.VAL IS NULL
     
+
+
+
+
+#
+#  GET all the CPU averages from the database...
+#
+#
+
+SELECT tblvals.row_id, tbldata.name, tblvals.val, tblvals.time_pack, tblvals.time_send, tblvals.time_recv
+FROM (tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid)
+WHERE tblvals.guid
+      IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE "cpu%");
+
+#
+#

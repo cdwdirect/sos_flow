@@ -57,13 +57,36 @@ int main(int argc, char *argv[]) {
             GLOBAL_forced_sos_port_on = 1;
         } else if ( strcmp(argv[elem], "-header"  ) == 0) {
             if ( strcmp(argv[next_elem], "only" ) == 0) {
-                printf("timestamp,sosd_comm_rank,queue_depth_local,queue_depth_cloud,"
-                       "queue_depth_db_tasks,queue_depth_db_snaps,thread_local_wakeup,thread_cloud_wakeup,"
-                       "thread_db_wakeup,feedback_checkin_messages,socket_messages,"
-                       "socket_bytes_recv,socket_bytes_sent,mpi_sends,mpi_bytes,"
-                       "db_transactions,db_insert_announce,db_insert_announce_nop,"
-                       "db_insert_publish,db_insert_publish_nop,buffer_creates,"
-                       "buffer_bytes_on_heap,buffer_destroys,pipe_creates,pub_handles\n");
+                printf("timestamp,"
+                       "probe_rtt,"
+                       "sosd_comm_rank,"
+                       "queue_depth_local,"
+                       "queue_depth_cloud,"
+                       "queue_depth_db_tasks,"
+                       "queue_depth_db_snaps,"
+                       "thread_local_wakeup,"
+                       "thread_cloud_wakeup,"
+                       "thread_db_wakeup,"
+                       "feedback_checkin_messages,"
+                       "socket_messages,"
+                       "socket_bytes_recv,"
+                       "socket_bytes_sent,"
+                       "mpi_sends,"
+                       "mpi_bytes,"
+                       "db_transactions,"
+                       "db_insert_announce,"
+                       "db_insert_announce_nop,"
+                       "db_insert_publish,"
+                       "db_insert_publish_nop,"
+                       "db_insert_val_snaps,"
+                       "db_insert_val_snaps_nop,"
+                       "buffer_creates,"
+                       "buffer_bytes_on_heap,"
+                       "buffer_destroys,"
+                       "pipe_creates,"
+                       "pub_handles,"
+                       "vm_peak,"
+                       "vm_size\n");
                 exit(0);
             }
         } else {
@@ -103,13 +126,22 @@ int main(int argc, char *argv[]) {
 
     while (getenv("SOS_SHUTDOWN") == NULL) {
 
-        SOS_buffer_wipe(reply);        
+        SOS_buffer_wipe(reply);
+
+        double rtt_at_probe = 0.0;
+        double rtt_at_reply = 0.0;
+
+        // -----=====-----
+        SOS_TIME(rtt_at_probe);
         SOS_send_to_daemon(request, reply);
+        SOS_TIME(rtt_at_reply);
+        // -----=====-----
 
         if (reply->len < sizeof(SOS_msg_header)) {
             printf("ERROR: Received short (useless) message from daemon!   (reply->len == %d\n", reply->len);
             continue;
         }
+
 
         offset = 0;
         SOS_buffer_unpack(reply, &offset, "iigg",
@@ -153,12 +185,18 @@ int main(int argc, char *argv[]) {
                           &current.pipe_creates,
                           &current.pub_handles);
 
+        uint64_t vm_peak = 0;
+        uint64_t vm_size = 0;
+        SOS_buffer_unpack(reply, &offset, "gg",
+                          &vm_peak,
+                          &vm_size);
+
         double time_now = 0.0;
         SOS_TIME(time_now);
         
         switch(GLOBAL_output_type) {
         case OUTPUT_CSV:    //--------------------------------------------------
-            printf("%lf,%" SOS_GUID_FMT ","
+            printf("%lf,%lf,%" SOS_GUID_FMT ","
                    "%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
@@ -166,8 +204,10 @@ int main(int argc, char *argv[]) {
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
-                   "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT "\n",
+                   "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
+                   "%" SOS_GUID_FMT ",%" SOS_GUID_FMT "\n",
                    time_now,
+                   (rtt_at_reply - rtt_at_probe),
                    header.msg_from,
                    queue_depth_local,
                    queue_depth_cloud,
@@ -193,7 +233,9 @@ int main(int argc, char *argv[]) {
                    current.buffer_bytes_on_heap,
                    current.buffer_destroys,
                    current.pipe_creates,
-                   current.pub_handles);
+                   current.pub_handles,
+                   vm_peak,
+                   vm_size);
             break;
 
 
@@ -206,6 +248,7 @@ int main(int argc, char *argv[]) {
                        my_sos->net.server_port);
             }
             printf("\t\"timestamp\": \"%lf\",\n", time_now);
+            printf("\t\"probe_rtt\": \"%lf\",\n", (rtt_at_reply - rtt_at_probe));
             printf("\t\"sosd_comm_rank\": \"%"            SOS_GUID_FMT "\",\n", header.msg_from);
             printf("\t\"queue_depth_local\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_local);
             printf("\t\"queue_depth_cloud\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_cloud);
@@ -231,7 +274,10 @@ int main(int argc, char *argv[]) {
             printf("\t\"buffer_bytes_on_heap\": \"%"      SOS_GUID_FMT "\",\n", current.buffer_bytes_on_heap);
             printf("\t\"buffer_destroys\": \"%"           SOS_GUID_FMT "\",\n", current.buffer_destroys);
             printf("\t\"pipe_creates\": \"%"              SOS_GUID_FMT "\",\n", current.pipe_creates);
-            printf("\t\"pub_handles\": \"%"               SOS_GUID_FMT "\"\n", current.pub_handles);
+            printf("\t\"pub_handles\": \"%"               SOS_GUID_FMT "\",\n", current.pub_handles);
+            printf("\t\"vm_peak\": \"%"                   SOS_GUID_FMT "\",\n", vm_peak);
+            printf("\t\"vm_size\": \"%"                   SOS_GUID_FMT "\"\n", vm_size);
+
             printf("}}\n\n");
             break;
 
