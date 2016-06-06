@@ -359,15 +359,15 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
 
     SOS_TIME(time_start);
     while (more_to_send) {
-        if (failed_send_count > 99) {
-            dlog(0, "ERROR: Unable to contact sosd daemon after 100 attempts. Terminating.\n");
+        if (failed_send_count > 8) {
+            dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts. Terminating.\n");
             exit(EXIT_FAILURE);
         }
         retval = send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
         if (retval < 0) {
             failed_send_count++;
             dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
-            dlog(0, "ERROR:    ...retrying %d more times after a brief delay.\n", (100 - failed_send_count));
+            dlog(0, "ERROR:    ...retrying %d more times after a brief delay.\n", (8 - failed_send_count));
             usleep(100000);
             continue;
         } else {

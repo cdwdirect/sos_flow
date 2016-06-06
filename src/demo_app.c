@@ -17,7 +17,7 @@
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
 
-#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> -p <pub_elem_count> [-d <delay_usec>]"
+#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> -p <pub_elem_count> [-d <iter_delay_usec>]"
 
 
 #include "sos.h"

@@ -1,4 +1,3 @@
-
 /*
  * proc_app.c
  *
@@ -34,7 +33,7 @@ typedef struct {
     uint64_t softirq;
     uint64_t steal;
     uint64_t guest;
-} proc_stat_t;
+} proc_cpustat_t;
 
 typedef struct {
     char     key[128];
@@ -44,12 +43,13 @@ typedef struct {
 int GLOBAL_sleep_delay;
 
 int main(int argc, char *argv[]) {
-    int   i;
-    int   line;
-    int   line_len;
-    int   char_count;
-    int   elem;
-    int   next_elem;
+    int    i;
+    int    line;
+    size_t line_len;
+    int    rc;
+    int    char_count;
+    int    elem;
+    int    next_elem;
 
     log("[MPI_init]\n");
     MPI_Init(&argc, &argv);
@@ -85,26 +85,72 @@ int main(int argc, char *argv[]) {
     pub = SOS_pub_create(my_sos, "proc_app stat monitor", SOS_NATURE_SUPPORT_FLOW);
 
     char  val_handle[SOS_DEFAULT_STRING_LEN] = {0};
-    char  proc_line[SOS_DEFAULT_STRING_LEN] = {0};
+    char *proc_line = NULL;
     FILE *proc_file;
 
-    proc_stat_t stat;
-    key_val_t   entry;
+    proc_cpustat_t cpustat;
+    key_val_t      entry;
 
+    int iteration   = 0;
+    int line_number = 0;
     while (getenv("SOS_SHUTDOWN") == NULL) {
         sleep(GLOBAL_sleep_delay);
         log("[wake]\n");
 
         log("  [open]  /proc/stat\n");
         proc_file = fopen("/proc/stat", "r");
-        while( fgets(proc_line, SOS_DEFAULT_STRING_LEN, proc_file) ) {
-            
 
-        }
+        line_number = 0;
+        while((rc = getline(&proc_line, &line_len, proc_file)) != -1) {
+
+            memset(&cpustat, 0, sizeof(cpustat));
+
+            if (strncmp(proc_line, "cpu", 3) == 0) {
+                sscanf(proc_line, "%9s %" PRIu64" %" PRIu64" %" PRIu64" %" PRIu64" %" PRIu64" %" PRIu64" %" PRIu64" %" PRIu64 " %" PRIu64,
+                       cpustat.name,
+                       &cpustat.user,
+                       &cpustat.nice,
+                       &cpustat.system,
+                       &cpustat.idle,
+                       &cpustat.iowait,
+                       &cpustat.irq,
+                       &cpustat.softirq,
+                       &cpustat.steal,
+                       &cpustat.guest);
+
+                uint64_t jiffs_total   = 0;
+                double   avg_idle_pct  = 0;
+
+                jiffs_total = (cpustat.user + cpustat.nice + cpustat.system + cpustat.idle
+                               + cpustat.iowait + cpustat.irq + cpustat.softirq
+                               + cpustat.steal + cpustat.guest);
+
+                SOS_val idle_pct;
+                idle_pct.d_val = (cpustat.idle * 100) / jiffs_total;
+
+                if (strlen(cpustat.name) == 3) {
+                    // Aggregate case:
+                    SOS_pack(pub, "cpu:idle_pct", SOS_VAL_TYPE_DOUBLE, (void *) &idle_pct);
+                } else {
+                    // Per-processor case:
+                    char cpuname[24] = {0};
+                    snprintf(cpuname, 24, "%s:idle_pct", cpustat.name);
+                    SOS_pack(pub, cpuname, SOS_VAL_TYPE_DOUBLE, (void *) &idle_pct);
+                }
+
+                free(proc_line);
+            }//if:cpu*
+            
+            proc_line = NULL;
+            line_number++;
+        }//while:getline
+        iteration++;
+        log("    ----------\n");
+        fclose(proc_file);
         log("  [publish]\n");
         SOS_publish(pub);
         log("[sleep]");
-    }
+    }//while:running
     log("[SOS_finalize]\n");
     SOS_finalize(my_sos);
     log("[MPI_finalize]\b");

@@ -58,6 +58,8 @@ int main(int argc, char *argv[]) {
 
     dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
 
+    setenv("SOS_SHUTDOWN", "1", 1);
+
     SOS_buffer_init(SOS, &buffer);
 
     header.msg_size = -1;
@@ -87,14 +89,3 @@ int main(int argc, char *argv[]) {
     return (EXIT_SUCCESS);
 }
 
-/**
- * @mainpage sosdstop - SOS command for stopping sosd
- * @author Chad D. Wood
- * @version 0.0
- *
- * @section copying Copying
- *
- * Copyright (C) 2015 University of Oregon
- *
- * See the COPYING file for license details.
- */

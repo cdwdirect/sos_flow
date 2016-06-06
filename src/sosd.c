@@ -98,6 +98,9 @@ int main(int argc, char *argv[])  {
     }
     #endif
 
+
+    unsetenv("SOS_SHUTDOWN");
+
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("Preparing to initialize:\n"); fflush(stdout); }
@@ -1052,6 +1055,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
                     queue_depth_db_tasks,
                     queue_depth_db_snaps);
 
+
     SOSD_counts current;
     if (SOS_DEBUG > 0) { pthread_mutex_lock(SOSD.daemon.countof.lock_stats); }
     current = SOSD.daemon.countof;
@@ -1079,6 +1083,43 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
                     current.buffer_destroys,
                     current.pipe_creates,
                     current.pub_handles);
+
+    uint64_t vm_peak      = 0;
+    uint64_t vm_size      = 0;
+
+    FILE    *mf           = NULL;
+    int      mf_rc        = 0;
+    char     mf_path[128] = {0};
+    char    *mf_line      = NULL;
+    size_t   mf_line_len  = 0;
+
+    sprintf(mf_path, "/proc/%d/status", getpid());
+    mf = fopen(mf_path, "r");
+    if (mf == NULL) {
+        dlog(0, "ERROR: Could not open %s file for probe request.   (%s)\n", mf_path, strerror(errno));
+        vm_peak    = 0;
+        vm_size    = 0;
+    } else {
+        while((mf_rc = getline(&mf_line, &mf_line_len, mf)) != -1) {
+            if (strncmp(mf_line, "VmPeak", 6) == 0) {
+                sscanf(mf_line, "VmPeak: %" PRIu64 " *", &vm_peak);
+            }
+            if (strncmp(mf_line, "VmSize", 6) == 0) {
+                sscanf(mf_line, "VmSize: %" PRIu64 " *", &vm_size);
+            }
+            if ((vm_peak > 0) && (vm_size > 0)) {
+                break;
+            }
+        }
+    }
+
+    fclose(mf);
+
+    SOS_buffer_pack(reply, &offset, "gg",
+                    vm_peak,
+                    vm_size);
+
+    // Buffer is now ready to send...
 
     i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
