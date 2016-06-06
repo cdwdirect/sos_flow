@@ -57,7 +57,10 @@ print("Skipping outlier-filter stage.")
 #filtered_latencies = latencies[~is_outlier(latencies)]
 
 print("Plotting: x=pack_time, y=latencies")
+pl.title("Latency Between Client SOS_publish() and Daemon DB Insert");
 pl.plot(pack_time, latencies)
+pl.ylabel("Latency (sec.)")
+pl.xlabel("Timestamp When Client Sent Value to Daemon (sec. from earliest value)")
 print("Showing plot...")
 pl.show()
 
