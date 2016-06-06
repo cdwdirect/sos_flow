@@ -98,6 +98,9 @@ int main(int argc, char *argv[])  {
     }
     #endif
 
+
+    unsetenv("SOS_SHUTDOWN");
+
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("Preparing to initialize:\n"); fflush(stdout); }
