@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <mpi.h>
 
-#define USAGE "./sosd_probe [-f <output_file>] [-l loop_delay_usec] [-header only] [-o json] [-p force_sos_port]"
+#define USAGE "./sosd_probe [-f <output_file>] [-l loop_delay_usec] [-header on] [-o json] [-p force_sos_port]"
 
 #define OUTPUT_CSV   1
 #define OUTPUT_JSON  2
@@ -25,6 +25,7 @@ int    GLOBAL_header_on;
 char  *GLOBAL_forced_sos_port;
 int    GLOBAL_forced_sos_port_on;
 FILE  *GLOBAL_out;
+char  *GLOBAL_out_path;
 
 int main(int argc, char *argv[]) {
     int   i;
@@ -46,7 +47,7 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
         if ( strcmp(argv[elem], "-f"  ) == 0) {
-            GLOBAL_out = fopen(argv[next_elem], "a");
+            GLOBAL_out_path = argv[next_elem];
         } else if ( strcmp(argv[elem], "-l"  ) == 0) {
             GLOBAL_sleep_delay  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-o"  ) == 0) {
@@ -60,38 +61,8 @@ int main(int argc, char *argv[]) {
             GLOBAL_forced_sos_port = argv[next_elem];
             GLOBAL_forced_sos_port_on = 1;
         } else if ( strcmp(argv[elem], "-header"  ) == 0) {
-            if ( strcmp(argv[next_elem], "only" ) == 0) {
-                fprintf(GLOBAL_out, "timestamp,"
-                       "probe_rtt,"
-                       "sosd_comm_rank,"
-                       "queue_depth_local,"
-                       "queue_depth_cloud,"
-                       "queue_depth_db_tasks,"
-                       "queue_depth_db_snaps,"
-                       "thread_local_wakeup,"
-                       "thread_cloud_wakeup,"
-                       "thread_db_wakeup,"
-                       "feedback_checkin_messages,"
-                       "socket_messages,"
-                       "socket_bytes_recv,"
-                       "socket_bytes_sent,"
-                       "mpi_sends,"
-                       "mpi_bytes,"
-                       "db_transactions,"
-                       "db_insert_announce,"
-                       "db_insert_announce_nop,"
-                       "db_insert_publish,"
-                       "db_insert_publish_nop,"
-                       "db_insert_val_snaps,"
-                       "db_insert_val_snaps_nop,"
-                       "buffer_creates,"
-                       "buffer_bytes_on_heap,"
-                       "buffer_destroys,"
-                       "pipe_creates,"
-                       "pub_handles,"
-                       "vm_peak,"
-                       "vm_size\n");
-                exit(0);
+            if ( strcmp(argv[next_elem], "on" ) == 0) {
+                GLOBAL_header_on = 1;
             }
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
@@ -105,6 +76,44 @@ int main(int argc, char *argv[]) {
         my_sos->net.server_port = GLOBAL_forced_sos_port;
     }
     srandom(my_sos->my_guid);
+
+    char unique_output_path[1024] = {0};
+    snprintf(unique_output_path, 1024, "%s.%" SOS_GUID_FMT, GLOBAL_out_path, SOS->my_guid);
+    GLOBAL_out = fopen(unique_output_path, "a");
+
+    if ((GLOBAL_output_type == OUTPUT_CSV) && (GLOBAL_header_on == 1)) {
+        fprintf(GLOBAL_out, "timestamp,"
+                "probe_rtt,"
+                "sosd_comm_rank,"
+                "queue_depth_local,"
+                "queue_depth_cloud,"
+                "queue_depth_db_tasks,"
+                "queue_depth_db_snaps,"
+                "thread_local_wakeup,"
+                "thread_cloud_wakeup,"
+                "thread_db_wakeup,"
+                "feedback_checkin_messages,"
+                "socket_messages,"
+                "socket_bytes_recv,"
+                "socket_bytes_sent,"
+                "mpi_sends,"
+                "mpi_bytes,"
+                "db_transactions,"
+                "db_insert_announce,"
+                "db_insert_announce_nop,"
+                "db_insert_publish,"
+                "db_insert_publish_nop,"
+                "db_insert_val_snaps,"
+                "db_insert_val_snaps_nop,"
+                "buffer_creates,"
+                "buffer_bytes_on_heap,"
+                "buffer_destroys,"
+                "pipe_creates,"
+                "pub_handles,"
+                "vm_peak,"
+                "vm_size\n");
+    }
+    
 
     SOS_buffer *request;
     SOS_buffer *reply;
