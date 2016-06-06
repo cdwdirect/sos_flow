@@ -22,10 +22,12 @@
 
 #include "sos.h"
 
+/*
 #ifdef SOS_DEBUG
 #undef SOS_DEBUG
 #endif
 #define SOS_DEBUG 1
+*/
 
 #include "sos_debug.h"
 

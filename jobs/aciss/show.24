@@ -1,3 +1,4 @@
+#!/bin/bash
 echo ""
 echo ""
 qstat -u cdw
@@ -60,9 +61,9 @@ sqlite3 ./data/sosd.23.db "select max(rowid) from tblvals;"
 echo "----------------------------------"
 echo -n " = sosd.24.db : "
 sqlite3 ./data/sosd.24.db "select max(rowid) from tblvals;"
-echo -n " = sosd.25.db : "
-sqlite3 ./data/sosd.24.db "select max(rowid) from tblvals;"
-echo -n " = sosd.26.db : "
-sqlite3 ./data/sosd.24.db "select max(rowid) from tblvals;"
+#echo -n " = sosd.25.db : "
+#sqlite3 ./data/sosd.24.db "select max(rowid) from tblvals;"
+#echo -n " = sosd.26.db : "
+#sqlite3 ./data/sosd.24.db "select max(rowid) from tblvals;"
 echo ""
 echo ""
