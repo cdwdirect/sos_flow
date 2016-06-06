@@ -77,9 +77,13 @@ int main(int argc, char *argv[]) {
     }
     srandom(my_sos->my_guid);
 
-    char unique_output_path[1024] = {0};
-    snprintf(unique_output_path, 1024, "%s.%" SOS_GUID_FMT, GLOBAL_out_path, SOS->my_guid);
-    GLOBAL_out = fopen(unique_output_path, "a");
+    if (GLOBAL_out_path != NULL) {
+        char  unique_output_path[1024] = {0};
+        char  hostname[1024] = {0};
+        gethostname(hostname, (size_t) 1024);
+        snprintf(unique_output_path, 1024, "%s.%s.%d", GLOBAL_out_path, hostname, getpid());
+        GLOBAL_out = fopen(unique_output_path, "a");
+    }
 
     if ((GLOBAL_output_type == OUTPUT_CSV) && (GLOBAL_header_on == 1)) {
         fprintf(GLOBAL_out, "timestamp,"
@@ -304,6 +308,8 @@ int main(int argc, char *argv[]) {
         } else {
             break;
         }
+
+        fflush(GLOBAL_out);
 
     }//while
     SOS_buffer_destroy(request);
