@@ -1,0 +1,2 @@
+#!/bin/bash
+sqlite3 sosd.$1.db "select max(rowid) from tblvals;"

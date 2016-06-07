@@ -28,13 +28,14 @@ echo "SOS_CMD_PORT...: ${SOS_CMD_PORT}"
 echo ""
 echo "Job script.....: $1"
 echo ""
-read -t 10 -p "Proceed?  (y/N)" KEY_CONFIRM
-if [ "x${KEY_CONFIRM}" == "x" ] ; then
+read -t 10 -p "Proceed?  (y/N)  (10 sec timeout)  --> " KEY_CONFIRM
+if [ "x${KEY_CONFIRM}" == "xy" ] ; then
+    echo "Submitting the script..."
+    qsub -v SOS_ROOT,SOS_WORK,SOS_CMD_PORT $1
+    echo ""
+    echo "Done.  ($1 submitted)"
+    echo ""
+else
   echo "Cancelled."
   kill -INT $$
 fi
-echo "Submitting the script..."
-qsub -v SOS_ROOT,SOS_WORK,SOS_CMD_PORT $1
-echo ""
-echo "Done.  ($1 submitted)"
-echo ""

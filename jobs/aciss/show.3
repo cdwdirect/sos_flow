@@ -1,7 +1,9 @@
 #!/bin/bash
 echo ""
 echo ""
-DB_DIR=$(cat ${SOS_ROOT}/jobs/aciss/data/.last_job)
+DB_DIR=${SOS_ROOT}/jobs/aciss/data/$(cat ${SOS_ROOT}/jobs/aciss/data/.last_job)
+echo "   last_job....: $(cat ${SOS_ROOT}/jobs/aciss/data/.last_job)"
+echo "   location....: ${DB_DIR}"
 cd ${DB_DIR}
 echo ""
 echo ""

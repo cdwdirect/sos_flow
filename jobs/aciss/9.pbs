@@ -1,6 +1,6 @@
 #!/bin/bash 
 ##### the name of the batch job
-#PBS -N sos_flow_9x12(probe)
+#PBS -N sos_flow_9x12_pr
 
 ##### this line tells Torque which queue to submit to
 #PBS -q generic
@@ -9,7 +9,7 @@
 #PBS -l nodes=9:ppn=12
 
 ##### requests ____ hh:mm:ss time
-#PBS -l walltime=00:30:00
+#PBS -l walltime=00:18:00
 
 ##### the working directory for your job
 #PBS -d /home12/cdw/src/sos_flow/jobs/aciss/data
@@ -29,8 +29,8 @@ module load mpi/mpich-3.1_gcc-4.9
 
 # # # # # # #   program   # # # # # # #
 
-daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data "
-dbs="     -np 1       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data "
+daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
+dbs="     -np 1       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
 
 
 #### sos: ##########
@@ -113,16 +113,16 @@ echo ""
 mpirun ${exec_init_mpi}
 
 # -----
-
-cd "${SOS_ROOT}/jobs/aciss/log"
+mkdir "${SOS_ROOT}/jobs/aciss/log/${PBS_JOBID}"
+cd "${SOS_ROOT}/jobs/aciss/log/${PBS_JOBID}"
 touch launch.log
 echo "[1/7] : Starting daemons." >> launch.log
 mpirun ${sosd_mpi_opts} ${sosd_programs} &
-echo "[2/7] : Waiting 4 seconds." >> launch.log
-sleep 4
+echo "[2/7] : Waiting 30 seconds." >> launch.log
+sleep 30
 # Launch the probes!
 echo "        ---> Launching probes!" >> launch.log
-mpirun -ppn 1 ${SOS_ROOT}/bin/sosd_probe -f ${SOS_WORK}/sos_data/probe.csv -header on -l 100000 &
+mpirun -ppn 1 ${SOS_ROOT}/bin/sosd_probe -f ${SOS_WORK}/sos_data/${PBS_JOBID}/probe.csv -header on -l 100000 &
 
 echo "[3/7] : Starting demo_app instances." >> launch.log
 
@@ -147,8 +147,8 @@ echo "complete" >> launch.log
 # -----
 
 echo "[4/7] : All demo_app instances are complete." >> launch.log
-echo "[5/7] : Waiting 120 seconds before bringing daemons down." >> launch.log
-sleep 120
+echo "[5/7] : Waiting 5 minutes before bringing daemons down." >> launch.log
+sleep 300
 echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
 echo "[7/7] : All tasks complete." >> launch.log
@@ -159,4 +159,5 @@ sleep 4
 #echo "[---] : Running teardown script." >> launch.log
 mpirun ${tear_down_mpi}
 touch ${SOS_ROOT}/jobs/aciss/data/${PBS_JOBID}/${PBS_JOBNAME}
+cp ${SOS_ROOT}/jobs/aciss/show ${SOS_ROOT}/jobs/aciss/data/${PBS_JOBID}/
 echo "${PBS_JOBID}" > ${SOS_ROOT}/jobs/aciss/data/.last_job
