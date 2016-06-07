@@ -172,6 +172,8 @@ sos.h / sos.c & Becomes libsos, the core functions of SOSflow\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sosd.h / sosd.c & SOSflow daemon\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+sosa.h / sosa.c & SOS analytics core utilities\\
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sos\_debug.h & Debugging off / on (level) knobs\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 demo\_app.c & The "Hello, world." of SOSflow value injection\\
@@ -189,11 +191,6 @@ sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
 SOSflow is a programmable middleware platform.  The value of SOSflow is
 directly proportional to the quantity and quality of the sources that
 are pushing semantically-annotated data into it.
-%At this time the use-case development has centered on the
-%ADIOS scalable I/O library, due to its deep integration with many
-%existing scientific workflows and industry standard tools like
-%VisIt. instrumentation is a source of significant observable
-%data and an actionable target for effective feedback and control.
 
 The more sources that are instrumented with SOSflow the less limited
 the workflow performance model will be. When only one or two layers
@@ -272,9 +269,10 @@ sources that provide metrics with tailored metadata and both logical
 and concrete events, arriving in real-time from many different layers
 of activity in a workflow:
 \begin{itemize}
+    \item Workflow
     \item Simulation
-    \item Algorithm
     \item Application
+    \item Algorithm
     \item Libraries
     \item Environment
     \item Developer Tools
@@ -283,7 +281,6 @@ of activity in a workflow:
     \item Network
     \item Enclave
     \item Cluster
-    \item Workflow
     \item Epoch	
 \end{itemize}
 

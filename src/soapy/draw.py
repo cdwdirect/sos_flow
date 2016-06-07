@@ -8,7 +8,7 @@ from data_utils import is_outlier
 
 
 # name of the sqlite database file
-sqlite_file = os.environ.get("SOS_WORK", ".") + "/" + sys.argv[1]
+sqlite_file = os.environ.get("SOS_LOCATION", ".") + "/" + sys.argv[1]
 table_name = 'tblvals'   # name of the table to be queried
 
 print("Connecting to: ", sqlite_file)

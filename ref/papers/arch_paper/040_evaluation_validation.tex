@@ -5,9 +5,36 @@
 
 \section{Evaluation and Validation}
 
+SOSflow is a large, complex, and completely new tool framework. The
+core library components comprise more than 12,000 lines of original
+C99 code. SOSflow's code base has \textit{not} been systematically
+optimized for this pre-release research work -- since it is an open
+source project, volunteers are always welcome! It is likely that the
+observed performance of SOSflow will dramatically improve with several
+iterations of focused overhead and latency refactoring. Many of the
+behavioral characteristics of SOSflow are the product of its internal
+parameters and the configuration of its runtime deployment, rather
+than products of its data model and algorithms. The exploration of
+optimal settings in that combined parameter space is left for future
+work: For now the effort was made to select reasonable default SOSflow
+configuration parameters and typical/non-priviledged cluster
+queues and topologies.
+
+SOSflow as a tool is \textit{production capable} for the purpose of
+validating the SOS workflow performance model. As we demonstrate
+below, even the current un-optimized code is able to scale out to
+reasonable allocation sizes and handle relatively impressive
+varieties, quantities, and rates of data flow. Because of the lack of
+focused tuning to its internal mechanics and the general novelty of
+the architecture, the results and figures presented here should be
+considered the \textit{worst-case scenario} for the performance of
+SOSflow itself, now and for the future.
+
 %-----------------------------------------------------------------------------
 
 \subsection{Testing Platform and SOS Configurations}
+
+
 
 %-----------------------------------------------------------------------------
 
