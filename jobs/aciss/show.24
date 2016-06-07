@@ -1,13 +1,8 @@
 #!/bin/bash
 echo ""
 echo ""
-qstat -u cdw
-echo ""
-echo ""
-cat ./log/launch.log
-echo ""
-echo ""
-ls -AblFs ./data/.
+DB_DIR=$(cat ${SOS_ROOT}/jobs/aciss/data/.last_job)
+cd ${DB_DIR}
 echo ""
 echo ""
 echo -n "   sosd.0.db  : "

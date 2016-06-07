@@ -9,7 +9,7 @@
 #PBS -l nodes=3:ppn=12
 
 ##### requests ____ hh:mm:ss time
-#PBS -l walltime=06:00:00
+#PBS -l walltime=00:10:00
 
 ##### the working directory for your job
 #PBS -d /home12/cdw/src/sos_flow/jobs/aciss/data
@@ -29,8 +29,8 @@ module load mpi/mpich-3.1_gcc-4.9
 
 # # # # # # #   program   # # # # # # #
 
-daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data "
-dbs="     -np 1       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data "
+daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
+dbs="     -np 1       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
 
 #### sos: ##########
 
@@ -113,7 +113,8 @@ mpirun ${exec_init_mpi}
 
 # -----
 
-cd "${SOS_ROOT}/jobs/aciss/log"
+mkdir "${SOS_ROOT}/jobs/aciss/log/${PBS_JOBID}"
+cd "${SOS_ROOT}/jobs/aciss/log/${PBS_JOBID}"
 touch launch.log
 echo "[1/7] : Starting daemons." >> launch.log
 mpirun ${sosd_mpi_opts} ${sosd_programs} &
@@ -153,4 +154,5 @@ sleep 4
 
 #echo "[---] : Running teardown script." >> launch.log
 mpirun ${tear_down_mpi}
-
+touch ${SOS_ROOT}/jobs/aciss/data/${PBS_JOBID}/${PBS_JOBNAME}
+echo "${PBS_JOBID}" > ${SOS_ROOT}/jobs/aciss/data/.last_job

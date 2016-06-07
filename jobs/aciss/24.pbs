@@ -1,6 +1,6 @@
 #!/bin/bash 
 ##### the name of the batch job
-#PBS -N sos_flow_24x12
+#PBS -N sos_flow_24x12(heavy_probe)
 
 ##### this line tells Torque which queue to submit to
 #PBS -q generic
@@ -9,7 +9,7 @@
 #PBS -l nodes=24:ppn=12
 
 ##### requests ____ hh:mm:ss time
-#PBS -l walltime=12:00:00
+#PBS -l walltime=02:10:00
 
 ##### the working directory for your job
 #PBS -d /home12/cdw/src/sos_flow/jobs/aciss/data
@@ -49,7 +49,7 @@ sosd_mpi_opts=""
 
 flow_app="${SOS_ROOT}/bin/demo_app "
 flow_app="${flow_app} -i 100"
-flow_app="${flow_app} -m 100000"
+flow_app="${flow_app} -m 1000000"
 flow_app="${flow_app} -p 100"
 flow_app="${flow_app} -d 100000"
 
@@ -117,8 +117,13 @@ cd "${SOS_ROOT}/jobs/aciss/log"
 touch launch.log
 echo "[1/7] : Starting daemons." >> launch.log
 mpirun ${sosd_mpi_opts} ${sosd_programs} &
-echo "[2/7] : Waiting 4 seconds." >> launch.log
-sleep 4
+echo "[2/7] : Waiting 8 seconds." >> launch.log
+sleep 8
+# Launch the probes!
+echo "        ---> Launching probes!" >> launch.log
+mpirun -ppn 1 ${SOS_ROOT}/bin/sosd_probe -f ${SOS_WORK}/sos_data/probe.csv -header on -l 100000 &
+
+
 echo "[3/7] : Starting demo_app instances." >> launch.log
 
 # -----
@@ -153,4 +158,5 @@ sleep 4
 
 #echo "[---] : Running teardown script." >> launch.log
 mpirun ${tear_down_mpi}
-
+touch ${SOS_ROOT}/jobs/aciss/data/${PBS_JOBID}/${PBS_JOBNAME}
+echo "${PBS_JOBID}" > ${SOS_ROOT}/jobs/aciss/data/.last_job

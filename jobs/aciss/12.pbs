@@ -1,15 +1,15 @@
 #!/bin/bash 
 ##### the name of the batch job
-#PBS -N sos_flow_6x12
+#PBS -N sos_flow_12x12(heavy_probe)
 
 ##### this line tells Torque which queue to submit to
 #PBS -q generic
 
-##### requests 6 node and 12 processors per node
-#PBS -l nodes=6:ppn=12
+##### requests 9 node and 12 processors per node
+#PBS -l nodes=12:ppn=12
 
 ##### requests ____ hh:mm:ss time
-#PBS -l walltime=00:20:00
+#PBS -l walltime=01:10:00
 
 ##### the working directory for your job
 #PBS -d /home12/cdw/src/sos_flow/jobs/aciss/data
@@ -32,6 +32,7 @@ module load mpi/mpich-3.1_gcc-4.9
 daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data "
 dbs="     -np 1       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data "
 
+
 #### sos: ##########
 
 sosd_programs=""
@@ -49,12 +50,12 @@ sosd_mpi_opts=""
 
 flow_app="${SOS_ROOT}/bin/demo_app "
 flow_app="${flow_app} -i 100"
-flow_app="${flow_app} -m 100000"
+flow_app="${flow_app} -m 1000000"
 flow_app="${flow_app} -p 100"
 flow_app="${flow_app} -d 100000"
 
 flow_programs=""
-flow_programs="${flow_programs} -ppn 8 ${flow_app} "
+flow_programs="${flow_programs} -ppn 10 ${flow_app} "
 
 flow_mpi_opts=""
 flow_mpi_opts="${flow_mpi_opts} "
@@ -117,8 +118,12 @@ cd "${SOS_ROOT}/jobs/aciss/log"
 touch launch.log
 echo "[1/7] : Starting daemons." >> launch.log
 mpirun ${sosd_mpi_opts} ${sosd_programs} &
-echo "[2/7] : Waiting 4 seconds." >> launch.log
-sleep 4
+echo "[2/7] : Waiting 8 seconds." >> launch.log
+sleep 8
+# Launch the probes!
+echo "        ---> Launching probes!" >> launch.log
+mpirun -ppn 1 ${SOS_ROOT}/bin/sosd_probe -f ${SOS_WORK}/sos_data/probe.csv -header on -l 100000 &
+
 echo "[3/7] : Starting demo_app instances." >> launch.log
 
 # -----
@@ -142,8 +147,8 @@ echo "complete" >> launch.log
 # -----
 
 echo "[4/7] : All demo_app instances are complete." >> launch.log
-echo "[5/7] : Waiting 40 seconds before bringing daemons down." >> launch.log
-sleep 40
+echo "[5/7] : Waiting 120 seconds before bringing daemons down." >> launch.log
+sleep 120
 echo "[6/7] : Starting the sosd_stop tool." >> launch.log
 mpirun ${stop_mpi_opts} ${stop_programs}
 echo "[7/7] : All tasks complete." >> launch.log

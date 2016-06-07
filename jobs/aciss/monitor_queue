@@ -1,0 +1,7 @@
+#!/bin/bash
+while [ 1 ]
+do
+    clear
+    qstat -u $USER
+    sleep 1
+done
