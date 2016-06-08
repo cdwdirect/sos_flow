@@ -5,7 +5,8 @@
 
 \section{The Design and Architecture of SOS}
 
-\subsection{The Need to Observe}
+\subsection{The Need to Observe Locally}
+
 Because the features we are interested in are going to emerge at run
 time, it is necessary to obtain observations of real-world
 applications, libraries, data transmissions, and hardware state. To
@@ -14,10 +15,10 @@ exascale architecures, it is further necessary to collect and analyze
 information as close as possible to its source, and to accept metrics
 submitted from an arbitrary array of sources.
 
-This in situ runtime design
-effectively parallelizes the execution of the observation
-system and gives opportunities to cut down on coordination
-overhead when providing mechanisms for on-line feedback and control.
+This in situ runtime design effectively parallelizes the execution of
+the observation system and gives opportunities to cut down on
+coordination overhead when providing mechanisms for on-line feedback
+and control.
 
 
 %-----------------------------------------------------------------------------
@@ -49,7 +50,7 @@ Performance of HPC codes can be impacted from many different sources:
     \item Versions of software libraries across can differ across
       clusters, or even the same cluster across time.
     \item Tuning factors to extract maximum performance from a code
-      can vary across clusters even if the code and the data do not
+      can vary across clusters, even if the code and the data do not
       change. Shared filesystem performance, data transport methods,
       available per-process memory, co-processor presence and
       architecture, ...and more, all can be responsible for
@@ -71,35 +72,46 @@ Performance of HPC codes can be impacted from many different sources:
 %-----------------------------------------------------------------------------
 
 \subsection{How to Observe}
-SOS has been designed as a voluntary-participation runtime daemon
-offering a programmable middleware layer allowing adaptivity in metric
-expression, combination, feedback, and response.
+SOSflow has been designed as a voluntary-participation runtime system
+that runs in user space on commodity HPC platforms. A daemon process
+is launched on node that acts as an intelligent unbounded asynchronous
+hub for in situ collection of data from multiple sources, the
+migration of that data into searchable stores, and the targeted
+delivery of feedback messages from online analytics modules observing
+the flow of information.
 
 \subsubsection{``Put the Data Somewhere Useful''}
 Because of the variety of metrics of interest, the fact that they may
 not always be expressed in any given runtime, and that all possible
 metrics are not known a priori to be hardcoded into a system, it is
-imperative from an architectural point of view that performance
-observations are gatherd in common from all sources.  Some programm
-spinning snapshots of its internal state out into a proprietary
-database is denying all other parts of the environment the ability to
-learn more about each other, themselves, and that program.
+exceedingly helpful from an architectural point of view if performance
+observations are gathered into a common fabric from all sources.  Any
+well-meaning self-optimizing programm spinning opaque snapshots of its
+internal state out into a proprietary database is denying all other
+parts of the environment the ability to learn more about each other,
+themselves, and that program.
 
 \subsubsection{Simple, Clean, Universal}
 Rather than seeing yet another printf()-style instrumentation
-dead-end, a well-designed observation system will provide a clean and
-flexible interface for suitable for capturing and annotating metrics
-within their context, and will bring the metrics from all sources
-together to be operated over following a shared set of semantics.
+dead-end, or a Titanic-scale solution that requires deep federal
+pockets or administrator priveleges to use, a well-designed
+observation system will provide a clean and flexible interface
+suitable for capturing and annotating metrics within their context,
+and will bring the metrics from all sources together to be operated
+over following a shared set of action-oriented semantics. As users
+operating with self-interest will be the pioneers seeding these raw
+data fields, the system should be easy to use and accessible, and
+provide immediate benefit to anyone who wishes to add some sweat
+equity.
 
-\subsubsection{Observation vs. Action}
-The need to observe, what to observe, and how to observe it are
-individually and collectively decoupled from the programming logic of
-any given source of data. Where the observation system comes back and
-interfaces with the application logic is in the full fuition of the
-SOS architecture, where applications express sensitivity to various
-triggers, and independent analytics agents are able to fire those triggers
-based on looking at the wholistic store of data.
+%\subsubsection{Observation, Action}
+%The need to observe, what to observe, and how to observe it are by
+%design decoupled from the operating logic of any given source of
+%data. The data source should push whatever meaningful data points
+%they can out to where the observation system can utilize it. 
+%In the full fuition of the SOS architecture, applications express sensitivity
+%to various triggers, and independent analytics agents are able to
+%fire those triggers based on looking at the wholistic store of data.
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -368,6 +380,8 @@ consumers of SOSflow data.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Semantic Performance Model}
+
+
 Traditionally, HPC performance monitoring is focused on low-level
 efficiency of an application or library (TAU) on some particular mechine.
 Higher-level systems (TACC Stats) allow the tracking and exploration
@@ -590,15 +604,36 @@ Some specific immediate perks would be enhancements to:
   or how it will interact with a total system, so capturing from a
   wide array of sources will help eliminate the guessing game when it
   comes time to grab the pitchforks.
-\item \textbf{Accuracy}: If you've 
-\item \textbf{Resource Requirement Prediction}:
-\item \textbf{Automated Component Performance Tuning}: Don't want conflicting
-  optimizer purposes. Need to know where the hotspots really are and
-  not depend on individual developers being total system experts.
-\item \textbf{Intelligent Compiler Hints}: Don't have to burn 1,000,000 hours
-  of allocation to learn that you just re-created last year's mistaken
-design choices.
-\item \textbf{Intelligent Job Scheduling}:
+\item \textbf{Accuracy}: If you've got data showing consistent behavior on
+      certain allocations, and bad behavior when certain hardware resources
+      get involved, you've got a better sense about what part of your
+      fate you can control, about what variation is yours, and what comes
+      from the Lord.
+\item \textbf{Resource Requirement Prediction}: 2 + 2 isn't always 4 when it
+      comes to guessing about the perturbation of processes interacting in
+      dynamical systems. Being aware of each others presence through shared
+      real-time self-reporting will allow applications to adapt themselves
+      and administrators to preemptively allocate to promote positive
+      disruption of learned negative performance patterns.
+\item \textbf{Automated Component Performance Tuning}: Nobody wants conflicting
+  optimizer purposes, and having them working from a global perspective will
+  need to show where the true systemic hotspots really are, and not depend on
+  an individual developers being a total system expert or a selfless non-optimizer.
+\item \textbf{Intelligent Compiler Hints}: Anything that is learned from all
+      this richly annotated performance data can ultimately be tied back
+      into intelligent compilers and IDE's. That way a new hire doesn't have
+      to burn 1,000,000 hours of allocation to learn that they've just
+      re-created the exact code pattern or data structure that led to last
+      year's round of layoffs and funding cuts.
+\item \textbf{Intelligent Job Scheduling}: Because ``optimum job scheduling''
+      is not a univocal term.
 \end{itemize}
+
+    The SOS workflow performance model is still being refined, and more serious
+demonstrations are needed in order to convince people that their cluster should
+have an always-on observation and analysis platform, when perhaps all the
+admins want to do is run 25-year old Fortran codes and quickly and as often
+as possible. We suspect the peculiar needs of future distributed mobile computing
+and exascale compute platforms will prove the timeliness of SOS's model.
 
 \todofileend{030\_sos\_model.tex}
