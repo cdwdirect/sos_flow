@@ -24,19 +24,25 @@ overhead when providing mechanisms for on-line feedback and control.
 
 \subsection{What is Observed}
 
-Many factors have contributed to the emergence of variability studies
-as an important research topic within the HPC community. At a
-low-level, HPC node engineering has grown in complexity and
-sophistication, many on-core processor behaviors that used to be
+It would only be a mild exaggeration to subtitle this section: ``We'll
+have to know EVERYTHING if we're going to bother trying to know
+anything at all.''
+
+At a low-level, HPC computer engineering has grown in complexity and
+sophistication, and many on-core processor behaviors that used to be
 isolated, synchronous, and predictable, are now interrelated,
-data-driven, asynchronous, and impossible to predict a priori. As core
-density increases on the nodes of a cluster the unpredictability and
+data-dependant, asynchronous, and demonstrate variations in
+performance impossible to comprehensively characterize a priori. As
+core transistor density increases on the nodes of a cluster, and the
+mean number of cores per node also increases, the unpredictability and
 inconsistency of the hardware itself becomes an increasingly
 significant contributor to observed variability. Hardware is an
-important source to consider when it comes to variability because
-there is almost nothing that can be done to control for it, the noise
-has to be admitted in the results, and therefore is an important part
-of the output of any performance-related experiment.
+important source to consider when it comes to performance because
+almost nothing that can be done to control for it or eliminate it, the
+noisey results derived from noisy hardware has to be admitted in the
+results, and therefore keeping track of \textit{when and where}, not
+merely how, a program ran is growing in significance to all HPC experiments
+with an interest in improving performance.
 
 Performance of HPC codes can be impacted from many different sources:
 \begin{itemize}
@@ -130,27 +136,29 @@ SOSflow is designed to:
 
 SOSflow is divided into several components.  The core components are:
 \begin{itemize}
-\item libsos - Library of common routines for interacting with
+\item \textbf{libsos} - Library of common routines for interacting with
       sosd daemons and SOS data structures
-\item sosd(listener) - Daemon process running on each node
-\item sosd(db) - Daemon process running on dedicated resources
+\item \textbf{sosd(listener)} - Daemon process running on each node
+\item \textbf{sosd(db)} - Daemon process running on dedicated resources
       that stores data aggregated from one or more in situ daemons
-\item sosa - Analytics framework for online query of SOS data
+\item \textbf{sosa} - Analytics framework for online query of SOS data
 \end{itemize}
 
 Some accessory components are:
 \begin{itemize}
-\item sosd\_probe - Collect real-time statistics from the daemon about
+\item \textbf{sosd\_probe} - Collect real-time statistics from the daemon about
       its internal state and operating workload
-\item sosd\_stop - Signal the SOSflow runtime to store its queues and
+\item \textbf{sosd\_stop} - Signal the SOSflow runtime to store its queues and
       safely shut down
-\item demo\_app - Benchmarking tool for testing SOSflow
-\item SOApy - Python scripts for querying the SOS databases and plotting
+\item \textbf{proc\_app} - Collect node runtime information from the /proc
+      API on the node, submitting it to the daemon in the form of a publication
+\item \textbf{demo\_app} - Benchmarking tool for testing SOSflow
+\item \textbf{SOApy} - Python scripts for querying the SOS databases and plotting
       graphs from the results
-\item synthetic\_flow - Tool for generating SOSflow-instrumented
+\item \textbf{synthetic\_flow} - Tool for generating SOSflow-instrumented
       synthetic workflow of components using ADIOS+FlexPath
       that self-assemble into an arbitrary  user-specified DAG of
-      data-dependent processing relations.
+      data-dependent processing relations
 \end{itemize}
 
 \subsubsection{Behavior}
@@ -186,7 +194,7 @@ Once all of the sosd and sosa ranks are initialized and aware of each
 other, they begin operating autonomously and no longer exchange global
 collective messages -- all MPI messages are now point-to-point. The
 sosd(listener) in situ daemons go into a loop listening to a
-node-local TCP socket (specified by the ``SOS\_CMD\_PORT'' environment
+node-local TCP socket (specified by the SOS\_CMD\_PORT environment
 variable) for messages from utilities or SOSflow-enabled source
 applications.  sosd(db) database daemons do not monitor any socket at
 this time, but rather are contacted exclusively through their MPI
@@ -221,9 +229,9 @@ designed to be fast and minimize resource usage, though they will
 buffer values for the user if they choose to hold them and only
 transmit to the daemon at intervals.  It is very uncommon to see the
 blocking socket transmission calls within SOS\_announce() and
-SOS\_publish() take longer than 0.002 seconds in any of our testing
-scenarios. Calls to the more common SOS\_pack() value storage/update
-routine create no significant overhead at all when not used in the
+SOS\_publish() take longer than 0.002 seconds, in any of our testing
+scenarios. Calls to the more frequently used SOS\_pack() value storage/update
+routine create no noticable overhead at all when not used in the
 innermost loops of intense computation, often returning in less than
 0.0001 seconds even for very large data sets. When a client first
 registers with the sosd(listener) during SOS\_init(), the daemon will
@@ -243,7 +251,7 @@ The typical order of API calls in a client is:
     \item SOS\_finalize();
 \end{enumerate}
 
-Data from clients in SOSflow is stored in a SOS\_pub * ``pub handle''
+Data from clients in SOSflow is stored in a (SOS\_pub *) ``pub handle''
 object. This object organizes all of the application context
 information and value-specific metadata, as well as managing the
 history of updates to a value pending pending transmission to a
@@ -296,8 +304,8 @@ this function explicitly.
   \item \textbf{Language}: C99
    \item \textbf{External Requirements}:
    \begin{itemize}
-    \item cmake
-    \item pthreads
+    \item CMake
+    \item Pthreads
     \item MPI
     \item Sqlite3
     \end{itemize}
@@ -322,7 +330,7 @@ sos\_debug.h & Debugging off / on (level) knobs\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 demo\_app.c & The "Hello, world." of SOSflow value injection\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-sosd\_cloud\_mpi.c & Off-node transport using simple MPI calls\\
+sosd\_cloud\_mpi.c & Essential off-node transport\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -367,51 +375,98 @@ of execution wall-time for various library versions, integration of
 multiple modalities of information (LDMS) like program invocation or
 work allocation across a cluster as informed by network congestion
 statistics, and other hybridized or meta-execution data points.
-Low-level metrics are more naturally suited for off-line episodic
-performance analysis of individual workflow components, but cannot
-yield insight into the run-time performance of a complex workflow.
-Characterizing and understanding the emergent properties of a workflow
-comprised of many components that are interacting asynchronously
-across a distributed HPC cluster requires taking a new approach to the
-problem, especially when considering the extreme scales of parallelism
-to which scientific workflows are being driven.
+
+Low-level or metrics are naturally suited for off-line episodic
+performance analysis of individual workflow components. Such deep
+instrumentation is necessarily invasive and can dictate rather than
+capture the observed performance of the instrumented application when
+it is run at scale or required to engage in significant amounts of
+interactivity. Doing principle components analysis on unconditioned
+data is also computationally expensive.  Though few values in SOSflow
+are required to be marked up with specific metadata, every specifier
+that can be assigned to a value will flow with it through the entire
+runtime and will be made available to any of the analytics modules.
+
+It is increasingly challenging for static analysis of low-level
+features and decontextualized codes to produce insight into the
+run-time performance of a complex workflow.  A higher-level approach
+is required to characterize and reason about the emergent properties
+of a large scientific code. Industrial-grade parallel software
+simulations are interacting asynchronously across a distributed HPC
+cluster that is typically shared with many other users. A new model of
+describing and comparing workflows is clearly needed, especially when
+considering the extreme scales of parallelism to which scientific
+workflows are being driven.
+
 
 %-----------------------------------------------------------------------------
 
-\subsection{Invariant Meaning}
+\subsection{The Invariant Meaning of Codes}
 
-%Figures are revealed by their background, as they break up the continuity
-%of the background they stand-out in the world. By defining an invariant
-%background for performance variation, the meaning of the codes, the
-%...metaphor breaks down.  It's really about mapping disanalogous sets of
-%metrics over each other according to a set of organizing principles that
-%are the invariant for that computation.
+Figures are revealed by their background, they break up the continuity
+of the background and stand-out in the world. By defining an invariant
+background for performance variation to be set off against, the
+meaning in the codes, the partially summed yet variously disanalogous
+sets of observed metrics from a system as a whole, can be mapped over
+each other according to a set of organizing principles that both are
+individually and become corporately an invariant for that particular
+complex computation.
 
-So long as the input data and result output is the same, what never
-changes about a simulation, nomatter how it is tuned or allocated or
-configured for a run, is the meaning of what is happening.  Whether a
+It doesn't just matter that something is a double precision floating
+point, it matters that it holds a measure of time, and it matters that
+it's the time something stopped, rather than a simple sample.  It
+doesn't just matter that a process uses a lot of threads, it matters
+that it is running on a machine with a lot of thread processing
+cores. It isn't obviously significant for a task to be parameterized
+by an auto-tuning algorithm for increased speed of its output
+production (rather than size of node memory use or degree of
+paralellism) unless it is clear that something in its output is bring
+consumed at a great rate through independent network connections. It is only by
+observing all of these meaningful \textit{natures}, \textit{purposes},
+\textit{activities}, and more, that the complexity can be properly reasoned
+about. It is only with a proper run-time and annotation framework that
+this reasoning can take place in a computationally feasible timeframe.
+
+In a very basic sense, so long as it holds that with a certain input a
+particular result will be output the same, there is something else
+unchanging about a simulation, nomatter how it is tuned or allocated
+or configured for a run: the meaning of what happened.  Whether a
 simulation is executing as a single process on a single node, or
 billions of independent tasks in a cloud computing environment, the
-meaning of what is being computed holds the same.
+meaning of what is being computed holds the same. Though this point
+may seem fine if not obtuse in this context, the concept
+of \textit{invariant meaning} is central to a properly useful Workflow
+Performance Model: It must be a Semantic Performance Model.
 
-At extreme scales, on line detection and attribution of variability of
-a scientific workflow will require well-annotated metadata to
-facilitate "apples to apples" comparisons driven by unsupervised
-machine learning rather than a priori developer knowledge or offline
-centralized analysis. This kind of semantic invariance, in the face of
-wild performance variance, is important to characterize a code's
-sensitivity to performance perturbation, as well as a cluster's
-propensity for creating and propagating performance variability.
+At extreme scales, on line detection and attribution of meaningful
+variability in the performance of a scientific workflow will
+simply \textit{require} well-annotated metadata to facilitate "apples
+to apples" comparisons driven by unsupervised machine learning rather
+than a priori developer knowledge or slow offline centralized
+analysis. In the face of wild performance variance across byzantine
+parameter spaces, hardware allocations, software libraries, and
+dynamic interactions, this kind of meaning invariance is the only
+ground truth, the only practical measure of what is observed. With
+meaning invariance properly worked into the observation and analytics
+structure, real-time systems will be able to efficiently discover,
+annotate, share, and potentially even optimize a code's sensitivity to
+a particular cluster or allocation, its propensity for creating and
+propagating performance variability into other unrelated parts of the
+system, and then finally pinpoint the lower-level software mechanics
+giving rise to the higher level phenomenon.
+
 
 %-----------------------------------------------------------------------------
 
 \subsection{Levels of Description and "The View from Anywhere"}
-Not knowing \textit{a priori} what component or layer of the workflow
-will be interesting for the analysis of performance, the workflow
-performance model needs to be populated by a diversity of information
-sources that provide metrics with tailored metadata and both logical
-and concrete events, arriving in real-time from many different layers
-of activity in a workflow:
+Not wanting to limit \textit{a priori} what component or layer of the
+workflow \textit{is allowed to be interesting} during the analysis of
+performance, the SOS workflow performance model flourishes when
+populated by a diversity of information sources, each providing
+metrics with tailored metadata, logical events like notes about things
+happening inside the simulation they are running, and concrete events
+-- all arriving in real-time from many different layers of activity in
+a workflow:
 \begin{itemize}
     \item Workflow
     \item Simulation
@@ -431,73 +486,111 @@ of activity in a workflow:
 Each of these layers constitutes a level of description for the
 overall system performance, and the performance of any component is a
 composite of slices through any layers that component is participating
-in or contingent on. Metrics from multiple layers can be correlating
-to yield interesting perspectives on the observed performance of
-specific software components.  For example, something at the
-Simulation layer produces data representing the evolution of a data
-set over N seconds of simulated time, and the Application layer
-requires M seconds of real-world computation to yield that data, the
-relationship between N and M could be a valid performance metric to
-report, compare across runs, calculate real-dollar-cost to compute, or
-attempt to generally optimize through parameter convergence. \textit{The
-particular purpose for gathering that data would NOT need to be known
-in advance}, the sampling would not need to be programmed into the
-application by hand, rather, on-demand queries could be run to
-discover such correlations and features of performance at any time, or
-\textit{even in real-time}. Importantly, components of a layer not
-only can contribute metrics, they (and other components at that layer)
-are targets for feedback and control.
+in or contingent on. It becomes a tantalizing possibility for events
+and metrics stored in SOS for a very narrow end-user purpose wind up
+supporting critical inferences used to discover patterns and features
+of system-wide utility. If a developer finds she can get some benefit
+by using the SOSflow toolkit for a once-off research project, the
+metrics that are then even \textit{accidentally} contributed might
+turn out to have been unpolished research gems hiding in tomorrow's data
+stores.
+
+Metrics from multiple layers can be correlating to yield interesting
+perspectives on the observed performance of specific software
+components.  As a trivial example, something at the Simulation layer
+produces data representing the evolution of a data set over N seconds
+of simulated time, and the Application layer requires M seconds of
+real-world computation to yield that data, the relationship between N
+and M could be a valid performance metric to report, compare across
+runs, calculate real-dollar-cost to compute, or attempt to generally
+optimize through parameter convergence. A key takeaway here
+is: \textit{The particular purpose for gathering that data does NOT
+need to be known in advance}, sampling would not need to be programmed
+into the application by hand every time a researcher or performance
+tuning engine asked a question, rather, on-demand queries could be run
+to discover such correlations and features of performance at any time,
+or \textit{even in real-time} as fresh data is flowing in. It is also
+importantly to note that components of a layer not only can contribute
+metrics, they (and other components at that layer) are targets for
+feedback and control.
 
 %-----------------------------------------------------------------------------
 
 \subsection{Semantics}
+
 All information that is gathered by the monitoring system should be
 annotated as richly as possible to maximize its usefulness when
 performing analytics.  Hand-annotated codes will have the most to
 offer an analytics engine, values that are tracked will be able to
 carry a full spectrum of high-level tags that express what that data
-point means and what could be expected of it, in structure preserving
-a human programmer or user's understanding while also being compatible
-with unsupervised machine-learning tests for significance and other
-advanced analysis techniques.
+means and what could be expected of it, in structures preserving
+some human programmer or user's understanding. Capturing this metadata
+using semantic markups with action-grounded significance has the
+benefit of their being compatible with unsupervised machine-learning
+tests for significance and other advanced analysis techniques that
+will ultimately be able to converge on outcomes desirable to the human
+developers and users of the system.
 
+Not everything has to be surgically annotated for it to be of benefit.
 Any episodic performance measurement, such as run-time TAU
-instrumentation, can also be injected into the SOSflow engine, and the
+instrumentation and results, can also be injected into the SOSflow engine, and the
 SOSflow runtime will be able to differentiate from information pushed
-directly by a layer, and information that is being captured by
-middle-ware tools.
+directly by a layer, and information that is being captured by finer-grained
+middleware tools that are only equipped to signify generic facts of matter.
 
-\todo[inline]{Insert table heres of some of the enum values alongside
-  plain-english descriptions.}
+Semantic information is local to the pub handle created by a source
+that is contributing to SOSflow.  Sources can create multiple pubs to
+distinctly represent potential compound or complex roles. Pubs carry
+their own pub-wide semantic markups, including the origin layer, a
+role within that layer, and information about the node that the source
+process is running on. Semantic markups are then nested inside of the
+pub handle, as each value that is pushed into the SOSflow system
+through a pub handle also comes with a rich set of high-level semantic
+tags that stay affiliated with it over time, and various ephemeral
+notions to color the rigid meaning invariance with motivating indicators
+of changes in state, such as the \textit{mood} of a value, which can be:
+DEFAULT, GOOD, BAD, UGLY. The ephemeral indicators are mere hints, motivators,
+not themselves signifiers of meaning but more the glue between meanings
+revealed by the coocurrence of change. Sometimes it matters less what changed
+into what, than that something changed at all.
 
-Semantic information is local to the "publication handle" (pub)
-created by a source that is contributing to SOSflow.  Sources can
-create multiple pubs to distinctly represent potential compound or
-complex roles. Pubs carry their own pub-wide semantic markups,
-including the origin layer, a role within that layer, and information
-about the node that the source process is running on. Semantic markups
-are then nested inside of the pub handle, as each value that is pushed
-into the SOSflow system through a pub handle also comes with a rich
-set of high-level semantic tags that stay affiliated with it over
-time. While deep off-line data analytics can reveal unforseen
-correlations between various aspects of the workflow or the data set
-it is operating over, the interest in real-time analytics and
-performance tuning gives value to expressing "relationship hints"
-between values tracked by the system. These hints can be used to
-direct in situ analytics and identify deviations from expectations;
-anything that can be overtly identified as an expectation for a value
-can be used to narrow the search space when doing unsupervised machine
-learning over gathered workflow performance data.
+While deep off-line data analytics can reveal \textit{unforseen correlations}
+between various aspects of the workflow or the data set it is
+operating over, the interest in real-time analytics and performance
+tuning gives value to expressing "relationship hints" between values
+tracked by the system. These hints can be used to direct in situ
+analytics efficiently, to narrow the parameter space into something
+tractable without interfereing with the principle computational load of
+a given node. Expressed relationship hints are a double-edged sword, as
+one of the draws of the performance model is that nobody has to know the
+big picture in order to get some value out of it. So, rather than call them
+relationship \textit{rules} we say \textit{hints} and suggest that
+unless someone really knows what they're looking for, such as when they write
+an online analytics module for their own code, the hints functionality
+can be safely ignored. When one's analytics are looking to identify
+specific deviations from predictable expectations; anything that can
+be overtly identified as an expectation for a value can be used to
+narrow the search space when doing unsupervised machine learning over
+gathered workflow performance data. Such accessory features are supported
+but not required, or even truly emphasized.
 
 %-----------------------------------------------------------------------------
 
 \subsection{The Utility a Comprehensive Semantic Performance Model}
+
+At this point I think it is safe to leave it to the reader's
+imagination to ponder the possible utility of a mature Semantic
+Performanice Model / Workflow Performance Model, especially one
+that functions with relative efficiency and is capable of operating
+online and in user space on today's commodity HPC hardware.
+Some specific immediate perks would be enhancements to:
 \begin{itemize}
 \item \textbf{Attribution}: Point the blame at the offending job or shared
-  resource. Also, developers don't always know their own code so well,
+  resource. Developers don't always know their own code so well,
   or how it will interact with a total system, so capturing from a
-  wide array of sources will help eliminate the guessing game.
-\item \textbf{Accuracy}:
+  wide array of sources will help eliminate the guessing game when it
+  comes time to grab the pitchforks.
+\item \textbf{Accuracy}: If you've 
 \item \textbf{Resource Requirement Prediction}:
 \item \textbf{Automated Component Performance Tuning}: Don't want conflicting
   optimizer purposes. Need to know where the hotspots really are and
