@@ -225,18 +225,27 @@ On node, the sosd(listener) program accepts single messages at a time
 and immediately services them, as far as the message sender is aware,
 quickly responding with a simple ACK message or with the data that was
 requested.  This behavior follows a very simple stateless protocol
-that exists between the daemon and its on-node clients. Messages are
-read off the socket rapidly and placed in the daemon's unbounded
-asynchronous thread-safe queues to be processed by the daemon's
-local\_sync and cloud\_sync threads. The socket is nearly immediately
-clear for the next queue'd message to be received. Communication with
-the sosd(listener) is always initiated by the clients.  Client
-applications do not need to monitor a socket, though certain SOS
-client roles can spawn a lightweight background thread that
-periodically checks in with their local daemon to see if any feedback
-has been sent to that application, allowing for run-time adaptivity to
-be decoupled from the application's schedule for transmitting its
-information to SOSflow.
+that exists between the daemon and its on-node clients.
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/sosd_protocol.png}
+\caption{In Situ Client/Daemon Communication Protocol}
+\label{fig_sim}
+\end{figure}
+
+
+Messages are read off the socket rapidly and placed in the daemon's
+unbounded asynchronous thread-safe queues to be processed by the
+daemon's local\_sync and cloud\_sync threads. The socket is nearly
+immediately clear for the next queue'd message to be
+received. Communication with the sosd(listener) is always initiated by
+the clients.  Client applications do not need to monitor a socket,
+though certain SOS client roles can spawn a lightweight background
+thread that periodically checks in with their local daemon to see if
+any feedback has been sent to that application, allowing for run-time
+adaptivity to be decoupled from the application's schedule for
+transmitting its information to SOSflow.
 
 All of the communication functions in the sos client library are
 handled transparently, SOS users need only interact with a simple API
@@ -357,7 +366,8 @@ sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
 %-----------------------------------------------------------------------------
 \subsection{SOSanalytics}
 
-
+\todo[inline]{... This is a walk through the park. Also, a good place to
+  include one of the topology figures from the slideshow.}
 
 
 
