@@ -1,4 +1,4 @@
-\todofilebegin{040\_evaluation\_validation.tex}
+%\todofilebegin{040\_evaluation\_validation.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -21,12 +21,12 @@ configuration parameters and typical/non-priviledged cluster
 queues and topologies.
 
 SOSflow as a tool is \textit{production capable} for the purpose of
-validating the SOS workflow performance model. As we demonstrate
-below, even the current un-optimized code is able to scale out to
-reasonable allocation sizes and handle relatively impressive
-varieties, quantities, and rates of data flow. Because of the lack of
-focused tuning to its internal mechanics and the general novelty of
-the architecture, the results and figures presented here should be
+validating the SOS workflow performance model. As we demonstrate, even
+the current un-optimized code is able to scale out to reasonable
+allocation sizes and handle relatively impressive varieties,
+quantities, and rates of data flow. Because of the lack of focused
+tuning to its internal mechanics and the general novelty of the
+architecture, the results and figures presented here should be
 considered the \textit{worst-case scenario} for the performance of
 SOSflow itself, now and for the future.
 
@@ -34,34 +34,82 @@ SOSflow itself, now and for the future.
 \subsection{Testing Platform and SOS Configurations}
 
 Single node tests of SOSflow were performed by launching the
-sosd(listener) daemon along with an sosd(db)
+sosd(listener) daemon along with an sosd(db) instance as background MPI tasks.
+The demo\_app tool was then also launched as an MPI task with varying parameters
+to explore the capabilities of the sosd daemons.
+
+\todo[inline]{...}
+
+%-----------------------------------------------------------------------------
+\subsection{Latency}
+
+\todo[inline]{...}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/aciss_latency_3_situ.png}
+\caption{In Situ Latency (3 Nodes, 30 Applications)}
+\label{fig_sim}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/aciss_latency_3_agg.png}
+\caption{Aggregate sosd(db) Latency (3 Nodes, 30 Applications)}
+\label{fig_sim}
+\end{figure}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/aciss_latency_3_agg_zm.png}
+\caption{Aggregate sosd(db) Detail (3 Nodes, 30 Applications)}
+\label{fig_sim}
+\end{figure}
 
 
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/aciss_latency_24_situ.png}
+\caption{In Situ Latency (24 Nodes, 240 Applications)}
+\label{fig_sim}
+\end{figure}
 
 
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/aciss_latency_24_agg.png}
+\caption{Aggregate sosd(db) Latency (24 Nodes, 240 Applications)}
+\label{fig_sim}
+\end{figure}
 
 
 
 %-----------------------------------------------------------------------------
 \subsection{Scalability}
 
+\todo[inline]{...}
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/icebox_api_cost_when_slam.png}
+\caption{SOSflow Socket Communication Cost (~0.003sec)}
+\label{fig_sim}
+\end{figure}
+
+
+\begin{figure}[!t]
+\centering
+\includegraphics[width=2.5in]{images/icebox_api_cost_zoom.png}
+\caption{SOSflow Socket Communication Cost, Detail}
+\label{fig_sim}
+\end{figure}
+
+
 
 
 %-----------------------------------------------------------------------------
-\subsection{Overhead}
+\subsection{Overhead and Perturbation}
 
+\todo[inline]{...}
 
-
-%-----------------------------------------------------------------------------
-\subsection{Perturbation}
-
-
-
-
-%-----------------------------------------------------------------------------
-\subsection{Latency}
-
-
-
-
-\todofileend{040\_evaluation\_validation.tex}
+%\todofileend{040\_evaluation\_validation.tex}

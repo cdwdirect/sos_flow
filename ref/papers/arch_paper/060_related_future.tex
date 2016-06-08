@@ -1,4 +1,4 @@
-\todofilebegin{060\_related\_future.tex}
+%\todofilebegin{060\_related\_future.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -10,31 +10,23 @@ are applied to scientific workflows at extreme scale, we argue that a
 new performance model is required. SOSflow was developed to enable the
 exploration and validation of new performance models, especially those
 built for reasoning over high-level and human-understandable semantic
-annotation that is affixed to all captured data and events.
+annotation that is affixed to all captured data and events. Preliminary
+results indicate that SOSflow is a stable, efficient, fully-functioning
+system.
 
 %-----------------------------------------------------------------------------
 
 \subsection{Related Work}
 
+\todo[inline]{...}
 
-
-%-----------------------------------------------------------------------------
-
-\subsection{Recommendations}
-Our research initiative is oriented towards on line and in situ
-monitoring and analytics. A system should be designed that is
-efficient enough that it need not be disabled for full-scale
-production runs of scientific workflows. This creates the important
-case that the lessons learned through the use of such a monitoring
-system are in fact applicable to future full-scale production runs,
-and do not only apply to smaller sample test runs where the workflow's
-behavior has been heavily perturbed by invasive monitoring
-technologies.  \todo[inline]{FIX THIS SECTION!}  The conclusion goes
-here. this is more of the conclusion.
 
 %-----------------------------------------------------------------------------
 
 \subsection{Future Work}
+
+\textbf{SOS/SOSflow}: Continue refining and expanding the core SOSflow
+libraries and the SOS workflow performance model.
 
 \textbf{Automation}: Create an interactive script for integrating
 SOSflow into existing Torque and Slurm job files to lower the barrier
@@ -47,6 +39,10 @@ reliability in resource-constrained cases. Map out some best-fit
 metrics for dedicating in situ resources to a monitoring platform for
 some of the major extant compute clusters, and build this intelligence
 into the SOSflow platform.
+
+\textbf{Integration}: Explore options for deployment and integration
+with existing HPC monitoring and analytics codes at LLNL during the
+summer of 2016.
 
 \textbf{TAUflow}: Continue extending the applicability of SOS and
 the utility of SOSflow by integrating more of its capabilities directly
@@ -82,4 +78,4 @@ intended that the synthetic workflow tool can mature into a
 general-purpose benchmarking and validation suide for exploring new
 scientific workflow performance models under the MONA project.
 
-\todofileend{060\_related\_future.tex}
+%\todofileend{060\_related\_future.tex}

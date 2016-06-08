@@ -1,4 +1,4 @@
-\todofilebegin{030\_sos\_model.tex}
+%\todofilebegin{030\_sos\_model.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -120,15 +120,19 @@ equity.
 
 \section{SOS: Scalable Observation System}
 
-SOS is concieved of as an architectural addition to the general fabric of
-exascale clusters. It is intended to be a deeply-integrated service with low-level
-optimizations and a set of functionality that is available to all users of an exascale
-cluster.
+SOS is concieved of as an architectural addition to the general fabric
+of exascale clusters. It is intended to be a widely-integrated service
+that evolves low-level optimizations over time, with a broad set of
+functionality that is available to all users of an exascale
+cluster. It should feel like a tool meant for any developer's hands,
+not only the performance researcher's. If SOS is not to be doomed to
+gather dust on the shelf in obscurity, it really only needs to do one
+thing: It needs to help.
 
 %-----------------------------------------------------------------------------
 
 \subsection{SOSflow}
-Applying the semantic workflow performance model to actual
+Applying the semantic performance model to actual
 run-time environments necessitated the development of new
 infrastructure software, and so the second contribution to the general
 challenges of monitoring scientific workflows is the SOSflow middleware.
@@ -173,7 +177,8 @@ Some accessory components are:
       data-dependent processing relations
 \end{itemize}
 
-\subsubsection{Behavior}
+
+\subsection{SOSflow: Behavior}
 The sosd daemon is itself an MPI application, and it is launched as a
 background process in user space at the start of a job script, before
 the scientific workflow begins.  The daemon first goes through a
@@ -310,8 +315,7 @@ near future it is expected that SOS\_finalize() \textbf{will} message the
 daemon, and so client applications should always make an effort to call
 this function explicitly.
 
-
-\subsubsection{SOSflow Implementation}
+\subsection{SOSflow: Implementation}
 \begin{itemize}
   \item \textbf{Language}: C99
    \item \textbf{External Requirements}:
@@ -349,26 +353,8 @@ sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
 \end{tabular}
 \end{table}
 
-%-----------------------------------------------------------------------------
-
-\subsection{Limitations and Concerns}
-SOSflow is a programmable middleware platform.  The value of SOSflow is
-directly proportional to the quantity and quality of the sources that
-are pushing semantically-annotated data into it.
-
-The more sources that are instrumented with SOSflow the less limited
-the workflow performance model will be. When only one or two layers
-are instrumented, the benefits of the semantic annotation and the
-workflow performance model are naturally limited.
-
-The SOSflow software artifact is in its initial development cycle and
-has room for improvement in various software engineering facets:
-memory subsystem interaction, diversity of storage and transport
-mechanisms, and quality-of-service guarantees to both producers and
-consumers of SOSflow data.
 
 %-----------------------------------------------------------------------------
-
 \subsection{SOSanalytics}
 
 
@@ -381,20 +367,40 @@ consumers of SOSflow data.
 
 \section{Semantic Performance Model}
 
+Traditionally, HPC research into enhancing performance has been
+focused on low-level efficiency of an application or library on some
+particular mechine, with tools like TAU bringing HPC developers ever
+closer to optimal runs on specific machines.  Higher-level systems
+like TACC Stats \cite{evans2014comprehensive} allow the tracking and
+exploration of execution wall-time for applications compiled using
+various library versions.  The popular Lightweight Distributed Metric
+System (LDMS) \cite{agelastos2014lightweight} provides basic
+integration of multiple modalities of data in real-time, triggering
+program invocation or shaping work allocation across a cluster as
+informed by network congestion statistics, and other hybridized or
+meta-execution data points.
 
-Traditionally, HPC performance monitoring is focused on low-level
-efficiency of an application or library (TAU) on some particular mechine.
-Higher-level systems (TACC Stats) allow the tracking and exploration
-of execution wall-time for various library versions, integration of
-multiple modalities of information (LDMS) like program invocation or
-work allocation across a cluster as informed by network congestion
-statistics, and other hybridized or meta-execution data points.
+These tools (and many others) are fast, well-researched, funded, and
+they are out there running and very popular already. Unfortunately,
+\textit{they're solving yesterday's problem tomorrow}, and are too
+firmly grounded in the classic HPC ways of modeling
+performance. High-level modeling, in the current jargon, is far too
+hands-off and impersonal to be of much general use. Users of such
+codes have to hard-wire every bit of actual functionality as a special
+case, and only by doing so for every possible use case, for every
+possible application, for each possible allocation configuration, can
+they learn something that is in the end of no use to anyone but them,
+right at that time and at no other time. Worse, as earlier sections
+outlined, those high-level codes are actuall low-level: They have
+loosely-coupled components that are voluntarily participated with,
+but \textit{everything that those components gather and operate over
+is an empty low-level matter of fact} such as latency or binary signature.
 
-Low-level or metrics are naturally suited for off-line episodic
+Low-level metrics \textit{are} naturally suited for off-line episodic
 performance analysis of individual workflow components. Such deep
 instrumentation is necessarily invasive and can dictate rather than
-capture the observed performance of the instrumented application when
-it is run at scale or required to engage in significant amounts of
+capture the observed performance of the instrumented application 
+when it is run at scale or required to engage in significant amounts of
 interactivity. Doing principle components analysis on unconditioned
 data is also computationally expensive.  Though few values in SOSflow
 are required to be marked up with specific metadata, every specifier
@@ -402,15 +408,15 @@ that can be assigned to a value will flow with it through the entire
 runtime and will be made available to any of the analytics modules.
 
 It is increasingly challenging for static analysis of low-level
-features and decontextualized codes to produce insight into the
-run-time performance of a complex workflow.  A higher-level approach
-is required to characterize and reason about the emergent properties
-of a large scientific code. Industrial-grade parallel software
-simulations are interacting asynchronously across a distributed HPC
-cluster that is typically shared with many other users. A new model of
-describing and comparing workflows is clearly needed, especially when
-considering the extreme scales of parallelism to which scientific
-workflows are being driven.
+features and decontextualized raw codes to produce insight into the
+run-time performance of some arbitrary complex workflow.  A
+higher-level approach is required to characterize and reason about the
+emergent properties of a large scientific code. Industrial-grade
+parallel software simulations are interacting asynchronously across a
+distributed HPC cluster that is typically shared with many other
+users. New ways of describing and comparing scientific workflows are
+clearly needed, especially when considering the extreme scales of
+parallelism to which scientific workflows are being driven.
 
 
 %-----------------------------------------------------------------------------
@@ -419,27 +425,30 @@ workflows are being driven.
 
 Figures are revealed by their background, they break up the continuity
 of the background and stand-out in the world. By defining an invariant
-background for performance variation to be set off against, the
+background for performance observations to be set off against, the
 meaning in the codes, the partially summed yet variously disanalogous
 sets of observed metrics from a system as a whole, can be mapped over
 each other according to a set of organizing principles that both are
-individually and become corporately an invariant for that particular
+individually, and become corporately, an invariant for that particular
 complex computation.
 
-It doesn't just matter that something is a double precision floating
+It doesn't only matter that something is a double precision floating
 point, it matters that it holds a measure of time, and it matters that
 it's the time something stopped, rather than a simple sample.  It
-doesn't just matter that a process uses a lot of threads, it matters
-that it is running on a machine with a lot of thread processing
+doesn't only matter that a process uses a lot of threads, it matters
+that it is running well on a machine with a lot of thread processing
 cores. It isn't obviously significant for a task to be parameterized
-by an auto-tuning algorithm for increased speed of its output
-production (rather than size of node memory use or degree of
-paralellism) unless it is clear that something in its output is bring
-consumed at a great rate through independent network connections. It is only by
-observing all of these meaningful \textit{natures}, \textit{purposes},
-\textit{activities}, and more, that the complexity can be properly reasoned
-about. It is only with a proper run-time and annotation framework that
-this reasoning can take place in a computationally feasible timeframe.
+by an auto-tuning algorithm to increased the rate of one of its
+outputs rather than other targets, like reducing node memory use, or
+increasing the degree of paralellism, unless it is clear that
+\textit{something in its output} is being consumed at a great rate
+through unsaturated network connections. \textbf{It is only by
+  observing all of these meaningful \textit{natures},
+  \textit{purposes}, \textit{activities}, and more, that the
+  complexity can be properly reasoned about, that the \textit{true
+    figure of performance} can be revealed.} It is only with a proper
+run-time and annotation framework that this reasoning can take place
+in a computationally feasible way.
 
 In a very basic sense, so long as it holds that with a certain input a
 particular result will be output the same, there is something else
@@ -448,30 +457,29 @@ or configured for a run: the meaning of what happened.  Whether a
 simulation is executing as a single process on a single node, or
 billions of independent tasks in a cloud computing environment, the
 meaning of what is being computed holds the same. Though this point
-may seem fine if not obtuse in this context, the concept
-of \textit{invariant meaning} is central to a properly useful Workflow
+may seem fine if not obtuse in this context, the concept of
+\textit{invariant meaning} is central to a properly useful Workflow
 Performance Model: It must be a Semantic Performance Model.
 
 At extreme scales, on line detection and attribution of meaningful
-variability in the performance of a scientific workflow will
-simply \textit{require} well-annotated metadata to facilitate "apples
-to apples" comparisons driven by unsupervised machine learning rather
+variability in the performance of a scientific workflow will simply
+\textit{require} well-annotated metadata to facilitate "apples to
+apples" comparisons driven by unsupervised machine learning rather
 than a priori developer knowledge or slow offline centralized
 analysis. In the face of wild performance variance across byzantine
 parameter spaces, hardware allocations, software libraries, and
 dynamic interactions, this kind of meaning invariance is the only
-ground truth, the only practical measure of what is observed. With
-meaning invariance properly worked into the observation and analytics
-structure, real-time systems will be able to efficiently discover,
-annotate, share, and potentially even optimize a code's sensitivity to
-a particular cluster or allocation, its propensity for creating and
-propagating performance variability into other unrelated parts of the
-system, and then finally pinpoint the lower-level software mechanics
-giving rise to the higher level phenomenon.
+ground truth, the only practical measure of what has been
+observed. With meaning invariance properly worked into the observation
+and analytics structure, real-time systems will be able to efficiently
+discover, annotate, share, and potentially even optimize a code's
+sensitivity to a particular cluster or allocation, its propensity for
+creating and propagating performance variability into other unrelated
+parts of the system, and then finally pinpoint the lower-level
+software mechanics giving rise to the higher level phenomenon.
 
 
 %-----------------------------------------------------------------------------
-
 \subsection{Levels of Description and "The View from Anywhere"}
 Not wanting to limit \textit{a priori} what component or layer of the
 workflow \textit{is allowed to be interesting} during the analysis of
@@ -500,7 +508,7 @@ a workflow:
 Each of these layers constitutes a level of description for the
 overall system performance, and the performance of any component is a
 composite of slices through any layers that component is participating
-in or contingent on. It becomes a tantalizing possibility for events
+in or contingent on. It becomes a tantalizing possibility that events
 and metrics stored in SOS for a very narrow end-user purpose wind up
 supporting critical inferences used to discover patterns and features
 of system-wide utility. If a developer finds she can get some benefit
@@ -594,9 +602,16 @@ but not required, or even truly emphasized.
 
 At this point I think it is safe to leave it to the reader's
 imagination to ponder the possible utility of a mature Semantic
-Performanice Model / Workflow Performance Model, especially one
-that functions with relative efficiency and is capable of operating
-online and in user space on today's commodity HPC hardware.
+Performanice Model / Workflow Performance Model. Especially given that
+there is an extant implementation of it that functions with relative
+efficiency and is capable of operating online and in user space on
+today's commodity HPC hardware. The exascale architectures will likely
+prove even more effective hosts: Their incredible computational
+density and scale has proven difficult to completely saturate with
+work that is purely organic to any given problem at hand, so there
+will likely be plenty of available computational resources to direct
+towards these higher-level systems.
+
 Some specific immediate perks would be enhancements to:
 \begin{itemize}
 \item \textbf{Attribution}: Point the blame at the offending job or shared
@@ -629,11 +644,14 @@ Some specific immediate perks would be enhancements to:
       is not a univocal term.
 \end{itemize}
 
-    The SOS workflow performance model is still being refined, and more serious
-demonstrations are needed in order to convince people that their cluster should
-have an always-on observation and analysis platform, when perhaps all the
-admins want to do is run 25-year old Fortran codes and quickly and as often
-as possible. We suspect the peculiar needs of future distributed mobile computing
-and exascale compute platforms will prove the timeliness of SOS's model.
+    The SOS workflow performance model is still being refined, and
+more serious demonstrations are needed in order to convince people
+that their cluster should have an always-on observation and analysis
+platform, when perhaps all an admin wants to do is run 25-year old
+Fortran codes as inefficiently and as often as possible, so long as
+the support phone never rings. We suspect that given the peculiar
+nature of distributed mobile computing, and the looming tectonic shift
+to exascale compute platforms, SOS's model will prove timely and
+deeply beneficial to a variety of interests.
 
-\todofileend{030\_sos\_model.tex}
+%\todofileend{030\_sos\_model.tex}

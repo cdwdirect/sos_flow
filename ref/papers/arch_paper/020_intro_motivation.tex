@@ -1,4 +1,4 @@
-\todofilebegin{020\_intro\_motivation.tex}
+%\todofilebegin{020\_intro\_motivation.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -59,126 +59,121 @@ objectives of SOS are flexibility, scalability, and programmability.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Motivation}
+\section{The End of Classic Performance Models}
 
-The designs of SOS and its semantic performance model reflect many of
-the new challenges introduced by exascale HPC clusters, and the
-programming models that come with them. One such challenge that is
-representative of the general difficulty is the high cost of
+The designs of SOS and its Semantic Performance Model reflect many of
+the changes introduced by the drive to exascale HPC clusters, and the
+programming challenges that come with them. One such challenge that is
+representative of the general experience is the high cost of
 synchronization and coordination across the vastly increased number of
-cores which might be allocated to a single job.
+cores which might be allocated to a single job. Many classic
+algorithms and data structures are proving unweildy at scale, and so
+too are the tools and methodologies that have have defined performance
+research for the last quarter century.
 
-Low-cost communication and synchronization between nodes is a luxury
-that the HPC researcher can no longer rely on moving forward. There
-are simply too many nodes! Information moving near the speed of light,
-sent to issue coordinating instructions to all of the processes
-running on an exascale cluster, would introduce such delays and
-``bubbles'' in the computation that the simulation may as well have
-been run on a present-generation petascale machine.  Solutions using
-task-based runtime environments \cite{kaiser2014hpx} like HPX (Or
-alternately: Charm++, etc.)  are being developed to facilitate
-general-purpose programming models that will work on both present day
-petascale machines, and future exascale architectures. These
-architectures forgo fixed synchronous behaviors, but also remove many
-of the guarantees that formed the basis for much of the performance
-models and evaluation techniques in our current paradigm.
+Seemingly instant coordination and synchronization between nodes is a
+luxury that the HPC researcher can no longer rely on moving
+forward. There are simply too many nodes! Information moving near the
+speed of light, sent to issue coordinating instructions to all of the
+processes running on an exascale cluster, would introduce such delays
+and ``bubbles'' in the computation that the simulation may as well
+have been run on a present-generation petascale machine. Computing
+resources are either too abstracted from the machine, heterogenous,
+distal, or failure prone to be dependent on constantly tightly-coupled
+behavior -- precisely the sort of behavior HPC scientists have been
+optimizing towards for years.
+
+
+Incremental solutions using loosely-coupled asynchronous task-based
+runtime environments \cite{kaiser2014hpx} like HPX (Or alternately:
+Charm++, etc.)  are being developed to facilitate general-purpose
+programming models that will work on both present day petascale
+machines, and future exascale architectures. These architectures forgo
+fixed synchronous behaviors, but also remove many of the guarantees
+that formed the basis for much of the performance models and
+evaluation techniques in our current paradigm. They cannot be easily
+reasoned about using any of our models without appearing terribly
+inefficient or hopelessly opaqe to more than superficial analysis.
+
+This problem is not entirely new.
 
 Intelligent modern processors have been able to do branch-prediction,
 out-of-order instruction execution, dynamic clock scaling, data
 pre-fetch, and more, each of which introduce emergent deviations from
 the a priori provable behavior characteristics of any given piece of
-software. For most purposes other than optimizing low-level
-infrastructure codes, this ``jitter'' was indistinguishable from
-normal background noise.
+software. For most high-level purposes like browsing the web, this
+\textit{jitter} was indistinguishable from normal background
+noise. Losing our predictive power over fine-grained behavior has not
+been without cost for those working to optimize deep infrastructure
+codes, especially considering the potential meaninglessness of any
+given observed decreased or improved performance. The
+methodically-gnawing problem of \textit{resolution decay} only grows
+worse in proportion to the size and complexity of a computer and the
+consumption of shared resources by the various tasks that are
+executing concurrently.  On even a reasonably small cluster of basic
+compute nodes, marked differences in available power, core clock
+rates, communication times, filesystem latency, and more, encountered
+even between units of a single parallel task, and each can confound
+the observed performance data at any sampled point and foul up the
+overall view.
 
-Systems programmers, however, lamented this lack of predictive power
-over fine-grained behavior, especially considering the potential
-meaninglessness of any given observed
-deviation. \todo[inline]{cite:schultz on fans/turbo mode/etc.}  This
-problem only grows worse in proportion to the size and complexity of a
-cluster, and the consumption of shared resources by the various tasks
-that are executing concurrently.  Differences in available power, core
-clock rates, communication times, filesystem latency, and more, within
-the same job, each can confound the observed performance data at any
-point and overall.
+If you are an unfortunate professional computational research
+scientist, the news gets even worse: Performance research is
+classically concerned with decreasing the resource consumption and
+compute time required by lower-level components and libraries that are
+used when computing answers to higher-level scientific questions.
+When there is a lot of noise in the information due to unpredictable
+interference, the only way to validate performance increases is to
+perform a large number of runs. When the variation in performance is
+only observable at large scales, the tests have to be repeated at
+large scales, and so the classic models for performance fail again to
+be useful, as statistically significant validation of code
+characteristics becomes cost-prohibitive to making any progress.
 
-But it gets worse.  Performance research is classically concerned with
-decreasing the resource consumption and compute time required by
-lower-level components and libraries that are used when persuing
-answers to higher-level scientific questions.  When there is a lot of
-noise in the information due to unpredictable interference, the only
-way to validate performance increases is to perform a large number of
-runs. When the variation in performance is only observable at large
-scales, the tests have to be repeated at large scales, and so the
-classic model for performance fails again to be useful, as code
-characteristic validation becomes cost-prohibitive.
-
-As an example of scaling validation issues with classic models,
-consider that in order to validate some percentage increase in some
-code's performance, it will be necessary to show that the performance
-increase was observed across a large number of runs and also assorted
-hardware allocations.  This is especially true when that particular
-HPC cluster, even if in an overall similar state across each run, has
-a history of performance variability with statistical significance
-relative to the claimed performance gain. When it comes to the
-behavior of codes at extreme scales, accuracy of validation tests
-using traditional models of component-based performance analysis will
-become cost prohibitive in both allocation consumption and developer
-time.
-
-
-Does ``performance'' mean anything intelligible at all in the exascale
-world, when the fine-grained code-sharpening it entails is now no
-longer practically observable and cannot possibly be converged on? How
-do we assess the coarse-grained and state-contingent performance gains
-that \textit{are} observable?
-
-There is a clear need for a new model for performance, but even in
-cases where nothing can be done to influence the fine-grained
-variations in lower-level performance metrics, it remains important to
-recognize and capture the fact that performance variability is present
-and to \textit{attempt to both quantify it and render reasonable
-attributions of its source[s]}. There are tractible concerns
-(demonstrating sensitivity to variance) and inherently intractible
-concerns (perfectly controlling variance across runs) that the
-performance model should be designed to represent and that the runtime
-middleware should be savvy to in its analytics, feedback, and control
-mechanisms.
-
-There are thus many motivations to observe HPC application performance
-in the ways described in this paper:
-\begin{itemize}
-\item Capture metrics that represent useful facts about the exascale
-runtime context, and are not merely measurements of meaningless noise.
-\item Attribution of 'blame' for performance purterbation in a shared execution environment
-\item Compare performance across varying implementations, HPC platforms,
-      hardware allocations, parameterizations, and system loads, all in an
-      ``apples to apples'' way.
-\item Productively combine performance data sets to make novel correlations
-      and gain understanding that was not anticipated at the time the
-      codes were written or instrumented.  (Emergent knowledge requires
-      some semantic framework to guide this productive combination of
-      datum.)
-\item The ability to provide value from a variety of perspectives with
-      a common :
-  \begin{itemize} \item Researchers may want to know how their
-     simulation code is performing at various scales, document its
-     interactions with other codes, and be able to profile their runs
-     for purposes of reproducibility and verification of the validity
-     of their science.  They want to maximize their consumption of
-     resources, exclusively benefitting their own interests and
-     compute budget.  \item System administrators want to get the most
-     value out of the hardware they support, in addition to providing
-     optimal outcomes for the researchers they support. They want to
-     fairly share the resources between all users, and consume as
-     little system resources as necessary for the administrative
-     software stack to facilitate a useful and stable HPC platform for
-     their users.  \end{itemize}
-\end{itemize}
-
-We now look at our proposal for this new performance model and an
-implementation of it as a programmable middleware layer.
+%As an example of scaling validation issues with classic models,
+%consider that in order to validate some percentage increase in some
+%code's performance, it will be necessary to show that the performance
+%increase was observed across a large number of runs and also assorted
+%hardware allocations.  This is especially true when that particular
+%HPC cluster, even if in an overall similar state across each run, has
+%a history of performance variability with statistical significance
+%relative to the claimed performance gain. When it comes to the
+%behavior of codes at extreme scales, accuracy of validation tests
+%using traditional models of component-based performance analysis will
+%become cost prohibitive in both allocation consumption and developer
+%time.
 
 
-\todofileend{020\_intro\_motivation.tex}
+Does \textit{performance}, as it has been understood, mean anything
+intelligible at all in the exascale world, when the fine-grained
+code-sharpening it entails is now no longer practically observable and
+cannot possibly be converged on? How do we assess the coarse-grained
+and state-contingent performance gains that \textit{are} observable?
+
+\textbf{There is a clear need for a new model for performance.}
+
+There remain common cases where nothing can be done to influence the
+fine-grained variations in lower-level performance metrics, yet it is
+still important to recognize and capture the fact that
+\textit{performance variability is present} and to \textit{attempt to
+  both quantify it and render reasonable attributions of its
+  source[s]}. There are tractible concerns for classic performance
+analysis, such as demonstrating sensitivity to variance.  There are
+\textit{inherently intractible concerns} such as perfectly controlling
+variance across runs.
+
+Any new performance model should be designed with awareness of such
+distinctions so that the language used to discuss performance, the
+runtime environment, and the integrated middleware can be all be apt
+to our purposes, fit for the task we're undertaking, and efficient in
+our analytics, feedback, and control mechanisms. The new model should
+effectively stand in for the old and serve the pursuit of the
+present-possible goals while converging on the approaching-elusive
+ones.
+
+We now look at our proposal for this new performance model, the
+Scalable Observation System, and a working implementation of it
+as a programmable middleware layer: SOSflow.
+
+%\todofileend{020\_intro\_motivation.tex}
 
