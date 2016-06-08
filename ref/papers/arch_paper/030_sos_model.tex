@@ -128,26 +128,170 @@ SOSflow is designed to:
   long-term centralized archival.
 \end{enumerate}
 
-SOSflow is divided into two main parts in it's current incarnation:
+SOSflow is divided into several components.  The core components are:
 \begin{itemize}
-\item sosd - Daemon process running on each node
-\item libsos - Library of routines for interacting with the daemon
+\item libsos - Library of common routines for interacting with
+      sosd daemons and SOS data structures
+\item sosd(listener) - Daemon process running on each node
+\item sosd(db) - Daemon process running on dedicated resources
+      that stores data aggregated from one or more in situ daemons
+\item sosa - Analytics framework for online query of SOS data
+\end{itemize}
+
+Some accessory components are:
+\begin{itemize}
+\item sosd\_probe - Collect real-time statistics from the daemon about
+      its internal state and operating workload
+\item sosd\_stop - Signal the SOSflow runtime to store its queues and
+      safely shut down
+\item demo\_app - Benchmarking tool for testing SOSflow
+\item SOApy - Python scripts for querying the SOS databases and plotting
+      graphs from the results
+\item synthetic\_flow - Tool for generating SOSflow-instrumented
+      synthetic workflow of components using ADIOS+FlexPath
+      that self-assemble into an arbitrary  user-specified DAG of
+      data-dependent processing relations.
 \end{itemize}
 
 \subsubsection{Behavior}
-The sosd daemon launches before a scientific workflow begins, and
-passively listens on a socket.  The port that is available to all of
-the sources on any given node is found in the "SOS\_CMD\_PORT"
-environment variable.  Many programs and layers of programs can
-connect to the daemon and send information in. Library-to-daemon
-communication is invisible to the SOSflow user and happens entirely
-on-node using a simple stateless protocol.  When the workflow is
-completed, the sosd\_stop tool is executed on each node, it signals
-the daemon to flush buffers and close down.
+The sosd daemon is itself an MPI application, and it is launched as a
+background process in user space at the start of a job script, before
+the scientific workflow begins.  The daemon first goes through a
+coordination phase where they performs an MPI\_Allreduce() with all
+other daemon ranks in order to share their role (DAEMON, DB, or
+ANALYTICS) and the name of the host they are running on. During the
+coordination phase, listener daemons select the sosd(db) aggregate
+database that they will target for automatic asynchronous transfer of
+the data they capture. At present, the ranks of sosd(listener) use a
+simple round-robin selection method to pick their database target. All
+the sosd instances split up the total numeric space from 0 to
+UINT64\_MAX for use in assigning globally unique ids (GUIDs). All
+entries in the SOSflow system from that point forward are, if
+appropriate, assigned a GUID such that uniqueness and provenance is
+preserved even if queries straddle multiple data stores, or all data
+stores are eventually synthesized into a global store.
+
+Analytics modules use this time to determine if they are co-located
+with a sosd(db) role, and set an internal flag that allows analytics
+developers to branch their logic (if desired) between local instances that
+can more quickly coordinate queries with the aggregate database, and any 
+other optional independent ranks that are running on dedicated resources
+for the purpose of doing calculations or rendering visualizations. After
+having coordinate with the sosd ranks, sosa ranks split off into their own
+private communicator, allowing the developer of a given sosa module to
+utilize the collective communication benefits of the HPC platform they
+are deployed on.
+
+Once all of the sosd and sosa ranks are initialized and aware of each
+other, they begin operating autonomously and no longer exchange global
+collective messages -- all MPI messages are now point-to-point. The
+sosd(listener) in situ daemons go into a loop listening to a
+node-local TCP socket (specified by the ``SOS\_CMD\_PORT'' environment
+variable) for messages from utilities or SOSflow-enabled source
+applications.  sosd(db) database daemons do not monitor any socket at
+this time, but rather are contacted exclusively through their MPI
+communicator. When an analytics module submits a query, it does not
+address the database files directly, but sends its query to the
+sosd(db) instance over MPI\_COMM\_WORLD and receives results back as
+an MPI message which is transparently parsed into a useful ODBC-like
+``RecordSet'' style object.
+
+On node, the sosd(listener) program accepts single messages at a time
+and immediately services them, as far as the message sender is aware,
+quickly responding with a simple ACK message or with the data that was
+requested.  This behavior follows a very simple stateless protocol
+that exists between the daemon and its on-node clients. Messages are
+read off the socket rapidly and placed in the daemon's unbounded
+asynchronous thread-safe queues to be processed by the daemon's
+local\_sync and cloud\_sync threads. The socket is nearly immediately
+clear for the next queue'd message to be received. Communication with
+the sosd(listener) is always initiated by the clients.  Client
+applications do not need to monitor a socket, though certain SOS
+client roles can spawn a lightweight background thread that
+periodically checks in with their local daemon to see if any feedback
+has been sent to that application, allowing for run-time adaptivity to
+be decoupled from the application's schedule for transmitting its
+information to SOSflow.
+
+All of the communication functions in the sos client library are
+handled transparently, SOS users need only interact with a simple API
+to define and store values that they can then publish up to the daemon
+as appropriate.  The protocols and the codes of the client library are
+designed to be fast and minimize resource usage, though they will
+buffer values for the user if they choose to hold them and only
+transmit to the daemon at intervals.  It is very uncommon to see the
+blocking socket transmission calls within SOS\_announce() and
+SOS\_publish() take longer than 0.002 seconds in any of our testing
+scenarios. Calls to the more common SOS\_pack() value storage/update
+routine create no significant overhead at all when not used in the
+innermost loops of intense computation, often returning in less than
+0.0001 seconds even for very large data sets. When a client first
+registers with the sosd(listener) during SOS\_init(), the daemon will
+assign that client library a break of GUIDs to manage internally, so
+that many different client activities can be handled correctly with no
+need for immediate interaction with the daemon. When a client library
+runs out of GUIDs it simply pings the daemon and asks for more.
+
+The typical order of API calls in a client is:
+\begin{enumerate}
+    \item SOS\_init();
+    \item SOS\_pub\_create();
+    \item SOS\_pack();
+    \item SOS\_announce();
+    \item SOS\_publish();\\
+    \dots
+    \item SOS\_finalize();
+\end{enumerate}
+
+Data from clients in SOSflow is stored in a SOS\_pub * ``pub handle''
+object. This object organizes all of the application context
+information and value-specific metadata, as well as managing the
+history of updates to a value pending pending transmission to a
+sosd(listener), called \textit{value snapshots}. Every value that is
+passed through the SOSflow API is preserved and eventually stored in a
+searchable database, along with any updated metadata such as its
+timestamp tuples.  Multiple updates to the same value prior to a call
+to SOS\_publish() are no exception, prior value snapshots are queued
+up and faithfully transmitted along with the most recent update to
+that value.
+
+SOSflow is not a pure publish/subscribe system, the SOS\_announce()
+function and its associated message type exist (for now) to seperate the
+transmission of metadata apart from the transmission of the typically
+more compact values stored in a pub.  Calling the SOS\_announce()
+function is entirely optional, though never harmful, and good
+developer hygene in case it is not optional at some point in the
+future. If a pub handle has not been announced when it is passed to
+the publish function, it with automatically recurse into the announce
+function on your behalf.  Additionally, if you have added new value
+names, and not merely packed updates to some previously announced
+values, the next time you publish, those new value names will
+automatically be announced.
+
+SOSflow is entirely thread-safe within the client application so long
+as data elements are accessed only through the public API. You could,
+if you for some reason wanted to, share a pub handle between two
+threads: the system is designed to efficiently shield users from the
+complexity of managing its state.  It is also designed to be as simple
+as possible without losing flexibility. When a value is packed into a
+pub handle, for the first time, that effectively defines the value and
+configures it with a totally safe set of metadata defaults. If inspired
+to, a developer using SOSflow could then go render the metadata more
+precise, though such noble pursuits are entirely optional. Data is
+thus defined to the system the same way it is updated in the system,
+through the SOS\_pack() function.
+
+The in situ sosd(listener) daemon does not keep track of applications,
+and so does not know (or care) when they terminate. The call to SOS\_finalize()
+provides a simple and clean way to clean up SOS's internal memory objects
+and buffers, join any threads it may have needed to spawn, and otherwise
+put things back how it found them when SOS\_init() was called. In the
+near future it is expected that SOS\_finalize() \textbf{will} message the
+daemon, and so client applications should always make an effort to call
+this function explicitly.
 
 
-
-\subsubsection{Implementation}
+\subsubsection{SOSflow Implementation}
 \begin{itemize}
   \item \textbf{Language}: C99
    \item \textbf{External Requirements}:
@@ -164,7 +308,7 @@ the daemon to flush buffers and close down.
 %% increase table row spacing, adjust to taste
 \renewcommand{\arraystretch}{1.3}
 \caption{Key Source Files for SOSflow}
-\label{table_example}
+\label{tableexample}
 \centering
 \begin{tabular}{|c|c|}
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

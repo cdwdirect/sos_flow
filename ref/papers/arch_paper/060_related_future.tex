@@ -36,12 +36,12 @@ here. this is more of the conclusion.
 
 \subsection{Future Work}
 
-\textbf{automation}: Create an interactive script for integrating
+\textbf{Automation}: Create an interactive script for integrating
 SOSflow into existing Torque and Slurm job files to lower the barrier
 to entry for new users and help check for the sanity of configurations
 prior to wasted allocation time when mistakes are present.
 
-\textbf{optimization}: Optimize the SOSflow codes for memory use and
+\textbf{Optimization}: Optimize the SOSflow codes for memory use and
 data latency. Add mechanisms for throttling of data flow to increase
 reliability in resource-constrained cases. Map out some best-fit
 metrics for dedicating in situ resources to a monitoring platform for
@@ -53,13 +53,13 @@ the utility of SOSflow by integrating more of its capabilities directly
 into existing HPC performance tools, especially regarding the online
 analytics framework.
 
-\textbf{soapy}: The Scalable Observation Analytics (Python) is a 
+\textbf{SOApy}: The Scalable Observation Analytics (Python) is a 
 collection of scripts utilizing numpy and matplotlib to query the
 SOSflow databases and produce visualizations. Some initial development
 work here was utilized to produce the latency figures in this
 paper.
 
-\textbf{binning}: Add an sosd database feature to automatically
+\textbf{Binning}: Add an sosd database feature to automatically
 track ``bins'' of values based a user-selected granularity
 parameter. A bin contains the earliest and latest rowid for each guid,
 as well as a count of the number of updates to that guid, during the
@@ -67,11 +67,12 @@ timespan of that bin. Bins facilitate rapid queries of ``the overall
 state of the system at time X'' and low-overhead time series plots
 when rendering performance visualizations.
 
-\textbf{data generalization}: Decouple the SOSflow components further
+\textbf{Data Store Decoupling}: Decouple the SOSflow components further
 and provide alternative data flow and database storage strategies such
-as EVPATH or Glasgow cache.
+as EVPATH, Glasgow cache, or process-local JSON file dumps that can
+later be synthesized into databases.
 
-\textbf{synthetic workflow generator}: Continue work on the existing
+\textbf{Synthetic Workflow Generator}: Continue work on the existing
 code contribution for workflow generation. The current framework
 already has a great deal of utility: An artibrarily complex directed
 graph of applications are generated and linked together with a

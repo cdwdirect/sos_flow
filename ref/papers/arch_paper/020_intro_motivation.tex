@@ -5,26 +5,29 @@
 % NOTE: no \IEEEPARstart
 
 \section{Introduction}
-Modern clusters for parallel computing are complex environments and the
-high-performance applications that run on them do so often with little
-insight about their or the system's behavior.  This is not to say that
-information is unavailable.  After all, sophisticated parallel measurement
-systems can capture performance and power data for characterization,
-analysis, and tuning purposes, but the infrastructure for observation of
-these systems is not intended for general use.  Rather, it is specialized
-for certain types of performance information and typically does not allow
-online processing.  Other sources of information of interest might include
+Modern clusters for parallel computing are complex environments and
+the high-performance applications that run on them do so often with
+little insight about their or the system's behavior.  This is not to
+say that information is unavailable.  After all, sophisticated
+parallel measurement systems can capture performance and power data
+for characterization, analysis, and tuning purposes, but the
+infrastructure for observation of these systems is not intended for
+general use.  Rather, it is specialized for certain types of
+performance information and typically does not allow online
+processing.  Other sources of information of interest might include
 the operating system (OS), network hardware, runtime services, or the
-parallel application itself.  Cluster monitoring systems like Ganglia or
-Nagios collect and process data about the performance and health of
-cluster-wide resources, but do not provide sufficient fidelity to capture
-the complex interplay between applications competing for shared resources.
-In contrast, the Lightweight Distributed Metric Service (LDMS) attempts to
-capture system data continuously to obtain insight into behavioral
-characteristics of individual applications with respect to their resource
-utilization.  However, neither of these provides a framework that can be
-configured with and used directly by the application, nor allow for 
-semantic encoding of multiple observation sources.
+parallel application itself.  Cluster monitoring systems like
+Ganglia \cite{massie2004ganglia} or Nagios \cite{katsaros2011building}
+collect and process data about the performance and health of
+cluster-wide resources, but do not provide sufficient fidelity to
+capture the complex interplay between applications competing for
+shared resources.  In contrast, the Lightweight Distributed Metric
+Service \cite{agelastos2014lightweight} (LDMS) attempts to capture
+system data continuously to obtain insight into behavioral
+characteristics of individual applications with respect to their
+resource utilization.  However, neither of these provides a framework
+that can be configured with and used directly by the application, nor
+allow for semantic encoding of multiple observation sources.
 
 Our general interest is in parallel application monitoring: the
 observation, introspection, and possible adaptation of an application
@@ -71,9 +74,9 @@ are simply too many nodes! Information moving near the speed of light,
 sent to issue coordinating instructions to all of the processes
 running on an exascale cluster, would introduce such delays and
 ``bubbles'' in the computation that the simulation may as well have
-been run on a present-generation petascale
-machine. \todo[inline]{cite} Solutions like task-based runtime
-environments (HPX, charm++, etc.)  are being developed to facilitate
+been run on a present-generation petascale machine.  Solutions using
+task-based runtime environments \cite{kaiser2014hpx} like HPX (Or
+alternately: Charm++, etc.)  are being developed to facilitate
 general-purpose programming models that will work on both present day
 petascale machines, and future exascale architectures. These
 architectures forgo fixed synchronous behaviors, but also remove many
