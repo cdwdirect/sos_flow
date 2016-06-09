@@ -5,6 +5,7 @@
 
 \section{The Design and Architecture of SOS}
 
+
 \subsection{The Need to Observe Locally}
 
 Because the features we are interested in are going to emerge at run
@@ -164,6 +165,13 @@ Some accessory components are:
 \begin{itemize}
 \item \textbf{sosd\_probe} - Collect real-time statistics from the daemon about
       its internal state and operating workload
+      \begin{figure}[!t]
+        \centering
+        \includegraphics[width=2.5in]{images/probe_json_example.png}
+        \caption{JSON Object Returned by SOS's Probe Tool}
+        \label{fig_sim}
+      \end{figure}
+
 \item \textbf{sosd\_stop} - Signal the SOSflow runtime to store its queues and
       safely shut down
 \item \textbf{proc\_app} - Collect node runtime information from the /proc
@@ -171,6 +179,7 @@ Some accessory components are:
 \item \textbf{demo\_app} - Benchmarking tool for testing SOSflow
 \item \textbf{SOApy} - Python scripts for querying the SOS databases and plotting
       graphs from the results
+
 \item \textbf{synthetic\_flow} - Tool for generating SOSflow-instrumented
       synthetic workflow of components using ADIOS+FlexPath
       that self-assemble into an arbitrary  user-specified DAG of
@@ -196,6 +205,14 @@ appropriate, assigned a GUID such that uniqueness and provenance is
 preserved even if queries straddle multiple data stores, or all data
 stores are eventually synthesized into a global store.
 
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=5in]{images/sos-mpmd.pdf}
+  \caption{SOSflow Communicates w/MPI and Sockets}
+  \label{fig_sim}
+\end{figure*}
+
+
 Analytics modules use this time to determine if they are co-located
 with a sosd(db) role, and set an internal flag that allows analytics
 developers to branch their logic (if desired) between local instances that
@@ -218,8 +235,8 @@ this time, but rather are contacted exclusively through their MPI
 communicator. When an analytics module submits a query, it does not
 address the database files directly, but sends its query to the
 sosd(db) instance over MPI\_COMM\_WORLD and receives results back as
-an MPI message which is transparently parsed into a useful ODBC-like
-``RecordSet'' style object.
+an MPI message which is transparently parsed into an row and column
+iteratable (SOS\_results *) table.
 
 On node, the sosd(listener) program accepts single messages at a time
 and immediately services them, as far as the message sender is aware,
@@ -227,12 +244,12 @@ quickly responding with a simple ACK message or with the data that was
 requested.  This behavior follows a very simple stateless protocol
 that exists between the daemon and its on-node clients.
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/sosd_protocol.png}
+\includegraphics[width=5in]{images/sosd_protocol.png}
 \caption{In Situ Client/Daemon Communication Protocol}
 \label{fig_sim}
-\end{figure}
+\end{figure*}
 
 
 Messages are read off the socket rapidly and placed in the daemon's
@@ -277,6 +294,14 @@ The typical order of API calls in a client is:
     \item SOS\_finalize();
 \end{enumerate}
 
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=5in]{images/pub_handle.png}
+\caption{Structure of an SOS Publication Handle}
+\label{fig_sim}
+\end{figure*}
+
+
 Data from clients in SOSflow is stored in a (SOS\_pub *) ``pub handle''
 object. This object organizes all of the application context
 information and value-specific metadata, as well as managing the
@@ -288,6 +313,14 @@ timestamp tuples.  Multiple updates to the same value prior to a call
 to SOS\_publish() are no exception, prior value snapshots are queued
 up and faithfully transmitted along with the most recent update to
 that value.
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=5in]{images/val_snaps.png}
+\caption{Complete History of For All Values, Including Metadata}
+\label{fig_sim}
+\end{figure*}
+
 
 SOSflow is not a pure publish/subscribe system, the SOS\_announce()
 function and its associated message type exist (for now) to seperate the
@@ -345,7 +378,7 @@ this function explicitly.
 \centering
 \begin{tabular}{|c|c|}
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-sos.h / sos.c & Becomes libsos, the core functions of SOSflow\\
+sos.h / sos.c & core functions of SOSflow\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sosd.h / sosd.c & SOSflow daemon\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -353,21 +386,29 @@ sosa.h / sosa.c & SOS analytics core utilities\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 sos\_debug.h & Debugging off / on (level) knobs\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-demo\_app.c & The "Hello, world." of SOSflow value injection\\
+demo\_app.c & Synthetic app for profiling SOSflow\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-sosd\_cloud\_mpi.c & Essential off-node transport\\
+sosd\_cloud\_mpi.c & Off-node transport, coordination\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-sosd\_db\_sqlite.c & On-node DB creation and value-injection\\
+sosd\_db\_sqlite.c & Database operations\\
 \hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \end{tabular}
 \end{table}
 
 
 %-----------------------------------------------------------------------------
-\subsection{SOSanalytics}
+\subsection{SOSa : Analytics}
 
 \todo[inline]{... This is a walk through the park. Also, a good place to
   include one of the topology figures from the slideshow.}
+
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=5in]{images/sos.pdf}
+  \caption{SOSflow Internal Topology}
+  \label{fig_sim}
+\end{figure*}
+
 
 
 
@@ -406,7 +447,7 @@ loosely-coupled components that are voluntarily participated with,
 but \textit{everything that those components gather and operate over
 is an empty low-level matter of fact} such as latency or binary signature.
 
-Low-level metrics \textit{are} naturally suited for off-line episodic
+Low-level metrics are naturally suited for off-line episodic
 performance analysis of individual workflow components. Such deep
 instrumentation is necessarily invasive and can dictate rather than
 capture the observed performance of the instrumented application 

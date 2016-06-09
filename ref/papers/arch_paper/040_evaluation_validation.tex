@@ -38,71 +38,138 @@ sosd(listener) daemon along with an sosd(db) instance as background MPI tasks.
 The demo\_app tool was then also launched as an MPI task with varying parameters
 to explore the capabilities of the sosd daemons.
 
-\todo[inline]{...}
+Tests run on the ACISS platform at the University of Oregon were
+deployed with the Torque job scheduler as MPI applications at scales
+ranging from 3 to 24 nodes, serving 10 demo\_app processes per
+node. These runs were tuned as stress tests to make ensure the daemons
+could operate under reasonable but heavy loads.
+
+Real-world use case experiments were conducted on the Cori
+supercomputer at The National Energy Research Scientific Computing
+Center NERSC. An SOSflow-enabled variant of the Tuning and Analysis
+Utilities program (TAUflow) was created as a part of the SOSflow
+development work. On Cori, TAUflow was used to instrument the
+Livermore Unstructured Lagrangian Explicit Shock Hydrodynamics
+(LULESH) code. During the execution of LULESH, a thread would
+periodically awaken and submit all of TAU's observed performance
+metrics into the SOSflow system. SOSflow's presence and activity in
+situ effected just over 1\% percent increase in the execution time of
+LULESH on Cori, for scales of 8 to 512 client processes.  See
+figure~\ref{cori_results} on page~\pageref{cori_results}.
+
 
 %-----------------------------------------------------------------------------
 \subsection{Latency}
 
-\todo[inline]{...}
+When messages are received over the socket by the sosd(listener)
+daemon, they are placed in an asynchronous task queue rather than
+being handled immediately. This allows the socket reading loop to
+immediately return to listening for another connection.  There are
+three threads running inside the daemon that resolve messages:
+local\_sync, node\_sync, and db\_sync.  The local\_sync thread picks up
+the incoming messages from the queue first, unpacks the message and
+updates the in-memory data structures. The local\_sync message handler
+concludes by creating appropriate tasks in the db\_sync queue to
+schedule new values for storage, and then places the original message
+in the node\_sync queue for transmission to a sosd(db) aggregator.
 
-\begin{figure}[!t]
+The latency figures shown here reveal how long a value is floating in
+the asynchronous queues of the daemon before being stored in the
+database. Practically speaking this indicates how long it takes after
+a value is published before it is available for searching by an
+analytics module.  Latency in this context \textit{not} the time cost
+of calling SOSflow functions, a blocking API call that messages a
+daemon over the socket is nearly constant time regardless of daemon
+load.
+
+When a value is inserted into the database the time\_recv field is set,
+the time\_pack and time\_sent fields having already been filled by the
+original source of the value.  Latency is calculated by subtracting
+the time\_sent from the time\_recv figures. When a message is migrated
+from a sosd(listener) instance to a sosd(db) aggregate daemon, it is
+packed up together with many other messages and sent over MPI.  On
+receipt by an sosd(db) role, those composite messages are broken apart
+and immediately serviced, causing the db\_sync queue to grow rapidly in
+brief bursts as large quantities of data can be arriving all at once.
+It is expected that the upper bound on latency for sosd(db) roles will
+be higher than the in situ databases.
+
+The asynchronous queues have thread-sequential FIFO ordering, but
+because the MPI messages are queued up based on their arrival time,
+and a batch is handled competely before the next is processed, there
+is no real-time interleaving of database value injections, they are
+injected in batches. This creates the sawtooth pattern in
+figures~\ref{aciss_lat_3_agg} and \ref{aciss_lat_24_agg}, as the latency for values in the
+batches near the bottom of the pile of MPI messages consistently
+increases until their batch is injected.
+
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/aciss_latency_3_situ.png}
+\includegraphics[width=5in]{images/aciss_latency_3_situ.png}
 \caption{In Situ Latency (3 Nodes, 30 Applications)}
-\label{fig_sim}
-\end{figure}
+\label{aciss_lat_3_situ}
+\end{figure*}
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/aciss_latency_3_agg.png}
+\includegraphics[width=5in]{images/aciss_latency_3_agg.png}
 \caption{Aggregate sosd(db) Latency (3 Nodes, 30 Applications)}
-\label{fig_sim}
-\end{figure}
+\label{aciss_lat_3_agg}
+\end{figure*}
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/aciss_latency_3_agg_zm.png}
+\includegraphics[width=5in]{images/aciss_latency_3_agg_zm.png}
 \caption{Aggregate sosd(db) Detail (3 Nodes, 30 Applications)}
-\label{fig_sim}
-\end{figure}
+\label{aciss_lat_3_agg_detail}
+\end{figure*}
 
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/aciss_latency_24_situ.png}
+\includegraphics[width=5in]{images/aciss_latency_24_situ.png}
 \caption{In Situ Latency (24 Nodes, 240 Applications)}
-\label{fig_sim}
-\end{figure}
+\label{aciss_lat_24_agg}
+\end{figure*}
 
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/aciss_latency_24_agg.png}
+\includegraphics[width=5in]{images/aciss_latency_24_agg.png}
 \caption{Aggregate sosd(db) Latency (24 Nodes, 240 Applications)}
-\label{fig_sim}
-\end{figure}
+\label{aciss_lat_24_agg}
+\end{figure*}
 
 
 
 %-----------------------------------------------------------------------------
 \subsection{Scalability}
 
-\todo[inline]{...}
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/icebox_api_cost_when_slam.png}
+\includegraphics[width=5in]{images/icebox_api_cost_when_slam.png}
 \caption{SOSflow Socket Communication Cost (~0.003sec)}
-\label{fig_sim}
-\end{figure}
+\label{sock_cost}
+\end{figure*}
 
 
-\begin{figure}[!t]
+\begin{figure*}[!t]
 \centering
-\includegraphics[width=2.5in]{images/icebox_api_cost_zoom.png}
+\includegraphics[width=5in]{images/icebox_api_cost_zoom.png}
 \caption{SOSflow Socket Communication Cost, Detail}
-\label{fig_sim}
-\end{figure}
+\label{sock_cost_detail}
+\end{figure*}
+
+
+The data store used by SOS at this time is Sqlite3. It was chosen for
+its simplicity and essential functionality, and because its license
+is open. The configuration for these experiments has Sqlite3 creating
+a file and writing to it, rather than representing the database only in
+RAM -- though /dev/shm memory-mapped folders are used as the working
+directory for the data store wherever possible. For reasonable rates of
+data injection, Sqlite3 serves the project well, but at larger scales
+it is expected that it will be replaced with a more robust data store.
 
 
 
@@ -110,6 +177,12 @@ to explore the capabilities of the sosd daemons.
 %-----------------------------------------------------------------------------
 \subsection{Overhead and Perturbation}
 
-\todo[inline]{...}
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=5in]{images/cori_results.png}
+\caption{Impact of SOSflow on LULESH Experiments}
+\label{cori_results}
+\end{figure*}
+
 
 %\todofileend{040\_evaluation\_validation.tex}
