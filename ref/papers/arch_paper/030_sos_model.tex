@@ -165,13 +165,6 @@ Some accessory components are:
 \begin{itemize}
 \item \textbf{sosd\_probe} - Collect real-time statistics from the daemon about
       its internal state and operating workload
-      \begin{figure}[!t]
-        \centering
-        \includegraphics[width=2.5in]{images/probe_json_example.png}
-        \caption{JSON Object Returned by SOS's Probe Tool}
-        \label{fig_sim}
-      \end{figure}
-
 \item \textbf{sosd\_stop} - Signal the SOSflow runtime to store its queues and
       safely shut down
 \item \textbf{proc\_app} - Collect node runtime information from the /proc
@@ -399,8 +392,77 @@ sosd\_db\_sqlite.c & Database operations\\
 %-----------------------------------------------------------------------------
 \subsection{SOSa : Analytics}
 
-\todo[inline]{... This is a walk through the park. Also, a good place to
-  include one of the topology figures from the slideshow.}
+SOSflow supports online query and analysis of the information that is
+published into it. Users of SOS are able to quickly write their own
+analytics modules building by expanding from the provided
+templates. When the sosd daemons are brought online, analytics modules
+are also activated using MPMD syntax to add them to the daemon's
+mpirun invocation. Multiple analytics modules can be launched at once,
+so long as they define unique SOSA\_MODULE\_COLOR values. These unique
+'colors' are used to split each analytics group into its own
+communicator so the analytics codes can benefit from the HPC resources
+of the job allocation to perform their work without engaging with any
+other parts of SOSflow.
+
+Queries are written in the dialect of SQL supported by the daemon, and
+in the current case this is the fairly standard version in
+Sqlite3. The query submitted as a string in a character array, and a
+special (SOS\_results *) object is returned:
+
+\begin{lstlisting}[frame=single, basicstyle=\small]
+typedef struct {
+    SOS_runtime *sos_context;
+    int          col_max;
+    int          col_count;
+    char       **col_names;
+    int          row_max;
+    int          row_count;
+    char      ***data;
+} SOSA_results;
+
+SOSA_results *results;                                                                                                                       
+SOSA_results_init(SOS, &results);
+char *query =
+    "SELECT "
+       "max(rowid), "
+       "time_pack, "
+       "time_recv "
+    "FROM tblvals;";
+
+SOSA_exec_query(query, results);
+
+SOSA_results_output_to(fptr,
+    results,
+    "latency",
+    SOSA_OUTPUT_W_HEADER);
+\end{lstlisting}
+
+There are utility functions to reset and destroy SOS\_results objects,
+output them as CSV tables of JSON object lists, etc. The full API for
+developers of analytics modules is available in the sosa.h header
+file.
+
+Queries are submitted to an aggregator daemon that your analytics
+module is targeting. sosd(db) ranks and sosa modules can be pinned to
+the same physical node together at invocation, and analytics
+modules will favor the sosd(db) rank they share a node with in order
+to enable fast in-memory messaging rather than sending query results
+across the shared network resources.
+
+Queries are entirely arbitrary, and are allowed to example the full
+scope of data that has been submitted to the SOSflow runtime. At this time
+there are no security measures to prevent analytics modules from
+accessing regions of the data, since all of the data available
+in the database will have come from a user's own applications.
+
+This is a section of the SOSflow development that is relatively novel,
+and has not been implemented with much optimization in place. When a
+query is executed it locks the database to prevent other threads from
+writing to it, adn so it is possible to write very inefficient queries
+that tie up the database and create latency in the asynchronous
+queues. Avoiding such issues is an exercise left to developers at this time,
+though re-architecting this component of SOSflow is a high priority
+for the next phases of its maturation.
 
 \begin{figure*}[!t]
   \centering
@@ -495,7 +557,7 @@ increasing the degree of paralellism, unless it is clear that
 \textit{something in its output} is being consumed at a great rate
 through unsaturated network connections. \textbf{It is only by
   observing all of these meaningful \textit{natures},
-  \textit{purposes}, \textit{activities}, and more, that the
+  \textit{purposes}, and \textit{activities}, that the
   complexity can be properly reasoned about, that the \textit{true
     figure of performance} can be revealed.} It is only with a proper
 run-time and annotation framework that this reasoning can take place
