@@ -76,7 +76,14 @@ int main(int argc, char *argv[]) {
         SOSA_results_wipe(results);
         dlog(0, "Submitting query request #%d...\n", count);
         SOSA_exec_query(query, results);
-        SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_W_HEADER);
+
+        SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_JSON);
+
+        //if (count == 0) {
+        //    SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_W_HEADER);
+        //} else {
+        //    SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_DEFAULT);
+        //}
         usleep(1000000); //1,000,000 = 1 sec.
     }
 

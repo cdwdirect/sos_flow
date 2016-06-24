@@ -522,6 +522,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     struct timeval   now;
     struct timespec  wait;
     SOS_buffer      *buffer;
+    SOS_buffer      *reply;
     SOS_buffer     **msg_list;
     SOS_buffer      *msg;
     SOS_msg_header   header;
@@ -532,6 +533,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     int              msg_offset;
 
     SOS_buffer_init_sized_locking(SOS, &buffer, (1000 * SOS_DEFAULT_BUFFER_LEN), false);
+    SOS_buffer_init_sized_locking(SOS, &reply,  (SOS_DEFAULT_BUFFER_LEN),        false);
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
@@ -602,8 +604,12 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         buffer->len = offset;
         dlog(0, "[ccc] Sending %d messages in %d bytes over MPI...\n", count, buffer->len);
 
-        SOSD_cloud_send(buffer);
+        SOSD_cloud_send(buffer, reply);
+
+        /* TODO: { CLOUD, REPLY} Handle any replies here. */
+
         SOS_buffer_wipe(buffer);
+        SOS_buffer_wipe(reply);
         free(msg_list);
 
         gettimeofday(&now, NULL);
