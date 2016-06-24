@@ -47,12 +47,17 @@ and inconsistency of the hardware itself becomes an increasingly
 significant contributor to observed variability.
 %
 Hardware is an important source to consider when it comes to
-performance because almost nothing that can be done to control for it
-or eliminate it, the noisey results derived from noisy hardware has to
-be admitted in the results, and therefore keeping track of
-\textit{when and where}, not merely how, a program ran is growing in
-significance to all HPC experiments with an interest in improving
 performance.
+%
+Almost nothing that can be done to control or eliminate the variance
+introduced by hardware components.
+%
+Performance data derived from noisy hardware has to be admitted into
+the results alongside data from well-behaved machines.
+%
+Keeping track of \textit{when and where}, not merely how, a
+program ran is growing in significance to all HPC experiments with an
+interest in improving performance.
 %%%%%
 
 %%%%%
@@ -110,10 +115,10 @@ metrics are not known a priori to be hardcoded into a system, it is
 exceedingly helpful from an architectural point of view if performance
 observations are gathered into a common fabric from all sources.
 %
-Any well-meaning self-optimizing programm spinning opaque snapshots of
-its internal state out into a proprietary database is denying all
-other parts of the environment the ability to learn more about each
-other, themselves, and that program.
+Any well-intended program spinning opaque snapshots of its internal
+state out into a proprietary database is denying all other parts of
+the environment the ability to learn more about each other,
+themselves, and that program.
 %%%%%
 
 
@@ -236,10 +241,10 @@ The sosd daemon is itself an MPI application, and it is launched as a
 background process in user space at the start of a job script, before
 the scientific workflow begins.
 %
-The daemon first goes through a coordination phase where they performs
-an MPI\_Allreduce() with all other daemon ranks in order to share
-their role (DAEMON, DB, or ANALYTICS) and the name of the host they
-are running on.
+The daemons first go through a coordination phase where they each
+participate in an MPI\_Allreduce() with all other daemon ranks in
+order to share their role (DAEMON, DB, or ANALYTICS) and the name of
+the host they are running on.
 %
 During the coordination phase, listener daemons select the sosd(db)
 aggregate database that they will target for automatic asynchronous
@@ -274,10 +279,10 @@ can more quickly coordinate queries with the aggregate database, and any
 other optional independent ranks that are running on dedicated resources
 for the purpose of doing calculations or rendering visualizations.
 %
-After having coordinate with the sosd ranks, sosa ranks split off into
-their own private communicator, allowing the developer of a given sosa
-module to utilize the collective communication benefits of the HPC
-platform they are deployed on.
+After having coordinated with the sosd ranks, sosa ranks split off
+into their own private communicator, allowing the developer of a given
+sosa module to utilize the collective communication benefits of the
+HPC platform they are deployed on.
 %%%%%
 
 %%%%%
@@ -290,13 +295,13 @@ node-local TCP socket (specified by the SOS\_CMD\_PORT environment
 variable) for messages from utilities or SOSflow-enabled source
 applications.
 %
-sosd(db) database daemons do not monitor any socket at this time, but
-rather are contacted exclusively through their MPI communicator.
+The sosd(db) database daemons do not monitor any socket at this time,
+but rather are contacted exclusively through their MPI communicator.
 %
 When an analytics module submits a query, it does not address the
 database files directly, but sends its query to the sosd(db) instance
 over MPI\_COMM\_WORLD and receives results back as an MPI message
-which is transparently parsed into an row and column iteratable
+which is transparently parsed into a row and column iteratable
 (SOS\_results *) table.
 %%%%%
 
@@ -304,7 +309,7 @@ which is transparently parsed into an row and column iteratable
 On node, the sosd(listener) program accepts single messages at a time
 and immediately services them, as far as the message sender is aware,
 quickly responding with a simple ACK message or with the data that was
-requested.  This behavior follows a very simple stateless protocol
+requested.  This behavior conforms to a very simple stateless protocol
 that exists between the daemon and its on-node clients.
 %%%%%
 
@@ -351,9 +356,9 @@ It is very uncommon to see the blocking socket transmission calls
 within SOS\_announce() and SOS\_publish() take longer than 0.002
 seconds, in any of our testing scenarios. Calls to the more frequently
 used SOS\_pack() value storage/update routine create no noticable
-overhead at all when not used in the innermost loops of intense
-computation, often returning in less than 0.0001 seconds even for very
-large data sets.
+overhead when not used in the innermost loops of intense computation,
+often returning in less than 0.0001 seconds even for very large data
+sets.
 %
 When a client first registers with the sosd(listener) during
 SOS\_init(), the daemon will assign that client library a break of
@@ -410,8 +415,10 @@ eventually stored in a searchable database, along with any updated
 metadata such as its timestamp tuples.
 %
 Multiple updates to the same value prior to a call to SOS\_publish()
-are no exception, prior value snapshots are queued up and faithfully
-transmitted along with the most recent update to that value.
+are no exception.
+%
+Prior value snapshots are queued up and faithfully transmitted along
+with the most recent update to that value.
 %%%%%
 
 %%%%%
@@ -446,9 +453,9 @@ publish, those new value names will automatically be announced.
 SOSflow is entirely thread-safe within the client application so long
 as data elements are accessed only through the public API.
 %
-You could, if you for some reason wanted to, share a pub handle
-between two threads: the system is designed to efficiently shield
-users from the complexity of managing its state.
+You could share a pub handle between two threads: the system is
+designed to efficiently shield users from the complexity of managing
+its state.
 %
 It is also designed to be as simple as possible without losing
 flexibility.
@@ -469,8 +476,8 @@ system, through the SOS\_pack() function.
 The in situ sosd(listener) daemon does not keep track of applications,
 and so does not know (or care) when they terminate.
 %
-The call to SOS\_finalize() provides a simple and clean way to clean
-up SOS's internal memory objects and buffers, join any threads it may
+The call to SOS\_finalize() provides a simple and clean way to release
+SOS's internal memory objects and buffers, join any threads it may
 have needed to spawn, and otherwise put things back how it found them
 when SOS\_init() was called.
 %
@@ -667,15 +674,13 @@ points.
 %%%%%
 
 %%%%%
-These tools (and many others) are fast, well-researched, funded, and
-they are out there running and very popular already.
+These tools, and many other performance monitoring tools, are
+well-implemented, tested, maintained, deployed and regularly used for
+performance research studies.
 %
 Unfortunately, \textit{they're solving yesterday's problem tomorrow},
 and are firmly grounded in the classic HPC ways of modeling
 performance.
-%
-High-level modeling, in the current jargon, is far too hands-off and
-impersonal to be of much general use.
 %
 Users of such codes have to hard-wire every bit of actual
 functionality as a special case, and only by doing so for every
@@ -684,8 +689,11 @@ allocation configuration, can they learn something that is in the end
 of no use to anyone but them, right at that time and at no other
 time.
 %
-Worse, as earlier sections outlined, those high-level codes are
-actually low-level: They have loosely-coupled components that are
+High-level modeling, in the current jargon, is far too specific
+to be of general use.
+%
+As earlier sections have described, those high-level codes are
+actually very low-level: They have loosely-coupled components that are
 voluntarily participated with, but \textit{everything that those
   components gather and operate over is an empty low-level matter of
   fact} such as latency or binary signature.
@@ -751,7 +759,7 @@ matters that it is running well on a machine with a lot of thread
 processing cores.
 %
 It isn't obviously significant for a task to be parameterized by an
-auto-tuning algorithm to increased the rate of one of its outputs
+auto-tuning algorithm to increase the rate of one of its outputs
 rather than other targets, like reducing node memory use, or
 increasing the degree of paralellism, unless it is clear that
 \textit{something in its output} is being consumed at a great rate
@@ -769,7 +777,7 @@ reasoning can take place in a computationally feasible way.
 %%%%%
 In a very basic sense, so long as it holds that with a certain input a
 particular result will be output the same, there is something else
-unchanging about a simulation, nomatter how it is tuned or allocated
+unchanging about a simulation, however it has been tuned or allocated
 or configured for a run: the meaning of what happened.
 %
 Whether a simulation is executing as a single process on a single
@@ -783,12 +791,11 @@ Workflow Performance Model: It must be a Semantic Performance Model.
 %%%%%
 
 %%%%%
-At extreme scales, on line detection and attribution of meaningful
+At extreme scales, online detection and attribution of meaningful
 variability in the performance of a scientific workflow will simply
-\textit{require} well-annotated metadata to facilitate "apples to
-apples" comparisons driven by unsupervised machine learning rather
-than a priori developer knowledge or slow offline centralized
-analysis.
+\textit{require} well-annotated metadata to facilitate apples to
+apples comparisons driven by unsupervised machine learning rather than
+a priori developer knowledge or slow offline centralized analysis.
 %
 In the face of wild performance variance across byzantine parameter
 spaces, hardware allocations, software libraries, and dynamic
@@ -870,7 +877,7 @@ Metrics from multiple layers can be correlating to yield interesting
 perspectives on the observed performance of specific software
 components.
 %
-As a trivial example, something at the Simulation layer produces data
+As a trivial example, if something at the Simulation layer produces data
 representing the evolution of a data set over N seconds of simulated
 time, and the Application layer requires M seconds of real-world
 computation to yield that data, the relationship between N and M could
@@ -886,7 +893,7 @@ on-demand queries could be run to discover such correlations and
 features of performance at any time, or \textit{even in real-time} as
 fresh data is flowing in.
 %
-It is also importantly to note that components of a layer not only can
+It is also important to note that components of a layer not only can
 contribute metrics, they (and other components at that layer) are
 targets for feedback and control.
 %%%%%
@@ -913,13 +920,15 @@ on outcomes desirable to the human developers and users of the system.
 %%%%%
 
 %%%%%
-Not everything has to be surgically annotated for it to be of benefit.
+Not every bit of data has to be surgically annotated for it to be of
+benefit.
 %
 Any episodic performance measurement, such as run-time TAU
-instrumentation and results, can also be injected into the SOSflow engine, and the
-SOSflow runtime is able to differentiate from information pushed
-directly by a layer, and information that is being captured by finer-grained
-middleware tools that are only equipped to signify generic facts of matter.
+instrumentation and results, can also be injected into the SOSflow
+engine, and the SOSflow runtime is able to differentiate from
+information pushed directly by a layer, and information that is being
+captured by finer-grained middleware tools that are only equipped to
+signify generic matters of fact.
 %%%%%
 
 %%%%%
@@ -949,11 +958,11 @@ Sometimes it matters less what changed into what, than that something
 changed at all.
 %%%%%
 
-While deep off-line data analytics can reveal \textit{unforseen correlations}
-between various aspects of the workflow or the data set it is
-operating over, the interest in real-time analytics and performance
-tuning gives value to expressing "relationship hints" between values
-tracked by the system.
+While deep off-line data analytics can reveal \textit{unforseen
+  correlations} between various aspects of the workflow or the data
+set it is operating over, the interest in real-time analytics and
+performance tuning gives value to expressing relationship hints
+between values tracked by the system.
 %
 These hints can be used to direct in situ analytics efficiently, to
 narrow the parameter space into something tractable without
@@ -1023,7 +1032,7 @@ Some specific immediate perks would be enhancements to:
       4 when it comes to guessing about the perturbation of processes
       interacting in dynamical systems.
       %
-      Being aware of each others presence through shared real-time
+      Being aware of each other's presence through shared real-time
       self-reporting will allow applications to adapt themselves and
       administrators to preemptively allocate to promote positive
       disruption of learned negative performance patterns.
@@ -1032,10 +1041,10 @@ Some specific immediate perks would be enhancements to:
       wants conflicting optimizer purposes, and having them working
       from a global perspective will need to show where the true
       systemic hotspots really are, and not depend on an individual
-      developers being a total system expert or a selfless
+      developer being a total system expert or a selfless
       non-optimizer.
       %
-\item \textbf{Intelligent Compiler Hints}: Anything that is learned from all
+    \item \textbf{Intelligent Compiler Hints}: Anything that is learned from all
       this richly annotated performance data can ultimately be tied back
       into intelligent compilers and IDE's.
       %

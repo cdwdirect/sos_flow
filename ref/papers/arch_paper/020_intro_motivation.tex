@@ -95,14 +95,13 @@ The design of SOS and its Semantic Performance Model reflect changing
 interests that have come into focus during the drive to exascale HPC
 clusters, and the programming challenges at that scale.
 %
-One such challenge that is representative of the general experience is
-the high cost of synchronization and coordination across the vastly
-increased number of cores which might be allocated to a single
-job.
+The high cost of synchronization and coordination across the vastly
+increased number of cores is one such challenge that is representative
+of the general experience.
 %
 Many classic algorithms and data structures are proving unweildy at
-scale, and so too are the tools and methodologies that have have
-defined performance research for the last quarter century.
+scale, and so too are the tools and methodologies that have defined
+performance research for the last quarter century.
 %%%%%
 
 %%%%%
@@ -110,11 +109,10 @@ Seemingly instant coordination and synchronization between nodes is a
 luxury that the HPC researcher can no longer rely on moving
 forward.
 %
-There are simply too many nodes! Information moving near the
-speed of light, sent to issue coordinating instructions to all of the
-processes running on an exascale cluster, would introduce such delays
-and ``bubbles'' in the computation that the simulation may as well
-have been run on a present-generation petascale machine.
+There are simply too many nodes. Synchronized instructions sent to all
+processes running on a saturated exascale cluster, would introduce
+such delays and ``bubbles'' in the computation that the simulation may
+as well have been run on a present-generation petascale machine.
 %
 Computing resources are either too abstracted from the machine,
 heterogenous, distal, or failure prone to be dependent on constantly
@@ -124,10 +122,10 @@ scientists have been optimizing towards for years.
 
 %%%%%
 Incremental solutions using loosely-coupled asynchronous task-based
-runtime environments \cite{kaiser2014hpx} like HPX (Or alternately:
-Charm++, etc.) are being developed to facilitate general-purpose
-programming models that will work on both present day petascale
-machines, and future exascale architectures.
+runtime environments like HPX \cite{kaiser2014hpx}, Charm++, etc. are
+being developed to facilitate general-purpose programming models that
+will work on both present day petascale machines, and future exascale
+architectures.
 %
 These architectures forgo fixed synchronous behaviors, but also remove
 many of the guarantees that formed the basis for much of the
@@ -151,22 +149,23 @@ software.
 %
 For common application software scenarios like browsing the web, this
 \textit{jitter} was indistinguishable from normal background
-noise.
+noise, it did not matter to a user.
 %
-Losing our predictive power over fine-grained behavior has not been
-without cost for those working to optimize deep infrastructure codes,
-especially considering the potential meaninglessness of any given
-observed decreased or improved performance.
+For the professional developers working to optimize deep
+infrastructure codes, losing predictive power over fine-grained
+behavior has not been without cost, especially considering the
+potential meaninglessness of any given observed decreased or improved
+performance.
 %
 The methodically-gnawing problem of \textit{resolution decay} only
 grows worse in proportion to the size and complexity of a computer and
 the consumption of shared resources by the various tasks that are
 executing concurrently.
 %
-On even a reasonably small cluster of basic compute nodes, marked
+Even on a reasonably small cluster of basic compute nodes, marked
 differences in available power, core clock rates, communication times,
-filesystem latency, and more, encountered even between units of a
-single parallel task.
+filesystem latency, and more are encountered between units of any
+given parallel task.
 %
 Any given source of variability by itself can confound the observed
 performance data at any sampled point and foul up the overall view.
@@ -205,8 +204,8 @@ gains that \textit{are} observable?
 
 %%%%%
 There remain common cases where nothing can be done to influence the
-fine-grained variations in lower-level performance metrics, yet it is
-still important to recognize and capture the fact that
+fine-grained variations in lower-level performance metrics, yet where
+it is still important to recognize and capture the fact that
 \textit{performance variability is present} and to \textit{attempt to
   both quantify it and render reasonable attributions of its
   source[s]}.
@@ -221,7 +220,7 @@ controlling variance across runs.
 %%%%%
 Any new performance model should be designed with awareness of such
 distinctions so that the language used to discuss performance, the
-runtime environment, and the integrated middleware can be all be apt
+runtime environment, and the integrated middleware can all be apt
 to our purposes, fit for the task we're undertaking, and efficient in
 our analytics, feedback, and control mechanisms.
 %
