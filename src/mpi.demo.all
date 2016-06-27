@@ -17,7 +17,7 @@ if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; f
 
 daemon0="  ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK} "
 daemon1="  ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK} "
-sosademo=" ${SOS_ROOT}/bin/sosa_latency -d 12 "
+sosademo=" ${SOS_ROOT}/bin/sosa_latency -d 24 "
 
 #surplus=""
 #surplus=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22501 --buffer_len 8097152 --listen_backlog 10 --work_dir ${SOS_WORK} " 
