@@ -240,6 +240,48 @@ typedef union {
     void               *bytes;   /* Use addr. of SOS_buffer object. */
 } SOS_val;
 
+
+//
+//  SOS_position:
+//
+//        [Z]
+//         | [Y]
+//         | /
+//         |/
+//  . . ... ------[X]
+//        ,:
+//       . .
+//      .  .
+//
+typedef struct {
+    double              x;
+    double              y;
+    double              z;
+} SOS_position;
+
+//
+//  SOS_volume_hexahedron:
+//
+//          [p7]---------[p6]
+//         /________    / |
+//      [p4]--------[p5]  |
+//       ||  |       ||   |
+//       || [p3]-----||--[p2]
+//       ||/________ || /
+//      [p0]--------[p1]
+//
+typedef struct {
+    SOS_position        p0;
+    SOS_position        p1;
+    SOS_position        p2;
+    SOS_position        p3;
+    SOS_position        p4;
+    SOS_position        p5;
+    SOS_position        p6;
+    SOS_position        p7;
+} SOS_volume_hexahedron;
+
+
 typedef struct {
     double              pack;
     double              send;
