@@ -292,7 +292,7 @@ void SOSD_db_close_database() {
     CALL_SQLITE (finalize(stmt_insert_enum));
     CALL_SQLITE (finalize(stmt_insert_sosd));
     dlog(2, "  ... closing database file.\n");
-    sqlite3_close_v2(database);
+    sqlite3_close(database);
     dlog(2, "  ... destroying the mutex.\n");
     pthread_mutex_destroy(SOSD.db.lock);
     free(SOSD.db.lock);
@@ -363,11 +363,11 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     int rc = 0;
     rc = sqlite3_prepare_v2( database, sosa_query, -1, &sosa_statement, NULL);
-    if (rc != SQLITE_OK) {
+    /*    if (rc != SQLITE_OK) {
     dlog(0, "ERROR: Unable to prepare statement for analytics(rank:%" SOS_GUID_FMT ")'s query:    (%d: %s)\n\n\t%s\n\n",
         header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
         exit(EXIT_FAILURE);
-    }
+        }*/
 
     dlog(7, "Building result set...\n");
 
