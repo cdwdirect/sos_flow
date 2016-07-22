@@ -216,6 +216,13 @@ void SOSD_db_init_database() {
         dlog(1, "Successfully opened database.\n");
     }
 
+    sqlite3_exec(database, "PRAGMA synchronous   = ON;",      NULL, NULL, NULL); // = Let the OS handle flushes.
+    sqlite3_exec(database, "PRAGMA cache_size    = 31250;",    NULL, NULL, NULL); // x 2048 def. page size = 64MB cache
+    sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
+    sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
+  //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
+    sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
+
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
     SOSD.db.snap_queue->sync_pending = 0;
 

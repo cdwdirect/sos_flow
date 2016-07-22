@@ -35,8 +35,8 @@
 
 /* 0.05 seconds: 50000000, default for cloud/db=5000 */
 #define SOSD_LOCAL_SYNC_WAIT_NSEC    0
-#define SOSD_CLOUD_SYNC_WAIT_NSEC    0
-#define SOSD_DB_SYNC_WAIT_NSEC       0
+#define SOSD_CLOUD_SYNC_WAIT_NSEC    3000
+#define SOSD_DB_SYNC_WAIT_NSEC       5000
 
 
 

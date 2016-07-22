@@ -215,17 +215,17 @@ void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos) {
           continue;
         } else {
           waited_count++;
-          if (waited_count > 20) {
+          if (waited_count > 100) {
             printf("\t\t...carrying on anyway!\n");
             fflush(stdout);
             STUFF_IN_DB_QUEUE = false;
             continue;
           }
-          printf("\tWait for queue drain ... local: %" SOS_GUID_FMT
+          printf("\t(%d of 100) Wait for queue drain ... local: %" SOS_GUID_FMT
                  " cloud: %" SOS_GUID_FMT
                  " tasks: %" SOS_GUID_FMT
                  " snaps: %" SOS_GUID_FMT"\n",
-                 queue_depth_local, queue_depth_cloud, queue_depth_db_tasks, queue_depth_db_snaps);
+                 waited_count, queue_depth_local, queue_depth_cloud, queue_depth_db_tasks, queue_depth_db_snaps);
           fflush(stdout);
           usleep(100000);
         }
