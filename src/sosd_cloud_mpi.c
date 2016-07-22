@@ -377,7 +377,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     // SPLIT: -------------------
     //  When we split here, we use SOS_ROLE_DAEMON for both DAEMON and DB
     //  so they are still able to communicate with each other (if they want
-    //  using a non-analytics communicator.
+    //  using a non-analytics, non-MPI_COMM_WORLD communicator.)
     //
     //  The ANALYTICS ranks form their own communicator[s].
     //

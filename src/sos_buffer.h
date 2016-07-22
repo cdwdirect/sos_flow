@@ -21,7 +21,6 @@
 #include "sos.h"
 #include "sos_types.h"
 
-
 typedef struct {
     void                *sos_context;
     bool                 is_locking;

@@ -96,6 +96,9 @@ extern "C" {
 #define SOS_max(a,b) ((a > b) ? a : b)
 #endif
 
+#ifndef SOS_min
+#define SOS_min(a,b) ((a < b) ? a : b)
+#endif
 
 #define SOS_TIME(__SOS_now)       { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6)); }
 

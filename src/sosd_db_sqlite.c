@@ -207,7 +207,7 @@ void SOSD_db_init_database() {
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -215,6 +215,13 @@ void SOSD_db_init_database() {
     } else {
         dlog(1, "Successfully opened database.\n");
     }
+
+    sqlite3_exec(database, "PRAGMA synchronous   = ON;",      NULL, NULL, NULL); // = Let the OS handle flushes.
+    sqlite3_exec(database, "PRAGMA cache_size    = 31250;",    NULL, NULL, NULL); // x 2048 def. page size = 64MB cache
+    sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
+    sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
+  //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
+    sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
     SOSD.db.snap_queue->sync_pending = 0;
@@ -292,7 +299,7 @@ void SOSD_db_close_database() {
     CALL_SQLITE (finalize(stmt_insert_enum));
     CALL_SQLITE (finalize(stmt_insert_sosd));
     dlog(2, "  ... closing database file.\n");
-    sqlite3_close_v2(database);
+    sqlite3_close(database);
     dlog(2, "  ... destroying the mutex.\n");
     pthread_mutex_destroy(SOSD.db.lock);
     free(SOSD.db.lock);
@@ -346,7 +353,12 @@ void SOSD_db_transaction_commit() {
 void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    pthread_mutex_lock(SOSD.db.lock);
+    //pthread_mutex_lock(SOSD.db.lock);
+
+    sqlite3 *sosa_conn;
+    int flags = SQLITE_OPEN_READONLY;
+
+    sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
 
     SOS_msg_header   header;
     char            *sosa_query      = NULL;
@@ -362,12 +374,12 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
 
     int rc = 0;
-    rc = sqlite3_prepare_v2( database, sosa_query, -1, &sosa_statement, NULL);
-    if (rc != SQLITE_OK) {
+    rc = sqlite3_prepare_v2( sosa_conn, sosa_query, -1, &sosa_statement, NULL);
+    /*    if (rc != SQLITE_OK) {
     dlog(0, "ERROR: Unable to prepare statement for analytics(rank:%" SOS_GUID_FMT ")'s query:    (%d: %s)\n\n\t%s\n\n",
         header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
         exit(EXIT_FAILURE);
-    }
+        }*/
 
     dlog(7, "Building result set...\n");
 
@@ -401,7 +413,8 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     }//while:rows
 
     sqlite3_finalize(sosa_statement);
-    pthread_mutex_unlock(SOSD.db.lock);
+    sqlite3_close(sosa_conn);
+    //pthread_mutex_unlock(SOSD.db.lock);
 
     SOSA_results_to_buffer(response, results);
 
