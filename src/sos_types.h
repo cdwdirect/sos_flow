@@ -246,6 +246,7 @@ typedef struct {
     double              recv;
 } SOS_time;
 
+
 typedef struct {
     SOS_val_freq        freq;
     SOS_val_semantic    semantic;

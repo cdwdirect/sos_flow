@@ -207,7 +207,7 @@ void SOSD_db_init_database() {
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -346,7 +346,12 @@ void SOSD_db_transaction_commit() {
 void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    pthread_mutex_lock(SOSD.db.lock);
+    //pthread_mutex_lock(SOSD.db.lock);
+
+    sqlite3 *sosa_conn;
+    int flags = SQLITE_OPEN_READONLY;
+
+    sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
 
     SOS_msg_header   header;
     char            *sosa_query      = NULL;
@@ -362,7 +367,7 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
 
     int rc = 0;
-    rc = sqlite3_prepare_v2( database, sosa_query, -1, &sosa_statement, NULL);
+    rc = sqlite3_prepare_v2( sosa_conn, sosa_query, -1, &sosa_statement, NULL);
     /*    if (rc != SQLITE_OK) {
     dlog(0, "ERROR: Unable to prepare statement for analytics(rank:%" SOS_GUID_FMT ")'s query:    (%d: %s)\n\n\t%s\n\n",
         header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
@@ -401,7 +406,8 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     }//while:rows
 
     sqlite3_finalize(sosa_statement);
-    pthread_mutex_unlock(SOSD.db.lock);
+    sqlite3_close(sosa_conn);
+    //pthread_mutex_unlock(SOSD.db.lock);
 
     SOSA_results_to_buffer(response, results);
 
