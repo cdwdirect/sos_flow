@@ -472,6 +472,7 @@ void* SOSD_THREAD_db_sync(void *args) {
             break;
         }
 
+        my->queue->elem_count -= count;
         pthread_mutex_unlock(my->queue->sync_lock);
 
         dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
@@ -507,10 +508,6 @@ void* SOSD_THREAD_db_sync(void *args) {
         SOSD_countof(db_transactions++);
 
         SOSD_db_transaction_commit();
-
-        pthread_mutex_lock(my->queue->sync_lock);
-        my->queue->elem_count -= count;
-        pthread_mutex_unlock(my->queue->sync_lock);
 
         free(task_list);
         gettimeofday(&now, NULL);
@@ -607,7 +604,6 @@ void* SOSD_THREAD_cloud_sync(void *args) {
             memcpy((buffer->data + offset), msg->data, header.msg_size);
             offset += header.msg_size;
 
-            // NOTE: This has to be coordinated with the local_sync and db_sync...
             SOS_buffer_destroy(msg);
         }
 

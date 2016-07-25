@@ -224,7 +224,10 @@ void SOSD_db_init_database() {
     sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
-    SOSD.db.snap_queue->sync_pending = 0;
+
+    if (SOSD.db.snap_queue->elem_count == 0) {
+      SOSD.db.snap_queue->sync_pending = 0;
+    }
 
     SOSD_db_create_tables();
 
@@ -528,10 +531,13 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
     dlog(5, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
     count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
-    dlog(5, "      [bbb] %d snaps were returned from the queue on request.\n", count);
+    dlog(5, "      [bbb] %d snaps were returned from the queue on request for %d.\n", count, snap_count);
     queue->elem_count -= count;
     snap_count = count;
-    queue->sync_pending = 0;
+
+    if (queue->elem_count == 0) { 
+      queue->sync_pending = 0;
+    }
     dlog(5, "  ... [bbb] releasing queue->lock\n");
     pthread_mutex_unlock(queue->sync_lock);
 

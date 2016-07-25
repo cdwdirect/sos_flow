@@ -112,7 +112,7 @@ const char _pipe_copyright[] =
 // it to 0 if you want the implementation to decide, a low number if you are
 // copying many objects into pipes at once (or a few large objects), and a high
 // number if you are coping small or few objects into pipes at once.
-#define MUTEX_SPINS 2048
+#define MUTEX_SPINS 0
 
 // Standard threading stuff. This lets us support simple synchronization
 // primitives on multiple platforms painlessly.

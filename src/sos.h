@@ -131,7 +131,8 @@ extern "C" {
     SOS_runtime *SOS;                                                                                                      \
     SOS = (SOS_runtime *) __SOS_context;                                                                                   \
     if (SOS == NULL) {                                                                                                     \
-                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n");                  \
+                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!  (%s)\n",             \
+                             __SOS_str_funcname);                                                                          \
                       exit(EXIT_FAILURE);                                                                                  \
                       }                                                                                                    \
     char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                                                                         \
