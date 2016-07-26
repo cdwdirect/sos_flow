@@ -7,10 +7,21 @@
 cd /g/g17/wood67/src/sos_flow/jobs/llnl
 source 16x16.env
 mkdir -p $RESULT_ARCHIVE
-
-srun -n16 --multi-prog 16x16.sos &
+echo ""
+echo "Launching SOS Environment..."
+echo ""
+srun --nodes=16 --multi-prog 16x16.sos &
 sleep 10
-srun -r 0 -N8 -n120 --multi-prog 16x16.app
+echo ""
+echo "Launching Application..."
+echo ""
+srun -r 0 --nodes 15 --ntasks 120 --multi-prog 16x16.app
 sleep 30
-srun -r 0 -N15 16x16.end
+echo ""
+echo "Launching END Script..."
+echo ""
+srun -r 0 --nodes 15 16x16.end
 sleep 5
+echo ""
+echo "Done."
+echo ""

@@ -31,8 +31,9 @@
 void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos);
 
 
-int rank;
-
+int  rank;
+char host[MPI_MAX_PROCESSOR_NAME];
+int  host_len;
 
 int main(int argc, char *argv[]) {
 
@@ -45,6 +46,28 @@ int main(int argc, char *argv[]) {
 
     MPI_Init(&argc, &argv);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Get_processor_name(host, &host_len);
+
+    if (rank == 0) {
+      printf("\"rank\",\"host\",\"pid\"\n");
+      fflush(stdout);
+    } else {
+      usleep(10000);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    printf("%d, \"%s\", %d\n", rank, host, getpid());
+    fflush(stdout);
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (rank == 0) {
+      printf("----------\n");
+      fflush(stdout);
+    } else {
+      usleep(10000);
+    }
 
     /* Process command-line arguments */
     if ( argc < 10 ) { fprintf(stderr, "Error: Invalid number of command line arguments.\n\n%s\n", USAGE); exit(1); }
@@ -215,22 +238,25 @@ void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos) {
             && (queue_depth_local    == 0)
             && (queue_depth_cloud    == 0)) {
           STUFF_IN_DB_QUEUE = false;
+          if (waited_count > 0) { printf("\t\t...[%04d @ %s] Queue is now EMPTY!  Pausing for network flush.  (%d usec)\n",
+                                         rank, host, (waited_count * 100000)); fflush(stdout); }
+          usleep(waited_count * 100000);
           continue;
         } else {
           waited_count++;
           if (waited_count > 100) {
-            printf("\t\t...[Rank %d] Carrying on anyway!\n", rank);
+            printf("\t\t...[%04d @ %s] Carrying on anyway!\n", rank, host);
             fflush(stdout);
             STUFF_IN_DB_QUEUE = false;
             continue;
           }
-          printf("\t[Rank %d] @ (%d of 100) Wait for queue drain ... local: %" SOS_GUID_FMT
+          printf("\t[%04d @ %s] @ (%d of 100) Wait for queue drain ... local: %" SOS_GUID_FMT
                  " cloud: %" SOS_GUID_FMT
                  " tasks: %" SOS_GUID_FMT
                  " snaps: %" SOS_GUID_FMT"\n",
-                 rank, waited_count, queue_depth_local, queue_depth_cloud, queue_depth_db_tasks, queue_depth_db_snaps);
+                 rank, host, waited_count, queue_depth_local, queue_depth_cloud, queue_depth_db_tasks, queue_depth_db_snaps);
           fflush(stdout);
-          sleep(1);
+          usleep(200000);
         }
     } //while
 

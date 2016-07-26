@@ -1,6 +1,9 @@
 #!/bin/bash
 $SOS_ROOT/bin/sosd_stop
 sleep 10
-mv -R $SOS_WORK/sosd.* $RESULT_ARCHIVE
+echo ""
+echo "Copying files from [$SOS_WORK] to [$RESULT_ARCHIVE]  ..."
+echo ""
+mv $SOS_WORK/sosd.* $RESULT_ARCHIVE
 sleep 10
 

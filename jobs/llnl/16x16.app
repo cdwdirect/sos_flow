@@ -7,4 +7,4 @@
 # 1,7       echo  task:%t
 # 0,2-3     echo  offset:%o
 
-0-119 /g/g17/wood67/src/sos_flow/bin/demo_sweep -imin 100 -imax 300 -istep 100 -smin 100 -smax 500 -sstep 100 -dmin 500000 -dmax 1000000 -dstep 500000
+0-119 /g/g17/wood67/src/sos_flow/bin/demo_sweep -imin 10 -imax 10 -istep 10 -smin 10 -smax 10 -sstep 10 -dmin 500000 -dmax 1000000 -dstep 500000
