@@ -10,7 +10,7 @@ mkdir -p $RESULT_ARCHIVE
 echo ""
 echo "Launching SOS Environment..."
 echo ""
-srun --nodes=16 --multi-prog 16x16.sos &
+srun --nodes=16 --ntasks 16 --multi-prog 16x16.sos &
 sleep 10
 echo ""
 echo "Launching Application..."
@@ -20,8 +20,13 @@ sleep 30
 echo ""
 echo "Launching END Script..."
 echo ""
-srun -r 0 --nodes 15 16x16.end
+srun -r 0 --nodes 15 --ntasks 15 16x16.end
 sleep 5
+echo ""
+echo "Collecting SOS databases..."
+echo ""
+srun -r 0 --nodes 16 --ntasks 16 16x16.get
+sleep 10
 echo ""
 echo "Done."
 echo ""

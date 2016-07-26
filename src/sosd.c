@@ -1282,7 +1282,7 @@ void SOSD_init() {
      *     create and hold lock file to prevent multiple daemon spawn
      */
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
     snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
@@ -1305,7 +1305,7 @@ void SOSD_init() {
      *      system logging initialize
      */
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
     snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
