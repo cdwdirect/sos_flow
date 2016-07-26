@@ -1,0 +1,16 @@
+#!/bin/bash
+#MSUB -l nodes=16
+#MSUB -l walltime=1:30:00
+#MSUB -q pbatch
+
+# Run info and srun job launch
+cd /g/g17/wood67/src/sos_flow/jobs/llnl
+source 16x16.env
+mkdir -p $RESULT_ARCHIVE
+
+srun -n16 --multi-prog 16x16.sos &
+sleep 10
+srun -r 0 -N8 -n120 --multi-prog 16x16.app
+sleep 30
+srun -r 0 -N15 16x16.end
+sleep 5

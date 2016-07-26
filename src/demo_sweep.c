@@ -31,6 +31,9 @@
 void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos);
 
 
+int rank;
+
+
 int main(int argc, char *argv[]) {
 
     SOS_runtime *my_sos;
@@ -41,7 +44,6 @@ int main(int argc, char *argv[]) {
     int    DMIN, DMAX, DSTEP;
 
     MPI_Init(&argc, &argv);
-    int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* Process command-line arguments */
@@ -134,7 +136,8 @@ int main(int argc, char *argv[]) {
           } //iter_walk
 
           SOS_pub_destroy(pub);
-          if (rank == 0) { SWEEP_wait_for_empty_queue(my_sos); }
+
+          SWEEP_wait_for_empty_queue(my_sos);
           MPI_Barrier(MPI_COMM_WORLD);
 
         } //size          
@@ -216,18 +219,18 @@ void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos) {
         } else {
           waited_count++;
           if (waited_count > 100) {
-            printf("\t\t...carrying on anyway!\n");
+            printf("\t\t...[Rank %d] Carrying on anyway!\n", rank);
             fflush(stdout);
             STUFF_IN_DB_QUEUE = false;
             continue;
           }
-          printf("\t(%d of 100) Wait for queue drain ... local: %" SOS_GUID_FMT
+          printf("\t[Rank %d] @ (%d of 100) Wait for queue drain ... local: %" SOS_GUID_FMT
                  " cloud: %" SOS_GUID_FMT
                  " tasks: %" SOS_GUID_FMT
                  " snaps: %" SOS_GUID_FMT"\n",
-                 waited_count, queue_depth_local, queue_depth_cloud, queue_depth_db_tasks, queue_depth_db_snaps);
+                 rank, waited_count, queue_depth_local, queue_depth_cloud, queue_depth_db_tasks, queue_depth_db_snaps);
           fflush(stdout);
-          usleep(100000);
+          sleep(1);
         }
     } //while
 
