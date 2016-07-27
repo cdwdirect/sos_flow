@@ -3,6 +3,7 @@ import sys
 import sqlite3
 import numpy as np
 import pylab as pl
+import time
 
 from data_utils import is_outlier
 
@@ -78,6 +79,12 @@ def do_derived_chart(subplot, c, metric1, metric2, plot_title, x_label, graph):
 
 # name of the sqlite database file
 sqlite_file = sys.argv[1]
+
+# check for file to exist
+print "Checking for file: ", sqlite_file 
+while not os.path.exists(sqlite_file):
+    print "Waiting on file: ", sqlite_file 
+    time.sleep(1)
 
 print("Connecting to: ", sqlite_file)
 # Connecting to the database file
