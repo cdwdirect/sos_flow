@@ -692,17 +692,17 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     task->pub = pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
 
-    pthread_mutex_lock(SOSD.db.snap_queue->sync_lock);
-    if (SOSD.db.snap_queue->sync_pending == 0) {
-        SOSD.db.snap_queue->sync_pending = 1;
-        pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
+    //pthread_mutex_lock(SOSD.db.snap_queue->sync_lock);
+    //if (SOSD.db.snap_queue->sync_pending == 0) {
+    //    SOSD.db.snap_queue->sync_pending = 1;
+    //    pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
         pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
         pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
         SOSD.sync.db.queue->elem_count++;
         pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    } else {
-        pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
-    }
+    //} else {
+    //    pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
+    //}
 
     dlog(5, "  ... done.\n");
         

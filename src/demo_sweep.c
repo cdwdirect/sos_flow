@@ -159,7 +159,6 @@ int main(int argc, char *argv[]) {
           } //iter_walk
 
           SOS_pub_destroy(pub);
-
           SWEEP_wait_for_empty_queue(my_sos);
           MPI_Barrier(MPI_COMM_WORLD);
 
@@ -238,19 +237,19 @@ void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos) {
             && (queue_depth_local    == 0)
             && (queue_depth_cloud    == 0)) {
           STUFF_IN_DB_QUEUE = false;
-          if (waited_count > 0) { printf("\t\t...[%04d @ %s] Queue is now EMPTY!  Pausing for network flush.  (%d usec)\n",
-                                         rank, host, (waited_count * 100000)); fflush(stdout); }
+          if (waited_count > 0) { printf("\t\t...[%04d @ %s] Queue is now EMPTY!  Pausing for network flush.  (%1.4F sec)\n",
+                                         rank, host, (float) (waited_count / 10)); fflush(stdout); }
           usleep(waited_count * 100000);
           continue;
         } else {
           waited_count++;
-          if (waited_count > 100) {
+          if (waited_count > 25) {
             printf("\t\t...[%04d @ %s] Carrying on anyway!\n", rank, host);
             fflush(stdout);
             STUFF_IN_DB_QUEUE = false;
             continue;
           }
-          printf("\t[%04d @ %s] @ (%d of 100) Wait for queue drain ... local: %" SOS_GUID_FMT
+          printf("\t[%04d @ %s] @ (%d of 25) Wait for queue drain ... local: %" SOS_GUID_FMT
                  " cloud: %" SOS_GUID_FMT
                  " tasks: %" SOS_GUID_FMT
                  " snaps: %" SOS_GUID_FMT"\n",
