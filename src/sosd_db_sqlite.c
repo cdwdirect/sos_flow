@@ -198,16 +198,12 @@ void SOSD_db_init_database() {
     #endif
 
     /*
-     *   In unix-none mode, the database is accessible from multiple processes
-     *   but you need to do (not currently in our code) explicit calls to SQLite
-     *   locking functions (need to find out what they are.)   -CW
-     *
      *   "unix-none"     =no locking (NOP's)
      *   "unix-excl"     =single-access only
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -216,12 +212,13 @@ void SOSD_db_init_database() {
         dlog(1, "Successfully opened database.\n");
     }
 
-    sqlite3_exec(database, "PRAGMA synchronous   = ON;",      NULL, NULL, NULL); // = Let the OS handle flushes.
+    sqlite3_exec(database, "PRAGMA synchronous   = ON;",       NULL, NULL, NULL); // OFF = Let the OS handle flushes.
     sqlite3_exec(database, "PRAGMA cache_size    = 31250;",    NULL, NULL, NULL); // x 2048 def. page size = 64MB cache
     sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
     sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
+    sqlite3_exec(database, "PRAGMA journal_mode  = DELETE;",   NULL, NULL, NULL); // Default
   //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
-    sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
+  //sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
 
