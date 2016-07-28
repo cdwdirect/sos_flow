@@ -2,6 +2,7 @@ module unload darshan
 module load cmake
 module load sqlite 
 module swap PrgEnv-intel PrgEnv-gnu
+module load python/3.5-anaconda
 
 export SOS_CMD_PORT=22500
 export SOS_DB_PORT=22503
