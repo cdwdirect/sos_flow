@@ -4,8 +4,42 @@ import sqlite3
 import numpy as np
 import pylab as pl
 import time
-
+import signal
 from data_utils import is_outlier
+
+conn = None
+
+def open_connection(filename):
+    global conn
+    # check for file to exist
+    print ("Checking for file: ", sqlite_file)
+    while not os.path.exists(sqlite_file):
+        print ("Waiting on file: ", sqlite_file)
+        time.sleep(1)
+
+    print("Connecting to: ", sqlite_file)
+    # Connecting to the database file
+    #conn = sqlite3.connect(sqlite_file)
+    #fd = os.open(sqlite_file, os.O_RDONLY)
+    #conn = sqlite3.connect('/dev/fd/%d' % fd)
+    url = 'file:' + sqlite_file + '?mode=ro'
+    conn = sqlite3.connect(url, uri=True)
+    conn.isolation_level=None
+    c = conn.cursor()
+    #c.execute('PRAGMA journal_mode=WAL;')
+    #c.execute('PRAGMA synchronous   = ON;')
+    #c.execute('PRAGMA cache_size    = 31250;')
+    #c.execute('PRAGMA cache_spill   = FALSE;')
+    #c.execute('PRAGMA temp_store    = MEMORY;')
+    return c
+
+def signal_handler(signal, frame):
+    print("Detected ctrl-C...exiting.")
+    print("Closing connection to database.")
+    conn.close()
+    sys.exit(0)
+
+signal.signal(signal.SIGINT, signal_handler)
 
 def get_ranks(c):
     sql_statement = ("select distinct comm_rank from tblpubs order by comm_rank;")
@@ -29,14 +63,25 @@ def do_chart(subplot, c, ranks, group_column, metric, plot_title, y_label, graph
         newplot = True
         graph = {}
     for r in ranks:
-        sql_statement = ("SELECT tblvals.row_id, tbldata.name, tblvals.val, tblvals.time_pack, tblpubs.comm_rank FROM tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid INNER JOIN tblpubs ON tblpubs.guid = tbldata.pub_guid WHERE tblvals.guid IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE ?) AND tblpubs." + group_column + " like ? order by tblvals.time_pack;")
+        sql_statement = ("SELECT tblvals.row_id, tbldata.name, tblvals.val, tblvals.time_pack, tblpubs.comm_rank FROM tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid INNER JOIN tblpubs ON tblpubs.guid = tbldata.pub_guid WHERE tblvals.guid IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE '" + metric + "') AND tblpubs." + group_column)
+        if isinstance(r, str):
+            sql_statement = (sql_statement + " like '" + r + "' order by tblvals.time_pack;")
+        else:
+            sql_statement = (sql_statement + " = " + str(r) + " order by tblvals.time_pack;")
 
         params = [metric,r]
         #print "Executing query: ", sql_statement, params
-        c.execute(sql_statement,params)
+        #c.execute(sql_statement,params)
+        c.execute(sql_statement)
 
         #print("Fetching rows.")
         all_rows = c.fetchall()
+        if len(all_rows) <= 0:
+            print("Error: query returned no rows.",)
+            print(sql_statement, params)
+            #conn.close()
+            #sys.exit(0)
+            return graph
         names = np.array([x[1] for x in all_rows])
 
         #print("Making numpy array of: metric_values")
@@ -64,19 +109,33 @@ def do_derived_chart(subplot, c, ranks, group_column, metric1, metric2, plot_tit
         newplot = True
         graph = {}
     for r in ranks:
-        sql_statement = ("SELECT tblvals.row_id, tbldata.name, cast(tblvals.val as float), tblvals.time_pack FROM tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid INNER JOIN tblpubs ON tblpubs.guid = tbldata.pub_guid WHERE tblvals.guid IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE ?) AND tblpubs." + group_column + " = ? order by tblvals.time_pack;")
+        sql_statement = ("SELECT tblvals.row_id, tbldata.name, cast(tblvals.val as float), tblvals.time_pack FROM tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid INNER JOIN tblpubs ON tblpubs.guid = tbldata.pub_guid WHERE tblvals.guid IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE '" + metric1 + "') AND tblpubs." + group_column + " = " + str(r) + " order by tblvals.time_pack;")
 
         # print("Executing query 1")
         params = [metric1,r]
-        c.execute(sql_statement,params);
+        c.execute(sql_statement);
         # print("Fetching rows.")
         all_rows1 = c.fetchall()
+        if len(all_rows1) <= 0:
+            print("Error: query returned no rows.",)
+            print(sql_statement, params)
+            #conn.close()
+            #sys.exit(0)
+            return graph
 
+
+        sql_statement = ("SELECT tblvals.row_id, tbldata.name, cast(tblvals.val as float), tblvals.time_pack FROM tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid INNER JOIN tblpubs ON tblpubs.guid = tbldata.pub_guid WHERE tblvals.guid IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE '" + metric2 + "') AND tblpubs." + group_column + " = " + str(r) + " order by tblvals.time_pack;")
         # print("Executing query 2")
         params = [metric2,r]
-        c.execute(sql_statement,params);
+        c.execute(sql_statement);
         # print("Fetching rows.")
         all_rows2 = c.fetchall()
+        if len(all_rows2) <= 0:
+            print("Error: query returned no rows.",)
+            print(sql_statement, params)
+            conn.close()
+            sys.exit(0)
+            return graph
 
         # print("Making numpy array of: metric_values")
         metric_values = np.array([x[2]/y[2] for x,y in zip(all_rows1,all_rows2)])
@@ -101,29 +160,20 @@ def do_derived_chart(subplot, c, ranks, group_column, metric1, metric2, plot_tit
 # name of the sqlite database file
 sqlite_file = sys.argv[1]
 
-# check for file to exist
-print ("Checking for file: ", sqlite_file)
-while not os.path.exists(sqlite_file):
-    print ("Waiting on file: ", sqlite_file)
-    time.sleep(1)
-# wait just a bit more
-time.sleep(2)
-
-print("Connecting to: ", sqlite_file)
-# Connecting to the database file
-conn = sqlite3.connect(sqlite_file)
-#fd = os.open(sqlite_file, os.O_RDONLY)
-#conn = sqlite3.connect('/dev/fd/%d' % fd)
-#url = 'file:' + sqlite_file + '?mode=ro'
-#conn = sqlite3.connect(url, uri=True)
-c = conn.cursor()
-c.execute('PRAGMA journal_mode=WAL;')
+# open the connection
+c = open_connection(sqlite_file)
 
 # get the number of ranks
 ranks = get_ranks(c)
+while ranks.size == 0:
+    time.sleep(1)
+    ranks = get_ranks(c)
 print ("ranks: ", ranks)
-# get the number of ranks
+# get the number of nodes
 nodes = get_nodes(c)
+while nodes.size == 0:
+    time.sleep(1)
+    nodes = get_nodes(c)
 print ("nodes: ", nodes)
 #resize the figure
 # Get current size
@@ -134,28 +184,33 @@ fig_size[1] = 9
 pl.rcParams["figure.figsize"] = fig_size
 pl.ion()
 # rows, columns, figure number for subplot value
+graph3 = do_chart(323, c, ranks, "comm_rank", "%Mean::Memory Footprint%","Mean memory footprint (KB)","Kilobytes", None)
 graph1 = do_chart(321, c, nodes, "node_id", "%Mean::Node Power%","Mean Power","Node Power (Watts)", None)
 graph2 = do_chart(322, c, nodes, "node_id", "%Mean::Node Energy%","Mean Energy","Node Energy (Joules)", None)
-graph3 = do_chart(323, c, ranks, "comm_rank", "%Mean::Memory Footprint%","Mean memory footprint (KB)","Kilobytes", None)
 graph4 = do_chart(324, c, [0], "comm_rank", "time","Lulesh time per iteration","Time", None)
 graph5 = do_chart(325, c, [0], "comm_rank", "delta time","Lulesh delta time per iteration","Delta Time", None)
 graph6 = do_derived_chart(326, c, ranks, "comm_rank", "%TAU::0::exclusive_TIME::MPI_Waitall()%","%TAU::0::calls::MPI_Waitall()%","MPI_Waitall() ","MPI_Waitall()", None)
+print("Closing connection to database.")
+# Closing the connection to the database file
+conn.close()
 pl.tight_layout()
 pl.draw()
 while True:
     pl.pause(1.0)
     print("Updating chart...")
+    # open the connection
+    c = open_connection(sqlite_file)
     do_chart(321, c, nodes, "node_id", "%Mean::Node Power%","Mean Power","Node Power (Watts)", graph1)
     do_chart(322, c, nodes, "node_id", "%Mean::Node Energy%","Mean Energy","Node Energy (Joules)", graph2)
     do_chart(323, c, ranks, "comm_rank", "%Mean::Memory Footprint%","Mean memory footprint (KB)","Kilobytes", graph3)
     do_chart(324, c, [0], "comm_rank", "time","Lulesh time per iteration","Time", graph4)
     do_chart(325, c, [0], "comm_rank", "delta time","Lulesh delta time per iteration","Delta Time", graph5)
     do_derived_chart(326, c, ranks, "comm_rank", "%TAU::0::exclusive_TIME::MPI_Waitall()%","%TAU::0::calls::MPI_Waitall()%","MPI_Waitall() ","MPI_Waitall()", graph6)
+    print("Closing connection to database.")
+    # Closing the connection to the database file
+    conn.close()
     pl.draw()
 
-print("Closing connection to database.")
-# Closing the connection to the database file
-conn.close()
 
 print("Done.")
 
