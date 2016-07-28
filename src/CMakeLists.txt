@@ -270,6 +270,20 @@ endif()
 
 
 
+#TARGET ---> demo_sweep
+#            (demonstration / example)
+add_executable("demo_sweep" "demo_sweep.c")
+target_link_libraries("demo_sweep" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("demo_sweep" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("demo_sweep" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+
+
 
 #TARGET ---> proc_app
 #            (demonstration / example)

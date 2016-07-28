@@ -192,7 +192,7 @@ void SOSD_db_init_database() {
     flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
 
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
@@ -207,7 +207,7 @@ void SOSD_db_init_database() {
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -216,8 +216,18 @@ void SOSD_db_init_database() {
         dlog(1, "Successfully opened database.\n");
     }
 
+    sqlite3_exec(database, "PRAGMA synchronous   = ON;",      NULL, NULL, NULL); // = Let the OS handle flushes.
+    sqlite3_exec(database, "PRAGMA cache_size    = 31250;",    NULL, NULL, NULL); // x 2048 def. page size = 64MB cache
+    sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
+    sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
+  //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
+    sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
+
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
-    SOSD.db.snap_queue->sync_pending = 0;
+
+    if (SOSD.db.snap_queue->elem_count == 0) {
+      SOSD.db.snap_queue->sync_pending = 0;
+    }
 
     SOSD_db_create_tables();
 
@@ -292,7 +302,7 @@ void SOSD_db_close_database() {
     CALL_SQLITE (finalize(stmt_insert_enum));
     CALL_SQLITE (finalize(stmt_insert_sosd));
     dlog(2, "  ... closing database file.\n");
-    sqlite3_close_v2(database);
+    sqlite3_close(database);
     dlog(2, "  ... destroying the mutex.\n");
     pthread_mutex_destroy(SOSD.db.lock);
     free(SOSD.db.lock);
@@ -346,7 +356,12 @@ void SOSD_db_transaction_commit() {
 void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    pthread_mutex_lock(SOSD.db.lock);
+    //pthread_mutex_lock(SOSD.db.lock);
+
+    sqlite3 *sosa_conn;
+    int flags = SQLITE_OPEN_READONLY;
+
+    sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
 
     SOS_msg_header   header;
     char            *sosa_query      = NULL;
@@ -362,12 +377,12 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
 
     int rc = 0;
-    rc = sqlite3_prepare_v2( database, sosa_query, -1, &sosa_statement, NULL);
-    if (rc != SQLITE_OK) {
+    rc = sqlite3_prepare_v2( sosa_conn, sosa_query, -1, &sosa_statement, NULL);
+    /*    if (rc != SQLITE_OK) {
     dlog(0, "ERROR: Unable to prepare statement for analytics(rank:%" SOS_GUID_FMT ")'s query:    (%d: %s)\n\n\t%s\n\n",
         header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
         exit(EXIT_FAILURE);
-    }
+        }*/
 
     dlog(7, "Building result set...\n");
 
@@ -401,7 +416,8 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     }//while:rows
 
     sqlite3_finalize(sosa_statement);
-    pthread_mutex_unlock(SOSD.db.lock);
+    sqlite3_close(sosa_conn);
+    //pthread_mutex_unlock(SOSD.db.lock);
 
     SOSA_results_to_buffer(response, results);
 
@@ -515,10 +531,13 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
     dlog(5, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
     count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
-    dlog(5, "      [bbb] %d snaps were returned from the queue on request.\n", count);
+    dlog(5, "      [bbb] %d snaps were returned from the queue on request for %d.\n", count, snap_count);
     queue->elem_count -= count;
     snap_count = count;
-    queue->sync_pending = 0;
+
+    if (queue->elem_count == 0) { 
+      queue->sync_pending = 0;
+    }
     dlog(5, "  ... [bbb] releasing queue->lock\n");
     pthread_mutex_unlock(queue->sync_lock);
 
