@@ -112,6 +112,11 @@ char *sql_create_table_sosd_config = ""                \
 
 
 
+char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals.guid;";
+char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData.guid;";
+char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs.guid;";
+
+
 char *sql_insert_pub = ""                                               \
     "INSERT INTO " SOSD_DB_PUBS_TABLE_NAME " ("                         \
     " guid,"                                                            \
@@ -227,6 +232,11 @@ void SOSD_db_init_database() {
     }
 
     SOSD_db_create_tables();
+
+    sqlite3_exec(database, sql_create_index_tblvals, NULL, NULL, NULL);
+    sqlite3_exec(database, sql_create_index_tbldata, NULL, NULL, NULL);
+    sqlite3_exec(database, sql_create_index_tblpubs, NULL, NULL, NULL);
+
 
     dlog(2, "Preparing transactions...\n");
 
@@ -799,5 +809,8 @@ void SOSD_db_create_tables(void) {
 
     dlog(1, "  ... done.\n");
     return;
+
+
+
 }
 
