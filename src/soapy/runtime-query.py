@@ -5,6 +5,7 @@ import numpy as np
 import pylab as pl
 import time
 import signal
+import random
 from data_utils import is_outlier
 
 conn = None
@@ -52,6 +53,7 @@ signal.signal(signal.SIGINT, signal_handler)
 
 def try_execute(c, statement, parameters=None):
     success = False
+    #print(statement)
     while not success:
         try:
             if parameters:
@@ -73,9 +75,13 @@ def get_ranks(c):
     ranklen = len(ranks)
     if ranklen > 10:
         smallranks = [0]
-        smallranks.append(int((ranklen/2)-1))
+        for i in range(1,4):
+            candidate = random.randrange(1, ranklen-1)
+            while candidate in smallranks:
+                candidate = random.randrange(1, ranklen-1)
+            smallranks.append(candidate)
         smallranks.append(int(ranklen-1))
-        return np.array(smallranks)
+        return np.array(sorted(smallranks))
     else:
         return ranks
 
@@ -85,7 +91,21 @@ def get_nodes(c):
     try_execute(c,sql_statement);
     all_rows = c.fetchall()
     nodes = np.array([x[0] for x in all_rows])
-    return nodes
+    nodelen = len(nodes)
+    if nodelen > 10:
+        smallnodes = [0]
+        for i in range(1,4):
+            candidate = random.randrange(1, nodelen-1)
+            while candidate in smallnodes:
+                candidate = random.randrange(1, nodelen-1)
+            smallnodes.append(candidate)
+        smallnodes.append(int(nodelen-1))
+        smallnodes2 = []
+        for index in smallnodes:
+            smallnodes2.append(nodes[index])
+        return np.array(sorted(smallnodes2))
+    else:
+        return nodes
 
 def get_min_timestamp(c):
     global min_timestamp
