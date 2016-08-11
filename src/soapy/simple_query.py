@@ -17,9 +17,9 @@ sql_statement = (" SELECT "
                  "   (tblvals INNER JOIN tbldata ON tblvals.guid = tbldata.guid) "
                  " WHERE "
                  "   tblvals.guid "
-                 "      IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE 'cpu_avg%') "
+                 "      IN (SELECT guid FROM tbldata WHERE tbldata.name LIKE '%power%') "
                  " AND "
-                 "   tblvals.rowid < 100; ")
+                 "   tblvals.rowid < 300; ")
 
 
 c.execute(sql_statement);

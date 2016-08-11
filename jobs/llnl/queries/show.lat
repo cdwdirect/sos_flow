@@ -1,0 +1,6 @@
+#!/bin/bash
+for db in `pwd`/sosd.*.db ; do
+    echo -n "$db :   "
+    echo -n -e "\t"
+    sqlite3 -column ${db} "select min(time_recv - time_send) as lat_min, avg(time_recv - time_send) as lat_avg, max(time_recv - time_send) as lat_max from tblvals;"
+done

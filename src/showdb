@@ -27,12 +27,12 @@ for db in $SOS_WORK/sosd.*.db ; do
 #    sqlite3 ${db} "select count(distinct guid) from tblvals;"
     echo -n "[####]: max(tblvals.rowid)           = "
     sqlite3 ${db} "select max(rowid) from tblvals;"
-    sqlite3 ${db} -nullvalue "<NULL>" -header -column "select * from tblvals where rowid < 5;"
+    sqlite3 ${db} -header -column "select * from tblvals where rowid < 5;"
     echo "..."
     if [ "x$1" == "x" ] ; then
         echo -n "[####]: count(distinct guid) from tblpubs = "
         sqlite3 ${db} "select count(distinct guid) from tblpubs;"
-        sqlite3 ${db} -nullvalue "<NULL>" -header -column "${PUBLIST_SQL}"
+        sqlite3 ${db} -header -column "${PUBLIST_SQL}"
     fi
     echo ""
     echo ""

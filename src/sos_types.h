@@ -285,11 +285,13 @@ typedef struct {
     SOS_position        p7;
 } SOS_volume_hexahedron;
 
+
 typedef struct {
     double              pack;
     double              send;
     double              recv;
 } SOS_time;
+
 
 typedef struct {
     SOS_val_freq        freq;

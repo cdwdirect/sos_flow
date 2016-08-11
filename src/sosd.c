@@ -40,7 +40,7 @@
 #include "sos_qhashtbl.h"
 #include "sos_buffer.h"
 
-#define USAGE          "usage:   $ sosd  --port <number>  --buffer_len <bytes>  --listen_backlog <len>  --role <role>  --work_dir <path>"
+#define USAGE          "usage:   $ sosd  --role <role>  --port <monitor_port>  --work_dir <path>"
 
 void SOSD_display_logo(void);
 
@@ -65,16 +65,21 @@ int main(int argc, char *argv[])  {
 
     my_role = SOS_ROLE_DAEMON; /* This can be overridden by command line argument. */
 
+    SOSD.net.buffer_len = SOS_DEFAULT_BUFFER_LEN;
+    SOSD.net.listen_backlog = 10;
+
     /* Process command-line arguments */
-    if ( argc < 7 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
+    if ( argc < 7 ) { fprintf(stderr, "ERROR: Not enough arguments supplied.   (%d)\n\n%s\n", argc, USAGE); exit(EXIT_FAILURE); }
     SOSD.net.port_number    = -1;
     SOSD.net.buffer_len     = -1;
     SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
-        if ((next_elem = elem + 1) == argc) { fprintf(stderr, "%s\n", USAGE); exit(1); }
+        if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
         if (      strcmp(argv[elem], "--port"            ) == 0) { SOSD.net.server_port    = argv[next_elem];       }
-        else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { SOSD.net.buffer_len     = atoi(argv[next_elem]); }
-        else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
+        /*  
+         *  else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { SOSD.net.buffer_len     = atoi(argv[next_elem]); }
+         *  else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
+         */
         else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.daemon.work_dir    = argv[next_elem];       }
         else if ( strcmp(argv[elem], "--role"            ) == 0) {
             if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0)  { my_role = SOS_ROLE_DAEMON; }
@@ -84,10 +89,9 @@ int main(int argc, char *argv[])  {
         elem = next_elem + 1;
     }
     SOSD.net.port_number = atoi(SOSD.net.server_port);
-    if ( (SOSD.net.port_number < 1)
-         || (SOSD.net.buffer_len < 1)
-         || (SOSD.net.listen_backlog < 1) )
-        { fprintf(stderr, "%s\n", USAGE); exit(1); }
+    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_DAEMON)) {
+      fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
+    }
 
     #ifndef SOSD_CLOUD_SYNC
     if (my_role != SOS_ROLE_DAEMON) {
@@ -411,7 +415,7 @@ void* SOSD_THREAD_local_sync(void *args) {
             pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
             SOSD.sync.cloud.queue->elem_count++;
             pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
-        } else {
+        } else if (SOS->role == SOS_ROLE_DB) {
             //DB role's can go ahead and release the buffer.
             SOS_buffer_destroy(buffer);
         }
@@ -447,8 +451,9 @@ void* SOSD_THREAD_db_sync(void *args) {
         SOSD_countof(thread_db_wakeup++);
 
         pthread_mutex_lock(my->queue->sync_lock);
-        queue_depth = my->queue->elem_count;
 
+        //queue_depth = SOS_min(SOS_DEFAULT_DB_TRANS_SIZE, my->queue->elem_count);
+        queue_depth = my->queue->elem_count;
         if (queue_depth > 0) {
             task_list = (SOSD_db_task **) malloc(queue_depth * sizeof(SOSD_db_task *));
         } else {
@@ -467,10 +472,11 @@ void* SOSD_THREAD_db_sync(void *args) {
             break;
         }
 
-        dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
- 
         my->queue->elem_count -= count;
         pthread_mutex_unlock(my->queue->sync_lock);
+
+        dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
+
 
         SOSD_db_transaction_begin();
 
@@ -522,6 +528,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     struct timeval   now;
     struct timespec  wait;
     SOS_buffer      *buffer;
+    SOS_buffer      *reply;
     SOS_buffer     **msg_list;
     SOS_buffer      *msg;
     SOS_msg_header   header;
@@ -532,6 +539,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     int              msg_offset;
 
     SOS_buffer_init_sized_locking(SOS, &buffer, (1000 * SOS_DEFAULT_BUFFER_LEN), false);
+    SOS_buffer_init_sized_locking(SOS, &reply,  (SOS_DEFAULT_BUFFER_LEN),        false);
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
@@ -602,8 +610,12 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         buffer->len = offset;
         dlog(0, "[ccc] Sending %d messages in %d bytes over MPI...\n", count, buffer->len);
 
-        SOSD_cloud_send(buffer);
+        SOSD_cloud_send(buffer, reply);
+
+        /* TODO: { CLOUD, REPLY} Handle any replies here. */
+
         SOS_buffer_wipe(buffer);
+        SOS_buffer_wipe(reply);
         free(msg_list);
 
         gettimeofday(&now, NULL);
@@ -680,17 +692,17 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     task->pub = pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
 
-    pthread_mutex_lock(SOSD.db.snap_queue->sync_lock);
-    if (SOSD.db.snap_queue->sync_pending == 0) {
-        SOSD.db.snap_queue->sync_pending = 1;
-        pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
+    //pthread_mutex_lock(SOSD.db.snap_queue->sync_lock);
+    //if (SOSD.db.snap_queue->sync_pending == 0) {
+    //    SOSD.db.snap_queue->sync_pending = 1;
+    //    pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
         pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
         pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
         SOSD.sync.db.queue->elem_count++;
         pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    } else {
-        pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
-    }
+    //} else {
+    //    pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
+    //}
 
     dlog(5, "  ... done.\n");
         
@@ -1270,7 +1282,7 @@ void SOSD_init() {
      *     create and hold lock file to prevent multiple daemon spawn
      */
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
     snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
@@ -1293,7 +1305,7 @@ void SOSD_init() {
      *      system logging initialize
      */
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
     #else
     snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif

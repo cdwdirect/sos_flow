@@ -96,6 +96,9 @@ extern "C" {
 #define SOS_max(a,b) ((a > b) ? a : b)
 #endif
 
+#ifndef SOS_min
+#define SOS_min(a,b) ((a < b) ? a : b)
+#endif
 
 #define SOS_TIME(__SOS_now)       { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6)); }
 
@@ -128,7 +131,8 @@ extern "C" {
     SOS_runtime *SOS;                                                                                                      \
     SOS = (SOS_runtime *) __SOS_context;                                                                                   \
     if (SOS == NULL) {                                                                                                     \
-                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n");                  \
+                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!  (%s)\n",             \
+                             __SOS_str_funcname);                                                                          \
                       exit(EXIT_FAILURE);                                                                                  \
                       }                                                                                                    \
     char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                                                                         \
