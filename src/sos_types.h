@@ -67,6 +67,10 @@
     PRI(SOS_PRI_IMMEDIATE)                      \
     PRI(SOS_PRI___MAX)
 
+#define FOREACH_VOLUME(VOLUME)                  \
+    VOLUME(SOS_VOLUME_HEXAHEDRON)               \
+    VOLUME(SOS_VOLUME___MAX)
+
 #define FOREACH_VAL_TYPE(VAL_TYPE)              \
     VAL_TYPE(SOS_VAL_TYPE_INT)                  \
     VAL_TYPE(SOS_VAL_TYPE_LONG)                 \
@@ -183,6 +187,7 @@ typedef enum { FOREACH_STATUS(GENERATE_ENUM)       } SOS_status;
 typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)     } SOS_msg_type;
 typedef enum { FOREACH_FEEDBACK(GENERATE_ENUM)     } SOS_feedback;
 typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
+typedef enum { FOREACH_VOLUME(GENERATE_ENUM)       } SOS_volume;
 typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
 typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
 typedef enum { FOREACH_VAL_SYNC(GENERATE_ENUM)     } SOS_val_sync;
@@ -204,6 +209,7 @@ static const char *SOS_STATUS_string[] =       { FOREACH_STATUS(GENERATE_STRING)
 static const char *SOS_MSG_TYPE_string[] =     { FOREACH_MSG_TYPE(GENERATE_STRING)     };
 static const char *SOS_FEEDBACK_string[] =     { FOREACH_FEEDBACK(GENERATE_STRING)     };
 static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
+static const char *SOS_VOLUME_string[] =       { FOREACH_VOLUME(GENERATE_STRING)       };
 static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
 static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
 static const char *SOS_VAL_SYNC_string[] =     { FOREACH_VAL_SYNC(GENERATE_STRING)     };
@@ -231,7 +237,6 @@ typedef     uint64_t SOS_guid;
 #define SOS_GUID_FMT PRIu64
 
 
-
 typedef union {
     int                 i_val;
     long                l_val;
@@ -239,6 +244,46 @@ typedef union {
     char               *c_val;
     void               *bytes;   /* Use addr. of SOS_buffer object. */
 } SOS_val;
+
+//
+//  SOS_position:
+//
+//        [Z]
+//         | [Y]
+//         | /
+//         |/
+//  . . ... ------[X]
+//        ,:
+//       . .
+//      .  .
+//
+typedef struct {
+    double              x;
+    double              y;
+    double              z;
+} SOS_position;
+
+//
+//  SOS_volume_hexahedron:
+//
+//          [p7]---------[p6]
+//         /________    / |
+//      [p4]--------[p5]  |
+//       ||  |       ||   |
+//       || [p3]-----||--[p2]
+//       ||/________ || /
+//      [p0]--------[p1]
+//
+typedef struct {
+    SOS_position        p0;
+    SOS_position        p1;
+    SOS_position        p2;
+    SOS_position        p3;
+    SOS_position        p4;
+    SOS_position        p5;
+    SOS_position        p6;
+    SOS_position        p7;
+} SOS_volume_hexahedron;
 
 typedef struct {
     double              pack;
