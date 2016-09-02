@@ -112,6 +112,11 @@ char *sql_create_table_sosd_config = ""                \
 
 
 
+char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals.guid;";
+char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData.guid;";
+char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs.guid;";
+
+
 char *sql_insert_pub = ""                                               \
     "INSERT INTO " SOSD_DB_PUBS_TABLE_NAME " ("                         \
     " guid,"                                                            \
@@ -198,16 +203,12 @@ void SOSD_db_init_database() {
     #endif
 
     /*
-     *   In unix-none mode, the database is accessible from multiple processes
-     *   but you need to do (not currently in our code) explicit calls to SQLite
-     *   locking functions (need to find out what they are.)   -CW
-     *
      *   "unix-none"     =no locking (NOP's)
      *   "unix-excl"     =single-access only
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -216,12 +217,13 @@ void SOSD_db_init_database() {
         dlog(1, "Successfully opened database.\n");
     }
 
-    sqlite3_exec(database, "PRAGMA synchronous   = ON;",      NULL, NULL, NULL); // = Let the OS handle flushes.
+    sqlite3_exec(database, "PRAGMA synchronous   = ON;",       NULL, NULL, NULL); // OFF = Let the OS handle flushes.
     sqlite3_exec(database, "PRAGMA cache_size    = 31250;",    NULL, NULL, NULL); // x 2048 def. page size = 64MB cache
     sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
     sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
+    sqlite3_exec(database, "PRAGMA journal_mode  = DELETE;",   NULL, NULL, NULL); // Default
   //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
-    sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
+  //sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
 
@@ -230,6 +232,11 @@ void SOSD_db_init_database() {
     }
 
     SOSD_db_create_tables();
+
+    sqlite3_exec(database, sql_create_index_tblvals, NULL, NULL, NULL);
+    sqlite3_exec(database, sql_create_index_tbldata, NULL, NULL, NULL);
+    sqlite3_exec(database, sql_create_index_tblpubs, NULL, NULL, NULL);
+
 
     dlog(2, "Preparing transactions...\n");
 
@@ -580,7 +587,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         switch (val_type) {
         case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", snap_list[snap_index]->val.d_val); break;
+        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%.17lf", snap_list[snap_index]->val.d_val); break;
         case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; dlog(0, "Injecting snap->val.c_val = \"%s\"\n", snap_list[snap_index]->val.c_val); break;
         default:
             dlog(5, "     ... error: invalid value type.  (%d)\n", val_type); break;
@@ -802,5 +809,8 @@ void SOSD_db_create_tables(void) {
 
     dlog(1, "  ... done.\n");
     return;
+
+
+
 }
 
