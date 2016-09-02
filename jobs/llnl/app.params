@@ -1,1 +1,1 @@
--imin 20 -imax 100 -istep 20 -smin 200 -smax 1000 -sstep 200 -dmin 500000 -dmax 1000000 -dstep 100000
+-imin 2 -imax 10 -istep 2 -smin 50 -smax 250 -sstep 50 -dmin 500000 -dmax 1000000 -dstep 100000

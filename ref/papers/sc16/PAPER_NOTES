@@ -1,0 +1,51 @@
+
+
+paper sections / notes:
+
+	30-40% is about design/arch
+		- function
+		- purpose
+		- how did it get developed
+		- coupled with an application
+		- takes information and places it in a space where it can be used for analysis
+
+
+
+		- "it's a programming framework"
+			- focus on user-defined behavior
+			- programmable api to track / respond to whatever we want
+			- "am i load imbalanced?"
+					- have macros for common questions
+					
+		- in situ
+			- there is stuff i want to look at that i don't want
+				to save or transport off node
+		- programmable operating environment extension
+			- a service that applications can use
+			- "why have to motivate the use of it when there is nothing
+				like it that already exists?"
+
+		- analytics framework concept
+			- data is represented in the system in a way that
+				allows users to create custom queries
+			- performance of queries versus the rest of the system
+			- better notion of expressing to the runtime that a value is
+				of interest and should be automatically queried
+				(this is like the 'macros' concept)
+			- FOR DEMO:
+				select all MPI_Barrier::inclusive
+				return mean/max/min for entire NODE, group by PID
+				---> this gives us race-to-red-light revelation.
+
+	related works
+		- history (taumon, taug, etc.)
+		- ldms
+		- tacc stats
+		
+	tests
+		- 1:1 mpi/core lulesh x 23 + sos_flow
+		- 1:1 mpi/core lulesh x 16 (undersubscribe node) + sos_flow
+		- 1 proc + omp lulesh 
+		- timed_wait vs. cond_wait in extractor thread
+		
+		
