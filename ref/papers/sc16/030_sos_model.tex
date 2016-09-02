@@ -40,22 +40,25 @@ and control.
 %%%%%
 
 \subsubsection{Monitoring Multiple Sources}
+TODO
 \todo[inline]{...}
 
 \subsubsection{Metadata Tags}
+TODO
 \todo[inline]{...}
 
 \subsubsection{Aggregation and Higher-Level Reasoning}
+TODO
 \todo[inline]{...}
 
 
 %-----------------------------------------------------------------------------
 
-\section{Operational Properties and Methods}
+\subsection{Properties of the SOS Model}
 
 %%%%%
-SOSflow is concieved of as an architectural addition to the general fabric
-of exascale clusters.
+SOS's runtime framework is concieved of as an architectural addition
+to the general fabric of exascale clusters.
 %
 It is intended to be a widely-integrated service that evolves
 low-level optimizations over time, with a broad set of functionality
@@ -71,15 +74,84 @@ for smaller workflows, scaling effectively down to single-node runs.
 %%%%%
 
 %%%%%
-The following properties are required to meet the design goals,
-adopting their design rationale through specific features and
-constraints:
+A non-trivial set of properties (Table \ref{tabledesign}) are required
+to meet the design goals of SOS.
 %
 \input{tables/030_properties_means.tex}
 %
+No existing software system adequately expresses the properties required
+for the SOS model, motivating the development of a novel software
+artifact.
 %
+The needs of the SOS model are fully met with the contribution of the
+SOSflow software system.
 %%%%%
 
+
+\subsection{Model and Environment}
+
+%%%%%
+Comparing, validating, and selecting a particular means for achieving
+the SOS workflow architecture involves understanding the environment
+within which it will run.
+%
+The following points represent fixed constraints in any given
+workflow execution environment:
+%
+\begin{itemize}
+      %
+    \item \textbf{Available Memory}
+      %
+    \item \textbf{CPU Core Count}
+      %
+    \item \textbf{CPU Time}
+      %
+    \item \textbf{Node Count}
+      %
+    \item \textbf{Transport Bandwidth}
+      %
+    \item \textbf{Storage Bandwidth}
+      %
+\end{itemize}
+%
+While workflows may be run on a single node, the general case of a
+distributed workflow is useful for mapping out the full set of
+environmental considerations.
+%
+SOS has behavior requirements for its general case (Table
+\ref{tabledesign}) and a model or combination of models should
+be employed that is suitable to meet each requirement,
+especially those regarding overhead and intrusiveness.
+%
+There are a variety of information movement strategies (topologies)
+that might, singularly or cooperatively, meet the architectural
+conditions of SOS, and a subset of possible strategies is presented
+here.
+%
+In order to stratify the models or combinations of them into a
+heirarchy of fitness, the impact on their resource-constrained
+operating environment should be considered.
+%
+Each strategy has a dominant impact a different part of the
+environment, which is also its primary performance constraint:
+%
+\begin{itemize}
+      %
+    \item \textbf{Distributed} - Transport bandwidth
+      %
+    \item \textbf{Centralized} - Transport bandwidth, storage bandwidth, node count
+      %
+    \item \textbf{Streaming Direct Messages} - Transport bandwidth, CPU Time, available memory
+      %
+    \item \textbf{On-line In Situ} - CPU Core Count, CPU Time, available memory
+      %
+    \item \textbf{Off-line In Situ} - Storage bandwidth, available memory
+      %
+\end{itemize}
+%
+
+%
+%%%%%
 
 
 
