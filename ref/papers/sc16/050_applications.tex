@@ -5,6 +5,61 @@
 
 \section{Applications}
 
+
+%-----------------------------------------------------------------------------
+
+\subsection{What is Observed}
+
+%-----------------------------------------------------------------------------
+
+\subsection{How to Observe}
+
+%%%%%
+SOSflow has been designed as a voluntary-participation runtime system
+that runs in user space on commodity HPC platforms.
+%
+A daemon process is launched on node that acts as an intelligent
+unbounded asynchronous hub for in situ collection of data from
+multiple sources, the migration of that data into searchable stores,
+and the targeted delivery of feedback messages from online analytics
+modules observing the flow of information.
+%%%%%
+
+\subsubsection{``Put the Data Somewhere Useful''}
+%%%%%
+Because of the variety of metrics of interest, the fact that they may
+not always be expressed in any given runtime, and that all possible
+metrics are not known a priori to be hardcoded into a system, it is
+exceedingly helpful from an architectural point of view if performance
+observations are gathered into a common fabric from all sources.
+%
+Any well-intended program spinning opaque snapshots of its internal
+state out into a proprietary database is denying all other parts of
+the environment the ability to learn more about each other,
+themselves, and that program.
+%%%%%
+
+
+\subsubsection{Simple, Clean, Universal}
+%%%%%
+Rather than seeing yet another printf()-style instrumentation
+dead-end, or a Titanic-scale solution that requires deep federal
+pockets or administrator priveleges to use, a well-designed
+observation system will provide a clean and flexible interface
+suitable for capturing and annotating metrics within their context,
+and will bring the metrics from all sources together to be operated
+over following a shared set of action-oriented semantics.
+%
+As users operating with self-interest will be the pioneers seeding
+these raw data fields, the system should be easy to use and
+accessible, and provide immediate benefit to anyone who wishes to add
+some sweat equity.
+%%%%%
+
+
+
+
+
 %-----------------------------------------------------------------------------
 
 \subsection{OpenMP + APEX on Multinode}

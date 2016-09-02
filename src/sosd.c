@@ -330,6 +330,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer); break;
         case SOS_MSG_TYPE_CHECK_IN:   SOSD_handle_check_in   (buffer); break;
         case SOS_MSG_TYPE_PROBE:      SOSD_handle_probe      (buffer); break;
+        case SOS_MSG_TYPE_QUERY:      SOSD_handle_sosa_query (buffer); break;
         default:                      SOSD_handle_unknown    (buffer); break;
         }
 
@@ -629,6 +630,38 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
 
 /* -------------------------------------------------- */
+
+
+
+void SOSD_handle_query(SOS_buffer *buffer) { 
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_query");
+    SOS_msg_header header;
+    int            offset;
+    int            rc;
+    SOS_buffer    *result;
+
+    dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
+
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+
+    SOS_buffer_init(SOS, &result, SOS_DEFAULT_BUFFER_SIZE, false);
+
+    SOSD_db_handle_sosa_query(buffer, result);
+
+    rc = send(SOSD.net.client_socket_fd, (void *) result->data, result->len, 0);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+       
+    return;
+}
+
 
 
 void SOSD_handle_echo(SOS_buffer *buffer) { 

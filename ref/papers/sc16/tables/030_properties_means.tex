@@ -1,0 +1,102 @@
+
+
+\begin{table}[!t]
+%% increase table row spacing, adjust to taste
+\renewcommand{\arraystretch}{1.3}
+\caption{SOSflow Design Properties and Means}
+\label{tabledesign}
+\centering
+\begin{tabular}{|c|c|}
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+scalable                   / From one to millions of nodes
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+portable                   / Many architectures and operating systems
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+easy to use                / Simple well-degined interfaces,
+                             minimal external software dependencies
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+multi-purpose              / Utility not limited to any single
+                             component purpose, does not impose
+                             a priori purposes for monitoring
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+concurrent with workflow   / Runs at the same time as workflow
+                             in order to capture emergent behavior
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+in situ access             / Complete feature set available on-node,
+                             allowing distributed and data-local
+                             analytics, feedback, and control
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+low overhead               / Do not consume storage, bandwidth,
+                             or compute time wastefully, allow
+                             system to be [de]activated dynamically
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+low intrusion              / API calls should return rapidly, and
+                             users have means to exercise control of
+                             storage vs. transport timing trade/offs
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+responsive                 / Timeliness of replies should support
+                             application steering and global
+                             state interrogation
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+can dedicate resources     / When available, make use of dedicated
+                             resources to avoid contention
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+on-line interactivity      / Handle control and introspection
+                             messages and replies while
+                             workflow is running and SOSflow is
+                             continuously operating
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+user-space                 / Do not require administrative
+                             privileges for basic functionality
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+database                   / Utilize general-purpose SQL data store
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+HPC-friendly               / Take advantage of high-speed
+                             communication fabric unique to the
+                             HPC environment.  Do not require
+                             components that are not suitable or
+                             available for HPC
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+extensible                 / Modular design and APIs to allow
+                             feature extension, configurable behavior
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+global information space   / All information is contextualized and
+                             distinctly addressable, even if not
+                             migrated off-node at run-time
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{tabular}
+\end{table}
+
+

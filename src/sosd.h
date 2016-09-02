@@ -189,6 +189,7 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
+    void  SOSD_handle_sosa_query(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );

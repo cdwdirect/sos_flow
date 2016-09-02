@@ -5,7 +5,7 @@
 
 \section{The Architecture of SOS}
 
-\subsection{Design Rational}
+\subsection{Design Rationale}
 
 %%%%%
 In order to gather run-time information and operate on is, SOS needs to be
@@ -51,152 +51,43 @@ and control.
 
 %-----------------------------------------------------------------------------
 
-\section{Properties and Means of Operation}
-
-
-
-
-
-
-
-
-
-
-%-----------------------------------------------------------------------------
-
-\subsection{What is Observed}
+\section{Operational Properties and Methods}
 
 %%%%%
-\textit{``We'll have to know EVERYTHING if we're going to bother trying to
-know anything at all.''}
-%%%%%
-
-%%%%%
-At a low-level, HPC computer engineering has grown in complexity and
-sophistication, and many on-core processor behaviors that used to be
-isolated, synchronous, and predictable, are now interrelated,
-data-dependant, asynchronous, and demonstrate variations in
-performance impossible to comprehensively characterize a priori.
-%
-As core transistor density increases on the nodes of a cluster, and
-the mean number of cores per node also increases, the unpredictability
-and inconsistency of the hardware itself becomes an increasingly
-significant contributor to observed variability.
-%
-Hardware is an important source to consider when it comes to
-performance.
-%
-Almost nothing that can be done to control or eliminate the variance
-introduced by hardware components.
-%
-Performance data derived from noisy hardware has to be admitted into
-the results alongside data from well-behaved machines.
-%
-Keeping track of \textit{when and where}, not merely how, a
-program ran is growing in significance to all HPC experiments with an
-interest in improving performance.
-%%%%%
-
-%%%%%
-Performance of HPC codes can be impacted from many different sources:
-\begin{itemize}
-      %
-    \item Versions of software libraries across can differ across
-      clusters, or even the same cluster across time.
-      %
-    \item Tuning factors to extract maximum performance from a code
-      can vary across clusters, even if the code and the data do not
-      change.
-      %
-      Shared filesystem performance, data transport methods,
-      available per-process memory, co-processor presence and
-      architecture, ...and more, all can be responsible for
-      influencing sensitivity to novel tuning factors.
-      %
-    \item Concurrent activity elsewhere on the same cluster, activity
-      that will necessarily vary between every iteration of the
-      workflow, may be having a significant impact on observed
-      performance.
-      %
-    \item At extreme scales, parts of a simulation are almost
-      guaranteed to fail due to the marginal failure rates of hardware
-      components approaching absolute certainty as the number of
-      involved components increases.
-      %
-      These failures cannot be accurately predicted a priori, and
-      the design constraints that account for and respond to them
-      introduce performance perturbation and further complexity.
-      %
-\end{itemize}
-%%%%%
-
-%-----------------------------------------------------------------------------
-
-\subsection{How to Observe}
-%%%%%
-SOSflow has been designed as a voluntary-participation runtime system
-that runs in user space on commodity HPC platforms.
-%
-A daemon process is launched on node that acts as an intelligent
-unbounded asynchronous hub for in situ collection of data from
-multiple sources, the migration of that data into searchable stores,
-and the targeted delivery of feedback messages from online analytics
-modules observing the flow of information.
-%%%%%
-
-\subsubsection{``Put the Data Somewhere Useful''}
-%%%%%
-Because of the variety of metrics of interest, the fact that they may
-not always be expressed in any given runtime, and that all possible
-metrics are not known a priori to be hardcoded into a system, it is
-exceedingly helpful from an architectural point of view if performance
-observations are gathered into a common fabric from all sources.
-%
-Any well-intended program spinning opaque snapshots of its internal
-state out into a proprietary database is denying all other parts of
-the environment the ability to learn more about each other,
-themselves, and that program.
-%%%%%
-
-
-\subsubsection{Simple, Clean, Universal}
-%%%%%
-Rather than seeing yet another printf()-style instrumentation
-dead-end, or a Titanic-scale solution that requires deep federal
-pockets or administrator priveleges to use, a well-designed
-observation system will provide a clean and flexible interface
-suitable for capturing and annotating metrics within their context,
-and will bring the metrics from all sources together to be operated
-over following a shared set of action-oriented semantics.
-%
-As users operating with self-interest will be the pioneers seeding
-these raw data fields, the system should be easy to use and
-accessible, and provide immediate benefit to anyone who wishes to add
-some sweat equity.
-%%%%%
-
-
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-\section{SOS: Scalable Observation System}
-
-%%%%%
-SOS is concieved of as an architectural addition to the general fabric
+SOSflow is concieved of as an architectural addition to the general fabric
 of exascale clusters.
 %
 It is intended to be a widely-integrated service that evolves
 low-level optimizations over time, with a broad set of functionality
 that is available to all users of an exascale cluster.
 %
-It should feel like a tool meant for any developer's hands, not only
-the performance researcher's.
+Any workflow can derive utility from the general solution SOSflow presents
+for workflow monitoring, analytics, feedback, and control.
 %
-If SOS is not to be doomed to gather dust on the shelf in obscurity,
-it really only needs to do one thing: It needs to help.
+The SOSflow platform targets extreme scales, but the design discipline
+required to offer its full suite of services in situ with minimal
+invasiveness means that SOSflow is well-adapted to provide coverage
+for smaller workflows, scaling effectively down to single-node runs.
 %%%%%
+
+%%%%%
+The following properties are required to meet the design goals,
+adopting their design rationale through specific features and
+constraints:
+%
+\input{tables/030_properties_means.tex}
+%
+%
+%%%%%
+
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Implementation}
 
 %-----------------------------------------------------------------------------
 
