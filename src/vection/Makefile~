@@ -1,0 +1,3 @@
+all:
+	gcc forker.c -o forker
+	gcc -Wall -fPIC -shared -o wrap_fork.so wrap_fork.c -ldl
