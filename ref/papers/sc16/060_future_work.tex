@@ -23,63 +23,6 @@ the HPC community.
 
 %-----------------------------------------------------------------------------
 
-\subsection{Related Work}
-\todo[inline]{
-ptrace
-CM*
-TAUg
-Caliper
-TACC Stats
-LDMS
-Cache
-Ganglia
-Nagios
-}
-
-\section{Related Work}
-
-%%%%%
-Traditionally, HPC research into enhancing performance has been
-focused on low-level efficiency of an application or library on some
-particular mechine, with tools like TAU bringing HPC developers ever
-closer to optimal runs on specific machines.
-%
-Low-level metrics are naturally suited for off-line episodic
-performance analysis of individual workflow components.
-%
-Such deep instrumentation is necessarily invasive and can dictate
-rather than capture the observed performance of the instrumented
-application when it is run at scale or required to engage in
-significant amounts of interactivity.
-%
-Doing principle components analysis on unconditioned data is also
-computationally expensive and unsuitible for a runtime environment.
-%
-While differing from them significantly, as discussed in the prior
-sections, SOSflow draws some concepts from many existing tools.
-%
-These tools, and many other performance monitoring tools, are
-well-implemented, tested, maintained, deployed and regularly used for
-performance research studies.
-%%%%%
-
-%%%%%
-Higher-level systems like TACC Stats \cite{evans2014comprehensive}
-allow the tracking and exploration of execution wall-time for
-applications compiled using various library versions.
-%
-The popular Lightweight Distributed Metric System (LDMS)
-\cite{agelastos2014lightweight} provides basic integration of multiple
-modalities of data in real-time, triggering program invocation or
-shaping work allocation across a cluster as informed by network
-congestion statistics, and other hybridized or meta-execution data
-points.
-%%%%%
-
-
-
-%-----------------------------------------------------------------------------
-
 \subsection{Future Work}
 
 %%%%%

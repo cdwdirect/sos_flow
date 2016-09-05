@@ -40,8 +40,7 @@ $(MAIN).pdf: $(INFILES)
 	$(BIBTEX) $(MAIN)
 	$(LATEX) $(MAIN)
 	$(LATEX) $(MAIN)
-#
-#	scp bare_conf.pdf cdw@ix.cs.uoregon.edu:/home/users/cdw/public_html/sc16.pdf
+	scp bare_conf.pdf cdw@ix.cs.uoregon.edu:/home/users/cdw/public_html/sc16.pdf
 
 fonts: $(MAIN).pdf
 	$(FONTS) $<
