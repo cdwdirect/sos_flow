@@ -3,40 +3,65 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{The Architecture of SOS}
+\section{The Architecture of SOSflow}
+Applying the SOS model to the complex and highly variable
+behavior of scientific workflows led to the creation of the SOSflow
+runtime software system.
 
 \subsection{Design Rationale}
-
 %%%%%
-In order to gather run-time information and operate on is, SOS needs to be
-running at the same time and in the same context as the applications it covers.
+SOSflow contributes a general solution to in situ
+observation, introspection, feedback, and control of scientific
+workflows.
+%
+Information from a wide variety of sources can be relevent to the
+characterization and optimization of a workflow.
+%
+In order to gather run-time information and operate on is, SOS needs
+to be active at the same time and in the same context as the workflow
+components.
 %
 This on-line operation should be able to collect data from multiple sources
 within its operating context, and efficiently service requests for this data.
 %
-All information that is processed should be distinct and carry with it a
+Because information transport technology and methods have such
+diversity and case-by-case optimality, SOSflow's must be implemented
+independent of the technology used in the scientific workflows it
+monitors.
+%
+All information that is captured in SOS should be distinct and carry with it a
 set of metadata to enable classification and reasoning over it.
 %
-SOSflow should aggregate information together at run-time to enable high level
-reasoning over the entire monitored workflow.
+SOSflow should aggregate necessary information together at run-time to
+enable high level reasoning over the entire monitored workflow.
+%
+These requirements inform the features of SOSflow and a general
+solution to in situ observation, introspection, feedback, and control.
 %%%%%
 
 \subsubsection{The Need to Observe Locally at Run-Time}
-
 %%%%%
-Because the features we are interested in are going to emerge at run
-time, it is necessary to obtain observations of real-world
-applications, libraries, data transmissions, and hardware state.
+It is necessary to obtain observations at run time to capture features
+of workflows that emerge from the interactions of the workflow as a whole,
+with itself and with the platform on which it is executing.
 %
-To realize a model for performance that is practically suited for
-exascale architecures, it is further necessary to collect and analyze
-information as close as possible to its source, and to accept metrics
-submitted from an arbitrary array of sources.
+Interactions between applications, contention over shared resources,
+hardware state, and data-driven behaviors require some form of in situ
+observation.
 %
-This in situ runtime design effectively parallelizes the execution of
-the observation system and gives opportunities to cut down on
+To be practically suited for exascale architecures, SOSflow is
+designed to collect and analyze information as close as possible to
+its source, and to accept metrics submitted from an arbitrary array of
+sources.
+%
+SOSflow's in situ runtime design effectively parallelizes the execution of
+the observation system by scaling its capacity in direct proportion to
+the number of nodes observed.
+%
+Each instance of SOSflow can operate independently and has the full
+suite of functionality, creating opportunities to alleviate
 coordination overhead when providing mechanisms for on-line feedback
-and control.
+and control to massively parallel workflows.
 %%%%%
 
 \subsubsection{Monitoring Multiple Sources}
@@ -44,14 +69,17 @@ Scientific workflows feature two or more components that are coupled
 together to transport shared information used to produce a cumulative
 result.
 %
-These components can be instantiated as threads of a single process, but
-more often they are independent processes.
+These components can be instantiated as lightweight threads belonging
+to a single process, but more often they execute concurrently as
+independent processes.
 %
-Components are functionally independent of each other and capable of
-being dynamically instantiated and terminated.
+Components are functionally isolated from of each other and capable of
+being dynamically instantiated and terminated, changing count or
+locality during the course of a single workflow execution.
 %
-Any general solution for monitoring entire workflows will need to
-exist outside of the lifecycle of a given single component.
+Any general solution for monitoring entire workflows will need to be
+capable of contextualizing the information it processes in a scope
+that is outside of the lifecycle of any one component.
 %
 Because many components can be operating concurrently on a single
 node, the monitoring solution must be capable of accepting
@@ -62,18 +90,43 @@ information from multiple sources concurrently.
 There are many methods to transport information between components of
 workflows.
 %
-The optimal transport mechanism for a flow will depend on many
-factors, such as the overall magnitude of information, operational
-element size, update frequency, locality, and format commonality.
+The optimal transport mechanism for a flow can depend on many factors:
+available hardware resources, topology of connected workflow
+components, total amount of information, size of data partitions,
+update frequency, data dependency relations, commonality of format,
+the expected useful lifetime of some data, etc.
 %
-
+Information transport mechanisms are likely to differ not only between
+workflows, but also between runs of the same workflow on different systems.
 %
-This research contributes a general solution to the monitoring
-challenges posed by scientific workflows.
+Workflow components can be coupled together by producing and consuming
+data files rather than using timely on-line communication, requiring
+SOSflow to provide an independent mechanism for information transport.
 %
-To address the general case, SOSflow operates independently of any
-given component, and is not a priori tailored for the nature of one
-component or workflow.
+Any two components of a scientific workflow are able to be connected
+in a way that makes the most sense for their particular exchanges,
+often multiple information transports are employed from end-to-end in
+a workflow.
+%
+One transport technology can be used in drastically different ways
+within a workflow, such as with MPI's offering of efficient
+collectives, blocking synchronous point-to-point messages, and
+asynchronous one-sided communication.
+%
+If the SOSflow routines endogenous to an instrumented component are
+communicating using the same mechanisms employed by the component
+itself, the desired SOSflow behavior cannot be guaranteed across all
+version of common data transport libraries such as MPI.
+%
+SOSflow is designed to be minimally invasive and attempts to meet its
+own information transport needs without entangling or directly
+interfering with the workflow component's communications.
+%
+Pervasive heterogeniety of technology, varying topology of connected
+components, deep configurability of workflows, and the inconsistent
+implementations of various transport technologies were each drivers
+for the independence of SOSflow from the coupling frameworks used to
+bind workflow components together.
 %%%%%
 
 \subsubsection{Metadata Tags}
@@ -85,20 +138,58 @@ TODO
 \todo[inline]{...}
 
 
+\subsubsection{Modeling SOSflow as a General Solution}
+This research contributes a general solution to the monitoring
+challenges posed by scientific workflows.
+%
+To address the general case, SOSflow operates independently of any
+given component and the technology it employs to be coupled into a workflow.
+%
+SOSflow's behavior is not bound by the nature of the workflows it
+operates alongside, and by design SOSflow is not limited to a specific
+scale or execution environment.
+%
+Developing solutions for future exascale machines by using in situ
+methodology conserves the utility of the model when it is applied to
+smaller scales.
+%
+Independent pieces of embarassingly parallel simulations can be thought of
+as smaller isolated workflows within the context of their total experiment.
+%
+For any kind of scientific workflow, each single node's evolving state
+is equally disposed to be a context for significant analysis, as much as
+the whole of the simulation of allocation within which it runs.
+%
+This implies that even very small workflows, such as single-node simulations
+running on a researcher's workstation, can utilize the full range of
+SOSflow capabilities.
+%%%%%
+
+
 %-----------------------------------------------------------------------------
 
-\subsection{Properties of the SOS Model}
+\subsection{Properties of the SOSflow Model}
 
 %%%%%
-SOS's runtime framework is concieved of as an architectural addition
-to the general fabric of exascale clusters.
+SOS's runtime framework is concieved of as eventually becoming an
+architectural addition to the general fabric of HPC clusters.
 %
-It is intended to be a widely-integrated service that evolves
-low-level optimizations over time, with a broad set of functionality
-that is available to all users of an exascale cluster.
+SOSflow is intended to be a widely-integrated programmable middleware
+that evolves low-level optimizations over time, with a broad set of
+functionality that is available to all developers and users of
+scientific workflows, regardless of job scale.
 %
-Any workflow can derive utility from the general solution SOSflow presents
-for workflow monitoring, analytics, feedback, and control.
+During this early research phase, SOSflow runs in user space within
+the context of a single job's allocation.
+%
+Operating in user space prevents native on-line datacenter-wide
+information aggregation and analysis, but has the significant benefit
+of making SOSflow deployable by any user in any context with support for its
+minimal dependencies.
+%
+There are no a priori constraints prohibiting workflows from deriving
+utility from the general solution SOSflow presents for on-line in situ
+monitoring, analytics, feedback, and control.
 %
 The SOSflow platform targets extreme scales, but the design discipline
 required to offer its full suite of services in situ with minimal
@@ -108,28 +199,36 @@ for smaller workflows, scaling effectively down to single-node runs.
 
 %%%%%
 A non-trivial set of properties (Table \ref{tabledesign}) are required
-to meet the design goals of SOS.
+to meet the design goals of SOSflow.
 %
 \input{tables/030_properties_means.tex}
 %
-No existing software system adequately expresses the properties required
-for the SOS model, motivating the development of a novel software
-artifact.
+No extant software system adequately expressed all of the properties
+required for the SOSflow model, motivating its development and
+contribution as a novel software artifact.
 %
-The needs of the SOS model are fully met with the contribution of the
-SOSflow software system.
+SOSflow provides a flexible research platform for investigating the
+properties of existing and future scientific workflows, supporting
+both current and future scales of execution.
 %%%%%
 
 
 \subsection{Model and Environment}
-
 %%%%%
-Comparing, validating, and selecting a particular means for achieving
-the SOS workflow architecture involves understanding the environment
-within which it will run.
+For the purposes of further discussion, ''scientific workflow'' will imply 
+distributed instances of a workflow executing concurrently on two or more nodes.
 %
-The following points represent fixed constraints in any given
-workflow execution environment:
+Considering the multi-node case will capture the important dimension
+of contention for shared network resources and the trade-offs that are
+encountered when optimization convergence is dependent on off-node
+information that is less reliably or quickly accessible than in situ
+data.
+%
+Workflow execution environments provide the basis for comparing, validating, and selecting a particular means for achieving
+the SOSflow model.
+%
+A following are some feature abstractions useful for reasoning about
+workflow execution environments:
 %
 \begin{itemize}
       %
@@ -147,14 +246,13 @@ workflow execution environment:
       %
 \end{itemize}
 %
-While workflows may be run on a single node, the general case of a
-distributed workflow is useful for mapping out the full set of
-environmental considerations.
+SOSflow has preconditioned properties for its general case (Table
+\ref{tabledesign}) and a model or combination of models should be
+employed that is suitable to meet each requirement, especially those
+regarding overhead and intrusiveness.
 %
-SOS has behavior requirements for its general case (Table
-\ref{tabledesign}) and a model or combination of models should
-be employed that is suitable to meet each requirement,
-especially those regarding overhead and intrusiveness.
+These design requirements for SOSflow are indicators of the core
+functionality it ultimately provides for its users.
 %
 There are a variety of information movement strategies (topologies)
 that might, singularly or cooperatively, meet the architectural
@@ -165,8 +263,13 @@ In order to stratify the models or combinations of them into a
 heirarchy of fitness, the impact on their resource-constrained
 operating environment should be considered.
 %
-Each strategy has a dominant impact a different part of the
-environment, which is also its primary performance constraint:
+Each strategy intuitively has a dominant impact a different part of
+the environment, which is an indicator of its primary performance
+constraint:
+%
+\todo[inline]{I don't like how this is set up, it seems like if
+I'm going to say these things I should have some numbers to back
+it up, and such a study is beyond the scope of this paper.}
 %
 \begin{itemize}
       %
@@ -183,6 +286,7 @@ environment, which is also its primary performance constraint:
 \end{itemize}
 %
 
+
 %
 %%%%%
 
@@ -198,26 +302,23 @@ environment, which is also its primary performance constraint:
 
 \subsection{SOSflow}
 %%%%%
-Applying the semantic performance model to actual run-time
-environments necessitated the development of new infrastructure
-software, and so the second contribution to the general challenges of
-monitoring scientific workflows is the SOSflow middleware.
-%
-SOSflow is designed to:
+SOSflow's core routines allow it to:
 %
 \begin{enumerate}
       %
     \item Facilitate on-line capture of performance data and various system
-      events in situ (i.e. ``on node'') from arbitrary sources and
-      perspectives at the same time.
+      events in situ from many sources and
+      for many purposes at the same time.
       %
-    \item Annotate the gathered data's semantic meaning with
-      expressive ``high-level'' tags that facilitate contextualization
-      and introspective analytics.
+    \item Annotate the gathered data's with
+      expressive ``high-level'' semantic tags that conserve its contextual
+      meaning
+      and can empower efficient introspection and complex event classification
+      at run-time.
       %
     \item Store the captured data on node in a way that can be
       searched with dynamic queries in real-time as well as being
-      suitable for long-term centralized archival.
+      suitable for aggregation and long-term archival.
       %
 \end{enumerate}
 %%%%%
@@ -267,9 +368,8 @@ Some accessory components are:
 \end{itemize}
 %%%%%
 
-%%%%%
 \subsection{SOSflow: Behavior}
-%
+%%%%%
 The sosd daemon is itself an MPI application, and it is launched as a
 background process in user space at the start of a job script, before
 the scientific workflow begins.
@@ -686,61 +786,17 @@ for the next phases of its maturation.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
-%%%%%
 %
-Unfortunately, \textit{they're solving yesterday's problem tomorrow},
-and are firmly grounded in the classic HPC ways of modeling
-performance.
+%   NOTE: It gets pretty loose from here on... this needs to be condensed
+%         and focused A LOT.
 %
-Users of such codes have to hard-wire every bit of actual
-functionality as a special case, and only by doing so for every
-possible use case, for every possible application, for each possible
-allocation configuration, can they learn something that is in the end
-of no use to anyone but them, right at that time and at no other
-time.
-%
-High-level modeling, in the current jargon, is far too specific
-to be of general use.
-%
-As earlier sections have described, those high-level codes are
-actually very low-level: They have loosely-coupled components that are
-voluntarily participated with, but \textit{everything that those
-  components gather and operate over is an empty low-level matter of
-  fact} such as latency or binary signature.
-%%%%%
-
-%%%%%
-
-%%%%%
-
-%%%%%
-It is increasingly challenging for static analysis of low-level
-features and decontextualized raw codes to produce insight into the
-run-time performance of some arbitrary complex workflow.
-%
-A higher-level approach is required to characterize and reason about
-the emergent properties of a large scientific code.
-%
-Industrial-grade parallel software simulations are interacting
-asynchronously across a distributed HPC cluster that is typically
-shared with many other users.
-%
-New ways of describing and comparing scientific workflows are clearly
-needed, especially when considering the extreme scales of parallelism
-to which scientific workflows are being driven.
-%%%%%
 
 
 %-----------------------------------------------------------------------------
 
-\subsection{The Invariant Meaning of Codes}
-
+\subsection{Semantic Markups and On-line Reasoning}
 %%%%%
-Visually, figures are revealed by their background: they break up the
-continuity of the background and stand-out in the world.
-%
-By defining an invariant background for performance observations to be
+By defining a stable meaning for observations to be
 set off against, the meaning in the codes, the partially summed yet
 variously disanalogous sets of observed metrics from a system as a
 whole, can be mapped over each other according to a set of organizing
@@ -793,6 +849,19 @@ variability in the performance of a scientific workflow will simply
 \textit{require} well-annotated metadata to facilitate apples to
 apples comparisons driven by unsupervised machine learning rather than
 a priori developer knowledge or slow offline centralized analysis.
+%
+Offline big data analytics can help discover the features of
+workflows that will allow helpful runtime predictions like
+precursors to hardware failures, shared resource consumption, and
+predictions of I/O requirements for scheduler optimization.
+%
+Once the features are mapped out and a model is developed that
+facilitates complex event classification, it will need to be handed
+off to an in situ runtime that can efficiently detect information
+that fits the model.
+%
+Having consistent semantic annotation will facilitate complex event
+detection.\todo[inline]{Duh.}
 %
 In the face of wild performance variance across byzantine parameter
 spaces, hardware allocations, software libraries, and dynamic
@@ -1056,20 +1125,5 @@ Some specific immediate perks would be enhancements to:
 \end{itemize}
 %%%%%
 
-%%%%%
-The SOS workflow performance model is still being refined, and more
-serious demonstrations are needed in order to convince people that
-their cluster should have an always-on observation and analysis
-platform.
-%
-Perhaps all an admin wants to do is run 25-year old Fortran codes as
-inefficiently and as often as possible, so long as the support phone
-never rings.
-%
-We suspect that given the peculiar nature of distributed mobile
-computing paired with the looming tectonic shift to exascale compute
-platforms, SOS's model will prove timely and deeply beneficial to a
-variety of interests.
-%%%%%
 
 %\todofileend{030\_sos\_model.tex}
