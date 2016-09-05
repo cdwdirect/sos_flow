@@ -40,8 +40,41 @@ and control.
 %%%%%
 
 \subsubsection{Monitoring Multiple Sources}
-TODO
-\todo[inline]{...}
+Scientific workflows feature two or more components that are coupled
+together to transport shared information used to produce a cumulative
+result.
+%
+These components can be instantiated as threads of a single process, but
+more often they are independent processes.
+%
+Components are functionally independent of each other and capable of
+being dynamically instantiated and terminated.
+%
+Any general solution for monitoring entire workflows will need to
+exist outside of the lifecycle of a given single component.
+%
+Because many components can be operating concurrently on a single
+node, the monitoring solution must be capable of accepting
+information from multiple sources concurrently.
+%%%%%
+
+\subsubsection{Movement of Information}
+There are many methods to transport information between components of
+workflows.
+%
+The optimal transport mechanism for a flow will depend on many
+factors, such as the overall magnitude of information, operational
+element size, update frequency, locality, and format commonality.
+%
+
+%
+This research contributes a general solution to the monitoring
+challenges posed by scientific workflows.
+%
+To address the general case, SOSflow operates independently of any
+given component, and is not a priori tailored for the nature of one
+component or workflow.
+%%%%%
 
 \subsubsection{Metadata Tags}
 TODO
