@@ -65,6 +65,14 @@ required.
 This paper presents the \textit{Scalable Observation System (SOS)} for
 integrated application monitoring.
 %
+A working implementation of SOS is contributed as a part of this
+research effort, the \textit{SOSflow} runtime.
+%
+The SOSflow platform demonstrates all of the essential characteristics
+of the SOS model, showing the scalability and flexibility inherent to
+SOS with its support for observation, introspection, feedback, and
+control of scientific workflows.
+%
 The SOS design emphasizes a semantic data model with distributed
 information management and structured query and access.
 %
@@ -90,29 +98,6 @@ programmability.
 
 %-----------------------------------------------------------------------------
 
-
-\section{Related Work}
-
-%%%%%
-\textbf{ptrace} : ...
-
-\textbf{CM*} : ...
-
-\textbf{TAUg} : ...
-
-\textbf{Caliper} : ...
-
-\textbf{TACC Stats} : ...
-
-\textbf{LDMS} : ...
-
-\textbf{Cache} : ...
-
-\textbf{Ganglia} : ...
-
-\textbf{Nagios} : ...
-
-%%%%%
 
 
 %%%%%
@@ -148,6 +133,32 @@ modalities of data in real-time, triggering program invocation or
 shaping work allocation across a cluster as informed by network
 congestion statistics, and other hybridized or meta-execution data
 points.
+%
+LDMS is a pull-based model, where a daemon running on nodes will
+observe and store a set of values at a regular interval.
+%
+SOS has a hybrid push-pull model that puts users in control of the
+frequency and amount of information exchanged with the runtime.
+%
+Further, LDMS is currently limited to working with double-precision
+floating point values, while SOS allows for the collection of many
+kinds of information including JSON objects and ''binary large
+object'' (BLOB) data.
+%%%%%
+
+
+
+\section{Related Work}
+In case we want to talk about more, here are some more things.
+
+%%%%%
+\textbf{ptrace} : One-liner about how unreasonably fine-grained this is.
+\textbf{TAUg} : Being built into a low-level performance profiling tool, limits utility
+\textbf{Caliper} : I probably want to talk about Caliper more.
+\textbf{Cache} : I could reference Cache as a way of describing the tech I used.
+\textbf{Ganglia} : ...
+\textbf{Nagios} : Could have a one-liner here so people knew I knew about it.
+\textbf{Pegasus} : There are commercial solutions but they are not well adapted to HPC.
 %%%%%
 
 
@@ -155,11 +166,6 @@ points.
 %-----------------------------------------------------------------------------
 
 
-%%%%%
-We now look at our proposal for this new performance model, the
-Scalable Observation System, and a working implementation of it
-as a programmable middleware layer: SOSflow.
-%%%%%
 
 %\todofileend{020\_intro\_motivation.tex}
 

@@ -6,19 +6,6 @@
 \section{Evaluation and Validation}
 
 %%%%%
-SOSflow is a large, complex, and completely new tool framework.
-%
-The core library components comprise more than 12,000 lines of
-original C99 code.
-%
-SOSflow's code base has \textit{not} been systematically optimized for
-this pre-release research work -- since it is an open source project,
-volunteers are always welcome!
-%
-It is likely that the observed performance of SOSflow will
-dramatically improve with several iterations of focused overhead and
-latency refactoring.
-%
 Many of the behavioral characteristics of SOSflow are the product of
 its internal parameters and the configuration of its runtime
 deployment, rather than products of its data model and algorithms.
@@ -44,8 +31,20 @@ for the performance of SOSflow itself, now and for the future.
 %%%%%
 
 %-----------------------------------------------------------------------------
-\subsection{Testing Platform and SOS Configurations}
 
+
+
+%
+%  I need to go through here and update all of this to
+%  reflect work done at LLNL and in preparation for the
+%  Scalable Tools '16 talk.
+%     -Chad
+%
+
+
+
+
+\subsection{Testing Platform and SOS Configurations}
 %%%%%
 All results were obtained by either probing (figure~\ref{probe_json})
 the daemon or by running queries against the SOSflow databases, such

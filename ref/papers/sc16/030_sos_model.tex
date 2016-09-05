@@ -4,15 +4,18 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{The Architecture of SOSflow}
-Applying the SOS model to the complex and highly variable
-behavior of scientific workflows led to the creation of the SOSflow
-runtime software system.
+Applying the SOS model to the challenge of on-line observation for
+complex and highly variable deployments of scientific workflows led to
+the creation of the SOSflow runtime software system.
 
-\subsection{Design Rationale}
+\subsection{SOS Design Rationale}
 %%%%%
-SOSflow contributes a general solution to in situ
+SOS contributes a general solution to on-line in situ
 observation, introspection, feedback, and control of scientific
 workflows.
+%
+Multi-component scientific workflows were used as a concrete example
+of the general case of distributed on-line monitoring.
 %
 Information from a wide variety of sources can be relevent to the
 characterization and optimization of a workflow.
@@ -21,22 +24,25 @@ In order to gather run-time information and operate on is, SOS needs
 to be active at the same time and in the same context as the workflow
 components.
 %
-This on-line operation should be able to collect data from multiple sources
-within its operating context, and efficiently service requests for this data.
+This on-line operation should be able to collect data from multiple
+sources within its context and efficiently service requests
+for this data.
 %
 Because information transport technology and methods have such
-diversity and case-by-case optimality, SOSflow's must be implemented
+diversity and case-by-case optimality, SOS must be implemented
 independent of the technology used in the scientific workflows it
-monitors.
+complements.
 %
-All information that is captured in SOS should be distinct and carry with it a
-set of metadata to enable classification and reasoning over it.
+All information that is captured in SOS should be distinct and carry
+with it a set of metadata to enable classification and reasoning over
+it.
 %
-SOSflow should aggregate necessary information together at run-time to
+SOS should aggregate necessary information together at run-time to
 enable high level reasoning over the entire monitored workflow.
 %
-These requirements inform the features of SOSflow and a general
-solution to in situ observation, introspection, feedback, and control.
+These SOS requirements inform the features of SOSflow and a frame the
+general solution to the challenge of on-line in situ observation,
+introspection, feedback, and control.
 %%%%%
 
 \subsubsection{The Need to Observe Locally at Run-Time}
@@ -174,10 +180,10 @@ SOSflow capabilities.
 SOS's runtime framework is concieved of as eventually becoming an
 architectural addition to the general fabric of HPC clusters.
 %
-SOSflow is intended to be a widely-integrated programmable middleware
-that evolves low-level optimizations over time, with a broad set of
-functionality that is available to all developers and users of
-scientific workflows, regardless of job scale.
+SOS is intended to be a widely-integrated programmable middleware that
+evolves low-level optimizations over time, with a broad set of
+functionality that is available to all, especially developers and
+users of scientific workflows, regardless of job scale.
 %
 During this early research phase, SOSflow runs in user space within
 the context of a single job's allocation.
@@ -187,9 +193,8 @@ information aggregation and analysis, but has the significant benefit
 of making SOSflow deployable by any user in any context with support for its
 minimal dependencies.
 %
-There are no a priori constraints prohibiting workflows from deriving
-utility from the general solution SOSflow presents for on-line in situ
-monitoring, analytics, feedback, and control.
+SOSflow imposes no major design or deployment requirements on workflows,
+given its effort to represent a general solution.
 %
 The SOSflow platform targets extreme scales, but the design discipline
 required to offer its full suite of services in situ with minimal
@@ -213,6 +218,31 @@ both current and future scales of execution.
 %%%%%
 
 
+%
+%  The key thing I want to do in this next section is
+%  provide some clean abstract reasoningbehind the design choices
+%  I made with SOSflow.
+%
+%  Such choices as:
+%    - Fast socket-based in situ communication from app to daemon
+%      to let applications push data in whenever it makes sense
+%      for them to.
+%    - Capturing and queue'ing updates to values to record
+%      the full evolving history of a value with timing, so
+%      developers can control when they interact with the daemon and
+%      don't have to do it every time they make updates.
+%    - Pervasive asynchronous messaging / transport within SOSflow
+%         (we don't guarantee a QoS, but that allows for scaling
+%          that allows for a decent QoS anyway.)
+%    - GUIDs assigned to every value so SOSflow could be configured
+%      such that (after initialization) it had ZERO information
+%      transport impact.
+%    - High-speed communication between daemons using site-optimized MPI
+%    - Queryable data store in situ, to be able to run dist. analytics
+%    - ...
+%
+
+
 \subsection{Model and Environment}
 %%%%%
 For the purposes of further discussion, ''scientific workflow'' will imply 
@@ -224,8 +254,9 @@ encountered when optimization convergence is dependent on off-node
 information that is less reliably or quickly accessible than in situ
 data.
 %
-Workflow execution environments provide the basis for comparing, validating, and selecting a particular means for achieving
-the SOSflow model.
+Workflow execution environments provide the basis for comparing,
+validating, and selecting a particular means for achieving the SOSflow
+model.
 %
 A following are some feature abstractions useful for reasoning about
 workflow execution environments:
