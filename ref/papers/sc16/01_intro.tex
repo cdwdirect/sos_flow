@@ -1,0 +1,41 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% NOTE: no \IEEEPARstart
+
+%%%%%
+\section{Introduction}
+Modern clusters for parallel computing are complex environments and
+the high-performance applications that run on them do so often with
+little insight about their or the system's behavior.
+%
+This is not to say that information is unavailable.  After all,
+sophisticated parallel measurement systems can capture performance and
+power data for characterization, analysis, and tuning purposes, but
+the infrastructure for observation of these systems is not intended
+for general use.
+%
+Rather, it is specialized for certain types of performance information
+and typically does not allow online processing.
+%
+Other information sources of interest might include the
+operating system (OS), network hardware, runtime services, or the
+parallel application itself.
+%
+Cluster monitoring systems like Ganglia \cite{massie2004ganglia} or
+Nagios \cite{katsaros2011building} collect and process data about the
+performance and health of cluster-wide resources, but do not provide
+sufficient fidelity to capture the complex interplay between
+applications competing for shared resources.
+%
+In contrast, the Lightweight Distributed Metric Service
+\cite{agelastos2014lightweight} (LDMS) attempts to capture system data
+continuously to obtain insight into behavioral characteristics of
+individual applications with respect to their resource utilization.
+%
+However, neither of these provides a framework that can be configured
+with and used directly by the application, nor allow for semantic
+encoding of multiple observation sources.
+%%%%%%%
+
+
