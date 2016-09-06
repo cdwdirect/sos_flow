@@ -1,0 +1,72 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Related Work}
+%
+Traditionally, HPC research into enhancing performance has been
+focused on low-level efficiency of an application or library on some
+particular mechine, with tools like TAU bringing HPC developers ever
+closer to optimal runs on specific machines.
+%
+Low-level metrics are naturally suited for off-line episodic
+performance analysis of individual workflow components.
+%
+Such deep instrumentation is necessarily invasive and can dictate
+rather than capture the observed performance of the instrumented
+application when it is run at scale or required to engage in
+significant amounts of interactivity.
+%
+Conditioning data by annotating it with context and semantic tags can
+help to efficiently process it for online introspection.
+%
+Doing principle components analysis on unconditioned data is
+computationally expensive and unsuitible for a runtime environment.
+%
+\par
+%
+The tools mentioned here, and many other performance monitoring tools, are
+well-implemented, tested, maintained, deployed and regularly used for
+performance research studies, but each have deficiencies that render them
+unsuitable for the objectives of SOS.
+
+
+
+\subsection{Monalytics} %-----------------------------------------------------%
+%
+%
+\subsection{LDMS} %-----------------------------------------------------------%
+%
+The popular Lightweight Distributed Metric System (LDMS)
+\cite{agelastos2014lightweight} provides basic integration of multiple
+modalities of data in real-time, triggering program invocation or
+shaping work allocation across a cluster as informed by network
+congestion statistics, and other hybridized or meta-execution data
+points.
+%
+LDMS is a pull-based model, where a daemon running on nodes will
+observe and store a set of values at a regular interval.
+%
+SOS has a hybrid push-pull model that puts users in control of the
+frequency and amount of information exchanged with the runtime.
+%
+Further, LDMS is currently limited to working with double-precision
+floating point values, while SOS allows for the collection of many
+kinds of information including JSON objects and ''binary large
+object'' (BLOB) data.
+%
+\subsection{TAUg} %-----------------------------------------------------------%
+%
+%
+\subsection{TACC Stats} %-----------------------------------------------------%
+%
+Higher-level systems like TACC Stats \cite{evans2014comprehensive}
+allow the tracking and exploration of execution wall-time for
+applications compiled using various library versions.
+%
+
+
+
+
+%%%
+%%%  EOF
+%%%
