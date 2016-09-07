@@ -158,14 +158,43 @@ SOSflow provides a flexible research platform for investigating the
 properties of existing and future scientific workflows, supporting
 both current and future scales of execution.
 %
+A key feature of SOSflow is its ability to capture and integrate information
+from multiple perspectives simultaneously.
+%
 \subsection{Application Perspective} %----------------------------------------%
 %
+Application state and events can be sent to SOSflow from within the application
+at any point during its execution.
+%
+Developers can instrument their programs to be efficiently self-reporting
+the data that is relevant to their overall performance, such as progress
+through specific phases of a simulation.
+%
+...
 %
 \subsection{System Perspective} %---------------------------------------------%
 %
+Application performance can be dramatically impacted by changes in the
+state of the operating environment that is hosting it.
+%
+The effects of contention for shared resources by multiple concurrent
+tasks can be discovered when the gathered performance data places the
+gatherd metrics of both tasks in a common context.
+%
+SOSflow's distributed in situ design is well-suited for capturing
+perspective of the global state of a machine.
+%
+By distributing / co-locating the observation system with the features
+that are observed, SOSflow improves the fidelity of system performance
+data without requiring costly delays in synchronization of impacting
+the network and filesystem bandwidth available to applications.
 %
 \subsection{Tool Perspective} %-----------------------------------------------%
 %
+Performance tools exist that can provide observations at run-time
+of applications, libraries, and the system context.
+%
+These tools can be a valuable addition to the data ...
 %
 \subsection{Exascale Measurement Challenge} %---------------------------------%
 %
