@@ -6,10 +6,10 @@
 %
 Traditionally, HPC research into enhancing performance has been
 focused on low-level efficiency of an application or library on some
-particular mechine, with tools like TAU bringing HPC developers ever
+particular machine, with tools like TAU bringing HPC developers ever
 closer to optimal runs on specific machines.
 %
-Low-level metrics are naturally suited for off-line episodic
+However, low-level metrics are naturally suited for offline episodic
 performance analysis of individual workflow components.
 %
 Such deep instrumentation is necessarily invasive and can dictate
@@ -17,8 +17,8 @@ rather than capture the observed performance of the instrumented
 application when it is run at scale or required to engage in
 significant amounts of interactivity.
 %
-Conditioning data by annotating it with context and semantic tags can
-help to efficiently process it for online introspection.
+SOSflow conditions data by annotating it with context and semantic tags to
+help efficiently process it for online introspection.
 %
 Doing principle components analysis on unconditioned data is
 computationally expensive and unsuitible for a runtime environment.
@@ -28,8 +28,7 @@ computationally expensive and unsuitible for a runtime environment.
 The tools mentioned here, and many other performance monitoring tools, are
 well-implemented, tested, maintained, deployed and regularly used for
 performance research studies, but each have deficiencies that render them
-unsuitable for the objectives of SOS.
-
+unsuitable for a general performance analysis framework. %the objectives of SOS.
 
 
 \subsection{Monalytics} %-----------------------------------------------------%

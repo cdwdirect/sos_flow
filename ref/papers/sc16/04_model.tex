@@ -1,16 +1,16 @@
 
 \section{SOSflow Architectural Model}
 %
-SOS contributes a general solution to on-line in situ
-observation, introspection, feedback, and control of scientific
-workflows.
+%SOS contributes a general solution to on-line in situ
+%observation, introspection, feedback, and control of scientific
+%workflows.
 %
-Multi-component scientific workflows provide a focus for the
-general challnge of distributed on-line monitoring.
+Multi-component complex scientific workflows provide a focus for the
+general challenge of distributed on-line monitoring.
 %
-Applying the SOS model to the challenge of on-line observation for
-complex and highly variable deployments of scientific workflows led to
-the creation of the SOSflow runtime software system.
+Applying the SOS model to the challenge of on-line observation 
+%for complex and highly variable deployments 
+of these workflows led to the development of the SOSflow runtime software system.
 %
 \subsection{Core Features}
 %
@@ -39,11 +39,38 @@ it.
 SOS should aggregate necessary information together at run-time to
 enable high level reasoning over the entire monitored workflow.
 %
+\todo[inline]{
+%
+Information from a wide variety of sources is relevent to the
+characterization and optimization of a workflow.
+%
 \par
 %
-These SOS requirements inform the features of SOSflow and a frame the
-general solution to the challenge of on-line in situ observation,
-introspection, feedback, and control.
+In order to gather run-time information and operate on it, SOS needs
+to be active at the same time and in the same context as the workflow
+components.
+%
+This on-line operation is capable of collecting data from multiple
+sources within its context and efficiently servicing requests
+for this data.
+%
+Because information transport technology and methods have such
+diversity and case-by-case optimality, SOS is implemented
+independent of the technology used in the scientific workflows it
+complements.
+%
+Information captured is distinct and tagged with metadata to enable
+classification and reasoning. 
+%
+SOS can then aggregate necessary information together at run-time to
+enable high level reasoning over the entire monitored workflow.
+%
+}
+\par
+%
+%These SOS requirements inform the features of SOSflow and a frame the
+%general solution to the challenge of on-line in situ observation,
+%introspection, feedback, and control.
 %
 \subsubsection{Online}
 %
@@ -51,9 +78,8 @@ It is necessary to obtain observations at run time to capture features
 of workflows that emerge from the interactions of the workflow as a
 whole.
 %
-Relevant features will emerge from a program's interactions
-with its problem set, its configuration parameters, and with the platform on
-which it is executing.
+Relevant features will emerge given a program's interactions
+with its problem set, its configuration parameters, and the execution platform.
 %
 Making the full functionality of SOSflow available during run-time
 also helps with the SOSflow platform's scalability: The work of
@@ -63,7 +89,7 @@ aggegation can run concurrently with the job.
 %
 \subsubsection{Scalable}
 %
-Tools and run-time infrastructure need to support the largest scale of
+Tools and run-time infrastructures need to support the largest scale of
 operation that applications are being designed for.
 %
 SOSflow is being engineered with an eye towards running at exascale
@@ -79,7 +105,7 @@ The node-level SOSflow agents transfer information off node using
 the high-performance communication infrastructure of the host cluster.
 %
 Aggregation of data need not target a single bottleneck, SOSflow can
-be configured to support a scaling number of logical aggregation points
+be configured to support a scalable number of logical aggregation points
 in order to provide query access to the global information space at
 run-time.
 %
@@ -97,7 +123,7 @@ run-time.
           %
         \item \textbf{Time Alignment} - All values captured in SOSflow
           are time-stamped, so that events which occured in the same
-          chonological span in different parts of the system can be
+          chonological sequence in different parts of the system can be
           aligned and correlated.
           %
         \item \textbf{Resuable Collection / Unilateral Publish / ???} - ...
