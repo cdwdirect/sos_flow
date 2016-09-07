@@ -6,28 +6,17 @@
 \section{Evaluation and Validation}
 
 %%%%%
-Many of the behavioral characteristics of SOSflow are the product of
-its internal parameters and the configuration of its runtime
-deployment, rather than products of its data model and algorithms.
-%
-The exploration of optimal settings in that combined parameter space
-is left for future work: For now the effort was made to select
-reasonable default SOSflow configuration parameters and
-typical/non-priviledged cluster queues and topologies.
 %%%%%
 
 %%%%%
-SOSflow as a tool is \textit{production capable} for the purpose of
-validating the SOS workflow performance model.
+%SOSflow as a tool is \textit{production capable} for the purpose of
+%validating the SOS workflow performance model.
 %
-As we demonstrate, even the current un-optimized code is able to scale
-out to reasonable allocation sizes and handle relatively impressive
-varieties, quantities, and rates of data flow.
+%As we demonstrate, even the current un-optimized code is able to scale
+%out to reasonable allocation sizes and handle relatively impressive
+%varieties, quantities, and rates of data flow.
 %
-Because of the lack of focused tuning to its internal mechanics and
-the general novelty of the architecture, the results and figures
-presented here should be considered the \textit{worst-case scenario}
-for the performance of SOSflow itself, now and for the future.
+
 %%%%%
 
 %-----------------------------------------------------------------------------
@@ -46,27 +35,15 @@ for the performance of SOSflow itself, now and for the future.
 
 \subsection{Testing Platform and SOS Configurations}
 %%%%%
-All results were obtained by either probing (figure~\ref{probe_json})
-the daemon or by running queries against the SOSflow databases, such
-as the one in figure~\ref{example_query}.
+%All results were obtained by either probing (figure~\ref{probe_json})
+%the daemon or by running queries against the SOSflow databases, such
+%as the one in figure~\ref{example_query}.
 %%%%%
 
 %%%%%
-\begin{figure}[!t]
-  \centering
-  \includegraphics[width=2.5in]{images/probe_json_example.png}
-  \caption{JSON Object Returned by SOS's Probe Tool}
-  \label{probe_json}
-\end{figure}
 %%%%%
 
 %%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/query_example.png}
-\caption{Querying the SOSflow Database}
-\label{example query}
-\end{figure*}
 %%%%%
 
 %%%%%
@@ -81,34 +58,8 @@ parameters to explore the capabilities of the sosd daemons.
 %%%%%
 
 %%%%%
-Tests run on the ACISS platform at the University of Oregon were
-deployed with the Torque job scheduler as MPICH2 MPI applications at
-scales ranging from 3 to 24 nodes, serving 10 demo\_app processes per
-node in all cases.
-%
-The ACISS battery of runs were tuned as stress tests to make ensure
-the daemons could operate under reasonably heavy loads.
-%
-In the 24-node case (figure \ref{aciss_lat_24_agg}) SOSflow processed
-72,000,000 values during a 90 second window containing three rounds of
-extremely dense API calls.
 %%%%%
 
-%%%%%
-Real-world use case experiments were conducted on the Cori
-supercomputer at The National Energy Research Scientific Computing
-Center NERSC.
-%
-An SOSflow-enabled variant of the Tuning and Analysis
-Utilities program (TAUflow) was created as a part of the SOSflow
-development work.
-%
-On Cori, TAUflow was used to instrument the Livermore Unstructured
-Lagrangian Explicit Shock Hydrodynamics (LULESH) code.
-%
-During the execution of LULESH, a thread in TAUflow would periodically
-awaken and submit all of TAU's observed performance metrics into the
-SOSflow system.
 %%%%%
 
 %-----------------------------------------------------------------------------
@@ -176,123 +127,11 @@ be higher than the in situ databases.
 %%%%%
 
 %%%%%
-The asynchronous queues have thread-sequential FIFO ordering, but
-because the MPI messages are queued up based on their arrival time,
-and a batch is handled competely before the next is processed, there
-is no real-time interleaving of database value injections, they are
-injected in batches.
-%
-This creates the sawtooth pattern in figures~\ref{aciss_lat_3_agg} and
-\ref{aciss_lat_24_agg}, as the latency for values in the batches near
-the bottom of the pile of MPI messages consistently increases until
-their batch is injected, detailed in
-figure~\ref{aciss_lat_3_agg_detail}.
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/aciss_latency_3_situ.png}
-\caption{In Situ Latency (3 Nodes, 30 Applications)}
-\label{aciss_lat_3_situ}
-\end{figure*}
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/aciss_latency_3_agg.png}
-\caption{Aggregate sosd(db) Latency (3 Nodes, 30 Applications)}
-\label{aciss_lat_3_agg}
-\end{figure*}
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/aciss_latency_3_agg_zm.png}
-\caption{Aggregate sosd(db) Detail (3 Nodes, 30 Applications)}
-\label{aciss_lat_3_agg_detail}
-\end{figure*}
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/aciss_latency_24_situ.png}
-\caption{In Situ Latency (24 Nodes, 240 Applications)}
-\label{aciss_lat_24_situ}
-\end{figure*}
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/aciss_latency_24_agg.png}
-\caption{Aggregate sosd(db) Latency (24 Nodes, 240 Applications)}
-\label{aciss_lat_24_agg}
-\end{figure*}
-%%%%%
-
 
 %-----------------------------------------------------------------------------
 
 \subsection{Scalability}
 
-%%%%%
-SOSflow has a natural scaling fitness for in situ interactivity: As
-the size of the allocation for an HPC job increases, the number of
-listener daemons increases.
-%
-In situ interactions with the daemon are nearly constant time
-operations regardless of the daemon's workload.
-%
-This is shown in figures~\ref{sock_cost} and \ref{sock_cost_detail},
-where the round trip time (RTT) of a probe message between a client
-and the daemon (blue) is projected over a graph of the number of new
-messages arriving in a sample window (red).
-%%%%%
-
-%%%%%
-This information was fetched by sending 9000+ probe messages over a 15
-minute window, with a single sosd(listener) rank processing an average
-of 43,423 client messages a minute arriving from four different
-processes on node.
-%
-The messages from SOS clients contained more than 14.7 GB of data,
-averaging to 338kB per message.
-%
-Though there are a few spikes in the probe message RTT visible in
-figure~\ref{sock_cost}, they are likely not related to SOSflow at all,
-as figure~\ref{sock_cost_detail} reveals in detail.
-%
-The RTT holds steady during low and high volume of traffic from the
-other in situ client processes.
-%
-The mean RTT for the probe messages was 0.003 seconds, and the maximum
-RTT was 0.007 seconds.
-%
-Unlike the SOSflow API calls for publishing data, the probe message is
-relatively slow, as the daemon has to immediately service the request
-by packaging up a struct of its internal statistics to send back.
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/icebox_api_cost_when_slam.png}
-\caption{SOSflow Socket Communication Cost (~0.003sec)}
-\label{sock_cost}
-\end{figure*}
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/icebox_api_cost_zoom.png}
-\caption{SOSflow Socket Communication Cost, Detail}
-\label{sock_cost_detail}
-\end{figure*}
 %%%%%
 
 %%%%%
@@ -366,23 +205,6 @@ value intake when this behavior is detected in order to increase the
 robustness of the daemons.
 %%%%%
 
-
-%%%%%
-SOSflow is configured at launch with a set number of aggregator
-databases.
-%
-The validation tests on ACISS used 3 sosd(db) instances to divide up
-the workload, while the TAUflow + LULESH experiments on Cori used a
-single aggregator.
-%
-As many instances of aggregators can be spawned as needed in order to
-support the quantity of data being injected from a global
-perspective.
-%
-Because all data is tagged with a GUID, these databases can be
-concatenated after the run concludes without collision of identities
-wiping out unique references.
-%%%%%
 
 
 %-----------------------------------------------------------------------------
