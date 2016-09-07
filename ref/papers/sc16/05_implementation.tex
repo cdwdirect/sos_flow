@@ -1,11 +1,44 @@
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Implementation}
-\subsection{Architectur Overview}
+SOSflow's core routines allow it to:
+%
+\begin{enumerate}
+      %
+    \item Facilitate on-line capture of data from many sources.
+      %
+    \item Annotate the gathered data with context and meaning.
+      %
+    \item Store the captured data on node in a way that can be
+      searched with dynamic queries in real-time as well as being
+      suitable for aggregation and long-term archival.
+      %
+\end{enumerate}
+%%%%%
+SOSflow is divided into several components.  The core components are:
+%
+\begin{itemize}
+      %
+    \item \textbf{libsos} - Library of common routines for interacting with
+      sosd daemons and SOS data structures
+      %
+    \item \textbf{sosd(listener)} - Daemon process running on each node
+      %
+    \item \textbf{sosd(db)} - Daemon process running on dedicated resources
+      that stores data aggregated from one or more in situ daemons
+      %
+    \item \textbf{sosa} - Analytics framework for online query of SOS data
+      %
+\end{itemize}
+
+
+\subsection{Architecture Overview} %------------------------------------------%
      - Block diagrams\\
      - Quick enum of important parts
-\subsection{Part A}
-\subsection{Part B}
-\subsection{Part C}
+\subsection{Part A} %---------------------------------------------------------%
+\subsection{Part B} %---------------------------------------------------------%
+\subsection{Part C} %---------------------------------------------------------%
 
 %%%
 %%%  EOF

@@ -101,13 +101,62 @@ information and send back results for application actuators.
 SOS launches with the application, runs along side it, and can acquire
 its own resources for scalable data collection and processing.
 %
-The primary objectives of SOS are flexibility, scalability, and
-programmability.
-
 
 
 \subsection{Scientific Workflows} %-------------------------------------------%
 %
+Scientific workflows feature two or more components that are coupled
+together, operating over shared information to produce a cumulative
+result.
+%
+These components can be instantiated as lightweight threads belonging
+to a single process, or they may execute concurrently as independent
+processes.
+%
+Components of workflows may be functionally isolated from of each
+other or synchronously coupled and co-dependent.
+%
+Parts of workflows may even be dynamically instantiated and
+terminated.
+%
+The computational profile of a workflow can change during the course
+of its execution.
+%
+Any general solution for monitoring workflows will need to be capable
+of contextualizing the information processesed by any single
+component, in a scope that can contain and adequatelty contexualize
+the union of all other component scopes.
+%
+\par
+%
+This research contributes a general solution to the monitoring
+challenges posed by scientific workflows.
+%
+To address the general case, SOSflow operates independently of any
+given component and the technology employed to couple components into
+a workflow.
+%
+SOSflow's behavior is not bound by the nature of the workflows it
+operates alongside, and by design SOSflow is not limited to a specific
+scale or execution environment.
+%
+%This particular research effort focuses on three aspects of SOSflow:
+%
+%\begin{itemize}
+%\item \textbf{On-line Ca}
+%\item \textbf{Scalable Architecture}
+%\item \textbf{Global Information Space}
+%\end{itemize}
+%
+\par
+%
+No extant software system adequately expressed all of the properties
+required for the SOSflow model, motivating its development and
+contribution as a novel software artifact.
+%
+SOSflow provides a flexible research platform for investigating the
+properties of existing and future scientific workflows, supporting
+both current and future scales of execution.
 %
 \subsection{Application Perspective} %----------------------------------------%
 %

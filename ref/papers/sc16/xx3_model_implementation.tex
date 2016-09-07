@@ -3,172 +3,84 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-\section{Architecture of SOS}
-Applying the SOS model to the challenge of on-line observation for
-complex and highly variable deployments of scientific workflows led to
-the creation of the SOSflow runtime software system.
-%
-Scientific workflows are used in this and following sections as a
-representative use case for to demonstrate the applicability of the
-SOS model to any complex high-performance application.
-%
-The applicability of the SOS architecture is not confined to
-scientific workflows, but they are an important and useful example.
 
 
-\subsection{SOS Design Rationale}
-%%%%%
-SOS contributes a general solution to on-line in situ
-observation, introspection, feedback, and control of scientific
-workflows.
 %
-Multi-component scientific workflows provide a focus for the
-general challnge of distributed on-line monitoring.
-%
-Information from a wide variety of sources can be relevent to the
-characterization and optimization of a workflow.
-%
-In order to gather run-time information and operate on is, SOS needs
-to be active at the same time and in the same context as the workflow
-components.
-%
-This on-line operation should be able to collect data from multiple
-sources within its context and efficiently service requests
-for this data.
-%
-Because information transport technology and methods have such
-diversity and case-by-case optimality, SOS must be implemented
-independent of the technology used in the scientific workflows it
-complements.
-%
-All information that is captured in SOS should be distinct and carry
-with it a set of metadata to enable classification and reasoning over
-it.
-%
-SOS should aggregate necessary information together at run-time to
-enable high level reasoning over the entire monitored workflow.
-%
-These SOS requirements inform the features of SOSflow and a frame the
-general solution to the challenge of on-line in situ observation,
-introspection, feedback, and control.
 %%%%%
 
 \subsubsection{The Need to Observe Locally at Run-Time}
 %%%%%
-It is necessary to obtain observations at run time to capture features
-of workflows that emerge from the interactions of the workflow as a whole,
-with itself and with the platform on which it is executing.
 %
-Interactions between applications, contention over shared resources,
-hardware state, and data-driven behaviors require some form of in situ
-observation.
+%To be practically suited for exascale architecures, SOSflow is
+%designed to collect and analyze information as close as possible to
+%its source, and to accept metrics submitted from an arbitrary array of
+%sources.
 %
-To be practically suited for exascale architecures, SOSflow is
-designed to collect and analyze information as close as possible to
-its source, and to accept metrics submitted from an arbitrary array of
-sources.
+%SOSflow's in situ runtime design effectively parallelizes the execution of
+%the observation system by scaling its capacity in direct proportion to
+%the number of nodes observed.
 %
-SOSflow's in situ runtime design effectively parallelizes the execution of
-the observation system by scaling its capacity in direct proportion to
-the number of nodes observed.
-%
-Each instance of SOSflow can operate independently and has the full
-suite of functionality, creating opportunities to alleviate
-coordination overhead when providing mechanisms for on-line feedback
-and control to massively parallel workflows.
+%Each instance of SOSflow can operate independently and has the full
+%suite of functionality, creating opportunities to alleviate
+%coordination overhead when providing mechanisms for on-line feedback
+%and control to massively parallel workflows.
 %%%%%
 
 \subsubsection{Monitoring Multiple Sources}
-Scientific workflows feature two or more components that are coupled
-together to transport shared information used to produce a cumulative
-result.
 %
-These components can be instantiated as lightweight threads belonging
-to a single process, but more often they execute concurrently as
-independent processes.
-%
-Components are functionally isolated from of each other and capable of
-being dynamically instantiated and terminated, changing count or
-locality during the course of a single workflow execution.
-%
-Any general solution for monitoring entire workflows will need to be
-capable of contextualizing the information it processes in a scope
-that is outside of the lifecycle of any one component.
-%
-Because many components can be operating concurrently on a single
-node, the monitoring solution must be capable of accepting
-information from multiple sources concurrently.
+%Because many components can be operating concurrently on a single
+%node, the monitoring solution must be capable of accepting
+%information from multiple sources concurrently.
 %%%%%
 
 \subsubsection{Movement of Information}
-There are many methods to transport information between components of
-workflows.
+%There are many methods to transport information between components of
+%workflows.
 %
-The optimal transport mechanism for a flow can depend on many factors:
-available hardware resources, topology of connected workflow
-components, total amount of information, size of data partitions,
-update frequency, data dependency relations, commonality of format,
-the expected useful lifetime of some data, etc.
+%The optimal transport mechanism for a flow can depend on many factors:
+%available hardware resources, topology of connected workflow
+%components, total amount of information, size of data partitions,
+%update frequency, data dependency relations, commonality of format,
+%the expected useful lifetime of some data, etc.
 %
-Information transport mechanisms are likely to differ not only between
-workflows, but also between runs of the same workflow on different systems.
+%Information transport mechanisms are likely to differ not only between
+%workflows, but also between runs of the same workflow on different systems.
 %
-Workflow components can be coupled together by producing and consuming
-data files rather than using timely on-line communication, requiring
-SOSflow to provide an independent mechanism for information transport.
+%Workflow components can be coupled together by producing and consuming
+%data files rather than using timely on-line communication, requiring
+%SOSflow to provide an independent mechanism for information transport.
 %
-Any two components of a scientific workflow are able to be connected
-in a way that makes the most sense for their particular exchanges,
-often multiple information transports are employed from end-to-end in
-a workflow.
+%Any two components of a scientific workflow are able to be connected
+%in a way that makes the most sense for their particular exchanges,
+%often multiple information transports are employed from end-to-end in
+%a workflow.
 %
-One transport technology can be used in drastically different ways
-within a workflow, such as with MPI's offering of efficient
-collectives, blocking synchronous point-to-point messages, and
-asynchronous one-sided communication.
+%One transport technology can be used in drastically different ways
+%within a workflow, such as with MPI's offering of efficient
+%collectives, blocking synchronous point-to-point messages, and
+%asynchronous one-sided communication.
 %
-If the SOSflow routines endogenous to an instrumented component are
-communicating using the same mechanisms employed by the component
-itself, the desired SOSflow behavior cannot be guaranteed across all
-version of common data transport libraries such as MPI.
+%If the SOSflow routines endogenous to an instrumented component are
+%communicating using the same mechanisms employed by the component
+%itself, the desired SOSflow behavior cannot be guaranteed across all
+%version of common data transport libraries such as MPI.
 %
-SOSflow is designed to be minimally invasive and attempts to meet its
-own information transport needs without entangling or directly
-interfering with the workflow component's communications.
+%SOSflow is designed to be minimally invasive and attempts to meet its
+%own information transport needs without entangling or directly
+%interfering with the workflow component's communications.
 %
-Pervasive heterogeniety of technology, varying topology of connected
-components, deep configurability of workflows, and the inconsistent
-implementations of various transport technologies were each drivers
-for the independence of SOSflow from the coupling frameworks used to
-bind workflow components together.
+%Pervasive heterogeniety of technology, varying topology of connected
+%components, deep configurability of workflows, and the inconsistent
+%implementations of various transport technologies were each drivers
+%for the independence of SOSflow from the coupling frameworks used to
+%bind workflow components together.
 %%%%%
-
-\subsubsection{Metadata Tags}
-TODO
-\todo[inline]{...}
-
-\subsubsection{Aggregation and Higher-Level Reasoning}
-TODO
-\todo[inline]{...}
 
 
 \subsubsection{Modeling SOSflow as a General Solution}
-This research contributes a general solution to the monitoring
-challenges posed by scientific workflows.
 %
-To address the general case, SOSflow operates independently of any
-given component and the technology it employs to be coupled into a workflow.
-%
-SOSflow's behavior is not bound by the nature of the workflows it
-operates alongside, and by design SOSflow is not limited to a specific
-scale or execution environment.
-%
-Developing solutions for future exascale machines by using in situ
-methodology conserves the utility of the model when it is applied to
-smaller scales.
-%
-Independent pieces of embarassingly parallel simulations can be thought of
-as smaller isolated workflows within the context of their total experiment.
+%Independent pieces of embarassingly parallel simulations can be thought of
+%as smaller isolated workflows within the context of their total experiment.
 %
 For any kind of scientific workflow, each single node's evolving state
 is equally disposed to be a context for significant analysis, as much as
@@ -216,13 +128,7 @@ to meet the design goals of SOSflow.
 %
 \input{tables/030_properties_means.tex}
 %
-No extant software system adequately expressed all of the properties
-required for the SOSflow model, motivating its development and
-contribution as a novel software artifact.
-%
-SOSflow provides a flexible research platform for investigating the
-properties of existing and future scientific workflows, supporting
-both current and future scales of execution.
+
 %%%%%
 
 
@@ -341,44 +247,8 @@ it up, and such a study is beyond the scope of this paper.}
 
 \subsection{SOSflow}
 %%%%%
-SOSflow's core routines allow it to:
-%
-\begin{enumerate}
-      %
-    \item Facilitate on-line capture of performance data and various system
-      events in situ from many sources and
-      for many purposes at the same time.
-      %
-    \item Annotate the gathered data's with
-      expressive ``high-level'' semantic tags that conserve its contextual
-      meaning
-      and can empower efficient introspection and complex event classification
-      at run-time.
-      %
-    \item Store the captured data on node in a way that can be
-      searched with dynamic queries in real-time as well as being
-      suitable for aggregation and long-term archival.
-      %
-\end{enumerate}
 %%%%%
 
-%%%%%
-SOSflow is divided into several components.  The core components are:
-%
-\begin{itemize}
-      %
-    \item \textbf{libsos} - Library of common routines for interacting with
-      sosd daemons and SOS data structures
-      %
-    \item \textbf{sosd(listener)} - Daemon process running on each node
-      %
-    \item \textbf{sosd(db)} - Daemon process running on dedicated resources
-      that stores data aggregated from one or more in situ daemons
-      %
-    \item \textbf{sosa} - Analytics framework for online query of SOS data
-      %
-\end{itemize}
-%%%%%
 
 %%%%%
 Some accessory components are:

@@ -1,8 +1,65 @@
 
 \section{SOSflow Architectural Model}
+%
+SOS contributes a general solution to on-line in situ
+observation, introspection, feedback, and control of scientific
+workflows.
+%
+Multi-component scientific workflows provide a focus for the
+general challnge of distributed on-line monitoring.
+%
+Applying the SOS model to the challenge of on-line observation for
+complex and highly variable deployments of scientific workflows led to
+the creation of the SOSflow runtime software system.
+%
 \subsection{Core Features}
+%
+Information from a wide variety of sources can be relevent to the
+characterization and optimization of a workflow.
+%
+\par
+%
+In order to gather run-time information and operate on it, SOS needs
+to be active at the same time and in the same context as the workflow
+components.
+%
+This on-line operation should be able to collect data from multiple
+sources within its context and efficiently service requests
+for this data.
+%
+Because information transport technology and methods have such
+diversity and case-by-case optimality, SOS must be implemented
+independent of the technology used in the scientific workflows it
+complements.
+%
+All information that is captured in SOS should be distinct and carry
+with it a set of metadata to enable classification and reasoning over
+it.
+%
+SOS should aggregate necessary information together at run-time to
+enable high level reasoning over the entire monitored workflow.
+%
+\par
+%
+These SOS requirements inform the features of SOSflow and a frame the
+general solution to the challenge of on-line in situ observation,
+introspection, feedback, and control.
+%
 \subsubsection{Online}
+%
+It is necessary to obtain observations at run time to capture features
+of workflows that emerge from the interactions of the workflow as a
+whole.
+%
+Relevant features will emerge from a program's interactions
+with its problem set, its configuration parameters, and with the platform on
+which it is executing.
+
+%
 \subsubsection{Scalable}
+%
+
+%
 \subsubsection{Global Information Space}
      \begin{itemize}
         \item \textbf{Multiple Perspective} - ...
