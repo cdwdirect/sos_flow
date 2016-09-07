@@ -97,36 +97,36 @@ SOSflow capabilities.
 \subsection{Properties of the SOSflow Model}
 
 %%%%%
-SOS's runtime framework is concieved of as eventually becoming an
-architectural addition to the general fabric of HPC clusters.
+%SOS's runtime framework is concieved of as eventually becoming an
+%architectural addition to the general fabric of HPC clusters.
 %
-SOS is intended to be a widely-integrated programmable middleware that
-evolves low-level optimizations over time, with a broad set of
-functionality that is available to all, especially developers and
-users of scientific workflows, regardless of job scale.
+%SOS is intended to be a widely-integrated programmable middleware that
+%evolves low-level optimizations over time, with a broad set of
+%functionality that is available to all, especially developers and
+%users of scientific workflows, regardless of job scale.
 %
-During this early research phase, SOSflow runs in user space within
-the context of a single job's allocation.
+%During this early research phase, SOSflow runs in user space within
+%the context of a single job's allocation.
 %
-Operating in user space prevents native on-line datacenter-wide
-information aggregation and analysis, but has the significant benefit
-of making SOSflow deployable by any user in any context with support for its
-minimal dependencies.
+%Operating in user space prevents native on-line datacenter-wide
+%information aggregation and analysis, but has the significant benefit
+%of making SOSflow deployable by any user in any context with support for its
+%minimal dependencies.
 %
-SOSflow imposes no major design or deployment requirements on workflows,
-given its effort to represent a general solution.
+%SOSflow imposes no major design or deployment requirements on workflows,
+%given its effort to represent a general solution.
 %
-The SOSflow platform targets extreme scales, but the design discipline
-required to offer its full suite of services in situ with minimal
-invasiveness means that SOSflow is well-adapted to provide coverage
-for smaller workflows, scaling effectively down to single-node runs.
+%The SOSflow platform targets extreme scales, but the design discipline
+%required to offer its full suite of services in situ with minimal
+%invasiveness means that SOSflow is well-adapted to provide coverage
+%for smaller workflows, scaling effectively down to single-node runs.
 %%%%%
 
 %%%%%
-A non-trivial set of properties (Table \ref{tabledesign}) are required
-to meet the design goals of SOSflow.
+%A non-trivial set of properties (Table \ref{tabledesign}) are required
+%to meet the design goals of SOSflow.
 %
-\input{tables/030_properties_means.tex}
+%\input{tables/030_properties_means.tex}
 %
 
 %%%%%
@@ -159,76 +159,76 @@ to meet the design goals of SOSflow.
 
 \subsection{Model and Environment}
 %%%%%
-For the purposes of further discussion, ''scientific workflow'' will imply 
-distributed instances of a workflow executing concurrently on two or more nodes.
+%For the purposes of further discussion, ''scientific workflow'' will imply 
+%distributed instances of a workflow executing concurrently on two or more nodes.
 %
-Considering the multi-node case will capture the important dimension
-of contention for shared network resources and the trade-offs that are
-encountered when optimization convergence is dependent on off-node
-information that is less reliably or quickly accessible than in situ
-data.
+%Considering the multi-node case will capture the important dimension
+%of contention for shared network resources and the trade-offs that are
+%encountered when optimization convergence is dependent on off-node
+%information that is less reliably or quickly accessible than in situ
+%data.
 %
-Workflow execution environments provide the basis for comparing,
-validating, and selecting a particular means for achieving the SOSflow
-model.
+%Workflow execution environments provide the basis for comparing,
+%validating, and selecting a particular means for achieving the SOSflow
+%model.
 %
-A following are some feature abstractions useful for reasoning about
-workflow execution environments:
+%A following are some feature abstractions useful for reasoning about
+%workflow execution environments:
 %
-\begin{itemize}
-      %
-    \item \textbf{Available Memory}
-      %
-    \item \textbf{CPU Core Count}
-      %
-    \item \textbf{CPU Time}
-      %
-    \item \textbf{Node Count}
-      %
-    \item \textbf{Transport Bandwidth}
-      %
-    \item \textbf{Storage Bandwidth}
-      %
-\end{itemize}
+%\begin{itemize}
+%      %
+%    \item \textbf{Available Memory}
+%      %
+%    \item \textbf{CPU Core Count}
+%      %
+%    \item \textbf{CPU Time}
+%      %
+%    \item \textbf{Node Count}
+%      %
+%    \item \textbf{Transport Bandwidth}
+%      %
+%    \item \textbf{Storage Bandwidth}
+%      %
+%\end{itemize}
 %
-SOSflow has preconditioned properties for its general case (Table
-\ref{tabledesign}) and a model or combination of models should be
-employed that is suitable to meet each requirement, especially those
-regarding overhead and intrusiveness.
+%SOSflow has preconditioned properties for its general case (Table
+%\ref{tabledesign}) and a model or combination of models should be
+%employed that is suitable to meet each requirement, especially those
+%regarding overhead and intrusiveness.
 %
-These design requirements for SOSflow are indicators of the core
-functionality it ultimately provides for its users.
+%These design requirements for SOSflow are indicators of the core
+%functionality it ultimately provides for its users.
 %
-There are a variety of information movement strategies (topologies)
-that might, singularly or cooperatively, meet the architectural
-conditions of SOS, and a subset of possible strategies is presented
-here.
+%There are a variety of information movement strategies (topologies)
+%that might, singularly or cooperatively, meet the architectural
+%conditions of SOS, and a subset of possible strategies is presented
+%here.
 %
-In order to stratify the models or combinations of them into a
-heirarchy of fitness, the impact on their resource-constrained
-operating environment should be considered.
+%In order to stratify the models or combinations of them into a
+%heirarchy of fitness, the impact on their resource-constrained
+%operating environment should be considered.
 %
-Each strategy intuitively has a dominant impact a different part of
-the environment, which is an indicator of its primary performance
-constraint:
+%Each strategy intuitively has a dominant impact a different part of
+%the environment, which is an indicator of its primary performance
+%constraint:
 %
-\todo[inline]{I don't like how this is set up, it seems like if
-I'm going to say these things I should have some numbers to back
-it up, and such a study is beyond the scope of this paper.}
+%\todo[inline]{I don't like how this is set up, it seems like if
+%I'm going to say these things I should have some numbers to back
+%it up, and such a study is beyond the scope of this paper.}
 %
-\begin{itemize}
-      %
-    \item \textbf{Distributed} - Transport bandwidth
-      %
-    \item \textbf{Centralized} - Transport bandwidth, storage bandwidth, node count
-      %
-    \item \textbf{Streaming Direct Messages} - Transport bandwidth, CPU Time, available memory
-      %
-    \item \textbf{On-line In Situ} - CPU Core Count, CPU Time, available memory
-      %
-    \item \textbf{Off-line In Situ} - Storage bandwidth, available memory
-      %
-\end{itemize}
+%\begin{itemize}
+%      %
+%    \item \textbf{Distributed} - Transport bandwidth
+%      %
+%    \item \textbf{Centralized} - Transport bandwidth, storage bandwidth, node count
+%      %
+%    \item \textbf{Streaming Direct Messages} - Transport bandwidth, CPU Time, available memory
+%      %
+%    \item \textbf{On-line In Situ} - CPU Core Count, CPU Time, available memory
+%      %
+%    \item \textbf{Off-line In Situ} - Storage bandwidth, available memory
+%      %
+%\end{itemize}
 %
 
 
@@ -279,18 +279,6 @@ Some accessory components are:
 
 \subsection{SOSflow: Behavior}
 %%%%%
-The sosd daemon is itself an MPI application, and it is launched as a
-background process in user space at the start of a job script, before
-the scientific workflow begins.
-%
-The daemons first go through a coordination phase where they each
-participate in an MPI\_Allreduce() with all other daemon ranks in
-order to share their role (DAEMON, DB, or ANALYTICS) and the name of
-the host they are running on.
-%
-During the coordination phase, listener daemons select the sosd(db)
-aggregate database that they will target for automatic asynchronous
-transfer of the data they capture.
 %
 At present, the ranks of sosd(listener) use a simple round-robin
 selection method to pick their database target.
@@ -305,27 +293,7 @@ stores are eventually synthesized into a global store.
 %%%%%
 
 %%%%%
-\begin{figure*}[!t]
-  \centering
-  \includegraphics[width=5in]{images/sos-mpmd.pdf}
-  \caption{SOSflow Communicates w/MPI and Sockets}
-  \label{fig_sim}
-\end{figure*}
-%%%%%
 
-%%%%%
-Analytics modules use this time to determine if they are co-located
-with a sosd(db) role, and set an internal flag that allows analytics
-developers to branch their logic (if desired) between local instances that
-can more quickly coordinate queries with the aggregate database, and any 
-other optional independent ranks that are running on dedicated resources
-for the purpose of doing calculations or rendering visualizations.
-%
-After having coordinated with the sosd ranks, sosa ranks split off
-into their own private communicator, allowing the developer of a given
-sosa module to utilize the collective communication benefits of the
-HPC platform they are deployed on.
-%%%%%
 
 %%%%%
 Once all of the sosd and sosa ranks are initialized and aware of each
@@ -355,44 +323,13 @@ requested.  This behavior conforms to a very simple stateless protocol
 that exists between the daemon and its on-node clients.
 %%%%%
 
+
 %%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/sosd_protocol.png}
-\caption{In Situ Client/Daemon Communication Protocol}
-\label{fig_sim}
-\end{figure*}
+%
+
 %%%%%
 
 %%%%%
-Messages are read off the socket rapidly and placed in the daemon's
-unbounded asynchronous thread-safe queues to be processed by the
-daemon's local\_sync and cloud\_sync threads.
-%
-The socket is nearly immediately clear for the next queue'd message to
-be received.
-%
-Communication with the sosd(listener) is always initiated by the
-clients.
-%
-Client applications do not need to monitor a socket, though certain
-SOS client roles can spawn a lightweight background thread that
-periodically checks in with their local daemon to see if any feedback
-has been sent to that application, allowing for run-time adaptivity to
-be decoupled from the application's schedule for transmitting its
-information to SOSflow.
-%%%%%
-
-%%%%%
-All of the communication functions in the sos client library are
-handled transparently, SOS users need only interact with a simple API
-to define and store values that they can then publish up to the daemon
-as appropriate.
-%
-The protocols and the codes of the client library are designed to be
-fast and minimize resource usage, though they will buffer values for
-the user if they choose to hold them and only transmit to the daemon
-at intervals.
 %
 It is very uncommon to see the blocking socket transmission calls
 within SOS\_announce() and SOS\_publish() take longer than 0.002
@@ -434,34 +371,6 @@ The typical order of API calls in a client is:
 \end{enumerate}
 %%%%%
 
-%%%%%
-\begin{figure*}[!t]
-\centering
-\includegraphics[width=5in]{images/pub_handle.png}
-\caption{Structure of an SOS Publication Handle}
-\label{fig_sim}
-\end{figure*}
-%%%%%
-
-%%%%%
-Data from clients in SOSflow is stored in a (SOS\_pub *) ``pub handle''
-object.
-%
-This object organizes all of the application context information and
-value-specific metadata, as well as managing the history of updates to
-a value pending pending transmission to a sosd(listener), called
-\textit{value snapshots}.
-%
-Every value that is passed through the SOSflow API is preserved and
-eventually stored in a searchable database, along with any updated
-metadata such as its timestamp tuples.
-%
-Multiple updates to the same value prior to a call to SOS\_publish()
-are no exception.
-%
-Prior value snapshots are queued up and faithfully transmitted along
-with the most recent update to that value.
-%%%%%
 
 %%%%%
 \begin{figure*}[!t]
@@ -678,15 +587,6 @@ database and create latency in the asynchronous queues.
 Avoiding such issues is an exercise left to developers at this time,
 though re-architecting this component of SOSflow is a high priority
 for the next phases of its maturation.
-%%%%%
-
-%%%%%
-\begin{figure*}[!t]
-  \centering
-  \includegraphics[width=5in]{images/sos.pdf}
-  \caption{SOSflow Internal Topology}
-  \label{fig_sim}
-\end{figure*}
 %%%%%
 
 
