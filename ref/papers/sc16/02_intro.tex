@@ -19,8 +19,9 @@ Modern clusters for parallel computing are complex environments and
 the high-performance applications that run on them do so often with
 little insight about their or the system's behavior.
 %
-This is not to say that information is unavailable.  After all,
-sophisticated parallel measurement systems can capture performance and
+This is not to say that information is unavailable. 
+%
+After all, sophisticated parallel measurement systems can capture performance and
 power data for characterization, analysis, and tuning purposes, but
 the infrastructure for observation of these systems is not intended
 for general use.
@@ -49,6 +50,11 @@ However, neither of these provides a framework that can be configured
 with and used directly by the application, nor allow for semantic
 encoding of multiple observation sources.
 %
+\todo[inline]{
+However, neither of these frameworks can be configured with and used directly by an application. 
+%
+Additionally, they do not allow for information aggregation from multiple data sources.
+}
 \par
 %
 Our general interest is in parallel application monitoring: the
@@ -62,11 +68,22 @@ different purposes, it is important to have a flexible means for
 information to be provided from both the application and the system
 environment.
 %
+\todo[inline]{It is important to have a flexible means to gather information 
+from different sources --- primarily the application and system environment.}
+%
 Because information will need to be processed online, it is important
 to enable analysis in situ with the application.
 %
+\todo[inline]{Additionally, for the gathered information to be processed online,
+analysis will need to be enabled in situ with the application}
+%
 Because analysis can result in application feedback, query and control
 interfaces are required, again to both the application and the system.
+%
+\todo[inline]{Furthermore, query and control interfaces are required to facilitate 
+an active application feedback process. 
+%
+The analysis performed can be used to give feedback to both the application and the system.}
 %
 There exists no general purpose infrastructure that can be programmed,
 configured, and launched with the application to provide the
@@ -86,16 +103,16 @@ of the SOS model, showing the scalability and flexibility inherent to
 SOS with its support for observation, introspection, feedback, and
 control of scientific workflows.
 %
-The SOS design emphasizes a semantic data model with distributed
+The SOS design employs a data model with distributed
 information management and structured query and access.
 %
 A dynamic database architecture is used in SOS to support aggregation
 of streaming observations from multiple sources.
 %
-SOS provides interfaces for sources of information to encode data along
-with its context and meaning.
+%SOS provides interfaces for sources of information to encode data along
+%with its context and meaning.
 %
-Interfaces are also provided for in situ analytics to acquire
+Interfaces are provided for in situ analytics to acquire
 information and send back results for application actuators.
 %
 SOS launches with the application, runs along side it, and can acquire
@@ -113,32 +130,32 @@ These components can be instantiated as lightweight threads belonging
 to a single process, or they may execute concurrently as independent
 processes.
 %
-Components of workflows may be functionally isolated from of each
+Components of workflows may be functionally isolated from each
 other or synchronously coupled and co-dependent.
 %
-Parts of workflows may even be dynamically instantiated and
+Additionally, parts of workflows may even be dynamically instantiated and
 terminated.
 %
-The computational profile of a workflow can change during the course
+Thus, the computational profile of a workflow can change during the course
 of its execution.
 %
-Any general solution for monitoring workflows will need to be capable
-of contextualizing the information processesed by any single
-component, in a scope that can contain and adequatelty contexualize
-the union of all other component scopes.
+%Any general solution for monitoring workflows will need to be capable
+%of contextualizing the information processesed by any single
+%component, in a scope that can contain and adequatelty contexualize
+%the union of all other component scopes.
 %
 \par
 %
-This research contributes a general solution to the monitoring
-challenges posed by scientific workflows.
+%This research contributes a general solution to the monitoring
+%challenges posed by scientific workflows.
 %
-To address the general case, SOSflow operates independently of any
-given component and the technology employed to couple components into
-a workflow.
+%To address the general case, SOSflow operates independently of any
+%given component and the technology employed to couple components into
+%a workflow.
 %
-SOSflow's behavior is not bound by the nature of the workflows it
-operates alongside, and by design SOSflow is not limited to a specific
-scale or execution environment.
+%SOSflow's behavior is not bound by the nature of the workflows it
+%operates alongside, and by design SOSflow is not limited to a specific
+%scale or execution environment.
 %
 %This particular research effort focuses on three aspects of SOSflow:
 %
@@ -150,16 +167,16 @@ scale or execution environment.
 %
 \par
 %
-No extant software system adequately expressed all of the properties
-required for the SOSflow model, motivating its development and
-contribution as a novel software artifact.
+%No extant software system adequately expressed all of the properties
+%required for the SOSflow model, motivating its development and
+%contribution as a novel software artifact.
 %
 SOSflow provides a flexible research platform for investigating the
 properties of existing and future scientific workflows, supporting
 both current and future scales of execution.
 %
-A key feature of SOSflow is its ability to capture and integrate information
-from multiple perspectives simultaneously.
+%A key feature of SOSflow is its ability to capture and integrate information
+%from multiple perspectives simultaneously.
 %
 \subsection{Application Perspective} %----------------------------------------%
 %
@@ -170,7 +187,7 @@ Developers can instrument their programs to be efficiently self-reporting
 the data that is relevant to their overall performance, such as progress
 through specific phases of a simulation.
 %
-...
+%...
 %
 \subsection{System Perspective} %---------------------------------------------%
 %
@@ -179,7 +196,7 @@ state of the operating environment that is hosting it.
 %
 The effects of contention for shared resources by multiple concurrent
 tasks can be discovered when the gathered performance data places the
-gatherd metrics of both tasks in a common context.
+gathered metrics of both tasks in a common context.
 %
 SOSflow's distributed in situ design is well-suited for capturing
 perspective of the global state of a machine.
@@ -202,8 +219,6 @@ These tools can be a valuable addition to the data ...
 \subsection{Summary} %--------------------------------------------------------%
 %
 %
-
-
 
 %%%
 %%%  EOF
