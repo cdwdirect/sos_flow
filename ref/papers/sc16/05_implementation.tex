@@ -21,14 +21,14 @@ SOSflow is divided into several components.  The core components are:
 \begin{itemize}
       %
     \item \textbf{libsos} - Library of common routines for interacting with
-      sosd daemons and SOS data structures
+      sosd daemons and SOS data structures.
       %
-    \item \textbf{sosd(listener)} - Daemon process running on each node
+    \item \textbf{sosd(listener)} - Daemon process running on each node.
       %
     \item \textbf{sosd(db)} - Daemon process running on dedicated resources
-      that stores data aggregated from one or more in situ daemons
+      that stores data aggregated from one or more in situ daemons.
       %
-    \item \textbf{sosa} - Analytics framework for online query of SOS data
+    \item \textbf{sosa} - Analytics framework for online query of SOS data.
       %
 \end{itemize}
 
@@ -57,17 +57,17 @@ Data in SOSflow is stored in a ``publication handle'' object.
 %
 This object organizes all of the application context information and
 value-specific metadata, as well as managing the history of updates to
-a value pending pending transmission to a sosd(listener), called
+a value pending transmission to a sosd(listener), called
 \textit{value snapshots}.
 %
 Every value that is passed through the SOSflow API is preserved and
 eventually stored in a searchable database, along with any updated
 metadata such as its timestamp tuples.
 %
-Multiple updates to the same value prior to a call to SOS\_publish()
-are no exception.
+%Multiple updates to the same value prior to a call to the publish API
+%are no exception.
 %
-Prior value snapshots are queued up and faithfully transmitted along
+Prior value snapshots are queued up and transmitted along
 with the most recent update to that value.
 %%%%%
 %%%%%
@@ -96,12 +96,14 @@ takes place over a TCP socket connection.
 \end{figure}
 %%%%%
 %
-Messages are read off the socket rapidly and placed in the daemon's
+Messages read from the socket are placed in the daemon's
 unbounded asynchronous thread-safe queues to be processed by the
 daemon's local\_sync and cloud\_sync threads.
 %
-The socket is nearly immediately clear for the next queue'd message to
-be received, and an example of the consistent rate of message uptake
+The socket is then ready for the next queue'd message to
+be received. 
+%
+An example of the consistent rate of message uptake
 despite variable message injection rates is discussed in the Results
 section.
 %
@@ -154,7 +156,7 @@ daemon and obtains a set of global unique ID (guid) tags.
 %
 Clients pack values into a pub and they are automatically assigned a guid.
 %
-When the client publishes that handle, all values and transmitted to
+When the client publishes that handle, all values are transmitted to
 the SOSflow on-node daemon, including the complete history of each
 value's updates from the last to the present publish call.
 %
@@ -162,7 +164,7 @@ value's updates from the last to the present publish call.
 %
 All of the communication functions in the sos client library are
 handled transparently, SOSflow users need only interact with a simple API
-to define and store values that they can then publish up to the daemon
+to define and store values that they can then publish to the daemon
 as appropriate.
 %
 The protocols and the codes of the client library are designed to be
@@ -175,17 +177,19 @@ at intervals.
 Communication with the sosd(listener) is always initiated by the
 clients when they call SOS\_publish() on a publication handle.
 %
-Client applications do not need to monitor a socket, though certain
-SOS client roles can spawn a lightweight background thread that
+%Client applications do not need to monitor a socket, though 
+Certain SOS client roles can spawn a lightweight background thread that
 periodically checks in with their local daemon to see if any feedback
-has been sent to that application, allowing for run-time adaptivity to
+has been sent to that application. 
+%
+Thus allowing run-time adaptivity to
 be decoupled from the application's schedule for transmitting its
 information to SOSflow.
 
 
 \subsection{Daemon: sosd(listener)} %-----------------------------------------%
 The sosd daemon is itself an MPI application, and it is launched as a
-background process in user space at the start of a job script, before
+background process in the user space at the start of a job script, before
 the scientific workflow begins.
 %
 The daemons first go through a coordination phase where they each
@@ -219,7 +223,7 @@ and operate alongside the SOSflow run-time.
 %
 The primary role of the analytics modules is to query the database
 and produce functional output such as real-time visualizations of
-performance metrics, steering commands to facilitate optimizations, or
+performance metrics, feedback to facilitate optimizations, or
 global resource bound calculation and policy enforcement.
 %
 The modules can be deployed in a distributed fashion to run on the nodes
@@ -227,7 +231,7 @@ where the applications are executing, or they can be deployed on dedicated
 resources and coupled with the aggregate databases for fast queries
 of the global state.
 %
-Analytics modules are encouraged to make use of the high-speed
+Analytics modules have the ability to make use of the high-speed
 interconnect of the HPC machine in order to share data amongst themselves.
 %
 \par
@@ -235,14 +239,11 @@ interconnect of the HPC machine in order to share data amongst themselves.
 SOSflow provides an API for client applications to register
 a callback function to a named trigger.
 %
-Those triggers can to be fired off by analytics modules, and arbitrary
+Those triggers can be fired off by analytics modules, and arbitrary
 data structures can be passed to the triggered functions.
 %
 Triggers may be fired for a specific single process on one node,
 or for an entire node, or an entire scientific workflow.
-
-
-
 %%%%%
 %%%
 %%%  EOF
