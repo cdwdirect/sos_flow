@@ -54,11 +54,34 @@ whole.
 Relevant features will emerge from a program's interactions
 with its problem set, its configuration parameters, and with the platform on
 which it is executing.
-
+%
+Making the full functionality of SOSflow available during run-time
+also helps with the SOSflow platform's scalability: The work of
+observation and introspection is distrubted across the observed
+application's resources proportionally, and required performance data
+aggegation can run concurrently with the job.
 %
 \subsubsection{Scalable}
 %
-
+Tools and run-time infrastructure need to support the largest scale of
+operation that applications are being designed for.
+%
+SOSflow is being engineered with an eye towards running at exascale
+on the next generation of HPC hardware.
+%
+SOSflow is a distributed runtime environment, with an agent present
+on each node, using a small fraction of the node's resources.
+%
+Running in situ lends SOSflow its natural scaling features: More nodes
+mean more compute resources are available to SOSflow in proportion.
+%
+The node-level SOSflow agents transfer information off node using
+the high-performance communication infrastructure of the host cluster.
+%
+Aggregation of data need not target a single bottleneck, SOSflow can
+be configured to support a scaling number of logical aggregation points
+in order to provide query access to the global information space at
+run-time.
 %
 \subsubsection{Global Information Space}
      \begin{itemize}
