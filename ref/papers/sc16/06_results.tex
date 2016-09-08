@@ -21,18 +21,62 @@ databases, such as the one in Figure~\ref{example_query}.
 
 \subsection{Experiment Setup} %-----------------------------------------------%
 %
-The experiments described here had the following purposes:
+The experiments performed had the following purposes:
 \begin{itemize}
-\item \textbf{Validation} : Show that the SOSflow model works for a general case
-\item \textbf{Exploration} : Observe the overhead and latency of
+\item \textbf{Validation} : Demonstrate that the SOSflow model works for a general case
+\item \textbf{Exploration} : Study the latency and overhead of
   SOSflow's current research implementation.
 \end {itemize}
 %
-The SOSflow codes are general purpose and do not feature (or require)
-tailoring to the deployment environment.
+The SOSflow codes are general purpose and we do not need to 
+tailor it to the deployment environment.
 %
 The same SOSflow code base was used for each of the experiments.
 %
+The study was conducted on three machines, 
+the details of which are given below ---
+%
+\todo[inline]{ Put in the configurations you used on each machine.}
+\begin{enumerate}
+\item \textbf{ACISS :} Computing cluster at the University of Oregon. Config used -
+\item \textbf{Cori :} Computing cluster at NERSC. Config used 
+\item \textbf{Catalyst :} Computing cluster at LLNL. Config used - 
+\end{enumerate}
+
+We simulated workflows using the following --- 
+\begin{enumerate}
+\item \textbf{LULESH with TAU : }
+\item \textbf{Synthetic Workflow :} 
+\end{enumerate}
+
+\todo[inline]{In the two subsubsections below - just fill in the details of what the tests run were, their configuration. What parameters you varied etc. No mention of the observations or results. 
+%
+It is important to indicate why this test you performed is a good way to test whatever is being evaluated.}
+
+\subsubsection{Evaluation of SOS Model}
+This experiment was performed to validate the SOSflow Model and demonstrate it's 
+applicability to the general case. 
+%
+Cori supercomputer was used to execute a LULESH with TAU workflow. 
+%
+
+\subsubsection{Evaluation of Latency}
+These experiements were performed to study the latency and overhead of SOSflow. 
+%
+To study the latency we ran experiments on both ACISS and Catalyst. 
+% 
+
+
+\subsection{Results}
+
+\subsubsection{SOS Model Validation}
+
+\subsubsection{Observation of overhead and latency}
+
+
+\subsection{Discussion}
+
+
 \subsubsection{Oregon:ACISS} %-------------------------------------------------------%
 Tests run on the ACISS platform at the University of Oregon were
 deployed with the Torque job scheduler as MPICH2 MPI applications at
@@ -43,7 +87,7 @@ The ACISS battery of runs were tuned as stress tests to make ensure
 the daemons could operate under reasonably heavy loads.
 %
 In the 24-node ACISS experiment (Figure~\ref{aciss_lat_24_agg}),
-SOSflow processed 72,000,000 values during a 90 second window
+SOSflow processed 72,000,000 values (double value with associated metadata) during a 90 second window
 containing three rounds of extremely dense API calls.
 %
 %
