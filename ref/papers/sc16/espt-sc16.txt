@@ -1,0 +1,74 @@
+
+Description
+
+   The path to exascale computing will challenge HPC application developers in their quest to achieve the maximum potential that the
+   machines have to offer. Factors such as limited power budgets, heterogeneity, hierarchical memories, shrinking I/O bandwidths, and
+   performance variability will make it increasingly difficult to create productive applications on future platforms. Tools for debugging,
+   performance measurement and analysis, and tuning will be needed to overcome the architectural, system, and programming complexities
+   envisioned in these exascale environments. At the same time, research and development progress for HPC tools faces equally difficult
+   challenges from exascale factors. Increased emphasis on autotuning, dynamic monitoring and adaptation, heterogeneous analysis, and so on
+   will require new methodologies, techniques, and engagement with application teams. This workshop will serve as a forum for HPC
+   application developers, system designers, and tools researchers to discuss the requirements for exascale-ready/exascale-enabled tools and
+   the roadblocks that need to be addressed.
+
+   The workshop is the fifth in a series of SC conference workshops organized by the Virtual Institute - High Productivity Supercomputing
+   (VI-HPS), an international initiative of HPC researchers and developers focused on parallel programming and performance tools for
+   large-scale systems.
+
+Important Dates
+
+     * September 2, 2016 September 9, 2016: Paper submissions due
+     * September 23, 2016: Author notification
+     * October 4, 2016: Final version of papers due
+     * November 13, 2016: Workshop, 13:30-17:30
+
+Workshop format and topics
+
+   The half-day workshop will consist of a keynote address followed by research paper presentations. Each paper submission will undergo a
+   peer review process. Accepted contributions will be published in the SC workshop proceedings in cooperation with SIGHPC through the ACM
+   Digital Library and IEEE Xplore.
+
+   Workshop topics include
+     * Programming tools (e.g., performance analysis, tuning, debuggers, IDEs)
+     * Methodologies for performance engineering
+     * Tool technologies for extreme-scale challenges (e.g., scalability, resilience, power)
+     * Tool infrastructures and environments
+     * Application developer experiences with programming and performance tools
+
+Paper submission
+
+   Papers covering original and previously unpublished research are solicited. To be considered, a manuscript should be a maximum of 8 pages
+   and formatted according to the double-column IEEE format for Conference Proceedings (IEEEtran LaTeX Class (template) V1.8 packages and
+   IEEEtran V1.12 BibTeX (bibliography)). Margins and font sizes should not be modified. The templates for "IEEEtran LaTeX Class (template)
+   V1.8 packages and IEEEtran V1.12 BibTeX (bibliography)" can be found at the IEEE publishing website.
+
+   All papers must be submitted through Easychair at:
+
+   https://easychair.org/conferences/?conf=espt2016
+
+Organizing committee
+
+   Allen D. Malony, University of Oregon, USA
+   Martin Schulz, Lawrence Livermore National Laboratory, USA
+   Felix Wolf, TU Darmstadt, Germany
+   William Jalby, Université de Versailles St-Quentin-en-Yvelines, France
+
+Contact
+
+   Allen D. Malony (Email malony@cs.uoregon.edu, phone +1-541-346-4407)
+
+Program committee
+
+   Luiz DeRose, Cray Inc., US
+   Michael Gerndt, Technische Universität München, Germany
+   Jeffrey K. Hollingsworth, University of Maryland, US
+   William Jalby, Université de Versailles St-Quentin-en-Yvelines, France
+   Andreas Knüpfer, Technische Universität Dresden, Germany
+   David Lecomber, Allinea Software, US
+   Allen D. Malony, University of Oregon, US
+   John Mellor-Crummey, Rice University, US
+   Martin Schulz, Lawrence Livermore National Laboratory, US
+   Sameer Shende, University of Oregon, US
+   Felix Wolf, Technische Universität Darmstadt
+   Brian Wylie, Jülich Supercomputing Centre
+
