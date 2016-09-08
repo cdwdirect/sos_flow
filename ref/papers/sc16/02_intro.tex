@@ -46,15 +46,16 @@ In contrast, the Lightweight Distributed Metric Service
 continuously to obtain insight into behavioral characteristics of
 individual applications with respect to their resource utilization.
 %
-However, neither of these provides a framework that can be configured
-with and used directly by the application, nor allow for semantic
-encoding of multiple observation sources.
+%However, neither of these provides a framework that can be configured
+%with and used directly by the application, nor allow for semantic
+%encoding of multiple observation sources.
 %
-\todo[inline]{
-However, neither of these frameworks can be configured with and used directly by an application. 
+However, neither of these frameworks can be configured with and used
+directly by an application.
 %
-Additionally, they do not allow for information aggregation from multiple data sources.
-}
+Additionally, they do not allow for richly-annotated information to be
+placed into the system from multiple concurrent data sources per node.
+%
 \par
 %
 Our general interest is in parallel application monitoring: the
@@ -63,27 +64,29 @@ during its execution.
 %
 Application monitoring has several requirements.
 %
-Because information could come from different sources and be used for
-different purposes, it is important to have a flexible means for
-information to be provided from both the application and the system
-environment.
+%Because information could come from different sources and be used for
+%different purposes, it is important to have a flexible means for
+%information to be provided from both the application and the system
+%environment.
 %
-\todo[inline]{It is important to have a flexible means to gather information 
-from different sources --- primarily the application and system environment.}
+It is important to have a flexible means to gather information from
+different sources on each node --- primarily the application and
+system environment.
 %
-Because information will need to be processed online, it is important
-to enable analysis in situ with the application.
+%Because information will need to be processed online, it is important
+%to enable analysis in situ with the application.
 %
-\todo[inline]{Additionally, for the gathered information to be processed online,
-analysis will need to be enabled in situ with the application}
+Additionally, for the gathered information to be processed online,
+analysis will need to be enabled in situ with the application
 %
-Because analysis can result in application feedback, query and control
-interfaces are required, again to both the application and the system.
+%Because analysis can result in application feedback, query and control
+%interfaces are required, again to both the application and the system.
 %
-\todo[inline]{Furthermore, query and control interfaces are required to facilitate 
-an active application feedback process. 
+Furthermore, query and control interfaces are required to facilitate
+an active application feedback process.
 %
-The analysis performed can be used to give feedback to both the application and the system.}
+The analysis performed can be used to give feedback to both the
+application and the system.
 %
 There exists no general purpose infrastructure that can be programmed,
 configured, and launched with the application to provide the
@@ -143,8 +146,8 @@ other or synchronously coupled and co-dependent.
 Additionally, parts of workflows may even be dynamically instantiated and
 terminated.
 %
-Thus, the computational profile of a workflow can change during the course
-of its execution.
+The computational profile of a workflow can change between invocations
+or even during the course of one execution.
 %
 %Any general solution for monitoring workflows will need to be capable
 %of contextualizing the information processesed by any single
@@ -194,7 +197,9 @@ Developers can instrument their programs to be efficiently self-reporting
 the data that is relevant to their overall performance, such as progress
 through specific phases of a simulation.
 %
-%...
+\par
+%
+TODO ---- MORE
 %
 \subsection{System Perspective} %---------------------------------------------%
 %
@@ -208,7 +213,7 @@ gathered metrics of both tasks in a common context.
 SOSflow's distributed in situ design is well-suited for capturing
 perspective of the global state of a machine.
 %
-By distributing / co-locating the observation system with the features
+By co-locating the observation system with the workflow components
 that are observed, SOSflow improves the fidelity of system performance
 data without requiring costly delays in synchronization of impacting
 the network and filesystem bandwidth available to applications.
@@ -220,11 +225,17 @@ of applications, libraries, and the system context.
 %
 These tools can be a valuable addition to the data ...
 %
+\par
+%
+TODO ---- MORE
+%
 \subsection{Exascale Measurement Challenge} %---------------------------------%
 %
+TODO ---- MORE
 %
 \subsection{Summary} %--------------------------------------------------------%
 %
+TODO ---- MORE
 %
 
 %%%
