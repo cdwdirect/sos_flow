@@ -189,6 +189,8 @@ While every value will eventually be processed and injected into the data
 store, some values wound up having to wait longer than others as the queue
 depth increased.
 %
+\par
+%
 The asynchronous queues have thread-sequential FIFO ordering, but
 because the MPI messages are queued up based on their arrival time,
 and a batch is handled competely before the next is processed, there
