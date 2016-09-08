@@ -14,8 +14,8 @@ performance analysis of individual workflow components.
 %
 Such deep instrumentation is necessarily invasive and can dictate
 rather than capture the observed performance of the instrumented
-application when it is run at scale or required to engage in
-significant amounts of interactivity.
+application when the application is running at scale or required to
+engage in significant amounts of interactivity.
 %
 SOSflow conditions data by annotating it with context and semantic tags to
 help efficiently process it for online introspection.
@@ -29,20 +29,36 @@ The tools mentioned here, and many other performance monitoring tools, are
 well-implemented, tested, maintained, deployed and regularly used for
 performance research studies, but each have deficiencies that render them
 unsuitable for a general performance analysis framework. %the objectives of SOS.
-
-
-\subsection{Monalytics} %-----------------------------------------------------%
+\\
+TODO ---- MONALYTICS
+\\
+Cluster monitoring systems like Ganglia \cite{massie2004ganglia} or
+Nagios \cite{katsaros2011building} collect and process data about the
+performance and health of cluster-wide resources, but do not provide
+sufficient fidelity to capture the complex interplay between
+applications competing for shared resources.
 %
-TODO ---- MORE
+In contrast, the Lightweight Distributed Metric Service
+\cite{agelastos2014lightweight} (LDMS) attempts to capture system data
+continuously to obtain insight into behavioral characteristics of
+individual applications with respect to their resource utilization.
 %
-\subsection{LDMS} %-----------------------------------------------------------%
+%However, neither of these provides a framework that can be configured
+%with and used directly by the application, nor allow for semantic
+%encoding of multiple observation sources.
 %
-The popular Lightweight Distributed Metric System (LDMS)
-\cite{agelastos2014lightweight} provides basic integration of multiple
-modalities of data in real-time, triggering program invocation or
-shaping work allocation across a cluster as informed by network
-congestion statistics, and other hybridized or meta-execution data
-points.
+However, neither of these frameworks can be configured with and used
+directly by an application.
+%
+Additionally, they do not allow for richly-annotated information to be
+placed into the system from multiple concurrent data sources per node.
+%
+\par
+%
+LDMS provides basic integration of multiple modalities of data in
+real-time, triggering program invocation or shaping work allocation
+across a cluster as informed by network congestion statistics, and
+other hybridized or meta-execution data points.
 %
 LDMS is a pull-based model, where a daemon running on nodes will
 observe and store a set of values at a regular interval.
@@ -54,13 +70,9 @@ Further, LDMS is currently limited to working with double-precision
 floating point values, while SOS allows for the collection of many
 kinds of information including JSON objects and ''binary large
 object'' (BLOB) data.
-%
-\subsection{TAUg} %-----------------------------------------------------------%
-%
-TODO ---- MORE
-%
-\subsection{TACC Stats} %-----------------------------------------------------%
-%
+\\
+TODO ---- TAUg
+\\
 TACC Stats \cite{evans2014comprehensive} facilitates high-level
 datacenter-wide logging, historical tracking, and exploration of
 execution statistics for applications.  It offers only minimal

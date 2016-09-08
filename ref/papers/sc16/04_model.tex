@@ -80,12 +80,6 @@ whole.
 Relevant features will emerge given a program's interactions
 with its problem set, its configuration parameters, and the execution platform.
 %
-Making the full functionality of SOSflow available during run-time
-also helps with the SOSflow platform's scalability in both time and
-space: The work of observation and introspection is distrubted across
-the observed application's resources proportionally, and required
-performance data aggegation can run concurrently with the job.
-%
 \subsubsection{Scalable}
 %
 Tools and run-time infrastructures need to support the largest scale of
@@ -97,8 +91,9 @@ on the next generation of HPC hardware.
 SOSflow is a distributed runtime environment, with an agent present
 on each node, using a small fraction of the node's resources.
 %
-Running in situ lends SOSflow its natural scaling features: More nodes
-mean more compute resources are available to SOSflow in proportion.
+The work of observation and introspection is distrubted across
+the observed application's resources proportionally, and required
+performance data aggegation can run concurrently with the job.
 %
 The node-level SOSflow agents transfer information off node using
 the high-performance communication infrastructure of the host cluster.

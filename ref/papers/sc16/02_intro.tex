@@ -15,8 +15,9 @@
 %
 \par
 %
-Modern clusters for parallel computing are complex environments and
-the high-performance applications that run on them do so often with
+Modern clusters for parallel computing are complex environments.
+%
+High-performance applications that run on moden clusters do so often with
 little insight about their or the system's behavior.
 %
 This is not to say that information is unavailable. 
@@ -32,29 +33,6 @@ and typically does not allow online processing.
 Other information sources of interest might include the
 operating system (OS), network hardware, runtime services, or the
 parallel application itself.
-%
-\par
-%
-Cluster monitoring systems like Ganglia \cite{massie2004ganglia} or
-Nagios \cite{katsaros2011building} collect and process data about the
-performance and health of cluster-wide resources, but do not provide
-sufficient fidelity to capture the complex interplay between
-applications competing for shared resources.
-%
-In contrast, the Lightweight Distributed Metric Service
-\cite{agelastos2014lightweight} (LDMS) attempts to capture system data
-continuously to obtain insight into behavioral characteristics of
-individual applications with respect to their resource utilization.
-%
-%However, neither of these provides a framework that can be configured
-%with and used directly by the application, nor allow for semantic
-%encoding of multiple observation sources.
-%
-However, neither of these frameworks can be configured with and used
-directly by an application.
-%
-Additionally, they do not allow for richly-annotated information to be
-placed into the system from multiple concurrent data sources per node.
 %
 \par
 %
@@ -99,7 +77,7 @@ This paper presents the \textit{Scalable Observation System (SOS)} for
 integrated application monitoring.
 %
 A working implementation of SOS is contributed as a part of this
-research effort, the \textit{SOSflow} runtime.
+research effort, \textit{SOSflow}.
 %
 The SOSflow platform demonstrates all of the essential characteristics
 of the SOS model, showing the scalability and flexibility inherent to

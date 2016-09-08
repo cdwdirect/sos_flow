@@ -110,21 +110,15 @@ takes place over a TCP socket connection.
 \end{figure}
 %%%%%
 %
-Messages read from the socket are placed in the daemon's
-unbounded asynchronous thread-safe queues to be processed by the
-daemon's local\_sync and cloud\_sync threads.
+Messages read from the socket are immediately placed in the daemon's
+asynchronous queues to be processed by a worker thread.
 %
 The socket is then ready for the next queue'd message to
-be received. 
+be received.
 %
-An example of the consistent rate of message uptake
-despite variable message injection rates is discussed in the Results
-section.
+Messages are first enqueued for storage into an on-node database.
 %
-Once a message is transmitted to the SOSflow daemon, it is placed in
-an asynchronous queue for storage into an on-node database.
-%
-The same message is enqueued for transmission to an off-node data
+The same message is re-enqueued for transmission to an off-node data
 aggregation target.
 %
 The SOSflow runtime uses MPI and the high-speed interconnect network
@@ -140,8 +134,8 @@ of the HPC machine when transmitting information off-node.
 %
 SOSflow does not participate in the MPI communicator[s] of the
 applications that it is monitoring, so no special integration
-programming is required of application developers who use MPI or
-sockets in their code.
+programming is required of application developers who already use MPI
+or sockets in their code.
 %
 \par
 %
@@ -189,7 +183,7 @@ at intervals.
 \par
 %
 Communication with the sosd(listener) is always initiated by the
-clients when they call SOS\_publish() on a publication handle.
+clients when they explicitly publish their publication handle.
 %
 %Client applications do not need to monitor a socket, though 
 Certain SOS client roles can spawn a lightweight background thread that
