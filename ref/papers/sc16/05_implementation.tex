@@ -48,22 +48,22 @@ SOSflow is divided into several components.  The core components are:
 
 \subsection{Architecture Overview} %------------------------------------------%
 %%%%%
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=\columnwidth]{images/sos.pdf}
-  \caption{SOSflow Internal Topology}
-  \label{fig_sos_topology}
-\end{figure}
+%\begin{figure}[h]
+%  \centering
+%  \includegraphics[width=\columnwidth]{images/sos.pdf}
+%  \caption{SOSflow Internal Topology}
+%  \label{fig_sos_topology}
+%\end{figure}
 %%%%%
 
 
 %%%%%
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{images/pub_handle.png}
-\caption{Structure of an SOS Publication Handle}
-\label{fig_pub_handle}
-\end{figure}
+%\begin{figure}[h]
+%\centering
+%\includegraphics[width=\columnwidth]{images/pub_handle.png}
+%\caption{Structure of an SOS Publication Handle}
+%\label{fig_pub_handle}
+%\end{figure}
 %%%%%
 
 %%%%%
@@ -105,7 +105,7 @@ takes place over a TCP socket connection.
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{images/sosd_protocol.png}
-\caption{In Situ Client/Daemon Communication Protocol}
+\caption{Client/Daemon Socket Communication Protocol}
 \label{fig_sosd_protocol}
 \end{figure}
 %%%%%
@@ -130,12 +130,12 @@ aggregation target.
 The SOSflow runtime uses MPI and the high-speed interconnect network
 of the HPC machine when transmitting information off-node.
 %%%%
-\begin{figure}[h]
-  \centering
-  \includegraphics[width=\columnwidth]{images/sos-mpmd.pdf}
-  \caption{SOSflow Communicates w/MPI and Sockets}
-  \label{fig_sos_mpmd}
-\end{figure}
+%\begin{figure}[h]
+%  \centering
+%  \includegraphics[width=\columnwidth]{images/sos-mpmd.pdf}
+%  \caption{SOSflow Communicates w/MPI and Sockets}
+%  \label{fig_sos_mpmd}
+%\end{figure}
 %%%%%
 %
 SOSflow does not participate in the MPI communicator[s] of the

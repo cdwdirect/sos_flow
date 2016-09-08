@@ -4,8 +4,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Results} %-----------------------------------------------------------%
 \subsection{Evaluation Platform} %--------------------------------------------%
-All results were obtained by either interrogating the daemon directly
-to inspect it's state or by running queries against the SOSflow
+All results were obtained by either interrogating the daemon[s] directly
+to inspect their state or by running queries against the SOSflow
 databases, such as the one in Figure~\ref{example_query}.
 %
 %\begin{figure}[h]
@@ -22,62 +22,123 @@ databases, such as the one in Figure~\ref{example_query}.
 \subsection{Experiment Setup} %-----------------------------------------------%
 %
 The experiments performed had the following purposes:
+%
 \begin{itemize}
-\item \textbf{Validation} : Demonstrate that the SOSflow model works for a general case
+  %
+\item \textbf{Validation} : Demonstrate that the SOSflow model works
+  for a general case
+%
 \item \textbf{Exploration} : Study the latency and overhead of
   SOSflow's current research implementation.
+%
 \end {itemize}
 %
-The SOSflow codes are general purpose and we do not need to 
+The SOSflow implementation is general purpose and we did not need to
 tailor it to the deployment environment.
 %
 The same SOSflow code base was used for each of the experiments.
 %
-The study was conducted on three machines, 
-the details of which are given below ---
+The study was conducted on three machines, the details of which are
+given below ---
 %
-\todo[inline]{ Put in the configurations you used on each machine.}
 \begin{enumerate}
-\item \textbf{ACISS :} Computing cluster at the University of Oregon. Config used -
-\item \textbf{Cori :} Computing cluster at NERSC. Config used 
-\item \textbf{Catalyst :} Computing cluster at LLNL. Config used - 
+%
+\item \textbf{ACISS} : The University of Oregon's 128-node compute
+  cluster.
+%
+Each node has 72 GB of memory and 2x Intel X5650 2.66 GHz 6-core CPUs,
+providing useable 12 cores.
+%
+Our experiments ran on basic nodes, connected together with a 10GigE
+ethernet switch.
+%
+%
+\item \textbf{Cori} : A Cray XC40 supercomputer at the National Energy Research Scientific
+  Computing Center (NERSC).
+%
+Nodes are equipped with 128 GB of memory and 2x Intel Xeon
+E5-2698v3 2.30 GHz 16-core CPUs.
+%
+Cori nodes are connected by a Cray Aries network with Dragonfly
+topology, that has 5.625 TB/s global bandwidth.
+%
+%
+\item \textbf{Catalyst} : A Cray CS300 supercomputer at Lawrence
+  Livermore National Laboratory (LLNL).
+%
+Each of the 324 nodes is outfitted with 128 GB of memory and 2x Intel
+Xeon E5-2695v2 2.40 GHz 12-core CPUs.
+%
+Catalyst nodes transport data to each other using a QLogic InfiniBand
+QDR interconnect.
+%
 \end{enumerate}
-
+%
+%
 We simulated workflows using the following --- 
+%
 \begin{enumerate}
-\item \textbf{LULESH with TAU : }
-\item \textbf{Synthetic Workflow :} 
+%
+\item \textbf{LULESH with TAU} : An SOSflow-enabled branch of the
+  Tuning and Analysis Utilities program (TAUflow) was created as a
+  part of the SOSflow development work.
+%
+On Cori, TAUflow was used to instrument the Livermore Unstructured
+Lagrangian Explicit Shock Hydrodynamics (LULESH) code.
+%
+During the execution of LULESH, a thread in TAUflow would periodically
+awaken and submit all of TAU's observed performance metrics into the
+SOSflow system.
+%
+\item \textbf{Synthetic Workflow} : Synthetic parallel MPI
+  applications were developed that create example workloads for the
+  SOSflow system by publishing values through the API at at
+  configurable sizes and rates of injection.
+%
 \end{enumerate}
-
-\todo[inline]{In the two subsubsections below - just fill in the details of what the tests run were, their configuration. What parameters you varied etc. No mention of the observations or results. 
 %
-It is important to indicate why this test you performed is a good way to test whatever is being evaluated.}
-
-\subsubsection{Evaluation of SOS Model}
-This experiment was performed to validate the SOSflow Model and demonstrate it's 
-applicability to the general case. 
-%
-Cori supercomputer was used to execute a LULESH with TAU workflow. 
 %
 
-\subsubsection{Evaluation of Latency}
-These experiements were performed to study the latency and overhead of SOSflow. 
+
+\subsection{Evaluation of SOS Model} %-------------------------------------%
+This experiment was performed to validate the SOSflow Model and
+demonstrate it's applicability to the general case of workflow observation.
 %
-To study the latency we ran experiments on both ACISS and Catalyst. 
+The Cori supercomputer was used to execute a LULESH + TAUflow simulation. 
+%
+Power and memory usage data was collected and stored in SOSflow for
+each node.
+%
+During the execution of the workflow, a visualization application was
+launched from outside of the job allocation which connected to the
+online (in situ) database and was able to query and display a
+graph of the metrics that SOSflow had gathered.
+%
+\par
+%
+The LULESH job was run both with and without the presence of SOSflow
+(all other settings being equal) in order to validate that ability of
+SOSflow to meet the its design goals while being minimally invasive.
+%
+%
+
+
+\subsection{Evaluation of Latency} %---------------------------------------%
+Experiements were performed to study the latency and overhead of
+SOSflow.
+%
+When a value is published from a client into the SOSflow runtime,
+it enters an asynchronous queue scheme for both database injection
+and off-node transport to an aggregation target.
+%
+Latency in this context refers to the amount of time that a value
+spends in these queues before becoming available for query by
+analytics modules.
+%
+To study latency we ran experiments on both ACISS and Catalyst.
 % 
-
-
-\subsection{Results}
-
-\subsubsection{SOS Model Validation}
-
-\subsubsection{Observation of overhead and latency}
-
-
-\subsection{Discussion}
-
-
-\subsubsection{Oregon:ACISS} %-------------------------------------------------------%
+\par
+%
 Tests run on the ACISS platform at the University of Oregon were
 deployed with the Torque job scheduler as MPICH2 MPI applications at
 scales ranging from 3 to 24 nodes, serving 10 configurable synthetic
@@ -87,59 +148,17 @@ The ACISS battery of runs were tuned as stress tests to make ensure
 the daemons could operate under reasonably heavy loads.
 %
 In the 24-node ACISS experiment (Figure~\ref{aciss_lat_24_agg}),
-SOSflow processed 72,000,000 values (double value with associated metadata) during a 90 second window
-containing three rounds of extremely dense API calls.
-%
-%
-\subsubsection{NERSC:Cori} %--------------------------------------------------%
-Real-world use case experiments were conducted on the Cori
-supercomputer at The National Energy Research Scientific Computing
-Center NERSC.
-%
-An SOSflow-enabled branch of the Tuning and Analysis Utilities program
-(TAUflow) was created as a part of the SOSflow development work.
-%
-On Cori, TAUflow was used to instrument the Livermore Unstructured
-Lagrangian Explicit Shock Hydrodynamics (LULESH) code.
-%
-During the execution of LULESH, a thread in TAUflow would periodically
-awaken and submit all of TAU's observed performance metrics into the
-SOSflow system.
-%
-Power and memory consumption data was collected and stored by SOSflow
-for each node and LULESH process.
+SOSflow processed 72,000,000 values (double value with associated
+metadata) during a 90 second window containing three rounds of
+extremely dense API calls.
 %
 \par
 %
-During the execution of the workflow, a visualization application was
-launched from outside of the job allocation which connected to the
-online (in situ) database and was able to query and display a
-graph of the metrics that SOSflow had gathered.
-%
-TODO ---- GRAPH HERE
-%
-This experiment was run both with and without the presence of SOSflow
-(all other settings being equal) in order to validate that ability of
-SOSflow to meet the its design goals while being minimally invasive.
-%
-TODO ---- MORE (ref to graph)
-%
-%
-\subsubsection{LLNL: Catalyst} %----------------------------------------------%
 Latency tests were performed on LLNL's Catalyst machine at
 various scales up to 128 nodes, with 8 data sources contributing
 concurrently on each node in each case.
 %
-The latency observed at the on-node database at all
-scales was not significantly different.
-%
-The results from the largest 128-node runs are presented here.
-%
-Results from smaller runs are omitted for space, as they show nothing
-new: ``Time in flight'' queue latency at smaller scales linearly
-approached the injection latency figures for the on-node database.
-%
-These tests measured the latency introduced by sweeping across three
+Catalyst's tests measured the latency introduced by sweeping across three
 different parameters:
 \begin{itemize}
 \item Count of unique values per publication handle
@@ -147,13 +166,62 @@ different parameters:
 \item Delay between calls to the publish API
 \end{itemize}
 %
-Exploring the optimal configuration and utilization of SOSflow is left
-to future research effort.
+Unlike the ACISS experiments, the Catalyst tests did not attempt to
+flood the system with data, but rather aimed to observe how slight
+adjustments in size and rates of value injection would impact the
+latency of those values.
 %
-TODO ---- INSERT CHARTS (have from ST'16 slides)
 %
-These initial results are promising, given the research version of SOSflow
-being profiled has not benefitted from rigorous optimization work.
+
+
+
+
+\subsection{Results} %--------------------------------------------------------%
+%
+%
+\subsubsection{SOS Model Validation} %----------------------------------------%
+%
+SOSflow was able to efficiently process detailed performance
+information from multiple sources on each of several nodes.
+%
+SOSflow's online database successfully serviced queries at run-time, and the
+results were plotted as an animated live view of the performance of the
+workflow.
+%
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{images/512_procs.png}
+\caption{On-line Workflow Performance Visualization Using SOSflow on
+  Cori.  Live View of 512 Processes From Three Perspectives: OS,
+  LULESH, TAU}
+\label{cori_visualization}
+\end{figure}
+%%%%%
+%
+The cost of using SOSflow was calculated simply as the increase in
+walltime for LULESH + SOSflow, expressed as a percentage of the walltime
+of LULESH by itself.
+%
+The results of these runs are shown in Figure~\ref{cori_results}.
+%
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{images/cori_results.png}
+\caption{Percent Increase in LULESH Running Time When SOSflow is Used}
+\label{cori_results}
+\end{figure}
+%
+%
+\subsubsection{Evaluation of Latency} %-------------------------%
+%
+The aggregate (Figure~\ref{catalyst_avg_128}) and on-node
+(Figure~\ref{catalyst_avg_node}) results from the largest 128-node
+runs are presented here.
+%
+Results from smaller runs are omitted for space, as they show nothing
+new: ``Time in flight'' queue latency at smaller scales linearly
+approached the injection latency figures for a single (on-node)
+database.
 %
 In the largest runs, across all configurations, the mean latency
 observed was ~0.3 seconds (and a maximum of 0.7 seconds) for a value,
@@ -162,6 +230,51 @@ one of 1,024 processes to the off-node aggregate data store, passing
 through multiple asynchronous queues and messaging systems on 128
 nodes.
 %
+
+%%%%%
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{images/avg_node.png}
+\caption{Average Latency for In Situ Database (128 nodes on Catalyst)}
+\label{catalyst_avg_node}
+\end{figure}
+%%%%%
+
+%%%%%
+\begin{figure}[h]
+\centering
+\includegraphics[width=\columnwidth]{images/avg_128.png}
+\caption{Average Latency for Aggregate Database (128 nodes on Catalyst)}
+\label{catalyst_avg_128}
+\end{figure}
+%%%%%
+
+%
+The in situ (Figure~\ref{catalyst_avg_node} and aggregate
+(Figure~\ref{catalyst_avg_128}) results are promising, given the
+research version of SOSflow being profiled has not benefitted from
+rigorous optimization work.
+%
+Exploring the optimal configuration and utilization of SOSflow is left
+to future research effort.
+%
+\subsection{Discussion}
+%
+Many of the behavioral characteristics of SOSflow are the product of
+its internal parameters and the configuration of its runtime
+deployment, rather than products of its data model and algorithms.
+%
+The exploration of optimal settings in that combined parameter space
+is left for future work: For now the effort was made to select
+reasonable default SOSflow configuration parameters and
+typical/non-priviledged cluster queues and topologies.
+%
+Because of the general novelty of the architecture, the results
+presented here could be considered the \textit{performance baseline}
+for SOSflow to improve on as the research line matures.
+%
+Expanding on the direct experimental results, here are some additional
+experiences and observations about the behavior of SOSflow.
 %
 \subsubsection{Aggregation Topology}
 %%%%%
@@ -194,17 +307,6 @@ aggregators each can be concatenated after the run concludes without
 collision of identities wiping out unique references.
 %
 %
-
-
-\subsubsection{Latency} %-----------------------------------------------------%
-When a value is published from a client into the SOSflow runtime,
-it enters an asynchronous queue scheme for both database injection
-and off-node transport to an aggregation target.
-%
-Latency in this context refers to the amount of time that a value
-spends in these queues before becoming available for query by
-analytics modules.
-%
 \par
 %
 The design choices made for SOSflow do not prioritize the minimization
@@ -212,7 +314,7 @@ of latency per se, but focus rather on gracefully handling spikes in
 traffic by growing (and then shrinking) the space inside the
 asynchronous message queues.
 %
-Once a value is passed to SOSflow, it is guaranteed to find its
+After a value is passed to SOSflow, it is guaranteed to find its
 way into the queryable data stores, and there are timestamps attached
 to it that capture the moment it was packaged into a publication handle in
 the client library, the moment it was published to the daemon, and
@@ -251,30 +353,30 @@ figure~\ref{aciss_lat_3_agg_detail}.
 
 
 %%%%%
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{images/aciss_latency_3_situ.png}
-\caption{In Situ Latency (3 Nodes, 30 Applications)}
-\label{aciss_lat_3_situ}
-\end{figure}
+%\begin{figure}[h]
+%\centering
+%\includegraphics[width=\columnwidth]{images/aciss_latency_3_situ.png}
+%\caption{In Situ Latency (3 Nodes, 30 Applications)}
+%\label{aciss_lat_3_situ}
+%\end{figure}
 %%%%%
 
 %%%%%
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{images/aciss_latency_3_agg.png}
-\caption{Aggregate sosd(db) Latency (3 Nodes, 30 Applications)}
-\label{aciss_lat_3_agg}
-\end{figure}
+%\begin{figure}[h]
+%\centering
+%\includegraphics[width=\columnwidth]{images/aciss_latency_3_agg.png}
+%\caption{Aggregate sosd(db) Latency (3 Nodes, 30 Applications)}
+%\label{aciss_lat_3_agg}
+%\end{figure}
 %%%%%
 
 %%%%%
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{images/aciss_latency_3_agg_zm.png}
-\caption{Aggregate sosd(db) Detail (3 Nodes, 30 Applications)}
-\label{aciss_lat_3_agg_detail}
-\end{figure}
+%\begin{figure}[h]
+%\centering
+%\includegraphics[width=\columnwidth]{images/aciss_latency_3_agg_zm.png}
+%\caption{Aggregate sosd(db) Detail (3 Nodes, 30 Applications)}
+%\label{aciss_lat_3_agg_detail}
+%\end{figure}
 %%%%%
 
 %%%%%
@@ -297,10 +399,14 @@ figure~\ref{aciss_lat_3_agg_detail}.
 %
 \par
 %
-
-
+%
 
 \subsubsection{Time Cost of Publish API} %-----------------------------------%
+%
+As an accessory to the study of value latency, the length of time that
+a client application will block inside of an SOSflow API routine was
+also evaluated.
+%
 In situ interactions between libsos rountines and the daemon are
 nearly constant time operations regardless of the daemon's workload.
 %
@@ -318,7 +424,7 @@ arriving in a sample window (red).
 %
 This information was fetched by sending 9000+ probe messages over a 15
 minute window, with a single sosd(listener) rank processing an average
-of 43,423 client messages a minute arriving from four different
+of 724 client messages a second in total, arriving from four different
 processes on an 8-way Xeon node.
 %
 The messages from SOS clients contained more than 14.7 GB of data,
@@ -353,34 +459,12 @@ RTT was 0.007 seconds.
 %
 \par
 %
-These results are promising, because they represent a worst-case
-scenario for API calls: Unlike the SOSflow API calls for publishing
-data, the probe message used to interrogate the daemon for message
-count are relatively slow, as the daemon has to service the request by
-packaging up a large struct of its internal statistics to send back to
-the client, where normally a simple ACK message is returned.
+These results show that the cost of making SOSflow API calls is
+relatively low, and holds constant under changing daemon workload.
 %
 %
 
 
-\subsection{Discussion} %-----------------------------------------------------%
-%
-Many of the behavioral characteristics of SOSflow are the product of
-its internal parameters and the configuration of its runtime
-deployment, rather than products of its data model and algorithms.
-%
-The exploration of optimal settings in that combined parameter space
-is left for future work: For now the effort was made to select
-reasonable default SOSflow configuration parameters and
-typical/non-priviledged cluster queues and topologies.
-%
-Because of the general novelty of the architecture, the results
-presented here could be considered the \textit{performance baseline}
-for SOSflow to improve on as the research line matures.
-%
-\par
-%
-TODO ---- MORE (conclusion needs some heft)
 
 
 
