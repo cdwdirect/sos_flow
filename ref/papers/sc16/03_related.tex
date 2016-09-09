@@ -17,12 +17,13 @@ online performance analysis framework.
 %
 \par
 %
-Tools like TAU \todo[inline]{CITE} are able to bring HPC developers
-closer to their codes and hardware in order to identify performance
-bottlenecks.
+Tools like TAUg \cite{huck2006taug} are able to bring HPC developers a closer look into to
+their codes and hardware, gathering low-level performance data and
+aggregating it for integrated analysis after an application concludes.
 %
-Low-level metrics are naturally suited for non-production or off-line
-episodic performance analysis of individual workflow components.
+Low-level metrics can help identify performance bottlenecks, but are
+naturally suited for non-production or off-line episodic performance
+analysis of individual workflow components.
 %
 Such deep instrumentation is necessarily invasive and can dictate
 rather than capture the observed performance of the instrumented
@@ -32,7 +33,7 @@ engage in significant amounts of interactivity.
 \par
 %
 SOSflow provides a model that can accept low-level information such as
-what TAU collects, while also operating over light-weight higher-level
+what TAUg collects, while also operating over light-weight higher-level
 information suitable for on-line operation during production runs.
 %
 One of our goals, online introspection of workflow performance,
@@ -91,10 +92,6 @@ Further, LDMS is currently limited to working with double-precision
 floating point values, while SOS allows for the collection of many
 kinds of information including JSON objects and ''binary large
 object'' (BLOB) data.
-%
-\par
-%
-TODO ---- TAUg
 %
 \par
 %

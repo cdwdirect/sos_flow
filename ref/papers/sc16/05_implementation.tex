@@ -238,18 +238,19 @@ for aggregation, starting with an interface to the Cassandra database.
 SOSflow analytics modules are independent programs that are launched
 and operate alongside the SOSflow run-time.
 %
-The primary role of the analytics modules is to query the database
-(Figure~\ref{example_query}) and produce functional output such as
-real-time visualizations of performance metrics, feedback to
-facilitate optimizations, or global resource bound calculation and
-policy enforcement.
+The primary role of the analytics modules is to query the database and
+produce functional output such as real-time visualizations of
+performance metrics, feedback to facilitate optimizations, or global
+resource bound calculation and policy enforcement.
 %
-\begin{figure}[h]
-\centering
-\includegraphics[width=\columnwidth]{images/query_example.png}
-\caption{Example of Querying the SOSflow Database}
-\label{example_query}
-\end{figure}
+%(Figure~\ref{example_query})
+%
+%\begin{figure}[h]
+%\centering
+%\includegraphics[width=\columnwidth]{images/query_example.png}
+%\caption{Example of Querying the SOSflow Database}
+%\label{example_query}
+%\end{figure}
 %
 The modules can be deployed in a distributed fashion to run on the nodes
 where the applications are executing, or they can be deployed on dedicated
