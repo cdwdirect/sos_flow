@@ -7,13 +7,12 @@ The SOSflow library and runtime codes are programmed in C99 and have
 minimal external dependencies:
 %
 \begin{itemize}
-%
-\item Message Passing Interface (MPI)
-%
-\item pthreads
-%
-\item Sqlite3
-%
+    \item Message Passing Interface (MPI)
+      %
+    \item pthreads
+      %
+    \item Sqlite3
+      %
 \end{itemize}
 %
 SOSflow's core routines allow it to:
@@ -29,8 +28,9 @@ SOSflow's core routines allow it to:
       suitable for aggregation and long-term archival.
       %
 \end{enumerate}
-%%%%%
-SOSflow is divided into several components.  The core components are:
+%
+%
+SOSflow is divided into several components, central among them:
 %
 \begin{itemize}
       %
@@ -67,7 +67,7 @@ SOSflow is divided into several components.  The core components are:
 %%%%%
 
 %%%%%
-Data in SOSflow is stored in a ``publication handle'' object.
+Data in SOSflow is stored in a ``publication handle'' (pub) object.
 %
 This object organizes all of the application context information and
 value-specific metadata, as well as managing the history of updates to
@@ -88,7 +88,7 @@ with the most recent update to that value.
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{images/val_snaps.png}
-\caption{Complete History of For All Values, Including Metadata}
+\caption{Complete History of Changing Values is Kept, Including Metadata}
 \label{fig_val_snaps}
 \end{figure}
 %%%%%
@@ -185,15 +185,15 @@ at intervals.
 Communication with the sosd(listener) is always initiated by the
 clients when they explicitly publish their publication handle.
 %
-%Client applications do not need to monitor a socket, though 
-Certain SOS client roles can spawn a lightweight background thread that
-periodically checks in with their local daemon to see if any feedback
-has been sent to that application. 
+SOSflow clients can voluntarily spawn a lightweight background thread
+that periodically checks with their local daemon to see if any
+feedback has been sent for them.
 %
-Thus allowing run-time adaptivity to
-be decoupled from the application's schedule for transmitting its
+This loosely-coupled interactivity allows for run-time feedback to
+happen independent of an application's schedule for transmitting its
 information to SOSflow.
-
+%
+%
 
 \subsection{Daemon: sosd(listener)} %-----------------------------------------%
 The sosd daemon is itself an MPI application, and it is launched as a
@@ -208,21 +208,30 @@ the host they are running on.
 During the coordination phase, listener daemons select the sosd(db)
 aggregate database that they will target for automatic asynchronous
 transfer of the data they capture.
+%
+After initialization, SOSflow does not perform any further collective
+communications.
+%
+%
 
 \subsection{Database: sosd(db)} %---------------------------------------------%
 %
 SOSD(db) uses the open-source SQLite database engine for its on-node
 database.
 %
-At the time of this writing, SQLite technology is also used for the
-aggregate databases, though it is anticipated that an interface to the
-Cassandra database will be used for that role.
+SQLite databases are persistent, lightweight, fast, and flexible, suitable to receive
+streams of tuple data with very low overhead.
+%
+SOSflow a simple API for interacting with its database to streamline
+access both on and off-node.
 %
 \par
 %
-SQLite databases are lightweight, fast, and flexible, suitable for
-streaming values into with very low overhead.
-
+At the time of this writing, SQLite technology is also used for the
+aggregate databases, though work is ongoing to provide alternatives
+for aggregation, starting with an interface to the Cassandra database.
+%
+%
 
 \subsection{Analytics: sosa} %------------------------------------------------%
 %
@@ -253,13 +262,16 @@ interconnect of the HPC machine in order to share data amongst themselves.
 \par
 %
 SOSflow provides an API for client applications to register
-a callback function to a named trigger.
+a callback function with a named trigger handle.
 %
 Those triggers can be fired off by analytics modules, and arbitrary
 data structures can be passed to the triggered functions.
 %
 Triggers may be fired for a specific single process on one node,
 or for an entire node, or an entire scientific workflow.
+%
+This capability facilitates the use of SOSflow as a general-purpose observation,
+introspection, feedback, and control platform.
 %%%%%
 %%%
 %%%  EOF

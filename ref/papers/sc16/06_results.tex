@@ -26,7 +26,7 @@ The experiments performed had the following purposes:
 \begin{itemize}
   %
 \item \textbf{Validation} : Demonstrate that the SOSflow model works
-  for a general case
+  for a general case.
 %
 \item \textbf{Exploration} : Study the latency and overhead of
   SOSflow's current research implementation.
@@ -47,7 +47,7 @@ given below ---
   cluster.
 %
 Each node has 72 GB of memory and 2x Intel X5650 2.66 GHz 6-core CPUs,
-providing useable 12 cores.
+providing 12 useable cores per node.
 %
 Our experiments ran on basic nodes, connected together with a 10GigE
 ethernet switch.
@@ -92,8 +92,8 @@ SOSflow system.
 %
 \item \textbf{Synthetic Workflow} : Synthetic parallel MPI
   applications were developed that create example workloads for the
-  SOSflow system by publishing values through the API at at
-  configurable sizes and rates of injection.
+  SOSflow system by publishing values through the API at configurable
+  sizes and rates of injection.
 %
 \end{enumerate}
 %
@@ -102,30 +102,31 @@ SOSflow system.
 
 \subsection{Evaluation of SOS Model} %-------------------------------------%
 This experiment was performed to validate the SOSflow Model and
-demonstrate it's applicability to the general case of workflow observation.
+demonstrate it's applicability for the general case of workflow
+observation.
 %
 The Cori supercomputer was used to execute a LULESH + TAUflow simulation. 
 %
-Power and memory usage data was collected and stored in SOSflow for
+Power and memory usage metrics were collected and stored in SOSflow for
 each node.
 %
 During the execution of the workflow, a visualization application was
-launched from outside of the job allocation which connected to the
-online (in situ) database and was able to query and display a
-graph of the metrics that SOSflow had gathered.
+launched from outside of the job allocation which connected to
+SOSflow's online database and was able to query and display graphs of
+the metrics that SOSflow had gathered.
 %
 \par
 %
 The LULESH job was run both with and without the presence of SOSflow
-(all other settings being equal) in order to validate that ability of
+(all other settings being equal) in order to validate the ability of
 SOSflow to meet the its design goals while being minimally invasive.
 %
 %
 
 
 \subsection{Evaluation of Latency} %---------------------------------------%
-Experiements were performed to study the latency and overhead of
-SOSflow.
+Experiements were performed to study the latency of data moving
+through SOSflow.
 %
 When a value is published from a client into the SOSflow runtime,
 it enters an asynchronous queue scheme for both database injection
@@ -144,13 +145,13 @@ deployed with the Torque job scheduler as MPICH2 MPI applications at
 scales ranging from 3 to 24 nodes, serving 10 configurable synthetic
 data-producing processes per node in all cases.
 %
-The ACISS battery of runs were tuned as stress tests to make ensure
-the daemons could operate under reasonably heavy loads.
+The ACISS battery of runs were tuned as stress tests to ensure that
+the sosd daemons could operate under reasonably heavy loads.
 %
 In the 24-node ACISS experiment (Figure~\ref{aciss_lat_24_agg}),
-SOSflow processed 72,000,000 values (double value with associated
-metadata) during a 90 second window containing three rounds of
-extremely dense API calls.
+SOSflow clients published 72,000,000 double-precision floats
+with associated metadata during a 90 second window containing three
+rounds of extremely dense API calls.
 %
 \par
 %
@@ -161,9 +162,9 @@ concurrently on each node in each case.
 Catalyst's tests measured the latency introduced by sweeping across three
 different parameters:
 \begin{itemize}
-\item Count of unique values per publication handle
-\item Number of publish operations per loop
-\item Delay between calls to the publish API
+\item Count of unique values per publish.
+\item Number of publish operations per iteration.
+\item Delay between calls to the publish API.
 \end{itemize}
 %
 Unlike the ACISS experiments, the Catalyst tests did not attempt to
@@ -184,9 +185,9 @@ latency of those values.
 SOSflow was able to efficiently process detailed performance
 information from multiple sources on each of several nodes.
 %
-SOSflow's online database successfully serviced queries at run-time, and the
-results were plotted as an animated live view of the performance of the
-workflow.
+During the LULESH run, SOSflow's online database successfully serviced
+queries on-line, and the results were plotted as an animated live
+view of the performance of the workflow.
 %
 \begin{figure}[h]
 \centering
@@ -214,16 +215,18 @@ The results of these runs are shown in Figure~\ref{cori_results}.
 %
 \subsubsection{Evaluation of Latency} %-------------------------%
 %
-The aggregate (Figure~\ref{catalyst_avg_128}) and on-node
-(Figure~\ref{catalyst_avg_node}) results from the largest 128-node
-runs are presented here.
+The on-node (Figure~\ref{catalyst_avg_node}) and aggregate
+(Figure~\ref{catalyst_avg_128}) results from the largest 128-node runs
+are presented here.
 %
 Results from smaller runs are omitted for space, as they show nothing
 new: ``Time in flight'' queue latency at smaller scales linearly
 approached the injection latency figures for a single (on-node)
 database.
 %
-In the largest runs, across all configurations, the mean latency
+\par
+%
+In the 128-node runs, across all configurations, the mean latency
 observed was ~0.3 seconds (and a maximum of 0.7 seconds) for a value,
 and its full complement of metadata and timestamps, to migrate from
 one of 1,024 processes to the off-node aggregate data store, passing
@@ -250,10 +253,10 @@ nodes.
 %%%%%
 
 %
-The in situ (Figure~\ref{catalyst_avg_node} and aggregate
-(Figure~\ref{catalyst_avg_128}) results are promising, given the
-research version of SOSflow being profiled has not benefitted from
-rigorous optimization work.
+The in situ and aggregate results in Figures ~\ref{catalyst_avg_node}
+and (Figure~\ref{catalyst_avg_128} are promising, given the research
+version of SOSflow being profiled has not benefitted from rigorous
+optimization work.
 %
 Exploring the optimal configuration and utilization of SOSflow is left
 to future research effort.
@@ -264,17 +267,18 @@ Many of the behavioral characteristics of SOSflow are the product of
 its internal parameters and the configuration of its runtime
 deployment, rather than products of its data model and algorithms.
 %
-The exploration of optimal settings in that combined parameter space
-is left for future work: For now the effort was made to select
-reasonable default SOSflow configuration parameters and
-typical/non-priviledged cluster queues and topologies.
+For now, the effort was made to select reasonable default SOSflow
+configuration parameters and typical/non-priviledged cluster queues
+and topologies.
 %
 Because of the general novelty of the architecture, the results
 presented here could be considered the \textit{performance baseline}
-for SOSflow to improve on as the research line matures.
+for SOSflow to improve on as the research matures.
+%
+\par
 %
 Expanding on the direct experimental results, here are some additional
-experiences and observations about the behavior of SOSflow.
+experiences and observations about the behavior of SOSflow: ---
 %
 \subsubsection{Aggregation Topology}
 %%%%%
@@ -297,22 +301,22 @@ The Cori runs captured a real application's behavior, and was primarily
 intended to demonstrate the fitness of SOSflow for capturing the
 performance of a scientific workflow along with meaningful context.
 %
-As many instances of aggregators can be spawned as needed in order to
-support the quantity of data being injected from a global
+Instances of aggregators can be spawned, as many as needed, in order
+to support the quantity of data being injected from a global
 perspective.
 %
-All data sent to SOSflow is tagged with a GUID, shards the global
-information space that are split off into a partitions across several
-aggregators each can be concatenated after the run concludes without
-collision of identities wiping out unique references.
+All data sent to SOSflow is tagged with a GUID.
 %
+This allows for shards the global information space to be concatenated
+after the run concludes without collision of identities wiping out
+distinct references.
 %
 \par
 %
-The design choices made for SOSflow do not prioritize the minimization
-of latency per se, but focus rather on gracefully handling spikes in
-traffic by growing (and then shrinking) the space inside the
-asynchronous message queues.
+The data handling design trade-offs made for SOSflow do not prioritize
+the minimization of latency per se, but focus rather on gracefully
+handling spikes in traffic by growing (and then shrinking) the space
+inside the asynchronous message queues.
 %
 After a value is passed to SOSflow, it is guaranteed to find its
 way into the queryable data stores, and there are timestamps attached
@@ -328,14 +332,11 @@ how long the value was sequestered in the asynchronous queues.
 %
 During the ACISS stress-tests, values were being injected into the
 SOSflow system faster than they could be spooled from the queues into
-the database.  This accounts for the observed saw-tooth pattern of
-increasing latency seen in those results.
+the database.
 %
 While every value will eventually be processed and injected into the data
 store, some values wound up having to wait longer than others as the queue
 depth increased.
-%
-\par
 %
 The asynchronous queues have thread-sequential FIFO ordering, but
 because the MPI messages are queued up based on their arrival time,
@@ -343,11 +344,12 @@ and a batch is handled competely before the next is processed, there
 is no real-time interleaving of database value injections, they are
 injected in batches.
 %
-This creates the sawtooth pattern in figures~\ref{aciss_lat_3_agg} and
-\ref{aciss_lat_24_agg}, as the latency for values in the batches near
-the bottom of the pile of MPI messages consistently increases until
-their batch is injected, detailed in
-figure~\ref{aciss_lat_3_agg_detail}.
+The latency for values in the batches near the bottom of the pile of
+MPI messages consistently increases until their batch is injected.
+%
+This accounts for the observed saw-tooth pattern of increasing latency
+seen in Figure~\ref{aciss_lat_24_agg}, which is not seen in
+Figure~\ref{aciss_lat_24_situ}.
 %
 %
 
@@ -383,7 +385,7 @@ figure~\ref{aciss_lat_3_agg_detail}.
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{images/aciss_latency_24_situ.png}
-\caption{In Situ Latency (24 Nodes, 240 Applications)}
+\caption{In Situ Latency (24 nodes on ACISS, 240 Applications)}
 \label{aciss_lat_24_situ}
 \end{figure}
 %%%%%
@@ -392,7 +394,7 @@ figure~\ref{aciss_lat_3_agg_detail}.
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{images/aciss_latency_24_agg.png}
-\caption{Aggregate sosd(db) Latency (24 Nodes, 240 Applications)}
+\caption{Aggregate Latency (24 nodes on ACISS, 240 Applications)}
 \label{aciss_lat_24_agg}
 \end{figure}
 %%%%%
@@ -422,7 +424,7 @@ arriving in a sample window (red).
 %
 \par
 %
-This information was fetched by sending 9000+ probe messages over a 15
+This information was gathered by sending 9000+ probe messages over a 15
 minute window, with a single sosd(listener) rank processing an average
 of 724 client messages a second in total, arriving from four different
 processes on an 8-way Xeon node.
@@ -438,12 +440,13 @@ The RTT holds steady during low and high volume of traffic from the
 other in situ client processes.
 %
 The mean RTT for the probe messages was 0.003 seconds, and the maximum
-RTT was 0.007 seconds.
+RTT was 0.07 seconds.
+%
 %%%%%
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{images/icebox_api_cost_when_slam.png}
-\caption{SOSflow Socket Communication Cost (~0.003sec Mean)}
+\caption{SOSflow Socket Communication Cost, Projected Over Message Count}
 \label{sock_cost}
 \end{figure}
 %%%%%
@@ -452,7 +455,7 @@ RTT was 0.007 seconds.
 \begin{figure}[h]
 \centering
 \includegraphics[width=\columnwidth]{images/icebox_api_cost_zoom.png}
-\caption{SOSflow Socket Communication Cost, Detail}
+\caption{SOSflow Socket Communication Cost (Detail)}
 \label{sock_cost_detail}
 \end{figure}
 %%%%%
@@ -460,7 +463,8 @@ RTT was 0.007 seconds.
 \par
 %
 These results show that the cost of making SOSflow API calls is
-relatively low, and holds constant under changing daemon workload.
+relatively low, and holds constant under changing sosd(listener)
+workload.
 %
 %
 
