@@ -17,7 +17,7 @@
 %
 Modern clusters for parallel computing are complex environments.
 %
-High-performance applications that run on moden clusters do so often with
+High-performance applications that run on modern clusters do so often with
 little insight about their or the system's behavior.
 %
 This is not to say that information is unavailable. 
@@ -34,11 +34,11 @@ Other information sources of interest might include the
 operating system (OS), network hardware, runtime services, or the
 parallel application itself.
 %
-\par
-%
 Our general interest is in parallel application monitoring: the
 observation, introspection, and possible adaptation of an application
 during its execution.
+%
+\par
 %
 Application monitoring has several requirements.
 %
@@ -60,7 +60,7 @@ analysis will need to be enabled in situ with the application
 %Because analysis can result in application feedback, query and control
 %interfaces are required, again to both the application and the system.
 %
-Furthermore, query and control interfaces are required to facilitate
+Query and control interfaces are required to facilitate
 an active application feedback process.
 %
 The analysis performed can be used to give feedback to both the
@@ -94,7 +94,7 @@ of streaming observations from multiple sources.
 %with its context and meaning.
 %
 Interfaces are provided for in situ analytics to acquire
-information and send back results for application actuators.
+information and then send back results to application actuators.
 %
 SOS launches with the application, runs along side it, and can acquire
 its own resources for scalable data collection and processing.
@@ -118,8 +118,11 @@ These components can be instantiated as lightweight threads belonging
 to a single process, or they may execute concurrently as independent
 processes.
 %
-Components of workflows may be functionally isolated from each
+Components of workflows can be functionally isolated from each
 other or synchronously coupled and co-dependent.
+%
+Some workflows can be run on a single node, while others are typically
+distributed across thousands of nodes.
 %
 Additionally, parts of workflows may even be dynamically instantiated and
 terminated.
@@ -159,17 +162,14 @@ or even during the course of one execution.
 %required for the SOSflow model, motivating its development and
 %contribution as a novel software artifact.
 %
-SOSflow provides a flexible research platform for investigating the
-properties of existing and future scientific workflows, supporting
-both current and future scales of execution.
 %
 %A key feature of SOSflow is its ability to capture and integrate information
 %from multiple perspectives simultaneously.
 %
-\subsection{Application Perspective} %----------------------------------------%
+\subsection{Multiple Perspectives} %------------------------------------------%
 %
-Application state and events can be sent to SOSflow from within the application
-at any point during its execution.
+\textit{Application state and events} can be sent to SOSflow from
+within the application at any point during its execution.
 %
 Developers can instrument their programs to be efficiently self-reporting
 the data that is relevant to their overall performance, such as progress
@@ -177,44 +177,39 @@ through specific phases of a simulation.
 %
 \par
 %
-TODO ---- MORE
-%
-\subsection{System Perspective} %---------------------------------------------%
-%
-Application performance can be dramatically impacted by changes in the
-state of the operating environment that is hosting it.
+
+Application performance can be dramatically impacted by changes in
+\textit{the state of the operating environment} that is hosting it.
 %
 The effects of contention for shared resources by multiple concurrent
-tasks can be discovered when the gathered performance data places the
-gathered metrics of both tasks in a common context.
+tasks can be discovered when the events of concurrent tasks are fixed
+into a common context for reasoning about their individual and
+combined performance.
 %
 SOSflow's distributed in situ design is well-suited for capturing
 perspective of the global state of a machine.
 %
 By co-locating the observation system with the workflow components
 that are observed, SOSflow improves the fidelity of system performance
-data without requiring costly delays in synchronization of impacting
-the network and filesystem bandwidth available to applications.
-%
-\subsection{Tool Perspective} %-----------------------------------------------%
-%
-Performance tools exist that can provide observations at run-time
-of applications, libraries, and the system context.
-%
-These tools can be a valuable addition to the data ...
+data without requiring the costly delays of synchronization or
+congesting the shared network and filesystem resources in use by
+applications.
 %
 \par
 %
-TODO ---- MORE
+Many existing \textit{performance tools can provide usefule
+  observations} at run-time of applications, libraries, and the system
+context.
+%
+The low-level timers, counters, and machine-level data points provided
+by specialized performance tools can be a valuable addition to the
+higher-level application and system data.
 %
 \subsection{Exascale Measurement Challenge} %---------------------------------%
 %
 TODO ---- MORE
 %
-\subsection{Summary} %--------------------------------------------------------%
-%
-TODO ---- MORE
-%
+
 
 %%%
 %%%  EOF

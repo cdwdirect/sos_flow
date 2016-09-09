@@ -5,33 +5,54 @@
 \section{Related Work}
 %
 Traditionally, HPC research into enhancing performance has been
-focused on low-level efficiency of an application or library on some
-particular machine, with tools like TAU bringing HPC developers ever
-closer to optimal runs on specific machines.
+focused on the low-level efficiency of one application or library, or
+some particular machine.
 %
-However, low-level metrics are naturally suited for offline episodic
-performance analysis of individual workflow components.
+The related work mentioned here, and many other performance monitoring
+tools, are well-implemented, tested, maintained, and regularly used
+for in production and for performance research studies.
+%
+However, each have deficiencies that render them unsuitable for a scalable
+online performance analysis framework.
+%
+\par
+%
+Tools like TAU \todo[inline]{CITE} are able to bring HPC developers
+closer to their codes and hardware in order to identify performance
+bottlenecks.
+%
+Low-level metrics are naturally suited for non-production or off-line
+episodic performance analysis of individual workflow components.
 %
 Such deep instrumentation is necessarily invasive and can dictate
 rather than capture the observed performance of the instrumented
 application when the application is running at scale or required to
 engage in significant amounts of interactivity.
 %
-SOSflow conditions data by annotating it with context and semantic tags to
-help efficiently process it for online introspection.
+\par
 %
-Doing principle components analysis on unconditioned data is
-computationally expensive and unsuitible for a runtime environment.
+SOSflow provides a model that can accept low-level information such as
+what TAU collects, while also operating over light-weight higher-level
+information suitable for on-line operation during production runs.
+%
+One of our goals, online introspection of workflow performance,
+involves unsupervised machine-learning for model development, and the
+application of complex classifiers to match observations with models.
+%
+Doing principle components analysis on \textit{complex unconditioned
+  performance data} is computationally expensive and unsuitible for a
+runtime environment.
+%
+SOSflow conditions performance data by annotating it with context and
+semantic tags to help efficiently process it during online
+introspection.
 %
 \par
 %
-The tools mentioned here, and many other performance monitoring tools, are
-well-implemented, tested, maintained, deployed and regularly used for
-performance research studies, but each have deficiencies that render them
-unsuitable for a general performance analysis framework. %the objectives of SOS.
-\\
-TODO ---- MONALYTICS
-\\
+TODO ---- MONALYTICS\todo[inline]{ADD}
+%
+\par
+%
 Cluster monitoring systems like Ganglia \cite{massie2004ganglia} or
 Nagios \cite{katsaros2011building} collect and process data about the
 performance and health of cluster-wide resources, but do not provide
@@ -60,8 +81,8 @@ real-time, triggering program invocation or shaping work allocation
 across a cluster as informed by network congestion statistics, and
 other hybridized or meta-execution data points.
 %
-LDMS is a pull-based model, where a daemon running on nodes will
-observe and store a set of values at a regular interval.
+LDMS uses a pull-based interaction model, where a daemon running on
+nodes will observe and store a set of values at a regular interval.
 %
 SOS has a hybrid push-pull model that puts users in control of the
 frequency and amount of information exchanged with the runtime.
@@ -70,9 +91,13 @@ Further, LDMS is currently limited to working with double-precision
 floating point values, while SOS allows for the collection of many
 kinds of information including JSON objects and ''binary large
 object'' (BLOB) data.
-\\
+%
+\par
+%
 TODO ---- TAUg
-\\
+%
+\par
+%
 TACC Stats \cite{evans2014comprehensive} facilitates high-level
 datacenter-wide logging, historical tracking, and exploration of
 execution statistics for applications.  It offers only minimal
