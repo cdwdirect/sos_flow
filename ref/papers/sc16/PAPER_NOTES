@@ -1,5 +1,43 @@
 
 
+Hi Chad,
+
+> It'll be a challenge to introduce and then differentiate MONA,
+> Monalytics, WOWMON, ...
+
+I would forget about talking about MONA.  Just use the term "monalytics"
+if you wish to use the term at all to describe the integration of
+monitoring and analytics.  If you are going to say anything about
+scientific workflows, you can just stick a few sentences about the
+WOWMON work in the related work.  You can point out that it had
+limitations with respect to how it interfaced with the workflow
+components, and its server for data management and analytics.
+
+> and then SOS (as model, not implementation) given the space, but it's
+> worth trying!
+
+What you should concentrate on is describing the SOS architecture and
+the SOSflow runtime system.
+
+> Do you know if I need to put an Acknowledgement for the MONA DoE grant
+> before the photo-ready version?  The template has LLNL's grant stub.  I
+> don't need a release number from them until it has been accepted
+> somewhere.
+
+Yes, put in an acknowledgement section.  Here is the information;
+
+  The research report was supported by a grant from the Department of
+  Energy, Scientific Data Management, Analytics, and Visualization
+  (SDMAV), for ``Performance Understanding and Analysis for Exascale
+  Data Management Workflows.''
+
+I can not find the grant number.  I will send an email to Charlotte.
+
+Al
+
+
+----------
+
 paper sections / notes:
 
 	30-40% is about design/arch
