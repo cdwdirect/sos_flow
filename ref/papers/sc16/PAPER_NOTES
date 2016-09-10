@@ -49,3 +49,111 @@ paper sections / notes:
 		- timed_wait vs. cond_wait in extractor thread
 		
 		
+
+
+Hi Chad,
+
+I read the paper thoroughly.  Here are my comments.
+
+1. It is unclear what SOS is and what SOSflow is from reading the paper.
+I consider SOS to be the whole architecture and SOSflow to be the SOS
+runtime layer that controls the flow of information through the system.
+I would suggest to that the paper concentrate on the SOS
+architecture and then discuss the SOSflow runtime in more detail.
+Do not talk about "SOSflow" until Section III.
+
+I think the title should be:
+
+  A Scalable Observation System for Introspection and In Situ Analytics
+
+2. It needs to be clear what problem SOS is trying to solve.  In my
+mind, the problem objective is to gather and provide access to any
+information that might be of interest during execution of an application
+or set of applications, and to provide support for processing that
+information in situ, with possible feedback to application components,
+all in a scalable manner.
+
+This needs to motivate the rest of the paper.  You can use the
+term "monalytics" to describe the integration of monitoring and
+analytics, which is what SOS is essentially attempting to support.
+
+You can mention "scientific workflow" as something that motivates the
+SOS work beyond just what we normally do to measure the performance of a
+single application.  However, there really is nothing about actual
+scientific workflows in the paper.  The figure is ok, but you need to be
+clear about what a scientific workflow (as a use case for SOS) requires.
+To be clear, this paper is not about scientific workflows per se.
+
+3. For the related work, you need to look at the Falcon Monitoring and
+Steering System from Georgia Tech:
+
+  http://www.cc.gatech.edu/systems/projects/FALCON/a
+
+and include it in the discussion.  You should include the WOWMON paper
+as a reference.
+
+4. Describe the SOS architecture in Section III (it is the SOS
+architecture, not the SOSflow architecture).  "SOS Architecture" should
+be the section title.  In my mind, SOS consists of a) information
+producers (i.e., SOS APIs for getting information from different sources
+to SOS) b) information management (i.e., SOS onine information
+databases/repositories), c) introspection (i.e., online access to the
+information), d) in situ analytics (i.e., online analysis of the
+information), and e) feedback (i.e., SOS APIs for getting feedback
+information back to non-SOS entities).
+
+SOSflow is the runtime system in SOS that operates everything.  You need
+to separate the discussion in Section III of the SOS architecture versus
+the SOS operation (i.e., how does it work).  SOSflow is that operational
+part.
+
+This distinction is necessary because it will give the reader a much
+better sense of what is going on.  I do not think it will that much to
+do, and much of what you already have willl remain, but you are the best
+one to do the rewriting and reorganization.
+
+5. Again, the system is SOS and the runtime is SOSflow.  In my mind, the
+SOSflow runtim enables the development of in situ analysis (SOSa).  SOSa
+is built on the capabilities of SOS and SOSflow, but it should be
+discussed as being developed for specific purposes, possibly by the
+users.  The point I am making is that SOSflow is an inherent operational
+layer in SOS (i.e., the SOS runtime), but SOSa is more of a framework
+for developing in situ analytics.
+
+6. The implementation section is good, I think.  Maybe there is more
+that could be said about how things get launched.
+
+6. The experimental results are all there to show that a) SOS/SOSflow
+works (i.e., it is functional) and b) have particular performance
+characteristics on some systems platforms.  I think what is presented is
+fine.  Do not try to oversell it.  Be clear that you are working with
+functional prototypes for purposes of evaluation their performance
+properties.
+
+7. Unfortunately, you do not have a testcase where you are showing the
+value or utility of SOS.  Thus, it is hard to tie the discussion back to
+the problem objective that SOS is trying to address.  Given 8 pages, it
+might be hard to show this even if you had it.  Thus, I would suggest to
+just state clearly that what you are trying to show are SOS's
+performance characteristics.
+
+If you had some statistics that you might be able to calculate on a per
+iteration basis with the LULESH TAU data, maybe it might show something
+interesting.  Then, you could argue that in situ analytics could
+generate these results and (maybe) they might be useful.
+
+Bottom line, write the paper as a SOS design paper.  Give motivation for
+what needs to be in the SOS architecture.  Emphasize the fact that SOS
+must have a runtime system (SOSflow) and that that runtime system is
+important for the efficient operation of SOS.  The architecture +
+runtime system are what will make SOS scalable.  Then describe how
+things are implemented and show some experimental results to give the
+reader that it is real.
+
+I do not know how well the paper will review, but it is important to
+keep things clear what you are saying.
+
+I hope this helps.
+
+Al
+
