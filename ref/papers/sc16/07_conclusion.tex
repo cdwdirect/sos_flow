@@ -5,33 +5,15 @@
 
 \section{Future Work} %-------------------------------------------------------%
 %
-\textbf{SOS/SOSflow}: Continue refining and expanding the core SOSflow
+\textbf{Development}: Continue refining and expanding the core SOSflow
 libraries and the SOS workflow performance model.
-\\
-\textbf{Automation}: Create an interactive script for integrating
-SOSflow into existing Torque and Slurm job files to lower the barrier
-to entry for new users and help check for the sanity of configurations,
-avoiding wasted allocation time if mistakes are present.
-\\
-\textbf{SOApy}: The Scalable Observation Analytics (Python) is a
-collection of scripts utilizing numpy and matplotlib to query the
-SOSflow databases and produce visualizations. Some initial development
-work here was utilized to produce the latency figures in this paper.
-\\
-\textbf{Data Store Decoupling}: Decouple the
-SOSflow components further and provide alternative data flow and
-database storage strategies such as EVPATH, Glasgow Cache, or
-Cassandra+Spark.
-\\
-\textbf{Synthetic Workflow Generator}: Continue effort on the 
-synthetic workflow generation tools for workflow modeling.
 \\
 \textbf{Optimization}: Optimize the SOSflow codes for memory use
 and data latency. Add mechanisms for throttling of data flow to
-increase reliability in resource-constrained cases. Map out some
+increase reliability in resource-constrained cases. Map out 
 best-fit metrics for dedicating in situ resources to a monitoring
-platform for some of the major extant compute clusters, and build this
-intelligence into the SOSflow platform.
+platform for the major extant and proposed compute clusters, and build this
+intelligence into the SOSflow implementation.
 \\
 \textbf{Integration}: Explore options for deployment and integration with
 existing HPC monitoring and analytics codes at LLNL and other
@@ -56,6 +38,12 @@ workflows, and that it has desirable scaling properties.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Acknowledgments}
+
+The research report was supported by a grant (DE-SC0012381) from the
+Department of Energy, Scientific Data Management, Analytics, and
+Visualization (SDMAV), for ``Performance Understanding and Analysis
+for Exascale Data Management Workflows.''
+
 Part of this work was performed under the auspices of the
 U.S. Department of Energy by Lawrence Livermore National Laboratory
 under Contract DE-AC52-07NA27344 (LLNL-CONF-XXXXXX).
