@@ -49,10 +49,9 @@ given below ---
   cluster.
 %
 Each node has 72 GB of memory and 2x Intel X5650 2.66 GHz 6-core CPUs,
-providing 12 usable cores per node.
+providing 12 cores per node.
 %
-Our experiments ran on basic nodes, connected together with a 10GigE
-ethernet switch.
+Each node is connected together with a 10GigE ethernet switch.
 %
 %
 \item \textbf{Cori} : A Cray XC40 supercomputer at the National Energy Research Scientific
@@ -256,8 +255,7 @@ nodes.
 %
 The in situ and aggregate results in Figures ~\ref{catalyst_avg_node}
 and Figure~\ref{catalyst_avg_128} are promising, given the research
-version of SOSflow being profiled has not benefitted from rigorous
-optimization work.
+version of SOSflow being profiled is not optimized.
 %
 Exploring the optimal configuration and utilization of SOSflow is left
 to future research effort.
@@ -308,14 +306,14 @@ perspective.
 %
 All data sent to SOSflow is tagged with a guid.
 %
-This allows for the global information space to be concatenated
+This allows for shards of the global information space to be concatenated
 after the run concludes without collision of identities wiping out
 distinct references.
 %
 \par
 %
 The data handling design trade-offs made for SOSflow do not prioritize
-the minimization of latency per se, but focus rather on gracefully
+the minimization of latency, but focus rather on gracefully
 handling spikes in traffic by growing (and then shrinking) the space
 inside the asynchronous message queues.
 %
@@ -325,13 +323,13 @@ to it that capture the moment it was packaged into a publication handle in
 the client library, the moment it was published to the daemon, and
 even the moment it was finally spooled out into the database.
 %
-Once it is in the database, it is trivially easy to correlate values
-together by the moment of their packing into a publication handle, no matter
+Once it is in the database, it is trivial to correlate values
+together based on the moment of their creation, no matter
 how long the value was sequestered in the asynchronous queues.
 %
 \par
 %
-During the ACISS stress-tests, values were being injected into the
+During the ACISS stress-tests, values were injected into the
 SOSflow system faster than they could be spooled from the queues into
 the database.
 %
@@ -345,8 +343,10 @@ and a batch is handled completely before the next is processed, there
 is no real-time interleaving of database value injections, they are
 injected in batches.
 %
-The latency for values in the batches near the bottom of the pile of
-MPI messages consistently increases until their batch is injected.
+Near the bottom of the pile of MPI messages, the latency continually
+increases until that batch is injected.
+%The latency for values in the batches near the bottom of the pile of
+%MPI messages consistently increases until their batch is injected.
 %
 This accounts for the observed saw-tooth pattern of increasing latency
 seen in Figure~\ref{aciss_lat_24_agg}, which is not seen in
