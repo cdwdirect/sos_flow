@@ -78,10 +78,10 @@ integrated application monitoring.
 A working implementation of SOS is contributed as a part of this
 research effort, \textit{SOSflow}.
 %
-\todo[inline]{CORRECT: The SOSflow platform demonstrates all of the essential characteristics
+The SOSflow platform demonstrates all of the essential characteristics
 of the SOS model, showing the scalability and flexibility inherent to
 SOS with its support for observation, introspection, feedback, and
-control of scientific workflows.}
+control of scientific workflows.
 %
 The SOS design employs a data model with distributed
 information management and structured query and access.
@@ -99,7 +99,7 @@ and performance tools.
 SOS launches with the application, runs along side it, and can acquire
 its own resources for scalable data collection and processing.
 %
-
+%
 
 \subsection{Scientific Workflows} %-------------------------------------------%
 %
@@ -135,7 +135,7 @@ or even during the course of one execution.
 %component, in a scope that can contain and adequatelty contexualize
 %the union of all other component scopes.
 %
-\par
+%\par
 %
 %This research contributes a general solution to the monitoring
 %challenges posed by scientific workflows.
@@ -167,7 +167,7 @@ or even during the course of one execution.
 %
 \subsection{Multiple Perspectives} %------------------------------------------%
 %
-\textit{Application state and events} can be sent to SOSflow from
+\textit{Application state and events} can be sent to SOS from
 within the application at any point during its execution.
 %
 Developers can instrument their programs to be efficiently self-reporting
@@ -185,26 +185,26 @@ tasks can be discovered when the events of concurrent tasks are fixed
 into a common context for reasoning about their individual and
 combined performance.
 %
-SOSflow's distributed in situ design is well-suited for capturing
+SOS's distributed in situ design is well-suited for capturing
 perspective of the global state of a machine.
 %
 By co-locating the observation system with the workflow components
-that are observed, SOSflow improves the fidelity of system performance
+that are observed, SOS improves the fidelity of system performance
 data without requiring the costly delays of synchronization or
 congesting the shared network and filesystem resources in use by
 applications.
 %
 \par
 %
-Many existing \textit{performance tools can provide usefule
-  observations} at run-time of applications, libraries, and the system
+Many existing \textit{performance tools can provide useful
+  observations} at runtime of applications, libraries, and the system
 context.
 %
 The low-level timers, counters, and machine-level data points provided
 by specialized performance tools can be a valuable addition to the
 higher-level application and system data.
 %
-\par
+\subsection{Motivation}
 %
 Observing and reasoning about the performance of workflows on
 \textit{exascale computational platforms} presents new challenges.
@@ -213,9 +213,9 @@ Exascale systems will be capable of more than a billion billion
 calculations per second, a factor of between 50 to 100 times
 faster than present day machines.
 %
-The physical scale and complexity of exascale machines is expected to grow
-by similar factors as its computational speed, motivating our research
-performance tools that can scale to the same extent.
+The physical scale and complexity of exascale machines is expected to
+grow by similar factors as its computational speed, motivating a model
+that can scale to the same extent.
 %
 %
 
