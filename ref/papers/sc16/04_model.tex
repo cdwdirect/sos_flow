@@ -12,24 +12,23 @@ general challenge of distributed online monitoring.
 %these workflows led to the development of the SOSflow runtime software
 %system.
 %
-
 Information from a wide variety of sources is relevent to the
 characterization and optimization of a workflow.
 %
 \par
 %
 In order to gather run-time information and operate on it, SOS needs
-to be active at the same time and in the same context as the workflow
+to be active in the same environment as the workflow
 components.
 %
 This online operation is capable of collecting data from multiple
-sources within its context and efficiently servicing requests
-for this data.
+sources and efficiently servicing requests
+for it.
 %
 Information captured is distinct and tagged with metadata to enable
 classification and automated reasoning.
 %
-SOS aggregates necessary information together at run-time to
+SOS aggregates necessary information together online to
 enable high-level reasoning over the entire monitored workflow.
 %
 
@@ -46,7 +45,7 @@ The SOS Model consists of the following components:
 \item \textbf{Information Management} : SOS online
   information databases/repositiories.
 %
-\item \textbf{Introspection} : Online access to the
+\item \textbf{Introspection Support} : Online access to the
   information databases.
 %
 \item \textbf{In Situ Analytics} : Components to perform the online
@@ -94,42 +93,38 @@ The SOS Model consists of the following components:
 %general solution to the challenge of on-line in situ observation,
 %introspection, feedback, and control.
 %
-\subsubsection{Online}
+\begin{itemize}
+\item \textbf{Online} : It is necessary to obtain observations at run
+  time to capture features of workflows that emerge from the
+  interactions of the workflow as a whole.
+  %
+  Relevant features will emerge given a program's interactions with
+  its problem set, configuration parameters, and execution platform.
 %
-It is necessary to obtain observations at run time to capture features
-of workflows that emerge from the interactions of the workflow as a
-whole.
-%
-Relevant features will emerge given a program's interactions
-with its problem set, configuration parameters, and execution platform.
-%
-\subsubsection{Scalable}
-%
-Tools and run-time infrastructures need to support the largest scale of
-operation that applications are being designed for.
-%
-SOS is targets running at exascale on the next generation of HPC
-hardware.
+\item \textbf{Scalable} : SOS targets running at exascale on the next
+  generation of HPC hardware.
 %
 SOS is a distributed runtime platform, with an agent present on each
 node, using a small fraction of the node's resources.
 %
 Observation and introspection work is distributed across
-the observed application's resources proportionally, and required
-performance data aggegation can run concurrently with the job.
+the observed application's resources proportionally.
+%
+Performance data aggegation can run concurrently with the workflow.
+%
+\par
 %
 Node-level SOS agents transfer information off-node using the
 high-performance communication infrastructure of the host cluster.
 %
-Data aggregation need not target a single bottleneck: SOS can support
-a scalable number and topology of physical aggregation points in order
-to provide timely run-time query access to the global information
-space.
+SOS supports scalable numbers and topologies of physical aggregation
+points in order to provide timely runtime query access to the global
+information space.
 %
-\subsubsection{Global Information Space}
-       Information gathered from applications, tools, and the
-       operating system are captured and stored into a common context,
-       both on-node and across the entire allocation of nodes.
+\item \textbf{Global Information Space} : Information gathered from
+  applications, tools, and the operating system is captured and stored
+  into a common context, both on-node and across the entire allocation
+  of nodes.  Information in this global space is characterized by ---
 %
      \begin{itemize}
         %
@@ -160,7 +155,7 @@ space.
           the retention of unused information efficiently.
           %
      \end{itemize}
-
+\end{itemize}
 
 %\subsection{Locating Features} %----------------------------------------------%
 %TODO ---- MORE

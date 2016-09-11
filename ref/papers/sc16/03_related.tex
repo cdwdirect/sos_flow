@@ -5,17 +5,18 @@
 \section{Related Work}
 %
 Traditionally, HPC research into enhancing performance has been
-focused on the low-level efficiency of one application or library, or
-some particular machine.
+focused on the low-level efficiency of one application, library, or
+a particular machine.
 %
 %
 \par
 %
-Tools like TAUg \cite{huck2006taug} are able to bring HPC developers a closer look into to
-their codes and hardware, gathering low-level performance data and
-aggregating it for integrated analysis after an application concludes.
+Tools like TAU \cite{huck2006taug} are able to bring HPC developers a
+closer look into to their codes and hardware, gathering low-level
+performance data and aggregating it for integrated analysis after an
+application concludes.
 %
-Low-level metrics can help identify performance bottlenecks, but are
+Low-level metrics can help identify performance bottlenecks, and are
 naturally suited for non-production or offline episodic performance
 analysis of individual workflow components.
 %
@@ -25,25 +26,25 @@ application when the application is running at scale or required to
 engage in significant amounts of interactivity.
 %
 SOS provides a model that can accept low-level information such as
-what TAUg collects, while also operating over light-weight higher-level
+what TAU collects, while also operating over light-weight higher-level
 information suitable for online operation during production runs.
 %
 \par
 %
-\todo[inline]{ Too long to differentiate from another system in related work --- 
-One of our goals, online introspection of workflow performance,
-involves unsupervised machine-learning for model development, and the
-application of complex classifiers to match observations with models.
+%\todo[inline]{ Too long to differentiate from another system in related work --- 
+%One of our goals, online introspection of workflow performance,
+%involves unsupervised machine-learning for model development, and the
+%application of complex classifiers to match observations with models.
+%%
+%Performing principle components analysis on \textit{complex unconditioned
+%  performance data} is computationally expensive and unsuitable for a
+%runtime environment.
+%%
+%SOS conditions performance data by annotating it with context and
+%semantic tags to help efficiently process it during online
+%introspection.}
 %
-Performing principle components analysis on \textit{complex unconditioned
-  performance data} is computationally expensive and unsuitable for a
-runtime environment.
-%
-SOS conditions performance data by annotating it with context and
-semantic tags to help efficiently process it during online
-introspection.}
-%
-\par
+%\par
 %
 Focused on the needs of large scale data centers, Monalytics
 \cite{kutare2010monalytics} demonstrated the utility of
@@ -108,11 +109,6 @@ placed into the system from multiple concurrent data sources per node.
 %
 \par
 %
-\todo[inline]{LDMS provides basic integration of multiple modalities of data in
-real-time, triggering program invocation or shaping work allocation
-across a cluster as informed by network congestion statistics, and
-other hybridized or meta-execution data points.}
-%
 LDMS uses a pull-based interaction model, where a daemon running on
 nodes will observe and store a set of values at a regular interval.
 %
@@ -131,13 +127,12 @@ datacenter-wide logging, historical tracking, and exploration of
 execution statistics for applications.  It offers only minimal
 runtime interactivity and programmability.
 %
-
 The related work mentioned here, and many other performance monitoring
 tools, are well-implemented, tested, maintained, and regularly used
 in production and for performance research studies.
 %
-However, each have deficiencies that render them unsuitable for a scalable
-online performance analysis framework.
+However, each have deficiencies that render them unsuitable for a
+scalable, general-purpose, online performance analysis framework.
 %
 
 
