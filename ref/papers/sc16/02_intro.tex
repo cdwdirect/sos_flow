@@ -13,8 +13,6 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \section{Introduction}
 %
-\par
-%
 Modern clusters for parallel computing are complex environments.
 %
 High-performance applications that run on modern clusters do so often with
@@ -56,6 +54,7 @@ system environment.
 %
 Additionally, for the gathered information to be processed online,
 analysis will need to be enabled in situ with the application
+\cite{da2014architecture}.
 %
 %Because analysis can result in application feedback, query and control
 %interfaces are required, again to both the application and the system.
@@ -64,7 +63,7 @@ Query and control interfaces are required to facilitate
 an active application feedback process.
 %
 The analysis performed can be used to give feedback to both the
-application and the system.
+application, the operating environment, and performance tools.
 %
 There exists no general purpose infrastructure that can be programmed,
 configured, and launched with the application to provide the
@@ -79,10 +78,10 @@ integrated application monitoring.
 A working implementation of SOS is contributed as a part of this
 research effort, \textit{SOSflow}.
 %
-The SOSflow platform demonstrates all of the essential characteristics
+\todo[inline]{CORRECT: The SOSflow platform demonstrates all of the essential characteristics
 of the SOS model, showing the scalability and flexibility inherent to
 SOS with its support for observation, introspection, feedback, and
-control of scientific workflows.
+control of scientific workflows.}
 %
 The SOS design employs a data model with distributed
 information management and structured query and access.
@@ -94,7 +93,8 @@ of streaming observations from multiple sources.
 %with its context and meaning.
 %
 Interfaces are provided for in situ analytics to acquire
-information and then send back results to application actuators.
+information and then send back results to application actuators
+and performance tools.
 %
 SOS launches with the application, runs along side it, and can acquire
 its own resources for scalable data collection and processing.
