@@ -8,12 +8,6 @@ Traditionally, HPC research into enhancing performance has been
 focused on the low-level efficiency of one application or library, or
 some particular machine.
 %
-The related work mentioned here, and many other performance monitoring
-tools, are well-implemented, tested, maintained, and regularly used
-in production and for performance research studies.
-%
-However, each have deficiencies that render them unsuitable for a scalable
-online performance analysis framework.
 %
 \par
 %
@@ -22,7 +16,7 @@ their codes and hardware, gathering low-level performance data and
 aggregating it for integrated analysis after an application concludes.
 %
 Low-level metrics can help identify performance bottlenecks, but are
-naturally suited for non-production or off-line episodic performance
+naturally suited for non-production or offline episodic performance
 analysis of individual workflow components.
 %
 Such deep instrumentation is necessarily invasive and can dictate
@@ -30,12 +24,13 @@ rather than capture the observed performance of the instrumented
 application when the application is running at scale or required to
 engage in significant amounts of interactivity.
 %
-\par
-%
 SOS provides a model that can accept low-level information such as
 what TAUg collects, while also operating over light-weight higher-level
-information suitable for on-line operation during production runs.
+information suitable for online operation during production runs.
 %
+\par
+%
+\todo[inline]{ Too long to differentiate from another system in related work --- 
 One of our goals, online introspection of workflow performance,
 involves unsupervised machine-learning for model development, and the
 application of complex classifiers to match observations with models.
@@ -46,7 +41,7 @@ runtime environment.
 %
 SOS conditions performance data by annotating it with context and
 semantic tags to help efficiently process it during online
-introspection.
+introspection.}
 %
 \par
 %
@@ -113,10 +108,10 @@ placed into the system from multiple concurrent data sources per node.
 %
 \par
 %
-LDMS provides basic integration of multiple modalities of data in
+\todo[inline]{LDMS provides basic integration of multiple modalities of data in
 real-time, triggering program invocation or shaping work allocation
 across a cluster as informed by network congestion statistics, and
-other hybridized or meta-execution data points.
+other hybridized or meta-execution data points.}
 %
 LDMS uses a pull-based interaction model, where a daemon running on
 nodes will observe and store a set of values at a regular interval.
@@ -137,6 +132,13 @@ execution statistics for applications.  It offers only minimal
 runtime interactivity and programmability.
 %
 
+The related work mentioned here, and many other performance monitoring
+tools, are well-implemented, tested, maintained, and regularly used
+in production and for performance research studies.
+%
+However, each have deficiencies that render them unsuitable for a scalable
+online performance analysis framework.
+%
 
 
 %%%
