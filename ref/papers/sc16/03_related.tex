@@ -32,7 +32,7 @@ engage in significant amounts of interactivity.
 %
 \par
 %
-SOSflow provides a model that can accept low-level information such as
+SOS provides a model that can accept low-level information such as
 what TAUg collects, while also operating over light-weight higher-level
 information suitable for on-line operation during production runs.
 %
@@ -44,13 +44,39 @@ Performing principle components analysis on \textit{complex unconditioned
   performance data} is computationally expensive and unsuitable for a
 runtime environment.
 %
-SOSflow conditions performance data by annotating it with context and
+SOS conditions performance data by annotating it with context and
 semantic tags to help efficiently process it during online
 introspection.
 %
 \par
 %
-TODO ---- MONALYTICS\todo[inline]{ADD}
+Focused on the needs of large scale data centers, Monalytics
+\cite{kutare2010monalytics} demonstrated the utility of
+combining monitoring and analytics to rapidly detect and respond to
+complex events.
+%
+SOS takes a similar approach but adopts a general purpose data model,
+runtime adaptivity, application configurability, and support for the
+integration of heterogenous components for such purposes as analytics
+or visualization.
+%
+\par
+%
+Falcon \cite{gu1995falcon} proposed a model for online monitoring
+and steering of large-scale parallel programs.
+%
+Where Falcon depended on an application-specific monitoring system
+that was tightly integrated with application steering logic and data
+visualizations, SOS proposes a loosely-coupled infrastructure that
+does not limit the nature or purpose of the information it processes.
+%
+\par
+%
+WOWMON \cite{zhang2016wowmon} presented a solution for online
+monitoring and analytics of scientific workflows, but imposed several
+limitations and lacked generality, particularly with respect to how it
+interfaced with workflow components, types of data it could collect
+and use, and its server for data management and analytics.
 %
 \par
 %
@@ -59,6 +85,8 @@ provided by the DIMVHCM \cite{tesser2012dimvhcm} model, but it
 principally services performance understanding through visualization
 tools rather than the holistic workflow applications and runtime
 environment.
+%
+DIMVHCM provides only limited support for in situ query of information.
 %
 \par
 %
@@ -69,7 +97,7 @@ sufficient fidelity to capture the complex interplay between
 applications competing for shared resources.
 %
 In contrast, the Lightweight Distributed Metric Service
-\cite{agelastos2014lightweight} (LDMS) to capture system data
+\cite{agelastos2014lightweight} (LDMS) captures system data
 continuously to obtain insight into behavioral characteristics of
 individual applications with respect to their resource utilization.
 %
