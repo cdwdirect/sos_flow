@@ -26,32 +26,35 @@ This online operation is capable of collecting data from multiple
 sources within its context and efficiently servicing requests
 for this data.
 %
-Because information transport technology and methods have such
-diversity and case-by-case optimality, SOS is implemented
-independent of the technology used in the scientific workflows it
-complements.
-%
 Information captured is distinct and tagged with metadata to enable
 classification and automated reasoning.
 %
-SOSflow aggregates necessary information together at run-time to
+SOS aggregates necessary information together at run-time to
 enable high-level reasoning over the entire monitored workflow.
+%
 
 
-\subsection{Components of SOS Model}
-
-The SOS Model consists of the following components :
+\subsection{Components of the SOS Model}
+%
+The SOS Model consists of the following components:
+%
 \begin{itemize}
-\item \textbf{Information Producers :} 
-SOS APIs for getting information from different sources to SOS.
-\item \textbf{Information Management Component :}
-SOS online information databases/repositiories.
-\item \textbf{Introspection Component :} 
-Online access to the information databases is facilitated through the introspection components.
-\item \textbf{In situ Analytics :}
-Components to perform the online analysis of the information.
-\item \textbf{Feedback System :}
-SOS APIs for getting feedback information back to non-SOS entities.
+%
+\item \textbf{Information Producers} : SOS APIs for getting
+  information from different sources to SOS.
+%
+\item \textbf{Information Management} : SOS online
+  information databases/repositiories.
+%
+\item \textbf{Introspection} : Online access to the
+  information databases.
+%
+\item \textbf{In Situ Analytics} : Components to perform the online
+  analysis of the information.
+%
+\item \textbf{Feedback System} : SOS APIs for sending feedback
+  information to non-SOS entities.
+%
 \end{itemize}
 
 
@@ -105,29 +108,29 @@ with its problem set, configuration parameters, and execution platform.
 Tools and run-time infrastructures need to support the largest scale of
 operation that applications are being designed for.
 %
-SOSflow is being engineered with an eye towards running at exascale
-on the next generation of HPC hardware.
+SOS is targets running at exascale on the next generation of HPC
+hardware.
 %
-SOSflow is a distributed runtime environment, with an agent present
-on each node, using a small fraction of the node's resources.
+SOS is a distributed runtime platform, with an agent present on each
+node, using a small fraction of the node's resources.
 %
 Observation and introspection work is distributed across
 the observed application's resources proportionally, and required
 performance data aggegation can run concurrently with the job.
 %
-The node-level SOSflow agent transfers information off-node using
-the high-performance communication infrastructure of the host cluster.
+Node-level SOS agents transfer information off-node using the
+high-performance communication infrastructure of the host cluster.
 %
-Data aggregation need not target a single bottleneck: SOSflow can
-be configured to support a scalable number of physical aggregation
-points in order to provide timely run-time query access to the global
-information space.
+Data aggregation need not target a single bottleneck: SOS can support
+a scalable number and topology of physical aggregation points in order
+to provide timely run-time query access to the global information
+space.
 %
 \subsubsection{Global Information Space}
        Information gathered from applications, tools, and the
        operating system are captured and stored into a common context,
        both on-node and across the entire allocation of nodes.
-
+%
      \begin{itemize}
         %
         \item \textbf{Multiple Perspectives} - The different
