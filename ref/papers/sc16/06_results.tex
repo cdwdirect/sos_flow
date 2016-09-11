@@ -35,7 +35,7 @@ The experiments performed had the following purposes:
 %
 \end {itemize}
 %
-The SOSflow implementation is general purpose and we did not need to
+The SOSflow implementation is general-purpose and we did not need to
 tailor it to the deployment environment.
 %
 The same SOSflow code base was used for each of the experiments.
@@ -49,7 +49,7 @@ given below ---
   cluster.
 %
 Each node has 72 GB of memory and 2x Intel X5650 2.66 GHz 6-core CPUs,
-providing 12 useable cores per node.
+providing 12 usable cores per node.
 %
 Our experiments ran on basic nodes, connected together with a 10GigE
 ethernet switch.
@@ -103,8 +103,8 @@ SOSflow system.
 
 
 \subsection{Evaluation of SOS Model} %-------------------------------------%
-This experiment was performed to validate the SOSflow Model and
-demonstrate it's applicability for the general case of workflow
+This experiment was performed to validate the SOS Model and
+demonstrate its applicability for the general case of workflow
 observation.
 %
 The Cori supercomputer was used to execute a LULESH + TAUflow simulation. 
@@ -121,13 +121,13 @@ the metrics that SOSflow had gathered.
 %
 The LULESH job was run both with and without the presence of SOSflow
 (all other settings being equal) in order to validate the ability of
-SOSflow to meet the its design goals while being minimally invasive.
+SOSflow to meet its design goals while being minimally invasive.
 %
 %
 
 
 \subsection{Evaluation of Latency} %---------------------------------------%
-Experiements were performed to study the latency of data moving
+Experiments were performed to study the latency of data moving
 through SOSflow.
 %
 When a value is published from a client into the SOSflow runtime,
@@ -142,10 +142,9 @@ To study latency we ran experiments on both ACISS and Catalyst.
 % 
 \par
 %
-Tests run on the ACISS platform at the University of Oregon were
+Tests run on ACISS were
 deployed with the Torque job scheduler as MPICH2 MPI applications at
-scales ranging from 3 to 24 nodes, serving 10 configurable synthetic
-data-producing processes per node in all cases.
+scales ranging from 3 to 24 nodes, serving 10 Synthetic Workflow processes per node in all cases.
 %
 The ACISS battery of runs were tuned as stress tests to ensure that
 the sosd daemons could operate under reasonably heavy loads.
@@ -164,9 +163,9 @@ concurrently on each node in each case.
 Catalyst's tests measured the latency introduced by sweeping across three
 different parameters:
 \begin{itemize}
-\item Count of unique values per publish.
-\item Number of publish operations per iteration.
-\item Delay between calls to the publish API.
+\item Count of unique values per publish
+\item Number of publish operations per iteration
+\item Delay between calls to the publish API
 \end{itemize}
 %
 Unlike the ACISS experiments, the Catalyst tests did not attempt to
@@ -185,7 +184,7 @@ latency of those values.
 \subsubsection{SOS Model Validation} %----------------------------------------%
 %
 SOSflow was able to efficiently process detailed performance
-information from multiple sources on each of several nodes.
+information from multiple sources on each node.
 %
 During the LULESH run, SOSflow's online database successfully serviced
 queries on-line, and the results were plotted as an animated live
@@ -256,7 +255,7 @@ nodes.
 
 %
 The in situ and aggregate results in Figures ~\ref{catalyst_avg_node}
-and (Figure~\ref{catalyst_avg_128} are promising, given the research
+and Figure~\ref{catalyst_avg_128} are promising, given the research
 version of SOSflow being profiled has not benefitted from rigorous
 optimization work.
 %
@@ -287,16 +286,16 @@ experiences and observations about the behavior of SOSflow: ---
 The current version of SOSflow is configured at launch with a set
 number of aggregator databases.
 %
-The validation tests on ACISS used 3 sosd(db) instances to divide up
+The validation tests on ACISS used 3 sosd\_db instances to divide up
 the workload, while the TAUflow + LULESH experiments on Cori used a
 single aggregator.
 %
 The parameter sweeps run on the LLNL Catalyst machine were done with
-four sosd(db) aggregation targets at 128 nodes.
+four sosd\_db aggregation targets at 128 nodes.
 %
 Tests on ACISS and Catalyst were exploring the latency of data
 movement through SOSflow, and so both configurations featured
-dedicated nodes for sosd(db) aggregators to avoid contention
+dedicated nodes for sosd\_db aggregators to avoid contention
 with other on-node work.
 %
 The Cori runs captured a real application's behavior, and was primarily
@@ -307,9 +306,9 @@ Instances of aggregators can be spawned, as many as needed, in order
 to support the quantity of data being injected from a global
 perspective.
 %
-All data sent to SOSflow is tagged with a GUID.
+All data sent to SOSflow is tagged with a guid.
 %
-This allows for shards the global information space to be concatenated
+This allows for the global information space to be concatenated
 after the run concludes without collision of identities wiping out
 distinct references.
 %
@@ -327,7 +326,7 @@ the client library, the moment it was published to the daemon, and
 even the moment it was finally spooled out into the database.
 %
 Once it is in the database, it is trivially easy to correlate values
-together by the moment of their packing into a publication handle, nomatter
+together by the moment of their packing into a publication handle, no matter
 how long the value was sequestered in the asynchronous queues.
 %
 \par
@@ -342,7 +341,7 @@ depth increased.
 %
 The asynchronous queues have thread-sequential FIFO ordering, but
 because the MPI messages are queued up based on their arrival time,
-and a batch is handled competely before the next is processed, there
+and a batch is handled completely before the next is processed, there
 is no real-time interleaving of database value injections, they are
 injected in batches.
 %
@@ -411,7 +410,7 @@ As an accessory to the study of value latency, the length of time that
 a client application will block inside of an SOSflow API routine was
 also evaluated.
 %
-In situ interactions between libsos rountines and the daemon are
+In situ interactions between libsos routines and the daemon are
 nearly constant time operations regardless of the daemon's workload.
 %
 Care was taken in the daemon's programming to prioritize rate of message
@@ -427,7 +426,7 @@ arriving in a sample window (red).
 \par
 %
 This information was gathered by sending 9000+ probe messages over a 15
-minute window, with a single sosd(listener) rank processing an average
+minute window, with a single sosd\_listener rank processing an average
 of 724 client messages a second in total, arriving from four different
 processes on an 8-way Xeon node.
 %
@@ -465,7 +464,7 @@ RTT was 0.07 seconds.
 \par
 %
 These results show that the cost of making SOSflow API calls is
-relatively low, and holds constant under changing sosd(listener)
+relatively low, and holds constant under changing sosd\_listener
 workload.
 %
 %
