@@ -1,18 +1,61 @@
 
-\section{SOSflow Architectural Model}
+\section{SOS Architectural Model}
 %
 %SOS contributes a general solution to on-line in situ
 %observation, introspection, feedback, and control of scientific
 %workflows.
 %
 Multi-component complex scientific workflows provide a focus for the
-general challenge of distributed on-line monitoring.
+general challenge of distributed online monitoring.
 %
-Applying the SOS model to the challenge of on-line observation of
-these workflows led to the development of the SOSflow runtime software
-system.
+%Applying the SOS model to the challenge of online observation of
+%these workflows led to the development of the SOSflow runtime software
+%system.
 %
-\subsection{Core Features of SOSflow}
+
+Information from a wide variety of sources is relevent to the
+characterization and optimization of a workflow.
+%
+\par
+%
+In order to gather run-time information and operate on it, SOS needs
+to be active at the same time and in the same context as the workflow
+components.
+%
+This online operation is capable of collecting data from multiple
+sources within its context and efficiently servicing requests
+for this data.
+%
+Because information transport technology and methods have such
+diversity and case-by-case optimality, SOS is implemented
+independent of the technology used in the scientific workflows it
+complements.
+%
+Information captured is distinct and tagged with metadata to enable
+classification and automated reasoning.
+%
+SOSflow aggregates necessary information together at run-time to
+enable high-level reasoning over the entire monitored workflow.
+
+
+\subsection{Components of SOS Model}
+
+The SOS Model consists of the following components :
+\begin{itemize}
+\item \textbf{Information Producers :} 
+SOS APIs for getting information from different sources to SOS.
+\item \textbf{Information Management Component :}
+SOS online information databases/repositiories.
+\item \textbf{Introspection Component :} 
+Online access to the information databases is facilitated through the introspection components.
+\item \textbf{In situ Analytics :}
+Components to perform the online analysis of the information.
+\item \textbf{Feedback System :}
+SOS APIs for getting feedback information back to non-SOS entities.
+\end{itemize}
+
+
+\subsection{Core Features of SOS}
 %
 %Information from a wide variety of sources can be relevent to the
 %characterization and optimization of a workflow.
@@ -41,29 +84,6 @@ system.
 %
 %\todo[inline]{
 %
-Information from a wide variety of sources is relevent to the
-characterization and optimization of a workflow.
-%
-\par
-%
-In order to gather run-time information and operate on it, SOS needs
-to be active at the same time and in the same context as the workflow
-components.
-%
-This on-line operation is capable of collecting data from multiple
-sources within its context and efficiently servicing requests
-for this data.
-%
-Because information transport technology and methods have such
-diversity and case-by-case optimality, SOS is implemented
-independent of the technology used in the scientific workflows it
-complements.
-%
-Information captured is distinct and tagged with metadata to enable
-classification and automated reasoning.
-%
-SOSflow aggregates necessary information together at run-time to
-enable high-level reasoning over the entire monitored workflow.
 %
 %\par
 %
