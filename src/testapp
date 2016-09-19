@@ -1,0 +1,36 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+# ###
+# ###
+demo_app_cmdline="mpirun -np 10 ../bin/demo_app -i 100 -m 20000 -p 40"
+# ###
+# ###
+echo ""
+echo ""
+echo "Application launch command:  ${demo_app_cmdline}"
+echo ""
+echo ""
+read -t 5 -p "Hit <ENTER> or wait 5 seconds to launch [demo_app] instances..." ; echo
+echo ""
+echo ""
+time ${demo_app_cmdline}
+echo ""
+echo ""
+echo ""
+echo ""
+echo "NOTE: Wait a moment before running [./showdb] ..."
+echo ""
+echo "Done."
+
+
