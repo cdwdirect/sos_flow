@@ -1,0 +1,153 @@
+
+
+\begin{table*}[t]
+%% increase table row spacing, adjust to taste
+\renewcommand{\arraystretch}{1.3}
+\caption{Properties of an SOS Implementation}
+\label{tabledesign}
+\centering
+\begin{tabular}{|p{0.2\linewidth}|p{0.6\linewidth}|}
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Scalable}
+&
+From one to many thousands of nodes
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Portable}
+&
+Many architectures and operating systems
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Easy To Use}
+& 
+Simple well-degined interfaces, minimal external software dependencies
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Multi-Purpose}
+&
+Utility not limited to any single component purpose, does not impose
+a priori purposes for monitoring
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Concurrent With Workflow}
+&
+Runs at the same time as workflow in order to capture emergent
+behavior
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{In Situ Access}
+&
+Complete feature set available on-node, allowing distributed and
+data-local analytics, feedback, and control
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Low Overhead}
+&
+Do not consume storage, bandwidth, or compute time wastefully, allow
+system to be [de]activated dynamically
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Low Intrusion}
+&
+API calls should return rapidly, and users have means to exercise
+control of storage vs. transport timing trade-offs
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Responsive}
+&
+Timeliness of replies should support application steering and global
+state interrogation
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Can Dedicate Resources}
+&
+When available, make use of dedicated resources to avoid contention
+\\
+
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{On-line Interactivity}
+&
+Handle control and introspection messages and replies while
+workflow is running and SOS is continuously operating
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{User-space}
+&
+Do not require administrative privileges for basic functionality
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Database}
+&
+Provide general-purpose SQL query access to data, and utilize
+database technology internally
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{HPC-friendly}
+&
+Take advantage of high-speed communication fabric unique to the
+HPC environment.  Do not require components that are not suitable or
+available for HPC
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Extensible}
+&
+Modular design and APIs to allow feature extension, configurable
+behavior
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+\textbf{Global Information Space}
+&
+All information is contextualized and distinctly addressable, even
+if not migrated off-node at run-time
+\\
+%
+%
+\hline %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{tabular}
+\end{table*}
+
+
