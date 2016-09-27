@@ -1,0 +1,141 @@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Related Work}
+%
+Traditionally, HPC research into enhancing performance has been
+focused on the low-level efficiency of one application, library, or
+a particular machine.
+%
+%
+\par
+%
+Tools like TAU \cite{huck2006taug} are able to bring HPC developers a
+closer look into to their codes and hardware, gathering low-level
+performance data and aggregating it for integrated analysis after an
+application concludes.
+%
+Low-level metrics can help identify performance bottlenecks, and are
+naturally suited for non-production or offline episodic performance
+analysis of individual workflow components.
+%
+Such deep instrumentation is necessarily invasive and can dictate
+rather than capture the observed performance of the instrumented
+application when the application is running at scale or required to
+engage in significant amounts of interactivity.
+%
+SOS provides a model that can accept low-level information such as
+what TAU collects, while also operating over light-weight higher-level
+information suitable for online operation during production runs.
+%
+\par
+%
+%\todo[inline]{ Too long to differentiate from another system in related work --- 
+%One of our goals, online introspection of workflow performance,
+%involves unsupervised machine-learning for model development, and the
+%application of complex classifiers to match observations with models.
+%%
+%Performing principle components analysis on \textit{complex unconditioned
+%  performance data} is computationally expensive and unsuitable for a
+%runtime environment.
+%%
+%SOS conditions performance data by annotating it with context and
+%semantic tags to help efficiently process it during online
+%introspection.}
+%
+%\par
+%
+Focused on the needs of large scale data centers, Monalytics
+\cite{kutare2010monalytics} demonstrated the utility of
+combining monitoring and analytics to rapidly detect and respond to
+complex events.
+%
+SOS takes a similar approach but adopts a general purpose data model,
+runtime adaptivity, application configurability, and support for the
+integration of heterogenous components for such purposes as analytics
+or visualization.
+%
+\par
+%
+Falcon \cite{gu1995falcon} proposed a model for online monitoring
+and steering of large-scale parallel programs.
+%
+Where Falcon depended on an application-specific monitoring system
+that was tightly integrated with application steering logic and data
+visualizations, SOS proposes a loosely-coupled infrastructure that
+does not limit the nature or purpose of the information it processes.
+%
+\par
+%
+WOWMON \cite{zhang2016wowmon} presented a solution for online
+monitoring and analytics of scientific workflows, but imposed several
+limitations and lacked generality, particularly with respect to how it
+interfaced with workflow components, types of data it could collect
+and use, and its server for data management and analytics.
+%
+\par
+%
+Online distributed monitoring and aggregation of information is
+provided by the DIMVHCM \cite{tesser2012dimvhcm} model, but it
+principally services performance understanding through visualization
+tools rather than the holistic workflow applications and runtime
+environment.
+%
+DIMVHCM provides only limited support for in situ query of information.
+%
+\par
+%
+Cluster monitoring systems like Ganglia \cite{massie2004ganglia} or
+Nagios \cite{katsaros2011building} collect and process data about the
+performance and health of cluster-wide resources, but do not provide
+sufficient fidelity to capture the complex interplay between
+applications competing for shared resources.
+%
+In contrast, the Lightweight Distributed Metric Service
+\cite{agelastos2014lightweight} (LDMS) captures system data
+continuously to obtain insight into behavioral characteristics of
+individual applications with respect to their resource utilization.
+%
+%However, neither of these provides a framework that can be configured
+%with and used directly by the application, nor allow for semantic
+%encoding of multiple observation sources.
+%
+However, neither of these frameworks can be configured with and used
+directly by an application.
+%
+Additionally, they do not allow for richly-annotated information to be
+placed into the system from multiple concurrent data sources per node.
+%
+\par
+%
+LDMS uses a pull-based interaction model, where a daemon running on
+nodes will observe and store a set of values at a regular interval.
+%
+SOS has a hybrid push-pull model that puts users in control of the
+frequency and amount of information exchanged with the runtime.
+%
+Further, LDMS is currently limited to working with double-precision
+floating point values, while SOS allows for the collection of many
+kinds of information including JSON objects and ''binary large
+object'' (BLOB) data.
+%
+\par
+%
+TACC Stats \cite{evans2014comprehensive} facilitates high-level
+datacenter-wide logging, historical tracking, and exploration of
+execution statistics for applications.  It offers only minimal
+runtime interactivity and programmability.
+%
+The related work mentioned here, and many other performance monitoring
+tools, are well-implemented, tested, maintained, and regularly used
+in production and for performance research studies.
+%
+However, each have deficiencies that render them unsuitable for a
+scalable, general-purpose, online performance analysis framework.
+%
+
+
+%%%
+%%%  EOF
+%%%
