@@ -183,7 +183,7 @@ void SOSD_cloud_listen_loop(void) {
     int             entry;
 
     SOS_buffer_init(SOS, &buffer);
-    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_LEN, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
     
 
     while(SOSD.daemon.running) {

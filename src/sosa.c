@@ -597,7 +597,13 @@ void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
 }
 
 
-SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
+SOS_runtime* SOSA_init_for_socket(int *argc, char ***argv, int unique_color) {
+    //TODO
+    return NULL;
+}
+
+
+SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
     SOSA.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
 
     SOSA.sos_context->role = SOS_ROLE_ANALYTICS;
@@ -744,7 +750,9 @@ SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color) {
  *  Seungyoung Kim has ported it's cannonical implementation to C language
  *  in 2012 and published it as a part of qLibc component.
  * @endcode
- */
+ *
+ *
+
 uint32_t qhashmurmur3_32(const void *data, size_t nbytes)
 {
     if (data == NULL || nbytes == 0) return 0;
@@ -797,3 +805,6 @@ uint32_t qhashmurmur3_32(const void *data, size_t nbytes)
     return h;
 }
 
+ *
+ *
+ */

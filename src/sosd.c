@@ -65,11 +65,11 @@ int main(int argc, char *argv[])  {
 
     my_role = SOS_ROLE_DAEMON; /* This can be overridden by command line argument. */
 
-    SOSD.net.buffer_len = SOS_DEFAULT_BUFFER_LEN;
+    SOSD.net.buffer_len = SOS_DEFAULT_BUFFER_MAX;
     SOSD.net.listen_backlog = 10;
 
     /* Process command-line arguments */
-    if ( argc < 7 ) { fprintf(stderr, "ERROR: Not enough arguments supplied.   (%d)\n\n%s\n", argc, USAGE); exit(EXIT_FAILURE); }
+    if ( argc < 7 ) { fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE); exit(EXIT_FAILURE); }
     SOSD.net.port_number    = -1;
     SOSD.net.buffer_len     = -1;
     SOSD.net.listen_backlog = -1;
@@ -236,7 +236,7 @@ void SOSD_listen_loop() {
     int            offset;
     int            i;
 
-    SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_LEN, false);
+    SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_MAX, false);
     SOS_buffer_init_sized_locking(SOS, &rapid_reply, SOS_DEFAULT_REPLY_LEN, false);
 
     SOSD_PACK_ACK(rapid_reply);
@@ -314,7 +314,7 @@ void SOSD_listen_loop() {
             SOSD.sync.local.queue->elem_count++;
             pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
             buffer = NULL;
-            SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_LEN, false);
+            SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_MAX, false);
             //Send generic ACK message back to the client:
             dlog(5, "  ... sending ACK w/reply->len == %d\n", rapid_reply->len);
             i = send( SOSD.net.client_socket_fd, (void *) rapid_reply->data, rapid_reply->len, 0);
@@ -539,8 +539,8 @@ void* SOSD_THREAD_cloud_sync(void *args) {
     int              offset;
     int              msg_offset;
 
-    SOS_buffer_init_sized_locking(SOS, &buffer, (1000 * SOS_DEFAULT_BUFFER_LEN), false);
-    SOS_buffer_init_sized_locking(SOS, &reply,  (SOS_DEFAULT_BUFFER_LEN),        false);
+    SOS_buffer_init_sized_locking(SOS, &buffer, (1000 * SOS_DEFAULT_BUFFER_MAX), false);
+    SOS_buffer_init_sized_locking(SOS, &reply,  (SOS_DEFAULT_BUFFER_MAX),        false);
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
@@ -633,7 +633,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
 
 
-void SOSD_handle_query(SOS_buffer *buffer) { 
+void SOSD_handle_sosa_query(SOS_buffer *buffer) { 
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_query");
     SOS_msg_header header;
     int            offset;
@@ -648,7 +648,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
         &header.msg_from,
         &header.pub_guid);
 
-    SOS_buffer_init(SOS, &result, SOS_DEFAULT_BUFFER_SIZE, false);
+    SOS_buffer_init_sized_locking(SOS, &result, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOSD_db_handle_sosa_query(buffer, result);
 
@@ -1073,7 +1073,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     SOS_buffer    *reply;
     int            i;
 
-    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_LEN, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOS_msg_header header;
     header.msg_size = -1;
