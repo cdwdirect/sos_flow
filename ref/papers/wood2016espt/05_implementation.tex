@@ -95,7 +95,7 @@ with the most recent update to that value.
 %
 \par
 %
-The SOSflow runtime utilizes different information transport methods
+SOSflow utilizes different information transport methods
 and communication patterns where appropriate \cite{aaziz2015push}.
 %
 Communication between client applications and their on-node daemon
@@ -150,18 +150,17 @@ the data structures and routines essential for interacting with
 the SOSflow runtime platform.
 %
 The library routines are thread-safe, and no process-wide state is
-maintained within the library, allowing the pieces of a process
-comprising multiple libraries and application components to interact with
-SOSflow independent of each other.
+maintained within the library, allowing application components to
+interact with SOSflow independent of each other.
 %
 \par
 %%
 The primary interaction between a client and SOSflow is through the pub.
 %
 When a client initializes its SOSflow instance, it communicates with the
-daemon and obtains a set of global unique ID (guid) tags.
+daemon and obtains a set of global unique ID (GUID) tags.
 %
-Clients pack values into a pub and they are automatically assigned a guid.
+Clients pack values into a pub and they are automatically assigned a GUID.
 %
 When the client publishes that handle, all values are transmitted to
 the SOSflow on-node daemon, including the complete history of each
@@ -169,11 +168,11 @@ value's updates from the last to the present publish call.
 %
 \par
 %
-All of the communication functions in the SOS client library are
+All communication functions in the SOSflow client library are
 handled transparently.
-SOSflow users need only interact with a simple API
-to define and store values that they can then publish to the daemon
-as appropriate.
+%
+Users need only interact with a simple API to define and store values
+that they can then publish to the daemon as appropriate.
 %
 The protocols and the codes of the client library are designed to be
 fast and minimize resource usage, though they will buffer values for
@@ -182,8 +181,8 @@ at intervals.
 %
 \par
 %
-Communication with the sosd\_listener is always initiated by the
-clients when they explicitly publish their pub.
+Communications with the sosd\_listener are always initiated by the
+clients, such as when they explicitly publish their pub.
 %
 SOSflow clients can voluntarily spawn a light-weight background thread
 that periodically checks with their local daemon to see if any
@@ -216,13 +215,13 @@ communications.
 
 \subsection{Database: sosd\_db} %---------------------------------------------%
 %
-SOSD(db) uses the open-source SQLite database engine for its on-node
+The open-source SQLite database engine is used by sosd\_db for the on-node
 database.
 %
 SQLite databases are persistent, lightweight, fast, and flexible, suitable to receive
 streams of tuple data with very low overhead.
 %
-SOSflow a simple API for interacting with its database to streamline
+SOSflow provides a simple API for interacting with its database to streamline
 access both on and off-node.
 %
 \par

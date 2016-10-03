@@ -129,7 +129,7 @@ SOSflow to meet its design goals while being minimally invasive.
 Experiments were performed to study the latency of data moving
 through SOSflow.
 %
-When a value is published from a client into the SOSflow runtime,
+When a value is published from a client into SOSflow,
 it enters an asynchronous queue scheme for both database injection
 and off-node transport to an aggregation target.
 %
@@ -304,11 +304,11 @@ Instances of aggregators can be spawned, as many as needed, in order
 to support the quantity of data being injected from a global
 perspective.
 %
-All data sent to SOSflow is tagged with a guid.
+All data sent to SOSflow is tagged with a GUID.
 %
-This allows for shards of the global information space to be concatenated
-after the run concludes without collision of identities wiping out
-distinct references.
+This allows for shards of the global information space to be
+concatenated after the run concludes without collision of identities
+wiping out distinct references.
 %
 \par
 %
