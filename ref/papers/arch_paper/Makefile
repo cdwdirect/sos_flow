@@ -37,9 +37,10 @@ default: $(MAIN).pdf fonts
 
 $(MAIN).pdf: $(INFILES)
 	$(LATEX) $(MAIN)
-	# $(BIBTEX) $(MAIN)
+	$(BIBTEX) $(MAIN)
 	$(LATEX) $(MAIN)
 	$(LATEX) $(MAIN)
+	scp bare_conf.pdf cdw@ix.cs.uoregon.edu:/home/users/cdw/public_html/drp.pdf
 
 fonts: $(MAIN).pdf
 	$(FONTS) $<

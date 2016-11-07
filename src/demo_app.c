@@ -22,10 +22,12 @@
 
 #include "sos.h"
 
+/*
 #ifdef SOS_DEBUG
 #undef SOS_DEBUG
 #endif
 #define SOS_DEBUG 1
+*/
 
 #include "sos_debug.h"
 
@@ -128,7 +130,11 @@ int main(int argc, char *argv[]) {
     int pos = -1;
     for (i = 0; i < PUB_ELEM_COUNT; i++) {
         snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+
+
         pos = SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+
+
         dlog(0, "   pub->data[%d]->guid == %" SOS_GUID_FMT "\n", pos, pub->data[pos]->guid);
         var_double += 0.0000001;
     }

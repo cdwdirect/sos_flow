@@ -122,7 +122,7 @@ void SOSD_cloud_fflush(void) {
 }
 
 
-int SOSD_cloud_send(SOS_buffer *buffer) {
+int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send(MPI)");
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
@@ -143,10 +143,24 @@ int SOSD_cloud_send(SOS_buffer *buffer) {
     SOSD_countof(mpi_sends++);
     SOSD_countof(mpi_bytes += buffer->len);
 
+    MPI_Status status;
+    int mpi_msg_len = 0;
+    int msg_waiting = 0;
+    do {
+        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
+        usleep(1000);
+    } while (msg_waiting == 0);
+    
+    MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
+    
+    while(reply->max < mpi_msg_len) {
+        SOS_buffer_grow(reply, (1 + (mpi_msg_len - reply->max)), SOS_WHOAMI);
+    }
+    
+    MPI_Recv((void *) reply->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
+    dlog(5, "  ... message of %d bytes reply from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);    
+
     /* NOTE: buffer gets destroyed by the calling function. */
-
-    /* TODO: { FEEDBACK } Turn this into send/recv combo... */
-
     return 0;
 }
 
@@ -158,7 +172,8 @@ void SOSD_cloud_listen_loop(void) {
     SOS_msg_header  header;
     SOS_buffer     *buffer;
     SOS_buffer     *msg;
-    SOS_buffer     *response;
+    SOS_buffer     *reply;
+    SOS_buffer     *query_results;
     char            unpack_format[SOS_DEFAULT_STRING_LEN] = {0};
     int             msg_waiting;
     int             mpi_msg_len;
@@ -168,6 +183,8 @@ void SOSD_cloud_listen_loop(void) {
     int             entry;
 
     SOS_buffer_init(SOS, &buffer);
+    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
+    
 
     while(SOSD.daemon.running) {
         entry_count = 0;
@@ -190,6 +207,7 @@ void SOSD_cloud_listen_loop(void) {
 
         MPI_Recv((void *) buffer->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
         dlog(1, "  ... message of %d bytes received from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);
+
 
         offset = 0;
         SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
@@ -234,6 +252,14 @@ void SOSD_cloud_listen_loop(void) {
                 pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
                 SOSD.sync.local.queue->elem_count++;
                 pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+                /*
+                 *  TODO: { CLOUD, REPLY, FEEDBACK }
+                 *
+                 */
+                MPI_Send((void *) reply->data, reply->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                /*
+                 *
+                 */
                 break;
 
 
@@ -260,14 +286,14 @@ void SOSD_cloud_listen_loop(void) {
 
             case SOS_MSG_TYPE_QUERY:
                 // Allocate space for a response.
-                SOS_buffer_init_sized_locking(SOS, &response, 2048, false);
+                SOS_buffer_init_sized_locking(SOS, &query_results, 2048, false);
                 // Service the query w/locking.  (Packs the results in 'response' ready to send.)
-                SOSD_db_handle_sosa_query(msg, response);
+                SOSD_db_handle_sosa_query(msg, query_results);
                 // Send the results back to the asking analytics rank.
-                MPI_Ssend((void *) response->data, response->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+                MPI_Ssend((void *) query_results->data, query_results->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
                 // Clean up our buffers.
                 SOS_buffer_destroy(msg);
-                SOS_buffer_destroy(response);
+                SOS_buffer_destroy(query_results);
                 break;
 
             case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
@@ -351,7 +377,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     // SPLIT: -------------------
     //  When we split here, we use SOS_ROLE_DAEMON for both DAEMON and DB
     //  so they are still able to communicate with each other (if they want
-    //  using a non-analytics communicator.
+    //  using a non-analytics, non-MPI_COMM_WORLD communicator.)
     //
     //  The ANALYTICS ranks form their own communicator[s].
     //

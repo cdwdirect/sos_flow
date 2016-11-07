@@ -184,7 +184,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         SOS_buffer_init(SOS, &SOS->net.recv_part);
 
-        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
+        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS->net.server_port   = getenv("SOS_CMD_PORT");
@@ -1188,6 +1188,8 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
                     header.msg_from,
                     header.pub_guid);
 
+    SOS_buffer_pack(buffer, &offset, "i", snap_count);
+
     dlog(6, "     ... processing snaps extracted from the queue\n");
 
     for (snap_index = 0; snap_index < snap_count; snap_index++) {
@@ -1245,7 +1247,6 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
 void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SOS_pub *pub) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_val_snap_queue_from_buffer");
     SOS_msg_header header;
-    SOS_val_snap  *snap;
     char           unpack_fmt[SOS_DEFAULT_STRING_LEN] = {0};
     int            offset;
     int            string_len;
@@ -1276,14 +1277,23 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
     dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
-    dlog(6, "     ... pushing snaps down onto the queue.\n");
+    int snap_index = 0;
+    int snap_count = 0;
+    SOS_buffer_unpack(buffer, &offset, "i", &snap_count);
 
-    pthread_mutex_lock(pub->lock);
-    pthread_mutex_lock( snap_queue->sync_lock );
+    if (snap_count < 1) {
+      dlog(1, "WARNING: Attempted to process buffer with ZERO val_snaps.  This is unusual.\n");
+      dlog(1, "WARNING:    ... since there is no work to do, returning.\n");
+      return;
+    }
 
-    while (offset < header.msg_size) {
-        snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
-        memset(snap, '\0', sizeof(SOS_val_snap));
+    SOS_val_snap *snap;
+    SOS_val_snap **snap_list;
+    snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
+
+    for (snap_index = 0; snap_index < snap_count; snap_index++) {
+        snap_list[snap_index] = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
+        snap = snap_list[snap_index];
 
         SOS_buffer_unpack(buffer, &offset, "igiiiidddl",
                           &snap->elem,
@@ -1299,7 +1309,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
 
         dlog(6, "    ... grabbing element[%d] @ %d/%d(%d) -> type == %d, val_len == %d\n", snap->elem, offset, header.msg_size, buffer->len, snap->type, snap->val_len);
 
-        switch (pub->data[snap->elem]->type) {
+        switch (snap->type) {
         case SOS_VAL_TYPE_INT:    SOS_buffer_unpack(buffer, &offset, "i", &snap->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   SOS_buffer_unpack(buffer, &offset, "l", &snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_unpack(buffer, &offset, "d", &snap->val.d_val); break;
@@ -1317,30 +1327,22 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             SOS_buffer_unpack(buffer, &offset, unpack_fmt, snap->val.bytes);
             break;
         default:
-            dlog(6, "ERROR: Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
+          dlog(6, "ERROR: Invalid type (%d) at index %d with pub->guid == %" SOS_GUID_FMT ".\n", snap->type, snap->elem, pub->guid);
             break;
         }
 
-        pipe_push(snap_queue->intake, (void *) &snap, 1);
-        snap_queue->elem_count++;
-
-        /* TODO: 
-         *   Do we want to make sure the pub[elem]->... stuff is updated
-         *   with the value from this snapshot as well?  Queue from buffer
-         *   is ONLY happening on the backplane for DAEMON and DB...
-         *
-         *   ...at the moment, there seems to be no use case for that in
-         *   either the DAEMON or the DB.
-         *
-         *             -Chad
-         */
-
     }//loop
 
-    dlog(6, "     ... done\n");
 
+    dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
+    pthread_mutex_lock(snap_queue->sync_lock);
+    pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
+    snap_queue->elem_count += snap_count;
     pthread_mutex_unlock( snap_queue->sync_lock );
-    pthread_mutex_unlock( pub->lock );
+
+    free(snap_list);
+
+    dlog(6, "     ... done\n");
 
     return;
 }

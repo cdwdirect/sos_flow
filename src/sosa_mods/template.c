@@ -1,6 +1,6 @@
 
 /*
- * sosa_shell.c    (template analytics module)
+ * template.c    (SOSA analytics using MPI example)
  *
  */
 
@@ -48,7 +48,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    SOSA.sos_context = SOSA_init( &argc, &argv, 800);
+    SOSA.sos_context = SOSA_init_for_mpi(&argc, &argv, 800);
     SOS_SET_CONTEXT(SOSA.sos_context, "main");
     srandom(SOS->my_guid);
     dlog(1, "Initialization complete.\n");

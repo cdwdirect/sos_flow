@@ -33,7 +33,7 @@
 
 
 void SOS_buffer_init(void *sos_context, SOS_buffer **buffer_obj) {
-    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_LEN, true);
+    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_MAX, true);
     return;
 }
 
@@ -81,7 +81,6 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
     SOSD_countof(buffer_creates++);
     SOSD_countof(buffer_bytes_on_heap += buffer->max);
     #endif
-
 
     dlog(5, "   ...done.\n");
 

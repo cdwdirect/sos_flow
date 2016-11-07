@@ -11,7 +11,7 @@
 #include <pthread.h>
 #include <mpi.h>
 
-#define USAGE "./sosd_probe [-l loop_delay_usec] [-header only] [-o json] [-p force_sos_port]"
+#define USAGE "./sosd_probe [-f <output_file>] [-l loop_delay_usec] [-header on] [-o json] [-p force_sos_port]"
 
 #define OUTPUT_CSV   1
 #define OUTPUT_JSON  2
@@ -19,11 +19,13 @@
 #include "sos.h"
 #include "sosd.h"
 
-int GLOBAL_sleep_delay;
-int GLOBAL_output_type;
-int GLOBAL_header_on;
-char *GLOBAL_forced_sos_port;
-int GLOBAL_forced_sos_port_on;
+int    GLOBAL_sleep_delay;
+int    GLOBAL_output_type;
+int    GLOBAL_header_on;
+char  *GLOBAL_forced_sos_port;
+int    GLOBAL_forced_sos_port_on;
+FILE  *GLOBAL_out;
+char  *GLOBAL_out_path;
 
 int main(int argc, char *argv[]) {
     int   i;
@@ -37,13 +39,16 @@ int main(int argc, char *argv[]) {
     GLOBAL_forced_sos_port    = NULL;
     GLOBAL_forced_sos_port_on = -1;
     GLOBAL_output_type        = OUTPUT_CSV;
+    GLOBAL_out                = stdout;
 
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
             exit(1);
         }
-        if ( strcmp(argv[elem], "-l"  ) == 0) {
+        if ( strcmp(argv[elem], "-f"  ) == 0) {
+            GLOBAL_out_path = argv[next_elem];
+        } else if ( strcmp(argv[elem], "-l"  ) == 0) {
             GLOBAL_sleep_delay  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-o"  ) == 0) {
             if ( strcmp(argv[next_elem], "json" ) == 0) {
@@ -56,38 +61,8 @@ int main(int argc, char *argv[]) {
             GLOBAL_forced_sos_port = argv[next_elem];
             GLOBAL_forced_sos_port_on = 1;
         } else if ( strcmp(argv[elem], "-header"  ) == 0) {
-            if ( strcmp(argv[next_elem], "only" ) == 0) {
-                printf("timestamp,"
-                       "probe_rtt,"
-                       "sosd_comm_rank,"
-                       "queue_depth_local,"
-                       "queue_depth_cloud,"
-                       "queue_depth_db_tasks,"
-                       "queue_depth_db_snaps,"
-                       "thread_local_wakeup,"
-                       "thread_cloud_wakeup,"
-                       "thread_db_wakeup,"
-                       "feedback_checkin_messages,"
-                       "socket_messages,"
-                       "socket_bytes_recv,"
-                       "socket_bytes_sent,"
-                       "mpi_sends,"
-                       "mpi_bytes,"
-                       "db_transactions,"
-                       "db_insert_announce,"
-                       "db_insert_announce_nop,"
-                       "db_insert_publish,"
-                       "db_insert_publish_nop,"
-                       "db_insert_val_snaps,"
-                       "db_insert_val_snaps_nop,"
-                       "buffer_creates,"
-                       "buffer_bytes_on_heap,"
-                       "buffer_destroys,"
-                       "pipe_creates,"
-                       "pub_handles,"
-                       "vm_peak,"
-                       "vm_size\n");
-                exit(0);
+            if ( strcmp(argv[next_elem], "on" ) == 0) {
+                GLOBAL_header_on = 1;
             }
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
@@ -102,10 +77,52 @@ int main(int argc, char *argv[]) {
     }
     srandom(my_sos->my_guid);
 
+    if (GLOBAL_out_path != NULL) {
+        char  unique_output_path[1024] = {0};
+        char  hostname[1024] = {0};
+        gethostname(hostname, (size_t) 1024);
+        snprintf(unique_output_path, 1024, "%s.%s.%d", GLOBAL_out_path, hostname, getpid());
+        GLOBAL_out = fopen(unique_output_path, "a");
+    }
+
+    if ((GLOBAL_output_type == OUTPUT_CSV) && (GLOBAL_header_on == 1)) {
+        fprintf(GLOBAL_out, "timestamp,"
+                "probe_rtt,"
+                "sosd_comm_rank,"
+                "queue_depth_local,"
+                "queue_depth_cloud,"
+                "queue_depth_db_tasks,"
+                "queue_depth_db_snaps,"
+                "thread_local_wakeup,"
+                "thread_cloud_wakeup,"
+                "thread_db_wakeup,"
+                "feedback_checkin_messages,"
+                "socket_messages,"
+                "socket_bytes_recv,"
+                "socket_bytes_sent,"
+                "mpi_sends,"
+                "mpi_bytes,"
+                "db_transactions,"
+                "db_insert_announce,"
+                "db_insert_announce_nop,"
+                "db_insert_publish,"
+                "db_insert_publish_nop,"
+                "db_insert_val_snaps,"
+                "db_insert_val_snaps_nop,"
+                "buffer_creates,"
+                "buffer_bytes_on_heap,"
+                "buffer_destroys,"
+                "pipe_creates,"
+                "pub_handles,"
+                "vm_peak,"
+                "vm_size\n");
+    }
+    
+
     SOS_buffer *request;
     SOS_buffer *reply;
-    SOS_buffer_init_sized_locking(my_sos, &request, SOS_DEFAULT_BUFFER_LEN, false);
-    SOS_buffer_init_sized_locking(my_sos, &reply, SOS_DEFAULT_BUFFER_LEN, false);
+    SOS_buffer_init_sized_locking(my_sos, &request, SOS_DEFAULT_BUFFER_MAX, false);
+    SOS_buffer_init_sized_locking(my_sos, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOS_msg_header header;
     header.msg_size = -1;
@@ -138,7 +155,7 @@ int main(int argc, char *argv[]) {
         // -----=====-----
 
         if (reply->len < sizeof(SOS_msg_header)) {
-            printf("ERROR: Received short (useless) message from daemon!   (reply->len == %d\n", reply->len);
+            fprintf(stderr, "ERROR: Received short (useless) message from daemon!   (reply->len == %d\n", reply->len);
             continue;
         }
 
@@ -196,7 +213,7 @@ int main(int argc, char *argv[]) {
         
         switch(GLOBAL_output_type) {
         case OUTPUT_CSV:    //--------------------------------------------------
-            printf("%lf,%lf,%" SOS_GUID_FMT ","
+            fprintf(GLOBAL_out, "%lf,%lf,%" SOS_GUID_FMT ","
                    "%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ",%12" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
                    "%" SOS_GUID_FMT ",%" SOS_GUID_FMT ",%" SOS_GUID_FMT ","
@@ -242,47 +259,47 @@ int main(int argc, char *argv[]) {
 
         case OUTPUT_JSON:  //--------------------------------------------------
 
-            printf("{\"sosd_probe\": {\n");
+            fprintf(GLOBAL_out, "{\"sosd_probe\": {\n");
             if (GLOBAL_forced_sos_port_on > 0) {
-                printf("\t\"__comment\" \"SOS_CMD_PORT overridden to %s\"\n",
+                fprintf(GLOBAL_out, "\t\"__comment\" \"SOS_CMD_PORT overridden to %s\"\n",
                        my_sos->net.server_port);
             }
-            printf("\t\"timestamp\": \"%lf\",\n", time_now);
-            printf("\t\"probe_rtt\": \"%lf\",\n", (rtt_at_reply - rtt_at_probe));
-            printf("\t\"sosd_comm_rank\": \"%"            SOS_GUID_FMT "\",\n", header.msg_from);
-            printf("\t\"queue_depth_local\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_local);
-            printf("\t\"queue_depth_cloud\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_cloud);
-            printf("\t\"queue_depth_db_tasks\": \"%"      SOS_GUID_FMT "\",\n", queue_depth_db_tasks);
-            printf("\t\"queue_depth_db_snaps\": \"%"      SOS_GUID_FMT "\",\n", queue_depth_db_snaps);
-            printf("\t\"thread_local_wakeup\": \"%"       SOS_GUID_FMT "\",\n", current.thread_local_wakeup);
-            printf("\t\"thread_cloud_wakeup\": \"%"       SOS_GUID_FMT "\",\n", current.thread_cloud_wakeup);
-            printf("\t\"thread_db_wakeup\": \"%"          SOS_GUID_FMT "\",\n", current.thread_db_wakeup);
-            printf("\t\"feedback_checkin_messages\": \"%" SOS_GUID_FMT "\",\n", current.feedback_checkin_messages);
-            printf("\t\"socket_messages\": \"%"           SOS_GUID_FMT "\",\n", current.socket_messages);
-            printf("\t\"socket_bytes_recv\": \"%"         SOS_GUID_FMT "\",\n", current.socket_bytes_recv);
-            printf("\t\"socket_bytes_sent\": \"%"         SOS_GUID_FMT "\",\n", current.socket_bytes_sent);
-            printf("\t\"mpi_sends\": \"%"                 SOS_GUID_FMT "\",\n", current.mpi_sends);
-            printf("\t\"mpi_bytes\": \"%"                 SOS_GUID_FMT "\",\n", current.mpi_bytes);
-            printf("\t\"db_transactions\": \"%"           SOS_GUID_FMT "\",\n", current.db_transactions);
-            printf("\t\"db_insert_announce\": \"%"        SOS_GUID_FMT "\",\n", current.db_insert_announce);
-            printf("\t\"db_insert_announce_nop\": \"%"    SOS_GUID_FMT "\",\n", current.db_insert_announce_nop);
-            printf("\t\"db_insert_publish\": \"%"         SOS_GUID_FMT "\",\n", current.db_insert_publish);
-            printf("\t\"db_insert_publish_nop\": \"%"     SOS_GUID_FMT "\",\n", current.db_insert_publish_nop);
-            printf("\t\"db_insert_val_snaps\": \"%"       SOS_GUID_FMT "\",\n", current.db_insert_val_snaps);
-            printf("\t\"db_insert_val_snaps_nop\": \"%"   SOS_GUID_FMT "\",\n", current.db_insert_val_snaps_nop);
-            printf("\t\"buffer_creates\": \"%"            SOS_GUID_FMT "\",\n", current.buffer_creates);
-            printf("\t\"buffer_bytes_on_heap\": \"%"      SOS_GUID_FMT "\",\n", current.buffer_bytes_on_heap);
-            printf("\t\"buffer_destroys\": \"%"           SOS_GUID_FMT "\",\n", current.buffer_destroys);
-            printf("\t\"pipe_creates\": \"%"              SOS_GUID_FMT "\",\n", current.pipe_creates);
-            printf("\t\"pub_handles\": \"%"               SOS_GUID_FMT "\",\n", current.pub_handles);
-            printf("\t\"vm_peak\": \"%"                   SOS_GUID_FMT "\",\n", vm_peak);
-            printf("\t\"vm_size\": \"%"                   SOS_GUID_FMT "\"\n", vm_size);
+            fprintf(GLOBAL_out, "\t\"timestamp\": \"%lf\",\n", time_now);
+            fprintf(GLOBAL_out, "\t\"probe_rtt\": \"%lf\",\n", (rtt_at_reply - rtt_at_probe));
+            fprintf(GLOBAL_out, "\t\"sosd_comm_rank\": \"%"            SOS_GUID_FMT "\",\n", header.msg_from);
+            fprintf(GLOBAL_out, "\t\"queue_depth_local\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_local);
+            fprintf(GLOBAL_out, "\t\"queue_depth_cloud\": \"%"         SOS_GUID_FMT "\",\n", queue_depth_cloud);
+            fprintf(GLOBAL_out, "\t\"queue_depth_db_tasks\": \"%"      SOS_GUID_FMT "\",\n", queue_depth_db_tasks);
+            fprintf(GLOBAL_out, "\t\"queue_depth_db_snaps\": \"%"      SOS_GUID_FMT "\",\n", queue_depth_db_snaps);
+            fprintf(GLOBAL_out, "\t\"thread_local_wakeup\": \"%"       SOS_GUID_FMT "\",\n", current.thread_local_wakeup);
+            fprintf(GLOBAL_out, "\t\"thread_cloud_wakeup\": \"%"       SOS_GUID_FMT "\",\n", current.thread_cloud_wakeup);
+            fprintf(GLOBAL_out, "\t\"thread_db_wakeup\": \"%"          SOS_GUID_FMT "\",\n", current.thread_db_wakeup);
+            fprintf(GLOBAL_out, "\t\"feedback_checkin_messages\": \"%" SOS_GUID_FMT "\",\n", current.feedback_checkin_messages);
+            fprintf(GLOBAL_out, "\t\"socket_messages\": \"%"           SOS_GUID_FMT "\",\n", current.socket_messages);
+            fprintf(GLOBAL_out, "\t\"socket_bytes_recv\": \"%"         SOS_GUID_FMT "\",\n", current.socket_bytes_recv);
+            fprintf(GLOBAL_out, "\t\"socket_bytes_sent\": \"%"         SOS_GUID_FMT "\",\n", current.socket_bytes_sent);
+            fprintf(GLOBAL_out, "\t\"mpi_sends\": \"%"                 SOS_GUID_FMT "\",\n", current.mpi_sends);
+            fprintf(GLOBAL_out, "\t\"mpi_bytes\": \"%"                 SOS_GUID_FMT "\",\n", current.mpi_bytes);
+            fprintf(GLOBAL_out, "\t\"db_transactions\": \"%"           SOS_GUID_FMT "\",\n", current.db_transactions);
+            fprintf(GLOBAL_out, "\t\"db_insert_announce\": \"%"        SOS_GUID_FMT "\",\n", current.db_insert_announce);
+            fprintf(GLOBAL_out, "\t\"db_insert_announce_nop\": \"%"    SOS_GUID_FMT "\",\n", current.db_insert_announce_nop);
+            fprintf(GLOBAL_out, "\t\"db_insert_publish\": \"%"         SOS_GUID_FMT "\",\n", current.db_insert_publish);
+            fprintf(GLOBAL_out, "\t\"db_insert_publish_nop\": \"%"     SOS_GUID_FMT "\",\n", current.db_insert_publish_nop);
+            fprintf(GLOBAL_out, "\t\"db_insert_val_snaps\": \"%"       SOS_GUID_FMT "\",\n", current.db_insert_val_snaps);
+            fprintf(GLOBAL_out, "\t\"db_insert_val_snaps_nop\": \"%"   SOS_GUID_FMT "\",\n", current.db_insert_val_snaps_nop);
+            fprintf(GLOBAL_out, "\t\"buffer_creates\": \"%"            SOS_GUID_FMT "\",\n", current.buffer_creates);
+            fprintf(GLOBAL_out, "\t\"buffer_bytes_on_heap\": \"%"      SOS_GUID_FMT "\",\n", current.buffer_bytes_on_heap);
+            fprintf(GLOBAL_out, "\t\"buffer_destroys\": \"%"           SOS_GUID_FMT "\",\n", current.buffer_destroys);
+            fprintf(GLOBAL_out, "\t\"pipe_creates\": \"%"              SOS_GUID_FMT "\",\n", current.pipe_creates);
+            fprintf(GLOBAL_out, "\t\"pub_handles\": \"%"               SOS_GUID_FMT "\",\n", current.pub_handles);
+            fprintf(GLOBAL_out, "\t\"vm_peak\": \"%"                   SOS_GUID_FMT "\",\n", vm_peak);
+            fprintf(GLOBAL_out, "\t\"vm_size\": \"%"                   SOS_GUID_FMT "\"\n", vm_size);
 
-            printf("}}\n\n");
+            fprintf(GLOBAL_out, "}}\n\n");
             break;
 
         default:
-            printf("ERROR: Invalid GLOBAL_output_type specified.  (%d)\n", GLOBAL_output_type);
+            fprintf(stderr, "ERROR: Invalid GLOBAL_output_type specified.  (%d)\n", GLOBAL_output_type);
             break;
         }
 
@@ -291,6 +308,8 @@ int main(int argc, char *argv[]) {
         } else {
             break;
         }
+
+        fflush(GLOBAL_out);
 
     }//while
     SOS_buffer_destroy(request);

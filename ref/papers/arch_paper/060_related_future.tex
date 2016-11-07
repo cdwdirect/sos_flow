@@ -1,37 +1,100 @@
-\todofilebegin{060\_related\_future.tex}
+%\todofilebegin{060\_related\_future.tex}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 \section{Conclusion}
+
+%%%%%
 Given a diverse set of motivations for variability studies, and a
 seemingly intractable problem space when classical performance models
 are applied to scientific workflows at extreme scale, we argue that a
-new performance model is required. SOSflow was developed to enable the
-exploration and validation of new performance models, especially those
-built for reasoning over high-level and human-understandable semantic
-annotation that is affixed to all captured data and events.
+new performance model is required.
+%
+SOSflow was developed to enable the exploration and validation of new
+performance models, especially those built for reasoning over
+high-level and human-understandable semantic annotation that is
+affixed to all captured data and events.
+%
+Preliminary results indicate that SOSflow is a stable, efficient,
+fully-functioning system.
+
 
 %-----------------------------------------------------------------------------
 
-\subsection{Related Work}
+%\subsection{Related Work}
+%
+%\todo[inline]{...}
 
-%-----------------------------------------------------------------------------
-
-\subsection{Recommendations}
-Our research initiative is oriented towards on line and in situ
-monitoring and analytics. A system should be designed that is
-efficient enough that it need not be disabled for full-scale
-production runs of scientific workflows. This creates the important
-case that the lessons learned through the use of such a monitoring
-system are in fact applicable to future full-scale production runs,
-and do not only apply to smaller sample test runs where the workflow's
-behavior has been heavily perturbed by invasive monitoring
-technologies.  The conclusion goes here. this is more of the
-conclusion
 
 %-----------------------------------------------------------------------------
 
 \subsection{Future Work}
 
-\todofileend{060\_related\_future.tex}
+%%%%%
+\textbf{SOS/SOSflow}: Continue refining and expanding the core SOSflow
+libraries and the SOS workflow performance model.
+%
+\textbf{Automation}: Create an interactive script for integrating
+SOSflow into existing Torque and Slurm job files to lower the barrier
+to entry for new users and help check for the sanity of configurations
+prior to wasted allocation time when mistakes are present.
+%
+\textbf{Optimization}: Optimize the SOSflow codes for memory use and
+data latency. Add mechanisms for throttling of data flow to increase
+reliability in resource-constrained cases.
+%
+Map out some best-fit metrics for dedicating in situ resources to a
+monitoring platform for some of the major extant compute clusters, and
+build this intelligence into the SOSflow platform.
+%
+\textbf{Integration}: Explore options for deployment and integration
+with existing HPC monitoring and analytics codes at LLNL during the
+summer of 2016.
+%
+\textbf{TAUflow}: Continue extending the applicability of SOS and
+the utility of SOSflow by integrating more of its capabilities directly
+into existing HPC performance tools, especially regarding the online
+analytics framework.
+%
+\textbf{SOApy}: The Scalable Observation Analytics (Python) is a 
+collection of scripts utilizing numpy and matplotlib to query the
+SOSflow databases and produce visualizations.
+%
+Some initial development work here was utilized to produce the latency
+figures in this paper.
+%
+\textbf{Binning}: Add an sosd database feature to automatically
+track ``bins'' of values based a user-selected granularity
+parameter.
+%
+A bin contains the earliest and latest rowid for each guid, as well as
+a count of the number of updates to that guid, during the timespan of
+that bin.
+%
+Bins facilitate rapid queries of ``the overall state of the system at
+time X'' and low-overhead time series plots when rendering performance
+visualizations.
+%
+\textbf{Data Store Decoupling}: Decouple the SOSflow components further
+and provide alternative data flow and database storage strategies such
+as EVPATH, Glasgow cache, or process-local JSON file dumps that can
+later be synthesized into databases.
+%
+\textbf{Synthetic Workflow Generator}: Continue work on the existing
+code contribution for workflow generation.
+%
+The current framework already has a great deal of utility: An
+artibrarily complex directed graph of applications are generated and
+linked together with a continuous data flow using the ADIOS+FlexPath
+library.
+%
+A python script exists to generate the ADIOS configuration files
+automatically.
+%
+It is intended that the synthetic workflow tool can mature into a
+general-purpose benchmarking and validation suide for exploring new
+scientific workflow performance models under the MONA project.
+%%%%%
+
+%\todofileend{060\_related\_future.tex}

@@ -8,7 +8,7 @@ from data_utils import is_outlier
 
 
 # name of the sqlite database file
-sqlite_file = os.environ.get("SOS_WORK", ".") + "/" + sys.argv[1]
+sqlite_file = os.environ.get("SOS_LOCATION", ".") + "/" + sys.argv[1]
 table_name = 'tblvals'   # name of the table to be queried
 
 print("Connecting to: ", sqlite_file)
@@ -57,7 +57,10 @@ print("Skipping outlier-filter stage.")
 #filtered_latencies = latencies[~is_outlier(latencies)]
 
 print("Plotting: x=pack_time, y=latencies")
+pl.title("Latency Between Client SOS_publish() and Daemon DB Insert");
 pl.plot(pack_time, latencies)
+pl.ylabel("Latency (sec.)")
+pl.xlabel("Timestamp When Client Sent Value to Daemon (sec. from earliest value)")
 print("Showing plot...")
 pl.show()
 

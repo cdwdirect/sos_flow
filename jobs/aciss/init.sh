@@ -1,6 +1,5 @@
 #!/bin/bash
 echo "$HOSTNAME : Running init script..."
-cd /dev/shm
-rm -rf sos_data
-mkdir sos_data
-echo "$HOSTNAME : Running finalize script..."
+rm -rf ${SOS_WORK}/sos_data/${PBS_JOBID}
+mkdir -p ${SOS_WORK}/sos_data/${PBS_JOBID}
+echo "$HOSTNAME : Done running init script..."
