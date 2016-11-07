@@ -184,7 +184,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         SOS_buffer_init(SOS, &SOS->net.recv_part);
 
-        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
+        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS->net.server_port   = getenv("SOS_CMD_PORT");

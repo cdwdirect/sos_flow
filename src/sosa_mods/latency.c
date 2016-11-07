@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-    SOSA.sos_context = SOSA_init( &argc, &argv, SOSA_MODULE_COLOR);
+    SOSA.sos_context = SOSA_init_for_mpi( &argc, &argv, SOSA_MODULE_COLOR);
     SOS_SET_CONTEXT(SOSA.sos_context, "latency:main()");
     srandom(SOS->my_guid);
     dlog(0, "Initialization complete.\n");

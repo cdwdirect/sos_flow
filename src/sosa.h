@@ -54,7 +54,10 @@ extern SOSA_runtime SOSA;
 extern "C" {
 #endif
 
-    SOS_runtime* SOSA_init(int *argc, char ***argv, int unique_color);
+    // NOTE: Depending on which you call, the behavior of other SOSA
+    //       routines will be appropriately directed.  Only init once.
+    SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color);
+    SOS_runtime* SOSA_init_for_socket(int *argc, char ***argv, int unique_color);
 
     void SOSA_guid_request(SOS_uid *uid);
     void SOSA_exec_query(char *sql_string, SOSA_results *result_object);

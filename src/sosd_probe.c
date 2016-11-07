@@ -121,8 +121,8 @@ int main(int argc, char *argv[]) {
 
     SOS_buffer *request;
     SOS_buffer *reply;
-    SOS_buffer_init_sized_locking(my_sos, &request, SOS_DEFAULT_BUFFER_LEN, false);
-    SOS_buffer_init_sized_locking(my_sos, &reply, SOS_DEFAULT_BUFFER_LEN, false);
+    SOS_buffer_init_sized_locking(my_sos, &request, SOS_DEFAULT_BUFFER_MAX, false);
+    SOS_buffer_init_sized_locking(my_sos, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOS_msg_header header;
     header.msg_size = -1;
