@@ -176,8 +176,18 @@ int main(int argc, char *argv[])  {
 
 
     dlog(0, "Closing the sync queues:\n");
-    dlog(0, "  .. SOSD.sync.local.queue\n");
-    pipe_producer_free(SOSD.sync.local.queue->intake);
+    if (SOSD.sync.local.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.local.queue\n");
+        pipe_producer_free(SOSD.sync.local.queue->intake);
+    }
+    if (SOSD.sync.cloud.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.cloud.queue\n");
+        pipe_producer_free(SOSD.sync.cloud.queue->intake);
+    }
+    if (SOSD.sync.db.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.db.queue\n");
+        pipe_producer_free(SOSD.sync.db.queue->intake);
+    }
 
     /* TODO: { SHUTDOWN } Add cascading queue fflush here to prevent deadlocks. */
     //dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
@@ -189,7 +199,6 @@ int main(int argc, char *argv[])  {
 
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
-    pthread_mutex_lock(SOSD.db.lock);
 
     dlog(0, "Destroying uid configurations.\n");
     SOS_uid_destroy( SOSD.guid );
@@ -623,6 +632,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
         wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
         wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     }
+    SOS_buffer_destroy(buffer);
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
@@ -877,6 +887,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
+    SOS_buffer_destroy(reply);
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
 
     dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n", pub->guid, pub->elem_count);

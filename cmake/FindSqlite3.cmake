@@ -40,6 +40,7 @@ ENDIF (APPLE)
 FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h
   "$ENV{SQLITE_ROOT}/include"
   "$ENV{SQLITE}/include"
+  "$ENV{SQLITE_ROOT}/include"
   "$ENV{LIB_DIR}/include"
   "$ENV{LIB_DIR}/include/sqlite"
   #mingw
@@ -51,6 +52,7 @@ FIND_PATH(SQLITE3_INCLUDE_DIR sqlite3.h)
 FIND_LIBRARY(SQLITE3_LIBRARY NAMES sqlite3 sqlite3_i PATHS
   "$ENV{SQLITE_ROOT}/lib"
   "$ENV{SQLITE}/lib"
+  "$ENV{SQLITE_ROOT}/lib"
   $ENV{LIB} 
   /usr/lib 
   "$ENV{LIB_DIR}/lib"

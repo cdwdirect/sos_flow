@@ -25,8 +25,9 @@ echo ${daemon0}
 echo ${daemon1}
 
 valgrind_cmd=""
-#valgrind_cmd="gdb -ex run --args "
-#valgrind_cmd="xterm -e gdb -ex run --args "
+valgrind_cmd="gdb -ex run --args "
+#valgrind_cmd="valgrind --vgdb=yes --vgdb-error=0 "
+#valgrind_cmd="valgrind "
 #valgrind_cmd="valgrind --tool=memcheck --leak-check=full --max-stackframe=3097792 --show-reachable=yes --error-limit=no --log-file=${SOS_WORK}/sosd.valgrind.log --show-leak-kinds=all --track-origins=yes --trace-children=yes "
 #valgrind_cmd="valgrind --tool=memcheck --leak-check=full --track-origins=yes --trace-children=yes --log-file=${SOS_WORK}/sosd.valgrind.log "
 
@@ -47,6 +48,8 @@ echo "mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}"
 echo ""
 echo "=========="
 echo ""
+
+xterm="xterm -hold -e ${valgrind_cmd} "
 
 if [ "x${surplus}" == "x" ] ; then
     #mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${valgrind_cmd} ${daemon1}
