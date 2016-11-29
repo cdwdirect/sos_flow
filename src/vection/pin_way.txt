@@ -1,0 +1,16 @@
+
+Intel PIN will work with both shared and static programs.
+>  Use PIN to insert SOSflow calls.
+
+
+https://software.intel.com/sites/landingpage/pintool/docs/49306/Pin/html/index.html#ForkOnLinux
+
+VOID LEVEL_PINCLIENT::PIN_AddFiniFunction( FINI_CALLBACK fun, VOID *val);
+>  Call func immediately before the application exits. The function is not an
+>  instrumentation function--it cannot insert instrumentation. There can be
+>  more than one Fini function.
+
+
+
+VOID LEVEL_PINCLIENT::PIN_AddForkFunction( FORK_CALLBACK fun, VOID *val);
+>   Call func immediately after a fork.
