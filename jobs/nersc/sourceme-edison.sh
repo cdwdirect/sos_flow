@@ -18,5 +18,6 @@ TAU=$HOME/src/tau2
 # LD_LIBRARY_PATH=$CHAOS/lib:$ADIOS/lib:$MXML/lib:$LD_LIBRARY_PATH
 # CPATH=$ADIOS/include:$CPATH
 
+LD_LIBRARY_PATH=$TAU/craycnl/lib:$LD_LIBRARY_PATH
 PATH=$TAU/craycnl/bin:$SQLITE_ROOT/bin:$PATH
-export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-mpi-pthread-pdt
+export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-ompt-mpi-pdt-openmp
