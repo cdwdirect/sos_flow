@@ -1,0 +1,163 @@
+#!/bin/bash 
+##### the name of the batch job
+#PBS -N sos_flow_48x12_hv_pr
+
+##### this line tells Torque which queue to submit to
+#PBS -q generic
+
+##### requests 3 node and 12 processors per node
+#PBS -l nodes=48:ppn=12
+
+##### requests ____ hh:mm:ss time
+#PBS -l walltime=00:48:00
+
+##### the working directory for your job
+#PBS -d /home12/cdw/src/sos_flow/jobs/aciss/data
+
+##### batch script output location
+#PBS -o /home12/cdw/src/sos_flow/jobs/aciss/log
+
+##### batch script errors location
+#PBS -e /home12/cdw/src/sos_flow/jobs/aciss/log
+
+# # # # # # #   modules   # # # # # # #
+
+module load sqlite/3.8
+module load gcc/4.9
+module load mpi/mpich-3.1_gcc-4.9
+#module load mpi-tor/openmpi-1.8_gcc-4.9
+
+# # # # # # #   program   # # # # # # #
+
+daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
+dbs="     -np 6       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
+
+#### sos: ##########
+
+sosd_programs=""
+sosd_programs="${sosd_programs} ${daemons} : "
+sosd_programs="${sosd_programs} ${dbs}       "
+
+sosd_mpi_opts=""
+
+# ... OpenMPI stuff:
+# ... sosd_mpi_opts="${sosd_mpi_opts} -rf ${SOS_ROOT}/jobs/aciss/3.rnk "
+#sosd_mpi_opts="${sosd_mpi_opts} --mca btl_tcp_if_include torbr "
+#sosd_mpi_opts="${sosd_mpi_opts} -report-bindings "
+
+#### flow: ##########
+
+flow_app="${SOS_ROOT}/bin/demo_app "
+flow_app="${flow_app} -i 100"
+flow_app="${flow_app} -m 100000"
+flow_app="${flow_app} -p 100"
+flow_app="${flow_app} -d 300000"
+
+flow_programs=""
+flow_programs="${flow_programs} -ppn 10 ${flow_app} "
+
+flow_mpi_opts=""
+flow_mpi_opts="${flow_mpi_opts} "
+
+#### finalize: ##########
+
+stop_app="${SOS_ROOT}/bin/sosd_stop"
+
+stop_programs=""
+stop_programs="${stop_programs} -ppn 1 ${stop_app}"
+
+stop_mpi_opts=""
+
+#### setup/teardown: ##########
+
+exec_init_mpi=""
+exec_init_mpi="${exec_init_mpi} -ppn 1 bash -c ${SOS_ROOT}/jobs/aciss/init.sh"
+
+tear_down_mpi=""
+tear_down_mpi="${tear_down_mpi} -ppn 1 bash -c ${SOS_ROOT}/jobs/aciss/done.sh"
+
+
+{
+echo "-- SOSD command: -----"
+echo ""
+echo "mpirun ${sosd_mpi_opts} ${sosd_programs} &"
+echo ""
+
+echo "-- FLOW command: -----"
+echo ""
+echo "mpirun ${flow_mpi_opts} ${flow_programs}"
+echo ""
+
+echo "-- STOP command: -----"
+echo ""
+echo "mpirun ${stop_mpi_opts} ${stop_programs}"
+echo ""
+
+echo "-- INI/FIN commands: -----"
+echo "mpirun ${exec_init_mpi}"
+echo "mpirun ${tear_down_mpi}"
+
+
+
+} &> commands.used
+
+
+# # # # ---- run --- # # # #
+
+echo ""
+echo "Now executing..."
+echo ""
+
+#echo "[---] : Running setup script." >> launch.log
+mpirun ${exec_init_mpi}
+
+# -----
+mkdir "${SOS_ROOT}/jobs/aciss/log/${PBS_JOBID}"
+cd "${SOS_ROOT}/jobs/aciss/log/${PBS_JOBID}"
+touch launch.log
+echo "[1/7] : Starting daemons." >> launch.log
+mpirun ${sosd_mpi_opts} ${sosd_programs} &
+echo "[2/7] : Waiting 30 seconds." >> launch.log
+sleep 30
+# Launch the probes!
+echo "        ---> Launching probes!" >> launch.log
+mpirun -ppn 1 ${SOS_ROOT}/bin/sosd_probe -f ${SOS_WORK}/sos_data/${PBS_JOBID}/probe.csv -header on -l 100000 &
+
+
+echo "[3/7] : Starting demo_app instances." >> launch.log
+
+# -----
+
+echo -n "        ...pass 1: " >> launch.log
+mpirun ${flow_mpi_opts} ${flow_programs}
+echo "complete" >> launch.log
+
+sleep 30
+
+echo -n "        ...pass 2: " >> launch.log
+mpirun ${flow_mpi_opts} ${flow_programs}
+echo "complete" >> launch.log
+
+sleep 30
+
+echo -n "        ...pass 3: " >> launch.log
+mpirun ${flow_mpi_opts} ${flow_programs}
+echo "complete" >> launch.log
+
+# -----
+
+echo "[4/7] : All demo_app instances are complete." >> launch.log
+echo "[5/7] : Waiting 15 minutes before bringing daemons down." >> launch.log
+sleep 900
+echo "[6/7] : Starting the sosd_stop tool." >> launch.log
+mpirun ${stop_mpi_opts} ${stop_programs}
+echo "[7/7] : All tasks complete." >> launch.log
+sleep 4
+
+# -----
+
+#echo "[---] : Running teardown script." >> launch.log
+mpirun ${tear_down_mpi}
+touch ${SOS_ROOT}/jobs/aciss/data/${PBS_JOBID}/${PBS_JOBNAME}
+cp ${SOS_ROOT}/jobs/aciss/show ${SOS_ROOT}/jobs/aciss/data/${PBS_JOBID}/
+echo "${PBS_JOBID}" > ${SOS_ROOT}/jobs/aciss/data/.last_job
