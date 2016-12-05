@@ -1,1 +1,1 @@
-srun -n3 --multi-prog online.conf &
+srun -n2 --multi-prog online.conf &
