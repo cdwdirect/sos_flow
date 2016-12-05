@@ -12,6 +12,7 @@
 int commsize = 1;
 int myrank = 0;
 SOS_pub *example_pub = NULL; // sos.h is included by main.h
+SOS_runtime * _runtime = NULL;
 
 int main (int argc, char *argv[]) 
 {

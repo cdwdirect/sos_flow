@@ -25,6 +25,6 @@
 #define TAU_PROFILE_START(...)          // do nothing
 #define TAU_PROFILE_STOP(...)           // do nothing
 #define TAU_PROFILE_SET_NODE(...)       // do nothing
-#define SOS_FINALIZE()  SOS_finalize()
+#define SOS_FINALIZE()  SOS_finalize(_runtime)
 
 #endif /* SOS_HAVE_TAU */
