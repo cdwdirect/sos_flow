@@ -117,7 +117,9 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
 void SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush");
     dlog(5, "Signaling SOSD.sync.cloud.queue->sync_cond ...\n");
-    pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+    if (SOSD.sync.cloud.queue != NULL) {
+        pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+    }
     return;
 }
 
@@ -301,6 +303,7 @@ void SOSD_cloud_listen_loop(void) {
             }
         }
     }
+    SOS_buffer_destroy(buffer);
 
     /* Join with the daemon's and close out together... */
     //MPI_Barrier(MPI_COMM_WORLD);
@@ -458,11 +461,13 @@ int SOSD_cloud_finalize(void) {
     int   rc;
 
     dlog(1, "Shutting down SOSD cloud services...\n");
-    //dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
-    //SOSD_cloud_fflush();
-    //dlog(1, "  ... joining the cloud_sync flush thread.\n");
-    //pthread_join(*SOSD.sync.cloud.handler, NULL);
-    //free(SOSD.sync.cloud.handler);
+    dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
+    SOSD_cloud_fflush();
+    dlog(1, "  ... joining the cloud_sync flush thread.\n");
+    if (SOSD.sync.cloud.handler != NULL) {
+        pthread_join(*SOSD.sync.cloud.handler, NULL);
+        free(SOSD.sync.cloud.handler);
+    }
 
     dlog(1, "  ... cleaning up the cloud_sync_set list.\n");
     memset(SOSD.daemon.cloud_sync_target_set, '\0', (SOSD.daemon.cloud_sync_target_count * sizeof(int)));

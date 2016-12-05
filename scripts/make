@@ -40,8 +40,7 @@ else
     if [ ! -f CMakeCache.txt ] ; then
       cmake \
          -G "Unix Makefiles" \
-         -DCMAKE_BUILD_TYPE=Debug \
-         -DCMAKE_C_FLAGS=-O0 -m64\
+         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
          --prefix=$SOS_ROOT/bin \
          -DCMAKE_C_COMPILER=gcc \
          -DCMAKE_CXX_COMPILER=g++ \
@@ -52,8 +51,8 @@ else
          $others \
          ..
     fi
-    make -j
-    #make VERBOSE=1
+    #make -j
+    make VERBOSE=1
     #cd ..
     #cd src
     #echo ""
