@@ -79,7 +79,7 @@ fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
-	tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$HOME/src/tau2 -DTAU_ARCH=x86_64 -DTAU_OPTIONS=-mpi-pthread"
+	tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$HOME/src/tau2 -DTAU_ARCH=craycnl -DTAU_OPTIONS=-mpi-pthread"
 fi
 
 cmake \

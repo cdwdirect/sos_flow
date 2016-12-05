@@ -13,7 +13,7 @@ export MPICXX=CC
 cflags=`cc --cray-print-opts=cflags`
 libs=`cc --cray-print-opts=libs`
 
-extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpichf90_gnu_49_mt.so"
+extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_gnu_49_mt.so"
 
 module load cmake
 module swap PrgEnv-pgi/5.2.82 PrgEnv-gnu
