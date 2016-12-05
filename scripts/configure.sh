@@ -1,5 +1,9 @@
 #!/bin/bash -e
-set -x
+
+if [ "x$sos_env_set" == "x" ] ; then
+	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
+    kill -INT $$
+fi
 
 # remember where we are
 STARTDIR=`pwd`
@@ -9,8 +13,8 @@ SCRIPT=$(readlink -f "$0")
 SCRIPTPATH=$(dirname "$SCRIPT")
 echo $SCRIPTPATH
 BASEDIR=$SCRIPTPATH/..
-# this gets overwritten in the system-specific env file
-BUILDDIR=build
+
+echo "Building SOS $BUILDDIR from source in $BASEDIR"
 
 # Parse the arguments
 args=$(getopt -l "searchpath:" -o "cdht" -- "$@")
@@ -28,12 +32,15 @@ while [ $# -ge 1 ]; do
             ;;
         -c)
             clean=1
+			echo "doing clean configure"
             ;;
         -d)
             debug=1
+			echo "doing debug configure"
             ;;
         -t)
             tau=1
+			echo "doing TAU configure"
             ;;
         -h)
             echo "$0 [-c]"
@@ -48,9 +55,6 @@ done
 
 
 host=`hostname`
-if [[ "${host}" == "titan"* ]] ; then
-	. $BASEDIR/etc/env-titan.sh
-fi
 
 if [ "x${SOS_ROOT}" == "x" ] ; then
   echo "Please set the SOS_ROOT environment variable."
@@ -79,15 +83,18 @@ fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
-	tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$HOME/src/tau2 -DTAU_ARCH=craycnl -DTAU_OPTIONS=-mpi-pthread"
+	tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_OPTIONS=$TAU_OPTIONS"
 fi
 
-cmake \
+cmd="cmake \
     -DCMAKE_BUILD_TYPE=${buildtype} \
     --prefix=./bin \
     -DCMAKE_C_COMPILER=$CC \
     -DCMAKE_CXX_COMPILER=$CXX \
     -DMPI_C_COMPILER=$MPICC \
     -DMPI_CXX_COMPILER=$MPICXX \
-    $extras \
-    ..
+    $cmake_extras \
+    .."
+
+echo $cmd
+$cmd
