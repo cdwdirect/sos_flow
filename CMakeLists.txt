@@ -25,8 +25,8 @@ set(PROJECT_NAME sos_flow)
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
 project(${PROJECT_NAME} C)
-set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g -pedantic -Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-maybe-uninitialized")
-#set(CMAKE_C_FLAGS "-std=gnu99 -Ofast -pedantic -Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-maybe-uninitialized")
+set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g")
+#set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g -pedantic -Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-maybe-uninitialized")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")
@@ -44,9 +44,9 @@ find_package("Sqlite3" REQUIRED)
 find_package("MPI" REQUIRED)
 find_package("Threads" REQUIRED)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/lib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_SOURCE_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
 
 if(ENABLE_ADIOS_EXAMPLES)
   message(STATUS ">>> ADIOS:")

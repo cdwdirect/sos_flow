@@ -51,6 +51,8 @@ int main(int argc, char *argv[]) {
     double DELAY_IN_USEC;
 
     MPI_Init(&argc, &argv);
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     /* Process command-line arguments */
     if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -103,12 +105,12 @@ int main(int argc, char *argv[]) {
 
     printf("demo_app starting...\n"); fflush(stdout);
     
-    dlog(0, "Creating a pub...\n");
+    if (rank == 0) dlog(0, "Creating a pub...\n");
 
     pub = SOS_pub_create(my_sos, "demo", SOS_NATURE_CREATE_OUTPUT);
-    dlog(0, "  ... pub->guid  = %ld\n", pub->guid);
+    if (rank == 0) dlog(0, "  ... pub->guid  = %ld\n", pub->guid);
 
-    dlog(0, "Manually configuring some pub metadata...\n");
+    if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
     strcpy (pub->prog_ver, str_prog_ver);
     pub->meta.channel     = 1;
     pub->meta.nature      = SOS_NATURE_EXEC_WORK;
@@ -118,7 +120,7 @@ int main(int argc, char *argv[]) {
     pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
 
-    dlog(0, "Packing a couple values...\n");
+    if (rank == 0) dlog(0, "Packing a couple values...\n");
     var_int = 1234567890;
     snprintf(var_string, 100, "Hello, world!");
 
@@ -130,16 +132,20 @@ int main(int argc, char *argv[]) {
     int pos = -1;
     for (i = 0; i < PUB_ELEM_COUNT; i++) {
         snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+
+
         pos = SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+
+
         dlog(0, "   pub->data[%d]->guid == %" SOS_GUID_FMT "\n", pos, pub->data[pos]->guid);
         var_double += 0.0000001;
     }
 
 
-    dlog(0, "Announcing\n");
+    if (rank == 0) dlog(0, "Announcing\n");
     SOS_announce(pub);
 
-    dlog(0, "Re-packing --> Publishing %d values for %d times per iteration:\n",
+    if (rank == 0) dlog(0, "Re-packing --> Publishing %d values for %d times per iteration:\n",
            PUB_ELEM_COUNT,
            ITERATION_SIZE);
            
@@ -150,7 +156,7 @@ int main(int argc, char *argv[]) {
         ones += 1;
         if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
-            dlog(0, "     ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
+            if (rank == 0) dlog(0, "     ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
                    ITERATION_SIZE,
                    PUB_ELEM_COUNT,
                    (time_now - time_start),
@@ -162,7 +168,7 @@ int main(int argc, char *argv[]) {
             SOS_TIME( time_start);
         }
         if (((ones * PUB_ELEM_COUNT)%1000000) == 0) {
-            dlog(0, "     ... 1,000,000 value milestone ---------\n");
+            if (rank == 0) dlog(0, "     ... 1,000,000 value milestone ---------\n");
         }
 
         for (i = 0; i < PUB_ELEM_COUNT; i++) {
@@ -180,7 +186,7 @@ int main(int argc, char *argv[]) {
 
     dlog(0, "  ... done.\n");
 
-    dlog(0, "demo_app finished successfully!\n");
+    if (rank == 0) dlog(0, "demo_app finished successfully!\n");
     SOS_finalize(my_sos);
     MPI_Finalize();
     return (EXIT_SUCCESS);

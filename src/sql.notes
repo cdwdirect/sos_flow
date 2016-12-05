@@ -49,3 +49,72 @@ WHERE tblvals.guid
 
 #
 #
+
+
+#
+#  Get all records of a type where any record of that type has a value...
+#
+SELECT
+    tblPubs.comm_rank AS comm_rank,
+    tblPubs.prog_name AS prog_name,
+    tblNatures.text   AS prog_nature,
+    tblData.name      AS val_name,
+     tblVals.guid      AS val_guid,
+    tblVals.val       AS value,
+    tblMoods.text     AS val_mood,
+   (tblVals.time_recv - tblvals.time_send)
+                      AS db_insert_latency
+FROM
+    tblVals
+    LEFT JOIN tblData  ON tblVals.guid        = tblData.guid
+    LEFT JOIN tblPubs  ON tblData.pub_guid    = tblPubs.guid
+    LEFT JOIN tblEnums AS tblNatures
+                          ON ( tblNatures.type LIKE "NATURE"
+                           AND tblPubs.meta_nature = tblNatures.enum_val )
+    LEFT JOIN tblEnums AS tblMoods
+                          ON ( tblMoods.type LIKE "MOOD"
+                           AND tblVals.meta_mood = tblMoods.enum_val )
+WHERE tblVals.guid IN
+     ( SELECT DISTINCT tblVals.guid
+       FROM tblVals
+       WHERE tblVals.meta_mood = 3 )
+   AND
+      tblVals.rowid > 910000
+   AND
+      tblVals.rowid < 930000;
+
+
+
+# Join across 3 tables...
+#
+#
+SELECT
+    tblPubs.comm_rank AS comm_rank,
+    tblPubs.prog_name AS prog_name,
+    tblNatures.text   AS prog_nature,
+    tblData.name      AS val_name,
+    tblVals.guid      AS val_guid,
+    tblVals.val       AS value,
+    tblMoods.text     AS val_mood,
+   (tblVals.time_recv - tblvals.time_send)
+                      AS db_insert_latency
+FROM
+    tblVals
+    LEFT JOIN tblData  ON tblVals.guid        = tblData.guid
+    LEFT JOIN tblPubs  ON tblData.pub_guid    = tblPubs.guid
+    LEFT JOIN tblEnums AS tblNatures
+                          ON ( tblNatures.type LIKE "NATURE"
+                           AND tblPubs.meta_nature = tblNatures.enum_val )
+    LEFT JOIN tblEnums AS tblMoods
+                          ON ( tblMoods.type LIKE "MOOD"
+                           AND tblVals.meta_mood = tblMoods.enum_val )
+WHERE
+     tblVals.rowid IN (1, 239024, 923223);
+
+
+#
+#  UPDATE query...
+#
+
+UPDATE tblVals SET meta_mood = 3 WHERE rowid = 200;
+

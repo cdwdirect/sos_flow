@@ -25,6 +25,9 @@
 #include "sos_debug.h"
 
 
+char *file_path;
+
+
 int main(int argc, char *argv[]) {
 
 
@@ -34,6 +37,8 @@ int main(int argc, char *argv[]) {
     int initial_delay_seconds = 0;
     int elem, next_elem = 0;
 
+    file_path = NULL;
+
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
@@ -42,6 +47,8 @@ int main(int argc, char *argv[]) {
 
         if ( strcmp(argv[elem], "-d"  ) == 0) {
             initial_delay_seconds  = atoi(argv[next_elem]);
+        } else if ( strcmp(argv[elem], "-f" ) == 0) {
+            file_path = argv[next_elem];
         } else {
             fprintf(stderr, "ERROR: Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
             fprintf(stderr, "%s\n", USAGE);
@@ -50,8 +57,7 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-
-    SOSA.sos_context = SOSA_init( &argc, &argv, SOSA_MODULE_COLOR);
+    SOSA.sos_context = SOSA_init_for_mpi( &argc, &argv, SOSA_MODULE_COLOR);
     SOS_SET_CONTEXT(SOSA.sos_context, "latency:main()");
     srandom(SOS->my_guid);
     dlog(0, "Initialization complete.\n");
@@ -70,15 +76,23 @@ int main(int argc, char *argv[]) {
     char *query    = "SELECT max(rowid), time_pack, time_recv FROM tblvals;";
     int   count    = 0;
 
-    FILE *fptr = fopen("/tmp/sosa_latency.csv", "a");
+    FILE *fptr = NULL;
 
-    for (count = 0; count < 10; count++) {
+    if (file_path == NULL) {
+      fptr = fopen("sosa_latency.csv", "a");
+    } else {
+      fptr = fopen(file_path, "a");
+    }
+
+    do {
         SOSA_results_wipe(results);
         dlog(0, "Submitting query request #%d...\n", count);
         SOSA_exec_query(query, results);
-        SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_W_HEADER);
-        usleep(1000000); //1,000,000 = 1 sec.
-    }
+
+        SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_DEFAULT);
+
+        usleep(5000000); //1,000,000 = 1 sec.
+    } while(atoi(results->data[0][0]) < 14000000);
 
     fclose(fptr);
 

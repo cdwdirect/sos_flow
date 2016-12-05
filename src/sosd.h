@@ -33,9 +33,9 @@
 #define SOSD_CLOUD_SYNC_WAIT_SEC     0
 #define SOSD_DB_SYNC_WAIT_SEC        0
 
-/* 0.05 seconds: 50000000 */
+/* 0.05 seconds: 50000000, default for cloud/db=5000 */
 #define SOSD_LOCAL_SYNC_WAIT_NSEC    0
-#define SOSD_CLOUD_SYNC_WAIT_NSEC    5000
+#define SOSD_CLOUD_SYNC_WAIT_NSEC    3000
 #define SOSD_DB_SYNC_WAIT_NSEC       5000
 
 
@@ -157,7 +157,8 @@ extern "C" {
 #ifdef SOSD_CLOUD_SYNC
     /* All cloud_sync modules must have the following signatures: */
     extern int   SOSD_cloud_init(int *argc, char ***argv);
-    extern int   SOSD_cloud_send(SOS_buffer *buffer);
+    extern int   SOSD_cloud_start(void);
+    extern int   SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply);
     extern void  SOSD_cloud_enqueue(SOS_buffer *buffer);
     extern void  SOSD_cloud_fflush(void);
     extern int   SOSD_cloud_finalize(void);
@@ -188,6 +189,7 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
+    void  SOSD_handle_sosa_query(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
