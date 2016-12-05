@@ -16,9 +16,11 @@
 #include "sos_buffer.h"
 
 #define FOREACH_ROLE(ROLE)                      \
+    ROLE(SOS_ROLE_UNASSIGNED)                   \
     ROLE(SOS_ROLE_CLIENT)                       \
     ROLE(SOS_ROLE_DAEMON)                       \
     ROLE(SOS_ROLE_DB)                           \
+    ROLE(SOS_ROLE_ANALYTICS)                    \
     ROLE(SOS_ROLE_RUNTIME_UTILITY)              \
     ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)
@@ -49,7 +51,10 @@
     MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
+    MSG_TYPE(SOS_MSG_TYPE_PROBE)                \
+    MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
+
 
 #define FOREACH_FEEDBACK(FEEDBACK)              \
     FEEDBACK(SOS_FEEDBACK_CONTINUE)             \
@@ -63,6 +68,10 @@
     PRI(SOS_PRI_LOW)                            \
     PRI(SOS_PRI_IMMEDIATE)                      \
     PRI(SOS_PRI___MAX)
+
+#define FOREACH_VOLUME(VOLUME)                  \
+    VOLUME(SOS_VOLUME_HEXAHEDRON)               \
+    VOLUME(SOS_VOLUME___MAX)
 
 #define FOREACH_VAL_TYPE(VAL_TYPE)              \
     VAL_TYPE(SOS_VAL_TYPE_INT)                  \
@@ -164,6 +173,13 @@
     RETAIN(SOS_RETAIN_IMMEDIATE)                \
     RETAIN(SOS_RETAIN___MAX)
 
+#define FOREACH_LOCALE(SOS_LOCALE)              \
+    SOS_LOCALE(SOS_LOCALE_INDEPENDENT)          \
+    SOS_LOCALE(SOS_LOCALE_DAEMON_DBMS)          \
+    SOS_LOCALE(SOS_LOCALE_APPLICATION)          \
+    SOS_LOCALE(SOS_LOCALE___MAX)
+
+
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
@@ -173,6 +189,7 @@ typedef enum { FOREACH_STATUS(GENERATE_ENUM)       } SOS_status;
 typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)     } SOS_msg_type;
 typedef enum { FOREACH_FEEDBACK(GENERATE_ENUM)     } SOS_feedback;
 typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
+typedef enum { FOREACH_VOLUME(GENERATE_ENUM)       } SOS_volume;
 typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
 typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
 typedef enum { FOREACH_VAL_SYNC(GENERATE_ENUM)     } SOS_val_sync;
@@ -186,6 +203,7 @@ typedef enum { FOREACH_SCOPE(GENERATE_ENUM)        } SOS_scope;
 typedef enum { FOREACH_LAYER(GENERATE_ENUM)        } SOS_layer;
 typedef enum { FOREACH_NATURE(GENERATE_ENUM)       } SOS_nature;
 typedef enum { FOREACH_RETAIN(GENERATE_ENUM)       } SOS_retain;
+typedef enum { FOREACH_LOCALE(GENERATE_ENUM)       } SOS_locale;
 
 static const char *SOS_ROLE_string[] =         { FOREACH_ROLE(GENERATE_STRING)         };
 static const char *SOS_TARGET_string[] =       { FOREACH_TARGET(GENERATE_STRING)       };
@@ -193,6 +211,7 @@ static const char *SOS_STATUS_string[] =       { FOREACH_STATUS(GENERATE_STRING)
 static const char *SOS_MSG_TYPE_string[] =     { FOREACH_MSG_TYPE(GENERATE_STRING)     };
 static const char *SOS_FEEDBACK_string[] =     { FOREACH_FEEDBACK(GENERATE_STRING)     };
 static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
+static const char *SOS_VOLUME_string[] =       { FOREACH_VOLUME(GENERATE_STRING)       };
 static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
 static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
 static const char *SOS_VAL_SYNC_string[] =     { FOREACH_VAL_SYNC(GENERATE_STRING)     };
@@ -206,6 +225,7 @@ static const char *SOS_SCOPE_string[] =        { FOREACH_SCOPE(GENERATE_STRING) 
 static const char *SOS_LAYER_string[] =        { FOREACH_LAYER(GENERATE_STRING)        };
 static const char *SOS_NATURE_string[] =       { FOREACH_NATURE(GENERATE_STRING)       };
 static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)       };
+static const char *SOS_LOCALE_string[] =       { FOREACH_LOCALE(GENERATE_STRING)       };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
 #define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
@@ -219,7 +239,6 @@ typedef     uint64_t SOS_guid;
 #define SOS_GUID_FMT PRIu64
 
 
-
 typedef union {
     int                 i_val;
     long                l_val;
@@ -228,11 +247,53 @@ typedef union {
     void               *bytes;   /* Use addr. of SOS_buffer object. */
 } SOS_val;
 
+//
+//  SOS_position:
+//
+//        [Z]
+//         | [Y]
+//         | /
+//         |/
+//  . . ... ------[X]
+//        ,:
+//       . .
+//      .  .
+//
+typedef struct {
+    double              x;
+    double              y;
+    double              z;
+} SOS_position;
+
+//
+//  SOS_volume_hexahedron:
+//
+//          [p7]---------[p6]
+//         /________    / |
+//      [p4]--------[p5]  |
+//       ||  |       ||   |
+//       || [p3]-----||--[p2]
+//       ||/________ || /
+//      [p0]--------[p1]
+//
+typedef struct {
+    SOS_position        p0;
+    SOS_position        p1;
+    SOS_position        p2;
+    SOS_position        p3;
+    SOS_position        p4;
+    SOS_position        p5;
+    SOS_position        p6;
+    SOS_position        p7;
+} SOS_volume_hexahedron;
+
+
 typedef struct {
     double              pack;
     double              send;
     double              recv;
 } SOS_time;
+
 
 typedef struct {
     SOS_val_freq        freq;
@@ -279,6 +340,7 @@ typedef struct {
 typedef struct {
     void               *sos_context;
     pthread_mutex_t    *lock;
+    int                 sync_pending;
     SOS_guid            guid;
     char                guid_str[SOS_DEFAULT_STRING_LEN];
     int                 process_id;
@@ -360,6 +422,7 @@ typedef struct {
     int                 process_id;
     int                 thread_id;
     SOS_layer           layer;
+    SOS_locale          locale;
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;

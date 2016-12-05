@@ -115,6 +115,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     dlog(1, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->role == SOS_ROLE_CLIENT) {
+        SOS->config.locale = SOS_LOCALE_APPLICATION;
+
         if (SOS->config.runtime_utility == false) {
             dlog(1, "  ... launching libsos runtime thread[s].\n");
             SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
@@ -182,7 +184,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         SOS_buffer_init(SOS, &SOS->net.recv_part);
 
-        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_LEN;
+        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS->net.server_port   = getenv("SOS_CMD_PORT");
@@ -279,6 +281,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
          */
 
         dlog(1, "  ... skipping socket setup (becase we're the daemon).\n");
+        
     }
 
     SOS->status = SOS_STATUS_RUNNING;
@@ -349,26 +352,31 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
         exit(1);
     }
 
-    int more_to_send = 1;
+    int more_to_send      = 1;
+    int failed_send_count = 0;
+    int total_bytes_sent  = 0;
     retval = 0;
+
     SOS_TIME(time_start);
     while (more_to_send) {
-        retval += send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
-        if (retval >= send_buffer->len) { more_to_send = 0; }
-        if (retval == -1) {
-            SOS_TIME(time_out);
-            if (more_to_send < 2) {
-                dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
-                more_to_send = 2;
-            }
-            usleep(1000);
-            if ((time_out - time_start) > SOS_DEFAULT_TIMEOUT_SEC) {
-                dlog(0, "ERROR: Unable to communicate w/daemon for more than %lf seconds.  Terminating.\n",
-                     SOS_DEFAULT_TIMEOUT_SEC);
-                exit(EXIT_FAILURE);
-            }
+        if (failed_send_count > 8) {
+            dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts. Terminating.\n");
+            exit(EXIT_FAILURE);
         }
-    }
+        retval = send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
+        if (retval < 0) {
+            failed_send_count++;
+            dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
+            dlog(0, "ERROR:    ...retrying %d more times after a brief delay.\n", (8 - failed_send_count));
+            usleep(100000);
+            continue;
+        } else {
+            total_bytes_sent += retval;
+        }
+        if (total_bytes_sent >= send_buffer->len) {
+            more_to_send = 0;
+        }
+    }//while
 
     dlog(6, "Send complete, waiting for a reply...\n");
 
@@ -723,6 +731,8 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
     pthread_mutex_init(new_pub->lock, NULL);
     pthread_mutex_lock(new_pub->lock);
 
+    new_pub->sync_pending = 0; // Used by daemon/db to coordinate db injection.
+
     if (SOS->role != SOS_ROLE_CLIENT) {
         new_pub->guid = -1;
     } else {
@@ -783,8 +793,10 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
 
     }
 
-    dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
-    SOS_pipe_init((void *) SOS, &new_pub->snap_queue, sizeof(SOS_val_snap *));
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        dlog(6, "  ... configuring pub to use sos_context->task.val_intake for snap queue.\n");
+        SOS_pipe_init((void *) SOS, &new_pub->snap_queue, sizeof(SOS_val_snap *));
+    }
 
     dlog(6, "  ... initializing the name table for values.\n");
     new_pub->name_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
@@ -838,6 +850,31 @@ void SOS_strip_str( char *str ) {
     }
   
     return;
+}
+
+
+char* SOS_uint64_to_str(uint64_t val, char *result, int result_len) {
+    if (result_len < 128) {
+        snprintf(result, result_len, "ERROR: result buffer < 128");
+        return result;
+    } else {
+        snprintf(result, result_len, "%" SOS_GUID_FMT, val);
+    }
+
+    size_t i = 0;
+    size_t i2 = i + (i / 3);
+    int c = 0;
+    result[i2 + 1] = 0;
+
+    for(i = (strlen(result) - 1) ; i != 0; i-- ) {
+        result[i2--] = result[i];
+        c++;
+        if( c % 3 == 0 ) {
+            result[i2--] = ',';
+        }
+    }
+
+    return result;  
 }
 
 
@@ -1151,6 +1188,8 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
                     header.msg_from,
                     header.pub_guid);
 
+    SOS_buffer_pack(buffer, &offset, "i", snap_count);
+
     dlog(6, "     ... processing snaps extracted from the queue\n");
 
     for (snap_index = 0; snap_index < snap_count; snap_index++) {
@@ -1208,7 +1247,6 @@ void SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy
 void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SOS_pub *pub) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_val_snap_queue_from_buffer");
     SOS_msg_header header;
-    SOS_val_snap  *snap;
     char           unpack_fmt[SOS_DEFAULT_STRING_LEN] = {0};
     int            offset;
     int            string_len;
@@ -1239,14 +1277,23 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
     dlog(6, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(6, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
-    dlog(6, "     ... pushing snaps down onto the queue.\n");
+    int snap_index = 0;
+    int snap_count = 0;
+    SOS_buffer_unpack(buffer, &offset, "i", &snap_count);
 
-    pthread_mutex_lock(pub->lock);
-    pthread_mutex_lock( snap_queue->sync_lock );
+    if (snap_count < 1) {
+      dlog(1, "WARNING: Attempted to process buffer with ZERO val_snaps.  This is unusual.\n");
+      dlog(1, "WARNING:    ... since there is no work to do, returning.\n");
+      return;
+    }
 
-    while (offset < header.msg_size) {
-        snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
-        memset(snap, '\0', sizeof(SOS_val_snap));
+    SOS_val_snap *snap;
+    SOS_val_snap **snap_list;
+    snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
+
+    for (snap_index = 0; snap_index < snap_count; snap_index++) {
+        snap_list[snap_index] = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
+        snap = snap_list[snap_index];
 
         SOS_buffer_unpack(buffer, &offset, "igiiiidddl",
                           &snap->elem,
@@ -1262,7 +1309,7 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
 
         dlog(6, "    ... grabbing element[%d] @ %d/%d(%d) -> type == %d, val_len == %d\n", snap->elem, offset, header.msg_size, buffer->len, snap->type, snap->val_len);
 
-        switch (pub->data[snap->elem]->type) {
+        switch (snap->type) {
         case SOS_VAL_TYPE_INT:    SOS_buffer_unpack(buffer, &offset, "i", &snap->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   SOS_buffer_unpack(buffer, &offset, "l", &snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_unpack(buffer, &offset, "d", &snap->val.d_val); break;
@@ -1280,30 +1327,22 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             SOS_buffer_unpack(buffer, &offset, unpack_fmt, snap->val.bytes);
             break;
         default:
-            dlog(6, "ERROR: Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[snap->elem]->type, snap->elem, pub->guid);
+          dlog(6, "ERROR: Invalid type (%d) at index %d with pub->guid == %" SOS_GUID_FMT ".\n", snap->type, snap->elem, pub->guid);
             break;
         }
 
-        pipe_push(snap_queue->intake, (void *) &snap, 1);
-        snap_queue->elem_count++;
-
-        /* TODO: 
-         *   Do we want to make sure the pub[elem]->... stuff is updated
-         *   with the value from this snapshot as well?  Queue from buffer
-         *   is ONLY happening on the backplane for DAEMON and DB...
-         *
-         *   ...at the moment, there seems to be no use case for that in
-         *   either the DAEMON or the DB.
-         *
-         *             -Chad
-         */
-
     }//loop
 
-    dlog(6, "     ... done\n");
 
+    dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
+    pthread_mutex_lock(snap_queue->sync_lock);
+    pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
+    snap_queue->elem_count += snap_count;
     pthread_mutex_unlock( snap_queue->sync_lock );
-    pthread_mutex_unlock( pub->lock );
+
+    free(snap_list);
+
+    dlog(6, "     ... done\n");
 
     return;
 }
@@ -1677,7 +1716,9 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
 
         data->state = SOS_VAL_STATE_CLEAN;
 
-        /* Enqueue this value for writing out to local_sync and cloud_sync. */
+        /* NOTE: ALL values go into the snap queue, so this need not happen anymore.
+         *
+         * Enqueue this value for writing out to local_sync and cloud_sync.
         if (snap_queue != NULL) {
             dlog(7, "Enqueing a val_snap for \"%s\"\n", pub->data[elem]->name);
             SOS_val_snap *snap;
@@ -1688,7 +1729,7 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
             snap->mood     = data->meta.mood;
             snap->semantic = data->meta.semantic;
             snap->type     = data->type;
-            snap->val      = data->val;    /* Take over extant string. */
+            snap->val      = data->val;    // Take over extant string.
             snap->val_len  = data->val_len;
             snap->time     = data->time;
             snap->frame    = pub->frame;
@@ -1698,6 +1739,8 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
             snap_queue->elem_count++;
             pthread_mutex_unlock(snap_queue->sync_lock);
         }//if
+        */
+
     }//while
 
     pthread_mutex_unlock(pub->lock);

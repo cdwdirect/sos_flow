@@ -1,0 +1,10 @@
+
+SOAPY : Scalable Observation Analytics w/Python
+
+Collection of tools for (offline, direct) query of the SOS databases.
+...also features use of numpy/matplotlib for drawing various graphs.
+
+...EVENTUALLY will evolve into full-featured Python wrapper for
+libSOS that will enable online ad-hoc interaction with sosd instances
+in situ.
+

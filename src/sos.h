@@ -32,7 +32,7 @@
 #define SOS_DEFAULT_SERVER_PORT     22505
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
 #define SOS_DEFAULT_TIMEOUT_SEC     2.0
-#define SOS_DEFAULT_BUFFER_LEN      2048
+#define SOS_DEFAULT_BUFFER_MAX      2048
 #define SOS_DEFAULT_BUFFER_MIN      512
 #define SOS_DEFAULT_PIPE_DEPTH      100000
 #define SOS_DEFAULT_REPLY_LEN       128
@@ -83,9 +83,10 @@ extern "C" {
     void      SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy_snaps);
     void      SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SOS_pub *pub);
     void      SOS_strip_str(char *str);
+    char*     SOS_uint64_to_str(uint64_t val, char *result, int result_len);
     void      SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
-
     /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
+
 
 #ifdef __cplusplus
 }
@@ -95,7 +96,12 @@ extern "C" {
 #define SOS_max(a,b) ((a > b) ? a : b)
 #endif
 
-#define SOS_TIME(__SOS_now)  { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + t.tv_usec/1000000.0); }
+#ifndef SOS_min
+#define SOS_min(a,b) ((a < b) ? a : b)
+#endif
+
+#define SOS_TIME(__SOS_now)       { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6)); }
+
 
 #define SOS_LOCK_REENTRANT(__SOS_int_var, usec_delay)  {        \
     timespec __SOS_spinlock_ts;                                 \
@@ -104,10 +110,12 @@ extern "C" {
     while (__SOS_int) {                                         \
         nanosleep(__SOS_spinlock_ts, NULL)                      \
     }                                                           \
-    __SOS_int += 1;
+    __SOS_int_var += 1;                                         \
+    }
 
 #define SOS_UNLOCK_REENTRANT(__SOS_int_var) {           \
-    __SOS_int_var -= 1;
+    __SOS_int_var -= 1;                                 \
+    }
 
 #if (SOS_DEBUG < 0)
     #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
@@ -119,21 +127,23 @@ extern "C" {
         exit(EXIT_FAILURE);                                             \
     }
 #else
-    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
-    SOS_runtime *SOS;                                                   \
-    SOS = (SOS_runtime *) __SOS_context;                                \
-    if (SOS == NULL) {                                                  \
-        printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n"); \
-        exit(EXIT_FAILURE);                                             \
-    }                                                                   \
-    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                      \
-    sprintf(SOS_WHOAMI, "* ??? *");                                     \
-    switch (SOS->role) {                                                    \
-    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
-    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",   SOS->config.comm_rank, __SOS_str_func); break; \
-    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",      SOS->config.comm_rank, __SOS_str_func); break; \
-    default            : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_func); break; \
-    }
+#define SOS_SET_CONTEXT(__SOS_context, __SOS_str_funcname)                                                                 \
+    SOS_runtime *SOS;                                                                                                      \
+    SOS = (SOS_runtime *) __SOS_context;                                                                                   \
+    if (SOS == NULL) {                                                                                                     \
+                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!  (%s)\n",             \
+                             __SOS_str_funcname);                                                                          \
+                      exit(EXIT_FAILURE);                                                                                  \
+                      }                                                                                                    \
+    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                                                                         \
+    snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");                                                               \
+    switch (SOS->role) {                                                                                                   \
+    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
+    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",                 SOS->config.comm_rank, __SOS_str_funcname); break; \
+    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",                     SOS->config.comm_rank, __SOS_str_funcname); break; \
+    case SOS_ROLE_ANALYTICS : sprintf(SOS_WHOAMI, "analytics(%d).%s",              SOS->config.comm_rank, __SOS_str_funcname); break; \
+    default                 : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
+ }
 #endif
 
 

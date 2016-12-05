@@ -5,6 +5,10 @@ include_directories("${MPI_INCLUDE_PATH}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
    link_directories("${sos_flow_SOURCE_DIR}/lib")
 
+
+subdirs (sosa_mods)
+
+
 if(DEFINED SQLITE3_INCLUDE_DIR)
     include_directories("${SQLITE3_INCLUDE_DIR}")
 else()
@@ -85,6 +89,30 @@ if(CMAKE_THREAD_LIBS_INIT)
 endif()
 
 
+#TARGET ---> sosa
+#            (library)
+add_library("sosa" "sosa.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
+if(THREADS_HAVE_PTHREAD_ARG)
+  target_compile_options(TARGET "sosa" PROPERTY COMPILE_OPTIONS "-pthread")
+  target_compile_options(TARGET "sosa" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
+endif()
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries("sosa"
+    "sos_buffer"
+    "sos_qhashtbl"
+    "sos_pipe"
+    "${CMAKE_THREAD_LIBS_INIT}"
+    "${MPI_LIBRARIES}")
+endif()
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosa" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosa" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+
 #TARGET ---> sosd
 #            (daemon)
 if(SOSD_CLOUD_SYNC)
@@ -101,7 +129,8 @@ if(SOSD_CLOUD_SYNC)
       "sos_error.c"
       "sos_qhashtbl.c"
       "sos_buffer.c"
-      "sos_pipe.c")
+      "sos_pipe.c"
+      "sosa.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_MPI")
@@ -110,6 +139,7 @@ if(SOSD_CLOUD_SYNC)
       "sos_qhashtbl"
       "sos_buffer"
       "sos_pipe"
+      "sosa"
       "${MPI_LIBRARIES}"
       "${SQLITE3_LIBRARY}")
     if(APPLE)
@@ -137,7 +167,8 @@ if(SOSD_CLOUD_SYNC)
       "sos_error.c"
       "sos_qhashtbl.c"
       "sos_buffer.c"
-      "sos_pipe.c")
+      "sos_pipe.c"
+      "sosa.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_EVPATH")
@@ -146,6 +177,7 @@ if(SOSD_CLOUD_SYNC)
       "sos_qhashtbl"
       "sos_buffer"
       "sos_pipe"
+      "sosa"
       "${SQLITE3_LIBRARY}")
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
@@ -168,7 +200,8 @@ else()
     "sos_error.c"
     "sos_qhashtbl.c"
     "sos_buffer.c"
-    "sos_pipe.c")
+    "sos_pipe.c"
+    "sosa.c")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_STUBS")
   target_link_libraries("sosd"
@@ -176,6 +209,7 @@ else()
     "sos_qhashtbl"
     "sos_buffer"
     "sos_pipe"
+    "sosa"
     "${SQLITE3_LIBRARY}")
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.
@@ -193,10 +227,33 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosd" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+
+
+
 #TARGET ---> sosd_stop
-#            (command-line interface)
+#            (shut down the daemon)
 add_executable("sosd_stop" "sosd_stop.c")
-target_link_libraries("sosd_stop" "sos")
+target_link_libraries("sosd_stop" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosd_stop" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosd_stop" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+#TARGET ---> sosd_probe
+#            (get daemon satus and display it)
+add_executable("sosd_probe" "sosd_probe.c")
+target_link_libraries("sosd_probe" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("sosd_probe" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("sosd_probe" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
 
 
 #TARGET ---> demo_app
@@ -209,6 +266,36 @@ endif()
 if(MPI_LINK_FLAGS)
   set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
+
+
+
+
+#TARGET ---> demo_sweep
+#            (demonstration / example)
+add_executable("demo_sweep" "demo_sweep.c")
+target_link_libraries("demo_sweep" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("demo_sweep" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("demo_sweep" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
+
+
+
+
+#TARGET ---> proc_app
+#            (demonstration / example)
+add_executable("proc_app" "proc_app.c")
+target_link_libraries("proc_app" "sos" "${MPI_LIBRARIES}")
+if(MPI_COMPILE_FLAGS)
+  set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+endif()
+if(MPI_LINK_FLAGS)
+  set_target_properties("proc_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+endif()
+
 
 
 

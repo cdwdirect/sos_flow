@@ -1,0 +1,55 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then 
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then 
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then 
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+{
+echo ""
+echo ""
+echo "*** Terminating any prior daemons using [sosd_stop]..."
+echo ""
+echo ""
+$SOS_ROOT/bin/sosd_stop
+echo ""
+echo ""
+echo "*** Starting [sosd] daemon..."
+echo ""
+echo ""
+$SOS_ROOT/src/mpi.start.2 &
+sleep 3
+echo ""
+echo ""
+SOS_DEMO_APP_CMD="-np 3 ${SOS_ROOT}/bin/demo_app -i 100 -m 2000000 -p 20"
+echo "*** Running [demo_app]...   mpirun ${SOS_DEMO_APP_CMD}"
+mpirun ${SOS_DEMO_APP_CMD}
+echo ""
+echo ""
+echo ""
+echo "*** All demo_app ranks are finished, sleep(1) and then shut down the daemon."
+sleep 1
+echo ""
+echo ""
+echo ""
+#echo "*** Shutting down the daemon..."
+#echo ""
+#echo ""
+#$SOS_ROOT/bin/sosd_stop
+echo "SKIPPING SHUTDOWN!"
+echo ""
+echo ""
+echo ""
+#echo "*** Pausing for I/O flush (sleep 2) and displaying [showdb] results..."
+#echo ""
+#echo ""
+#sleep 2
+#$SOS_ROOT/src/showdb
+#echo ""
+}

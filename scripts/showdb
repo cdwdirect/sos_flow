@@ -1,0 +1,41 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+ls -AblFs $SOS_WORK/*.db
+
+PUBLIST_SQL=""
+PUBLIST_SQL="${PUBLIST_SQL}  SELECT    row_id, guid, title, process_id, comm_rank, node_id, prog_name "
+PUBLIST_SQL="${PUBLIST_SQL}  FROM      tblpubs "
+PUBLIST_SQL="${PUBLIST_SQL}  WHERE     row_id IN (SELECT MAX(row_id) FROM tblpubs GROUP BY title, process_id, thread_id) "
+PUBLIST_SQL="${PUBLIST_SQL}  ORDER BY  prog_name, comm_rank, title;"
+
+for db in $SOS_WORK/sosd.*.db ; do
+    echo "[##########################################################################]"
+    echo "[##########################################################################]"
+    echo "[####]: ${db}"
+#    echo -n "[####]: count(distinct guid) = "
+#    sqlite3 ${db} "select count(distinct guid) from tblvals;"
+    echo -n "[####]: max(tblvals.rowid)           = "
+    sqlite3 ${db} "select max(rowid) from tblvals;"
+    sqlite3 ${db} -header -column "select * from tblvals where rowid < 5;"
+    echo "..."
+    if [ "x$1" == "x" ] ; then
+        echo -n "[####]: count(distinct guid) from tblpubs = "
+        sqlite3 ${db} "select count(distinct guid) from tblpubs;"
+        sqlite3 ${db} -header -column "${PUBLIST_SQL}"
+    fi
+    echo ""
+    echo ""
+    echo ""
+done
+

@@ -10,6 +10,7 @@
 #include "sos.h"
 #include "sos_debug.h"
 #include "sosd.h"
+#include "sosa.h"
 
 
 /* Required if included by C++ code. */
@@ -22,9 +23,10 @@ void SOSD_db_close_database(void);
 void SOSD_db_create_tables(void);
 void SOSD_db_insert_pub(SOS_pub *pub);
 void SOSD_db_insert_data(SOS_pub *pub);
-void SOSD_db_insert_vals(SOS_pub *pub, SOS_pipe *from_queue, SOS_pipe *optional_re_queue);
+void SOSD_db_insert_vals(SOS_pipe *from_queue, SOS_pipe *optional_re_queue);
 void SOSD_db_transaction_begin(void);
 void SOSD_db_transaction_commit(void);
+void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response);
 
 #define CALL_SQLITE(f) {						\
     int i;								\

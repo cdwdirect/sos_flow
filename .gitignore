@@ -6,3 +6,4 @@ lib
 examples/synthetic_1/tau.conf
 rebaseme.sh
 sourceme.sh
+build*

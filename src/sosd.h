@@ -5,6 +5,8 @@
 #include <signal.h>
 #include <time.h>
 
+#include <mpi.h>
+
 #include "sos.h"
 #include "sos_types.h"
 
@@ -29,47 +31,54 @@
 
 #define SOSD_LOCAL_SYNC_WAIT_SEC     0
 #define SOSD_CLOUD_SYNC_WAIT_SEC     0
-#define SOSD_DB_SYNC_WAIT_SEC        1
+#define SOSD_DB_SYNC_WAIT_SEC        0
 
-/* 0.05 seconds: 50000000 */
-#define SOSD_LOCAL_SYNC_WAIT_NSEC    500
-#define SOSD_CLOUD_SYNC_WAIT_NSEC    50000000
-#define SOSD_DB_SYNC_WAIT_NSEC       500000
+/* 0.05 seconds: 50000000, default for cloud/db=5000 */
+#define SOSD_LOCAL_SYNC_WAIT_NSEC    0
+#define SOSD_CLOUD_SYNC_WAIT_NSEC    3000
+#define SOSD_DB_SYNC_WAIT_NSEC       5000
 
-
-
-#define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
-
-#define SOSD_PACK_ACK(__buffer) {                                       \
-        if (__buffer == NULL) {                                         \
-            dlog(0, "ERROR: You called SOSD_PACK_ACK() on a NULL buffer!  Terminating.\n"); \
-            exit(EXIT_FAILURE);                                         \
-        }                                                               \
-        SOS_msg_header header;                           \
-        int offset;                                      \
-        dlog(7, "SOSD_PACK_ACK used to assemble a reply.\n");   \
-        memset(&header, '\0', sizeof(SOS_msg_header));   \
-        header.msg_size = -1;                            \
-        header.msg_type = SOS_MSG_TYPE_ACK;              \
-        header.msg_from = 0;                             \
-        header.pub_guid = 0;                             \
-        offset = 0;                                      \
-        SOS_buffer_pack(__buffer, &offset, "iigg",       \
-                                      header.msg_size,   \
-                                      header.msg_type,   \
-                                      header.msg_from,   \
-                                      header.pub_guid);  \
-        header.msg_size = offset;                        \
-        offset = 0;                                      \
-        SOS_buffer_pack(__buffer, &offset, "i",          \
-                        header.msg_size);                \
-    }
 
 
 typedef struct {
     SOS_msg_type        type;
     SOS_pub            *pub;
 } SOSD_db_task;
+
+
+/*
+ *  NOTE: Some stats will be looked up directly from their memory
+ *        location, such as the current depth of the DB commit queue.
+ *
+ *        Also, the sync_lock is only used if SOS_DEBUG is > 0.
+ *
+ *        Use:   SOSD_countof(buffer_bytes_on_heap -= 1024)
+ */
+typedef struct {
+    pthread_mutex_t    *lock_stats;   
+    uint64_t            thread_local_wakeup;   
+    uint64_t            thread_cloud_wakeup;   
+    uint64_t            thread_db_wakeup;      
+    uint64_t            feedback_checkin_messages;   
+    uint64_t            socket_messages;       
+    uint64_t            socket_bytes_recv;         
+    uint64_t            socket_bytes_sent;        
+    uint64_t            mpi_sends;            
+    uint64_t            mpi_bytes;           
+    uint64_t            db_transactions;      
+    uint64_t            db_insert_announce;     
+    uint64_t            db_insert_announce_nop;
+    uint64_t            db_insert_publish;      
+    uint64_t            db_insert_publish_nop;  
+    uint64_t            db_insert_val_snaps;     
+    uint64_t            db_insert_val_snaps_nop;  
+    uint64_t            buffer_creates;      
+    uint64_t            buffer_bytes_on_heap;   
+    uint64_t            buffer_destroys;      
+    uint64_t            pipe_creates;        
+    uint64_t            pub_handles;          
+} SOSD_counts;
+
 
 typedef struct {
     int                 server_socket_fd;
@@ -98,12 +107,15 @@ typedef struct {
     int                *cloud_sync_target_set;
     int                 cloud_sync_target_count;
     int                 cloud_sync_target;
+    SOSD_counts         countof;
+    MPI_Comm            comm;
 } SOSD_runtime;
 
 typedef struct {
     char               *file;
     int                 ready;
     pthread_mutex_t    *lock;
+    SOS_pipe           *snap_queue;
 } SOSD_db;
 
 typedef struct {
@@ -145,7 +157,8 @@ extern "C" {
 #ifdef SOSD_CLOUD_SYNC
     /* All cloud_sync modules must have the following signatures: */
     extern int   SOSD_cloud_init(int *argc, char ***argv);
-    extern int   SOSD_cloud_send(SOS_buffer *buffer);
+    extern int   SOSD_cloud_start(void);
+    extern int   SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply);
     extern void  SOSD_cloud_enqueue(SOS_buffer *buffer);
     extern void  SOSD_cloud_fflush(void);
     extern int   SOSD_cloud_finalize(void);
@@ -174,7 +187,9 @@ extern "C" {
     void  SOSD_handle_val_snaps(SOS_buffer *buffer);
     void  SOSD_handle_shutdown(SOS_buffer *buffer);
     void  SOSD_handle_check_in(SOS_buffer *buffer);
+    void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
+    void  SOSD_handle_sosa_query(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
@@ -188,6 +203,49 @@ extern "C" {
 #ifdef __cplusplus
 }
 #endif
+
+
+#define SOSD_countof(__stat__plus_or_minus__value) {                    \
+        if (SOS_DEBUG > 0) {                                            \
+            pthread_mutex_lock(SOSD.daemon.countof.lock_stats);         \
+        }                                                               \
+        SOSD.daemon.countof.__stat__plus_or_minus__value;               \
+        if (SOS_DEBUG > 0) {                                            \
+            pthread_mutex_unlock(SOSD.daemon.countof.lock_stats);       \
+        }                                                               \
+    }
+
+
+#define SOSD_check_sync_saturation(__pub_mon) (((double) __pub_mon->ring->elem_count / (double) __pub_mon->ring->elem_max) > SOSD_RING_QUEUE_TRIGGER_PCT) ? 1 : 0
+
+#define SOSD_PACK_ACK(__buffer) {                                       \
+        if (__buffer == NULL) {                                         \
+            dlog(0, "ERROR: You called SOSD_PACK_ACK() on a NULL buffer!  Terminating.\n"); \
+            exit(EXIT_FAILURE);                                         \
+        }                                                               \
+        SOS_msg_header header;                           \
+        int offset;                                      \
+        dlog(7, "SOSD_PACK_ACK used to assemble a reply.\n");   \
+        memset(&header, '\0', sizeof(SOS_msg_header));   \
+        header.msg_size = -1;                            \
+        header.msg_type = SOS_MSG_TYPE_ACK;              \
+        header.msg_from = 0;                             \
+        header.pub_guid = 0;                             \
+        offset = 0;                                      \
+        SOS_buffer_pack(__buffer, &offset, "iigg",       \
+                                      header.msg_size,   \
+                                      header.msg_type,   \
+                                      header.msg_from,   \
+                                      header.pub_guid);  \
+        header.msg_size = offset;                        \
+        offset = 0;                                      \
+        SOS_buffer_pack(__buffer, &offset, "i",          \
+                        header.msg_size);                \
+    }
+
+
+
+
 
 
 #endif //SOS_SOSD_H

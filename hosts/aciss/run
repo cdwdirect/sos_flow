@@ -1,0 +1,41 @@
+#!/bin/bash
+if [ "x${SOS_ROOT}" == "x" ] ; then
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+if [ "x$1" == "x" ] ; then
+  echo ""
+  echo "ERROR: No PBS script specified.  Please elect from the available allocations:"
+  echo ""
+  ls -1 *.pbs
+  echo ""
+  echo "USAGE: ./run <jobfile.pbs>"
+  echo ""
+  kill -INT $$
+fi
+echo ""
+echo "SOS_ROOT.......: ${SOS_ROOT}"
+echo "SOS_WORK.......: ${SOS_WORK}"
+echo "SOS_CMD_PORT...: ${SOS_CMD_PORT}"
+echo ""
+echo "Job script.....: $1"
+echo ""
+read -t 10 -p "Proceed?  (y/N)  (10 sec timeout)  --> " KEY_CONFIRM
+if [ "x${KEY_CONFIRM}" == "xy" ] ; then
+    echo "Submitting the script..."
+    qsub -v SOS_ROOT,SOS_WORK,SOS_CMD_PORT $1
+    echo ""
+    echo "Done.  ($1 submitted)"
+    echo ""
+else
+  echo "Cancelled."
+  kill -INT $$
+fi

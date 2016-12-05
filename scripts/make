@@ -1,0 +1,64 @@
+#!/bin/bash -e
+if [ "x${SOS_ROOT}" == "x" ] ; then
+  echo "Please set the SOS_ROOT environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_WORK}" == "x" ] ; then
+  echo "Please set the SOS_WORK environment variable."
+  kill -INT $$
+fi
+if [ "x${SOS_CMD_PORT}" == "x" ] ; then
+  echo "Please set the SOS_CMD_PORT environment variable."
+  kill -INT $$
+fi
+if [ "$1" == "clean" ]
+then
+   echo "Removing temp~ file cruft."
+   rm -f *~
+   rm -f ./sosa_mods/*~
+   echo "Removing all binary objects."
+   cd ..
+   rm -rf ./bin
+   mkdir bin
+   rm -rf ./lib
+   mkdir lib
+   cd bin
+   touch .keep
+   cd ..
+   cd lib
+   touch .keep
+   cd ..
+   cd src
+   echo "Wiped the ../bin folder, ../lib folder, and all binary contents.  Type './make' to rebuild."
+else
+    cd ..
+    cd bin
+      others=""
+      if [ "x${NERSC_HOST}" != "x" ] ; then
+        others="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpichf90_gnu_51_mt.so"
+      fi
+    if [ ! -f CMakeCache.txt ] ; then
+      cmake \
+         -G "Unix Makefiles" \
+         -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+         --prefix=$SOS_ROOT/bin \
+         -DCMAKE_C_COMPILER=gcc \
+         -DCMAKE_CXX_COMPILER=g++ \
+         -DUSE_TAU=TRUE \
+         -DTAU_ROOT=$HOME/src/tau2 \
+         -DTAU_ARCH=x86_64 \
+         -DTAU_OPTIONS=-mpi-pthread \
+         $others \
+         ..
+    fi
+    #make -j
+    make VERBOSE=1
+    #cd ..
+    #cd src
+    #echo ""
+    #echo "Running test suite..."
+    #echo "    --> For detailed memory tests: ${SOS_ROOT}/tests/grindit"
+    #echo ""
+    #../bin/test
+    #echo ""
+fi;

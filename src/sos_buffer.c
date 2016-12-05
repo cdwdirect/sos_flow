@@ -18,6 +18,9 @@
 #include "sos_buffer.h"
 #include "sos_debug.h"
 
+#ifdef SOSD_DAEMON_SRC
+#include "sosd.h"
+#endif
 
 
 // Macros for packing floats and doubles.
@@ -30,7 +33,7 @@
 
 
 void SOS_buffer_init(void *sos_context, SOS_buffer **buffer_obj) {
-    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_LEN, true);
+    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_MAX, true);
     return;
 }
 
@@ -73,6 +76,11 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
             dlog(5, "   ... done.\n");
         }
     }
+
+    #ifdef SOSD_DAEMON_SRC
+    SOSD_countof(buffer_creates++);
+    SOSD_countof(buffer_bytes_on_heap += buffer->max);
+    #endif
 
     dlog(5, "   ...done.\n");
 
@@ -118,6 +126,11 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
         exit(EXIT_FAILURE);
     }
 
+    #ifdef SOSD_DAEMON_SRC
+    SOSD_countof(buffer_destroys++);
+    SOSD_countof(buffer_bytes_on_heap -= buffer->max);
+    #endif
+
     dlog(8, "Destroying buffer:\n");
     if (buffer->is_locking) {
         SOS_buffer_lock(buffer);
@@ -148,17 +161,18 @@ void SOS_buffer_wipe(SOS_buffer *buffer) {
 void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
 
-    dlog(8, "[zzz] Growing buffer(%ld)->max == %d  +  %zd   (called by: %s)\n",
-         (long) buffer, buffer->max, grow_amount, from_func);
-
     buffer->max += grow_amount;
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
 
     if (buffer->data == NULL) {
-        dlog(0, "ERROR: Unable to expand buffer!\n");
-        dlog(0, "ERROR: Requested buffer->max == %d\n", buffer->max);
+        dlog(0, "ERROR: Unable to expand buffer!  (called by: %s)\n", from_func);
+        dlog(0, "ERROR: Requested grow_amount == %zd\n", grow_amount);
         exit(EXIT_FAILURE);
     } else {
+
+        #ifdef SOSD_DAEMON_SRC
+        SOSD_countof(buffer_bytes_on_heap += grow_amount);
+        #endif
         dlog(8, "   ... done.\n");
     }
     return;
@@ -171,6 +185,8 @@ void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
 
     if (buffer->max == to_new_max) return;
 
+    int original_max = buffer->max;
+
     dlog(5, "Trimming buffer:\n");
     dlog(5, "   ... realloc()'ing from %d to %zd bytes.\n", buffer->max, to_new_max);
     buffer->data = (unsigned char *) realloc(buffer->data, to_new_max);
@@ -178,6 +194,10 @@ void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
         dlog(0, "ERROR: Unable to trim buffer!\n");
         exit(EXIT_FAILURE);
     } else {
+        buffer->max = to_new_max;
+        #ifdef SOSD_DAEMON_SRC
+        SOSD_countof(buffer_bytes_on_heap -= (original_max - to_new_max));
+        #endif
         dlog(5, "   ... done.\n");
     }
     return;
@@ -575,7 +595,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             if (maxlen > 0 && len > maxlen) count = maxlen - 1;
             else count = len;
             if (s == NULL) {
-                dlog(8, "WARNING: Having to calloc() space for a string, NULL (char *) provided.   [STRING]\n");
+                dlog(0, "WARNING: Having to calloc() space for a string, NULL (char *) provided.   [STRING]\n");
                 s = (char *) calloc((count + 1), sizeof(char));
             }
             if (count > 0) {
@@ -618,6 +638,23 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
     return packed_bytes;
 }
 
+
+// NOTE: Shortcut routine, since this sort of thing is helpful all over SOS.
+void SOS_buffer_unpack_safestr(SOS_buffer *buffer, int *offset, char **dest) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack_string_safely");
+
+    int tmp_offset = *offset;
+    int str_length  = 0;
+
+    SOS_buffer_unpack(buffer, &tmp_offset, "i", &str_length);
+    
+    if (*dest != NULL) { free(*dest); }
+    *dest = calloc((1 + str_length), sizeof(unsigned char));
+
+    SOS_buffer_unpack(buffer, offset, "s", *dest);
+
+    return;
+}
 
 
 
