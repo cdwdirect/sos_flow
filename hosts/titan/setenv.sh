@@ -1,5 +1,5 @@
 # Absolute path this script is in, thus /home/user/bin
-SCRIPTPATH=mydir="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"
+SCRIPTPATH="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"
 echo $SCRIPTPATH
 BASEDIR=$SCRIPTPATH/../..
 echo $BASEDIR
