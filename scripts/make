@@ -11,28 +11,23 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
   echo "Please set the SOS_CMD_PORT environment variable."
   kill -INT $$
 fi
+if [ "x${SOS_BUILD_DIR}" == "x" ] ; then
+  echo "Please run the setenv.sh script for your environment!"
+  kill -INT $$
+fi
+export SOS_BUILT_FROM=$(pwd)
 if [ "$1" == "clean" ]
 then
    echo "Removing temp~ file cruft."
    rm -f *~
-   rm -f ./sosa_mods/*~
+   rm -f $SOS_ROOT/src/*~
+   rm -f $SOS_ROOT/src/sosa_mods/*~
    echo "Removing all binary objects."
-   cd ..
-   rm -rf ./bin
-   mkdir bin
-   rm -rf ./lib
-   mkdir lib
-   cd bin
-   touch .keep
-   cd ..
-   cd lib
-   touch .keep
-   cd ..
-   cd src
-   echo "Wiped the ../bin folder, ../lib folder, and all binary contents.  Type './make' to rebuild."
+   rm -rf $SOS_BUILD_DIR
+   echo "Wiped the $SOS_BUILD_DIR/build folder.  Type './make' to rebuild."
 else
-    cd ..
-    cd bin
+    mkdir -p $SOS_BUILD_DIR
+    cd $SOS_BUILD_DIR
       others=""
       if [ "x${NERSC_HOST}" != "x" ] ; then
         others="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpichf90_gnu_51_mt.so"
@@ -41,7 +36,7 @@ else
       cmake \
          -G "Unix Makefiles" \
          -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-         --prefix=$SOS_ROOT/bin \
+         --prefix=$SOS_BUILD_DIR/bin \
          -DCMAKE_C_COMPILER=gcc \
          -DCMAKE_CXX_COMPILER=g++ \
          -DUSE_TAU=TRUE \
@@ -61,4 +56,5 @@ else
     #echo ""
     #../bin/test
     #echo ""
+    cd $SOS_BUILT_FROM
 fi;

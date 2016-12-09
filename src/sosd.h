@@ -39,6 +39,9 @@
 #define SOSD_DB_SYNC_WAIT_NSEC       5000
 
 
+#define SOSD_DEFAULT_CENTROID_COUNT  12
+
+
 
 typedef struct {
     SOS_msg_type        type;
