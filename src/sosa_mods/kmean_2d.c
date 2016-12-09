@@ -2,9 +2,6 @@
 /*
  * kmean_2d.c
  *
- *   NOTE: -r <iter_radii> is a % of a numeric space defined by MPI SIZE x MPI SIZE
- *
- *
  */
 
 #include <stdio.h>
@@ -16,12 +13,22 @@
 
 #include <mpi.h>
 
-#define USAGE "./kmean_2d -n <iter_count> -d <iter_delay_usec> -p <iter_points> -r <iter_radii>"
+#define USAGE "./kmean_2d -n <iter_count> -d <iter_delay_usec> -p <iter_points> -r <iter_radii> -o <offset_max>"
+
+// Options:
+//
+#define CIRCLES 1
+#define SQUARES 2
+//
+#define MODE SQUARES
+//
+
 
 int    g_iter_count;
 int    g_iter_delay;
 int    g_iter_point;
 double g_iter_radii;
+double g_offset_max;
 
 #include "sos.h"
 #include "sos_debug.h"
@@ -35,10 +42,16 @@ double randf(double upto_maxval) {
 void gen_xy(double *X, double *Y, double radius) {
     double ang, r;
 
-    ang = randf(2 * M_PI);
-    r = randf(radius);
-    *X = r * cos(ang);
-    *Y = r * sin(ang);
+    if (MODE == CIRCLES) {
+        ang = randf(2 * M_PI);
+        r = randf(radius);
+        *X = r * cos(ang);
+        *Y = r * sin(ang);
+    } else {
+        *X = randf(radius);
+        *Y = randf(radius);
+    }
+
     return;
 }
 
@@ -64,6 +77,7 @@ int main(int argc, char *argv[]) {
     g_iter_delay = -1;
     g_iter_point = -1;
     g_iter_radii = -1.0;
+    g_offset_max = -1.0;
 
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
@@ -77,7 +91,9 @@ int main(int argc, char *argv[]) {
             g_iter_point = strtod(argv[next_elem], NULL);
          } else if ( strcmp(argv[elem], "-r"  ) == 0) {
             g_iter_radii = strtold(argv[next_elem], NULL);
-         } else if ( strcmp(argv[elem], "-d"  ) == 0) {
+         } else if ( strcmp(argv[elem], "-o"  ) == 0) {
+            g_offset_max = strtold(argv[next_elem], NULL);
+          } else if ( strcmp(argv[elem], "-d"  ) == 0) {
             g_iter_delay = strtod(argv[next_elem], NULL);
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
@@ -88,7 +104,8 @@ int main(int argc, char *argv[]) {
     if ((g_iter_count < 1)
         || (g_iter_delay < 0)
         || (g_iter_point < 0)
-        || (g_iter_radii < 0.000)) {
+        || (g_iter_radii < 0.000)
+        || (g_offset_max < 0.000)) {
         fprintf(stderr, "%s\n", USAGE); exit(1);
     }
 
@@ -110,7 +127,7 @@ int main(int argc, char *argv[]) {
 
     if (rank == 0) { dlog(0, "Registering points...\n"); }
 
-    pub = SOS_pub_create(my_sos, "kmeans_2d", SOS_NATURE_KMEAN_COORDS);
+    pub = SOS_pub_create(my_sos, "kmeans_2d", SOS_NATURE_KMEAN_2D);
     if (rank == 0) { dlog(0, "  ... pub->guid  = %ld\n", pub->guid); }
 
     int iter;
@@ -119,8 +136,8 @@ int main(int argc, char *argv[]) {
     SOS_TIME( time_start );
     for (iter = 0; iter < g_iter_count; iter++) {
         usleep(g_iter_delay);
-        offset_x = g_iter_radii + (g_iter_radii * randf((double)size - g_iter_radii));
-        offset_y = g_iter_radii + (g_iter_radii * randf((double)size - g_iter_radii));
+        offset_x = (randf(abs(g_offset_max - g_iter_radii)));
+        offset_y = (randf(abs(g_offset_max - g_iter_radii)));
         for (pair = 0; pair < g_iter_point; pair++) {
             gen_xy(&x, &y, g_iter_radii);
             x += offset_x;

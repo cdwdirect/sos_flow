@@ -1043,7 +1043,6 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
 
     case SOS_VAL_TYPE_STRING:
         snap->val.c_val = strndup(data->val.c_val, SOS_DEFAULT_STRING_LEN);
-        printf("Enqueued: %s\n", snap->val.c_val); fflush(stdout);
         break;
 
     case SOS_VAL_TYPE_INT:
@@ -1325,7 +1324,6 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         case SOS_VAL_TYPE_STRING:
             snap->val.c_val = (char *) malloc (snap->val_len * sizeof(char));
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
-            printf("[STRING] Extracted val_snap string: %s\n", snap->val.c_val); fflush(stdout);
             break;
         case SOS_VAL_TYPE_BYTES:
             memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);

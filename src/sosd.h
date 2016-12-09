@@ -25,6 +25,8 @@
 #define SOSD_DEFAULT_LOG_FILE        "sosd.log"
 #define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
 
+#define SOSD_DEFAULT_K_MEAN_CENTERS  24
+
 #define SOSD_PUB_ANN_DIRTY           66
 #define SOSD_PUB_ANN_LOCAL           77
 #define SOSD_PUB_ANN_CLOUD           88
@@ -84,6 +86,14 @@ typedef struct {
 
 
 typedef struct {
+    SOS_guid            guid;
+    double              x;
+    double              y;
+    void               *next;
+} SOSD_km2d_point;
+
+
+typedef struct {
     int                 server_socket_fd;
     int                 client_socket_fd;
     int                 port_number;
@@ -130,9 +140,19 @@ typedef struct {
 } SOSD_sync_context;
 
 typedef struct {
+    SOS_guid             guid;
+    SOSD_km2d_point     *point_head;
+    long                 point_count;
+    SOSD_km2d_point     *centroid_head;
+    int                  centroid_count;
+} SOSD_km2d_tracker;
+
+
+typedef struct {
     SOSD_sync_context    local;
     SOSD_sync_context    cloud;
     SOSD_sync_context    db;
+    qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
 
 typedef struct {
@@ -193,6 +213,7 @@ extern "C" {
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
     void  SOSD_handle_sosa_query(SOS_buffer *buffer);
+    void  SOSD_handle_kmean_data(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );

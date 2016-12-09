@@ -4,5 +4,7 @@ if [ "x${SOS_ENV_SET}" == "x" ] ; then
   kill -INT $$
 fi
 echo ""; echo "*** Launching the sosd_stop tool..."; echo ""
-
 $SOS_BUILD_DIR/bin/sosd_stop
+killall sosa
+killall sosd
+

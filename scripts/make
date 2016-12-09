@@ -47,7 +47,7 @@ else
          ..
     fi
     #make -j
-    make VERBOSE=1
+    make VERBOSE=0
     #cd ..
     #cd src
     #echo ""

@@ -410,6 +410,7 @@ void* SOSD_THREAD_local_sync(void *args) {
         case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer); break;
         case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer); break;
         case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (buffer); break;
+        case SOS_MSG_TYPE_KMEAN_DATA: SOSD_handle_kmean_data (buffer); break;
         default:
             dlog(0, "ERROR: An invalid message type (%d) was placed in the local_sync queue!\n", header.msg_type);
             dlog(0, "ERROR: Destroying it.\n");
@@ -643,6 +644,46 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
 
 
+
+void SOSD_handle_kmean_data(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_kmean_data");
+    // For parsing the buffer:
+    char             pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    SOS_pub         *pub;
+    SOS_msg_header   header;
+    int              offset;
+    int              rc;
+    // For unpacking / using the contents:
+    SOS_guid         guid;
+    SOSD_km2d_point  point;
+        
+    dlog(5, "header.msg_type = SOS_MSG_TYPE_KMEAN_DATA\n");
+
+    offset = 0;
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+                      &header.msg_size,
+                      &header.msg_type,
+                      &header.msg_from,
+                      &header.pub_guid);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.pub_guid);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+
+    if (pub == NULL) {
+        dlog(0, "ERROR: No pub exists for header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid); 
+        dlog(0, "ERROR: Destroying message and returning.\n");
+        SOS_buffer_destroy(buffer);
+        return;
+    }
+
+    //...
+
+    dlog(5, "Nothing to do... returning...");
+
+    return;
+}
+
+
+
 void SOSD_handle_sosa_query(SOS_buffer *buffer) { 
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_query");
     SOS_msg_header header;
@@ -748,7 +789,33 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     //}
 
     dlog(5, "  ... done.\n");
-        
+
+
+    // Spin off the k-means information to be treated
+    //   in parallel with its database injection:
+    if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
+        && (SOS->role == SOS_ROLE_DAEMON)) {
+        dlog(4, "Re-queing the k-means task for processing...\n");
+        SOS_buffer *copy;
+        // Make a copy of this buffer.
+        SOS_buffer_clone(&copy, buffer); 
+        // Set it to be the KMEAN type of data:
+        offset = 0;
+        header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
+        SOS_buffer_pack(copy, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+        // Enqueue it to be handled:
+        pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+        pipe_push(SOSD.sync.local.queue->intake, (void *)&copy, 1);
+        SOSD.sync.local.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+    }
+
+
+
     return;
 }
 
@@ -953,7 +1020,32 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     } else {
         pthread_mutex_unlock(pub->lock);
     }
-    
+
+    // Spin off the k-means information to be treated
+    //   in parallel with its database injection:
+    if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
+        && (SOS->role == SOS_ROLE_DAEMON)) {
+        dlog(4, "Re-queing the k-means task for processing...\n");
+        SOS_buffer *copy;
+        // Make a copy of this buffer.
+        SOS_buffer_clone(&copy, buffer); 
+        // Set it to be the KMEAN type of data:
+        offset = 0;
+        header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
+        SOS_buffer_pack(copy, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+        // Enqueue it to be handled:
+        pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+        pipe_push(SOSD.sync.local.queue->intake, (void *) &copy, 1);
+        SOSD.sync.local.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+     }
+
+
+
     return;
 }
 

@@ -53,7 +53,7 @@
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
     MSG_TYPE(SOS_MSG_TYPE_PROBE)                \
     MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
-    MSG_TYPE(SOS_MSG_TYPE_KMEANS)               \
+    MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 
@@ -165,7 +165,7 @@
     NATURE(SOS_NATURE_SUPPORT_EXEC)             \
     NATURE(SOS_NATURE_SUPPORT_FLOW)             \
     NATURE(SOS_NATURE_CONTROL_FLOW)             \
-    NATURE(SOS_NATURE_KMEAN_COORDS)             \
+    NATURE(SOS_NATURE_KMEAN_2D)                 \
     NATURE(SOS_NATURE_SOS)                      \
     NATURE(SOS_NATURE___MAX)
         
@@ -428,6 +428,7 @@ typedef struct {
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;
+
 
 typedef struct {
     void               *sos_context;

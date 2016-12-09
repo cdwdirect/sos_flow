@@ -15,6 +15,10 @@ if [ "x${SOS_BUILD_DIR}" == "x" ] ; then
   echo "Please source the setenv.sh script for your environment."
   kill -INT $$
 fi
+if [ "x${SOS_ENV_SET}" == "x" ] ; then
+  echo "Please configure your environment for SOS.   (source <sos_root>/hosts/<hostname>/setenv.sh)"
+  kill -INT $$
+fi
 mkdir -p $SOS_WORK
 if [ -z $1 ]; then echo ""; echo "*** SHUTOFF: Halting already running daemons..."; echo ""; fi;
 ${SOS_ROOT}/scripts/mpi.kill.2
@@ -24,12 +28,9 @@ if [ -z $1 ]; then echo ""; echo "*** >>>>>>>: Launching the sosd daemons..."; e
 
 daemon0=" ${SOS_BUILD_DIR}/bin/sosd --role SOS_ROLE_DAEMON --port 22500  --work_dir ${SOS_WORK}   "
 daemon1=" ${SOS_BUILD_DIR}/bin/sosd --role SOS_ROLE_DB  --port 22503  --work_dir ${SOS_WORK}   "
+sosa_mods=""
+#sosa_mods="${sosa_mods} : -np 1 ${SOS_BUILD_DIR}/bin/sosa_extract_kmean_2d -d 20000000 -o ${SOS_WORK}/kmean_2d.csv " 
 
-#surplus=""
-#surplus=" ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22501 --work_dir ${SOS_WORK} " 
-
-echo ${daemon0}
-echo ${daemon1}
 
 valgrind_cmd=""
 #valgrind_cmd="gdb -ex run --args "
@@ -51,7 +52,7 @@ fi
 echo "=========="
 echo "Launch command:"
 echo ""
-echo "mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}"
+echo "mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1} ${sosa_mods}"
 echo ""
 echo "=========="
 echo ""
@@ -63,11 +64,10 @@ else
     # Run the program in an xterm w/debugging options...
 
         xterm="xterm -hold -e ${valgrind_cmd} "
-        if [ "x${surplus}" == "x" ] ; then
-            #mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${valgrind_cmd} ${daemon1}
+        if [ "x${sosa_mods}" == "x" ] ; then
             mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${daemon1}
         else
-            mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${valgrind_cmd} ${daemon1} : -np 1 ${surplus}
+            mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${valgrind_cmd} ${daemon1} ${sosa_mods}
         fi
 fi
 
