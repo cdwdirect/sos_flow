@@ -124,8 +124,8 @@ int main(int argc, char *argv[]) {
     var_int = 1234567890;
     snprintf(var_string, 100, "Hello, world!");
 
-    //SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
-    //SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
+    SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
+    SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
 
     var_double = 0.0;
 

@@ -15,9 +15,12 @@ if [ "x${SOS_BUILD_DIR}" == "x" ] ; then
   echo "Please source the setenv.sh script for your environment."
   kill -INT $$
 fi
-if [ -z $1 ]; then echo ""; echo "*** Removing any files left by previous sosd daemons..."; echo ""; fi;
-${SOS_ROOT}/src/mpi.cleanall
-if [ -z $1 ]; then echo ""; echo "*** Launching the sosd daemons..."; echo ""; fi;
+mkdir -p $SOS_WORK
+if [ -z $1 ]; then echo ""; echo "*** SHUTOFF: Halting already running daemons..."; echo ""; fi;
+${SOS_ROOT}/scripts/mpi.kill.2
+if [ -z $1 ]; then echo ""; echo "*** CLEANUP: Removing data files from existing sosd daemons..."; echo ""; fi;
+${SOS_ROOT}/scripts/mpi.cleanall
+if [ -z $1 ]; then echo ""; echo "*** >>>>>>>: Launching the sosd daemons..."; echo ""; fi;
 
 daemon0=" ${SOS_BUILD_DIR}/bin/sosd --role SOS_ROLE_DAEMON --port 22500  --work_dir ${SOS_WORK}   "
 daemon1=" ${SOS_BUILD_DIR}/bin/sosd --role SOS_ROLE_DB  --port 22503  --work_dir ${SOS_WORK}   "

@@ -779,6 +779,8 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
+            new_pub->data[i]->val.c_val = 0;
+            new_pub->data[i]->val.d_val = 0.0;
             new_pub->data[i]->state     = SOS_VAL_STATE_EMPTY;
             new_pub->data[i]->time.pack = 0.0;
             new_pub->data[i]->time.send = 0.0;
@@ -952,6 +954,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
 
         data->type  = pack_type;
         data->guid  = SOS_uid_next(SOS->uid.my_guid_pool);
+        data->val.c_val = NULL;
+        data->val_len = 0;
         strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
 
     } else {
@@ -963,7 +967,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     switch(data->type) {
         
     case SOS_VAL_TYPE_STRING:
-        if (data->val.c_val != NULL) { free(data->val.c_val); }
+        if (data->val.c_val != NULL) {
+            free(data->val.c_val);
+        }
         if (pack_val.c_val != NULL) {
             data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
             data->val_len   = strlen(pack_val.c_val);
@@ -1033,9 +1039,12 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     case SOS_VAL_TYPE_BYTES:
         snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
         memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
+        break;
 
     case SOS_VAL_TYPE_STRING:
         snap->val.c_val = strndup(data->val.c_val, SOS_DEFAULT_STRING_LEN);
+        printf("Enqueued: %s\n", snap->val.c_val); fflush(stdout);
+        break;
 
     case SOS_VAL_TYPE_INT:
     case SOS_VAL_TYPE_LONG:
@@ -1314,9 +1323,9 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         case SOS_VAL_TYPE_LONG:   SOS_buffer_unpack(buffer, &offset, "l", &snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_unpack(buffer, &offset, "d", &snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING:
-            snap->val.c_val = NULL; //unpack will automatically malloc for it.
+            snap->val.c_val = (char *) malloc (snap->val_len * sizeof(char));
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
-            dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
+            printf("[STRING] Extracted val_snap string: %s\n", snap->val.c_val); fflush(stdout);
             break;
         case SOS_VAL_TYPE_BYTES:
             memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);

@@ -561,7 +561,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     __ENUM_C_TYPE mood;
 
     SOS_val_type      val_type;
-    
+
 
     val_alloc = (char *) malloc(SOS_DEFAULT_STRING_LEN);
 
@@ -582,13 +582,18 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         if (val_type != SOS_VAL_TYPE_STRING) {
             val = val_alloc;
             memset(val, '\0', SOS_DEFAULT_STRING_LEN);
+        } else {
+            printf("snap_list[snap_index]->val.c_val == %s  ", snap_list[snap_index]->val.c_val); fflush(stdout);
         }
+
 
         switch (val_type) {
         case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val); break;
         case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%.17lf", snap_list[snap_index]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; dlog(0, "Injecting snap->val.c_val = \"%s\"\n", snap_list[snap_index]->val.c_val); break;
+        case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; 
+                                  printf("(val = \"%s\")\n", val); fflush(stdout);
+                                  break;
         default:
             dlog(5, "     ... error: invalid value type.  (%d)\n", val_type); break;
         }

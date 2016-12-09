@@ -1,15 +1,8 @@
 #!/bin/bash
-if [ "x${SOS_ROOT}" == "x" ] ; then
-  echo "Please set the SOS_ROOT environment variable."
-  kill -INT $$
-fi
-if [ "x${SOS_WORK}" == "x" ] ; then
-  echo "Please set the SOS_WORK environment variable."
-  kill -INT $$
-fi
-if [ "x${SOS_CMD_PORT}" == "x" ] ; then
-  echo "Please set the SOS_CMD_PORT environment variable."
+if [ "x${SOS_ENV_SET}" == "x" ] ; then
+  echo "Please set up your environment for SOS.  (source <sos_root>/hosts/<hostname>/setenv.sh)"
   kill -INT $$
 fi
 echo ""; echo "*** Launching the sosd_stop tool..."; echo ""
-$SOS_ROOT/bin/sosd_stop
+
+$SOS_BUILD_DIR/bin/sosd_stop
