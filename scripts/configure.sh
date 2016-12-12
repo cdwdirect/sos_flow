@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
 if [ "x$sos_env_set" == "x" ] ; then
-	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
+    echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
     kill -INT $$
 fi
 
@@ -32,24 +32,24 @@ while [ $# -ge 1 ]; do
             ;;
         -c)
             clean=1
-			echo "doing clean configure"
+            echo "doing clean configure"
             ;;
         -d)
             debug=1
-			echo "doing debug configure"
+            echo "doing debug configure"
             ;;
         -t)
             tau=1
-			echo "doing TAU configure"
+            echo "doing TAU configure"
             ;;
         -h)
             echo "$0 [-c]"
             echo "-c : Clean"
             echo "-d : Debug"
             echo "-t : Use TAU"
-            exit 0
+            kill -INT $$
             ;;
-    esac
+        esac
     shift
 done
 
@@ -57,44 +57,49 @@ done
 host=`hostname`
 
 if [ "x${SOS_ROOT}" == "x" ] ; then
-  echo "Please set the SOS_ROOT environment variable."
-  kill -INT $$
+    echo "Please set the SOS_ROOT environment variable."
+    kill -INT $$
 fi
 if [ "x${SOS_WORK}" == "x" ] ; then
-  echo "Please set the SOS_WORK environment variable."
-  kill -INT $$
+    echo "Please set the SOS_WORK environment variable."
+    kill -INT $$
 fi
 if [ "x${SOS_CMD_PORT}" == "x" ] ; then
-  echo "Please set the SOS_CMD_PORT environment variable."
-  kill -INT $$
+    echo "Please set the SOS_CMD_PORT environment variable."
+    kill -INT $$
 fi
 
 cd $BASEDIR
 if [ ${clean} -eq 1 ] ; then
-	rm -rf $BUILDDIR
+    rm -rf $BUILDDIR
+else
+    if [ -d $BUILDDIR ] ; then
+        echo "Warning: build directory exists. To start fresh, use the -c option."
+        kill -INT $$
+    fi
 fi
 mkdir $BUILDDIR
 cd $BUILDDIR
 
 buildtype=RelWithDebInfo
 if [ ${debug} -eq 1 ] ; then
-	buildtype=Debug
+    buildtype=Debug
 fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
-	tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_OPTIONS=$TAU_OPTIONS"
+    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_OPTIONS=$TAU_OPTIONS"
 fi
 
 cmd="cmake \
-    -DCMAKE_BUILD_TYPE=${buildtype} \
-    --prefix=./bin \
-    -DCMAKE_C_COMPILER=$CC \
-    -DCMAKE_CXX_COMPILER=$CXX \
-    -DMPI_C_COMPILER=$MPICC \
-    -DMPI_CXX_COMPILER=$MPICXX \
-    $cmake_extras \
-    .."
+     -DCMAKE_BUILD_TYPE=${buildtype} \
+     --prefix=${MEMBERWORK/csc103}/sos_flow \
+     -DCMAKE_C_COMPILER=$CC \
+     -DCMAKE_CXX_COMPILER=$CXX \
+     -DMPI_C_COMPILER=$MPICC \
+     -DMPI_CXX_COMPILER=$MPICXX \
+     $cmake_extras \
+     .."
 
-echo $cmd
-$cmd
+     echo $cmd
+     $cmd

@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <mpi.h>
 #include "main.h"
+#include "adios.h"
 #include "adios_read.h"
 #include <sys/types.h>
 #include <unistd.h>

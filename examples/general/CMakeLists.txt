@@ -23,7 +23,7 @@ include_directories("${sos_flow_SOURCE_DIR}/src")
 add_executable (generic_node main.c mpi_reader.c mpi_writer.c flexpath_reader.c flexpath_writer.c mandelbrot.c) 
 
 # Link the executable to the correct libraries
-target_link_libraries (generic_node sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
+target_link_libraries (generic_node sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES} ${ENET_LDFLAGS} ${RCA_LDFLAGS}) 
 
 INSTALL(TARGETS 
   generic_node

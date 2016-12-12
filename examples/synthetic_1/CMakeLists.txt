@@ -34,9 +34,10 @@ add_executable (synthetic_worker_c main.c worker_c.c mandelbrot.c)
 
 # Link the executable to the correct libraries
 link_directories("${sos_flow_SOURCE_DIR}/lib")
-target_link_libraries (synthetic_worker_a sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
-target_link_libraries (synthetic_worker_b sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
-target_link_libraries (synthetic_worker_c sos ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES}) 
+set (SYNTHETIC_LINK_OPTIONS ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES} ${ENET_LDFLAGS} ${RCA_LDFLAGS})
+target_link_libraries (synthetic_worker_a sos ${SYNTHETIC_LINK_OPTIONS}) 
+target_link_libraries (synthetic_worker_b sos ${SYNTHETIC_LINK_OPTIONS})
+target_link_libraries (synthetic_worker_c sos ${SYNTHETIC_LINK_OPTIONS})
 
 INSTALL(TARGETS 
   synthetic_worker_a
