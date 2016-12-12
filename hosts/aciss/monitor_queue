@@ -7,8 +7,10 @@ do
     echo "Pending jobs for your username:     (${USER})"
     echo ""
     echo ""
+    qstat -u $USER
+    echo ""
+    echo ""
     echo "As of: $(date)"
     echo ""
-    qstat -u $USER
     sleep 1
 done

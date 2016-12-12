@@ -30,7 +30,7 @@ module load mpi/mpich-3.1_gcc-4.9
 # # # # # # #   program   # # # # # # #
 
 daemons=" -ppn 1      ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
-dbs="     -np 1       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
+dbs="     -np 2       ${SOS_ROOT}/bin/sosd --role SOS_ROLE_DB     --port 22503 --buffer_len 8097152 --listen_backlog 1000 --work_dir ${SOS_WORK}/sos_data/${PBS_JOBID} "
 
 
 #### sos: ##########
@@ -52,7 +52,7 @@ flow_app="${SOS_ROOT}/bin/demo_app "
 flow_app="${flow_app} -i 100"
 flow_app="${flow_app} -m 100000"
 flow_app="${flow_app} -p 100"
-flow_app="${flow_app} -d 100000"
+flow_app="${flow_app} -d 200000"
 
 flow_programs=""
 flow_programs="${flow_programs} -ppn 10 ${flow_app} "
@@ -132,13 +132,13 @@ echo -n "        ...pass 1: " >> launch.log
 mpirun ${flow_mpi_opts} ${flow_programs}
 echo "complete" >> launch.log
 
-sleep 5
+sleep 30
 
 echo -n "        ...pass 2: " >> launch.log
 mpirun ${flow_mpi_opts} ${flow_programs}
 echo "complete" >> launch.log
 
-sleep 5
+sleep 30
 
 echo -n "        ...pass 3: " >> launch.log
 mpirun ${flow_mpi_opts} ${flow_programs}
