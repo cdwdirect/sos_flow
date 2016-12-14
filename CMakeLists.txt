@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 2.8)
 
-option(ENABLE_ADIOS_EXAMPLES        "Build the examples that require the presence of ADIOS?" ON)
+option(ENABLE_ADIOS_EXAMPLES        "Build the examples that require the presence of ADIOS?" OFF)
 option(ENABLE_TAU_WRAPPER           "Compile the codes with tau_cc.sh?" OFF)
 option(SOS_SILENCE_DEBUG            "Disable DEBUG messages?" OFF)
 option(SOSD_DAEMON_LOGGING          "Should the sosd daemon produce a log file?" ON)
