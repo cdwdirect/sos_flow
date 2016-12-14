@@ -98,7 +98,6 @@ typedef struct {
     int                 client_socket_fd;
     int                 port_number;
     char               *server_port;
-    int                 buffer_len;
     int                 listen_backlog;
     int                 client_len;
     struct addrinfo     server_hint;
@@ -120,6 +119,8 @@ typedef struct {
     int                *cloud_sync_target_set;
     int                 cloud_sync_target_count;
     int                 cloud_sync_target;
+    int                 listener_count;
+    int                 aggregator_count;
     SOSD_counts         countof;
     MPI_Comm            comm;
 } SOSD_runtime;

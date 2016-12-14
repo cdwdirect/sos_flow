@@ -26,12 +26,12 @@ if [ -z $1 ]; then echo ""; echo "*** CLEANUP: Removing data files from existing
 ${SOS_ROOT}/scripts/mpi.cleanall
 if [ -z $1 ]; then echo ""; echo "*** >>>>>>>: Launching the sosd daemons..."; echo ""; fi;
 
-daemon0=" ${SOS_BUILD_DIR}/bin/sosd --role SOS_ROLE_DAEMON --port 22500  --work_dir ${SOS_WORK}   "
-daemon1=" ${SOS_BUILD_DIR}/bin/sosd --role SOS_ROLE_DB  --port 22503  --work_dir ${SOS_WORK}   "
+proc_count="2"
+daemons="  ${SOS_BUILD_DIR}/bin/sosd -l 1 -a 1 -w ${SOS_WORK}   "
 sosa_mods=""
 #sosa_mods="${sosa_mods} : -np 1 ${SOS_BUILD_DIR}/bin/sosa_extract_kmean_2d -d 20000000 -o ${SOS_WORK}/kmean_2d.csv " 
 
-
+#proc_count="3"
 valgrind_cmd=""
 #valgrind_cmd="gdb -ex run --args "
 #valgrind_cmd="valgrind --vgdb=yes --vgdb-error=0 "
@@ -52,22 +52,22 @@ fi
 echo "=========="
 echo "Launch command:"
 echo ""
-echo "mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1} ${sosa_mods}"
+echo "mpirun -np ${proc_count}  ${valgrind_cmd} ${daemons}"
 echo ""
 echo "=========="
 echo ""
 
 if [ "x${valgrind_cmd}" == "x" ] ; then
     # Run the program normally.
-    mpirun -np 1 ${valgrind_cmd} ${daemon0} : -np 1 ${daemon1}
+    mpirun -np ${proc_count} ${valgrind_cmd} ${daemons}
 else
     # Run the program in an xterm w/debugging options...
 
         xterm="xterm -hold -e ${valgrind_cmd} "
         if [ "x${sosa_mods}" == "x" ] ; then
-            mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${daemon1}
+            mpirun -np ${proc_count} xterm -e ${valgrind_cmd} ${daemons}
         else
-            mpirun -np 1 xterm -e ${valgrind_cmd} ${daemon0} : -np 1 xterm -e ${valgrind_cmd} ${daemon1} ${sosa_mods}
+            mpirun -np ${proc_count} xterm -e ${valgrind_cmd} ${daemons}
         fi
 fi
 

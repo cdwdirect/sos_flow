@@ -5,6 +5,12 @@
  *
  */
 
+
+#define USAGE          "usage:   $ sosd  -l, --listeners <count>\n" \
+                       "                 -a, --aggregators <count>\n" \
+                       "                 -w, --work_dir <full_path>\n"
+
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -40,7 +46,6 @@
 #include "sos_qhashtbl.h"
 #include "sos_buffer.h"
 
-#define USAGE          "usage:   $ sosd  --role <role>  --port <monitor_port>  --work_dir <path>"
 
 void SOSD_display_logo(void);
 
@@ -65,33 +70,78 @@ int main(int argc, char *argv[])  {
 
     my_role = SOS_ROLE_DAEMON; /* This can be overridden by command line argument. */
 
-    SOSD.net.buffer_len = SOS_DEFAULT_BUFFER_MAX;
     SOSD.net.listen_backlog = 10;
+
+
+    // Grab the port from the environment variable SOS_CMD_PORT
+    SOSD.net.server_port = getenv("SOS_CMD_PORT");
+    SOSD.net.port_number = atoi(SOSD.net.server_port);
 
     /* Process command-line arguments */
     if ( argc < 7 ) { fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE); exit(EXIT_FAILURE); }
-    SOSD.net.port_number    = -1;
-    SOSD.net.buffer_len     = -1;
     SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
-        if (      strcmp(argv[elem], "--port"            ) == 0) { SOSD.net.server_port    = argv[next_elem];       }
-        /*  
-         *  else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { SOSD.net.buffer_len     = atoi(argv[next_elem]); }
-         *  else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
-         */
-        else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.daemon.work_dir    = argv[next_elem];       }
-        else if ( strcmp(argv[elem], "--role"            ) == 0) {
-            if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0)  { my_role = SOS_ROLE_DAEMON; }
-            else if ( strcmp(argv[next_elem], "SOS_ROLE_DB" ) == 0)      { my_role = SOS_ROLE_DB; }
-            else {  fprintf(stderr, "Unknown role: %s %s\n", argv[elem], argv[next_elem]); }
-        } else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
+        if (      (strcmp(argv[elem], "--listeners"       ) == 0)
+        ||        (strcmp(argv[elem], "-l"                ) == 0)) {
+            SOSD.daemon.listener_count = atoi(argv[next_elem]);
+        }
+        else if ( (strcmp(argv[elem], "--aggregators"     ) == 0)
+        ||        (strcmp(argv[elem], "-a"                ) == 0)) {
+            SOSD.daemon.aggregator_count = atoi(argv[next_elem]);
+        }
+        else if ( (strcmp(argv[elem], "--work_dir"        ) == 0)
+        ||        (strcmp(argv[elem], "-w"                ) == 0)) {
+            SOSD.daemon.work_dir    = argv[next_elem];
+        }
+        else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
-    SOSD.net.port_number = atoi(SOSD.net.server_port);
     if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_DAEMON)) {
       fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
     }
+
+    //GO
+/*
+
+111   * Determine what role this rank of sos_cloud will become. *
+112 
+113   if        (cloud_rank < (cloud_size - count_surplus - count_analytics - count_powsched - count_db)) {
+    114     instance_role = SOS_MONITOR;
+    115     dlog(1, "[sos_cloud(%d)]: --> SOS_MONITOR\n", cloud_rank);
+    116   } else if (cloud_rank < (cloud_size - count_surplus - count_analytics - count_powsched)) {
+        117     instance_role = SOS_DB;
+        118     dlog(1, "[sos_cloud(%d)]: --> SOS_DB\n", cloud_rank);
+        119   } else if (cloud_rank < (cloud_size - count_surplus - count_analytics)) {
+            120     instance_role = SOS_POWSCHED;
+            121     dlog(1, "[sos_cloud(%d)]: --> SOS_POWSCHED\n", cloud_rank);
+            122   } else if (cloud_rank < (cloud_size - count_surplus)) {
+                123     instance_role = SOS_ANALYTICS;
+                124     dlog(1, "[sos_cloud(%d)]: --> SOS_ANALYTICS\n", cloud_rank);
+                125   } else {
+                    126     instance_role = SOS_SURPLUS;
+                    127     * This is a surplus process.  This is sometimes needed to
+                    128     * 'pad' the cores on a node so that a scheduler will allocate
+                    129     * it to you.  Example: BG/Q
+                    130     *
+                    131     dlog(1, "[sos_cloud(%d)]: --> SOS_SURPLUS\n", cloud_rank);
+                    132   }
+                    133 
+
+
+
+
+*/
+        // MPI_init has not been called yet...
+    int tmpRank = 0;
+  //MPI_Comm_rank(MPI_COMM_WORLD, &tmpRank);
+    int tmpSize = 0;
+  //MPI_Comm_size(MPI_COMM_WORLD, &tmpSize);
+
+    printf("Rank(%d)Size(%d) ==>  list:%d    aggr:%d    work:%s    port:%d\n", tmpRank, tmpSize, SOSD.daemon.listener_count, SOSD.daemon.aggregator_count,
+    SOSD.daemon.work_dir, SOSD.net.port_number);
+    exit(0);
+
 
     #ifndef SOSD_CLOUD_SYNC
     if (my_role != SOS_ROLE_DAEMON) {
