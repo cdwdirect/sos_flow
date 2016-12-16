@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/bash 
 
 if [ "x$SOS_ENV_SET" == "x" ] ; then
 	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
@@ -7,8 +7,25 @@ fi
 
 # remember where we are
 STARTDIR=`pwd`
-# Absolute path to this script, e.g. /home/user/bin/foo.sh
-SCRIPT=$(readlink -f "$0")
+BUILD_ENVIRONMENT=`uname`
+
+case "${BUILD_ENVIRONMENT}" in
+    Linux)
+        echo "Build environment detected: Linux"
+        # Absolute path to this script, e.g. /home/user/bin/foo.sh
+        SCRIPT=$(readlink -f "$0")
+        ;;
+    Darwin)
+        echo "Build environment detected: Mac OS"
+        # Absolute path to this script, e.g. /home/user/bin/foo.sh
+        SCRIPT=$(readlink "$0")
+        ;;
+     *)
+        # --- default case ---
+        echo "WARNING: Unrecognized build environment.    (${BUILD_ENVIRONMENT})"
+        ;;
+esac
+
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH=$(dirname "$SCRIPT")
 echo $SCRIPTPATH
