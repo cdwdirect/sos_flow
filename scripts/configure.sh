@@ -69,7 +69,6 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
     kill -INT $$
 fi
 
-cd $BASEDIR
 if [ ${clean} -eq 1 ] ; then
     rm -rf $BUILDDIR
 else
@@ -78,7 +77,7 @@ else
         kill -INT $$
     fi
 fi
-mkdir $BUILDDIR
+mkdir -p $BUILDDIR
 cd $BUILDDIR
 
 buildtype=RelWithDebInfo
@@ -99,7 +98,7 @@ cmd="cmake \
      -DMPI_C_COMPILER=$MPICC \
      -DMPI_CXX_COMPILER=$MPICXX \
      $cmake_extras \
-     .."
+     $BASEDIR"
 
      echo $cmd
      $cmd
