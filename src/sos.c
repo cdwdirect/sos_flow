@@ -265,7 +265,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
         dlog(1, "  ... configuring uid sets.\n");
 
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
-        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* DAEMON doesn't use this, it's for CLIENTS. */
+        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* LISTENER doesn't use this, it's for CLIENTS. */
 
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -276,7 +276,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     } else {
         /*
          *
-         *  CONFIGURATION: DAEMON / DATABASE / etc.
+         *  CONFIGURATION: LISTENER / AGGREGATOR / etc.
          *
          */
 
@@ -653,14 +653,14 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
      * will not occur for them.
      */
 
-        if (SOS->role == SOS_ROLE_DAEMON) {
-            /* NOTE: There is no recourse if a DAEMON runs out of GUIDs.
+        if (SOS->role != SOS_ROLE_CLIENT) {
+            /* NOTE: There is no recourse if a sosd daemon runs out of GUIDs.
              *       That should *never* happen.
              */
             dlog(0, "ERROR:  This sosd instance has run out of GUIDs!  Terminating.\n");
             exit(EXIT_FAILURE);
         } else {
-            /* Acquire a fresh block of GUIDs from the DAEMON... */
+            /* Acquire a fresh block of GUIDs from the sosd daemon... */
             SOS_msg_header header;
             SOS_buffer *buf;
             int offset;
@@ -1442,7 +1442,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         /* Only CLIENT updates the frame when sending, in case this is re-used
-         * internally / on the backplane by the DB or DAEMON. */
+         * internally / on the backplane by the LISTENER / AGGREGATOR. */
         this_frame = pub->frame++;
     }
 

@@ -44,7 +44,7 @@ static void SOS_custom_signal_handler(int sig) {
     int csize = 0;
 
     #ifdef SOSD_DAEMON_SRC
-    if (SOSD.role == SOS_ROLE_DAEMON) {
+    if (SOSD.role == SOS_ROLE_LISTENER) {
         if (sig == SIGHUP) {
             syslog(LOG_DEBUG, "SIGHUP signal caught, shutting down.");
             dlog(0, "Caught SIGHUP, shutting down.\n");

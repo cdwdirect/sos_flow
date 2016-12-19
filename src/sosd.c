@@ -68,7 +68,7 @@ int main(int argc, char *argv[])  {
     SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
 
-    my_role = SOS_ROLE_DAEMON; /* This can be overridden by command line argument. */
+    my_role = SOS_ROLE_UNASSIGNED;
 
     SOSD.net.listen_backlog = 10;
 
@@ -97,7 +97,7 @@ int main(int argc, char *argv[])  {
         else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
-    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_DAEMON)) {
+    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_UNASSIGNED)) {
       fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
     }
 
@@ -143,9 +143,9 @@ int main(int argc, char *argv[])  {
 
 
     #ifndef SOSD_CLOUD_SYNC
-    if (my_role != SOS_ROLE_DAEMON) {
+    if (my_role != SOS_ROLE_LISTENER) {
         printf("NOTE: Terminating an instance of sosd with pid: %d\n", getpid());
-        printf("NOTE: SOSD_CLOUD_SYNC is disabled but this instance is not a SOS_ROLE_DAEMON!\n");
+        printf("NOTE: SOSD_CLOUD_SYNC is disabled but this instance is not a SOS_ROLE_LISTENER!\n");
         fflush(stdout);
         exit(EXIT_FAILURE);
     }
@@ -183,7 +183,9 @@ int main(int argc, char *argv[])  {
     dlog(0, "   ... done. (SOSD_init + SOS_init are complete)\n");
     dlog(0, "Calling register_signal_handler()...\n");
     if (SOSD_DAEMON_LOG) SOS_register_signal_handler(SOSD.sos_context);
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    //GO
+    //TODO: Add support for socket interactions to the AGGREGATOR roles...
+    if (SOS->role == SOS_ROLE_LISTENER) {
         dlog(0, "Calling daemon_setup_socket()...\n");
         SOSD_setup_socket();
     }
@@ -194,7 +196,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Initializing the sync framework...\n");
     SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
     #ifdef SOSD_CLOUD_SYNC
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), SOSD_THREAD_cloud_sync);
         SOSD_cloud_start();
     }
@@ -207,12 +209,12 @@ int main(int argc, char *argv[])  {
 
     /* Go! */
     switch (SOS->role) {
-    case SOS_ROLE_DAEMON:
+    case SOS_ROLE_LISTENER:
         SOS->config.locale = SOS_LOCALE_APPLICATION;
         SOSD_listen_loop();
         break;
 
-    case SOS_ROLE_DB:
+    case SOS_ROLE_AGGREGATOR:
         SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
         #ifdef SOSD_CLOUD_SYNC
         SOSD_cloud_listen_loop();
@@ -254,7 +256,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "  ... done.\n");
     dlog(0, "Closing the database.\n");
     SOSD_db_close_database();
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         dlog(0, "Closing the socket.\n");
         shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     }
@@ -470,12 +472,12 @@ void* SOSD_THREAD_local_sync(void *args) {
             continue;
         }
 
-        if (SOS->role == SOS_ROLE_DAEMON) {
+        if (SOS->role == SOS_ROLE_LISTENER) {
             pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
             pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
             SOSD.sync.cloud.queue->elem_count++;
             pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
-        } else if (SOS->role == SOS_ROLE_DB) {
+        } else if (SOS->role == SOS_ROLE_AGGREGATOR) {
             //DB role's can go ahead and release the buffer.
             SOS_buffer_destroy(buffer);
         }
@@ -843,7 +845,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     // Spin off the k-means information to be treated
     //   in parallel with its database injection:
     if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
-        && (SOS->role == SOS_ROLE_DAEMON)) {
+        && (SOS->role == SOS_ROLE_LISTENER)) {
         dlog(4, "Re-queing the k-means task for processing...\n");
         SOS_buffer *copy;
         // Make a copy of this buffer.
@@ -1073,7 +1075,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     // Spin off the k-means information to be treated
     //   in parallel with its database injection:
     if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
-        && (SOS->role == SOS_ROLE_DAEMON)) {
+        && (SOS->role == SOS_ROLE_LISTENER)) {
         dlog(4, "Re-queing the k-means task for processing...\n");
         SOS_buffer *copy;
         // Make a copy of this buffer.
@@ -1118,7 +1120,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_PACK_ACK(reply);
         
         i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
@@ -1173,7 +1175,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         &header.msg_from,
         &header.pub_guid);
 
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         /* Build a reply: */
         memset(&header, '\0', sizeof(SOS_msg_header));
         header.msg_size = -1;
@@ -1354,7 +1356,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
     dlog(1, "header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(1, "header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
-    if (SOS->role == SOS_ROLE_DB) {
+    if (SOS->role == SOS_ROLE_AGGREGATOR) {
         SOS_buffer_destroy(reply);
         return;
     }
@@ -1458,8 +1460,8 @@ void SOSD_init() {
      *     assign a name appropriate for whether it is participating in a cloud or not
      */
     switch (SOS->role) {
-    case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
-    case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
+    case SOS_ROLE_LISTENER:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
+    case SOS_ROLE_AGGREGATOR:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
     default: break;
     }
 

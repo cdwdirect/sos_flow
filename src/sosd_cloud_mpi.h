@@ -8,7 +8,7 @@
 #include "sosd.h"
 
 
-/* For DAEMONs sending through cloud_sync: */
+/* For SOS_ROLE_LISTENER's sending through cloud_sync: */
 int   SOSD_cloud_init(int *argc, char ***argv);
 int   SOSD_cloud_start(void);
 int   SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply);
@@ -18,7 +18,7 @@ void  SOSD_cloud_shutdown_notice(void);
 int   SOSD_cloud_finalize(void);
 
 
-/* For the SOS_ROLE_DB reading from cloud_sync: */
+/* For the SOS_ROLE_AGGREGATOR reading from cloud_sync: */
 void SOSD_cloud_listen_loop(void);
 
 

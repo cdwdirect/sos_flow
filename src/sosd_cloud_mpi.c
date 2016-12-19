@@ -33,7 +33,7 @@ void SOSD_cloud_shutdown_notice(void) {
     SOSD_cloud_shutdown_underway = true;
 
     if (SOS->config.comm_rank < SOSD.daemon.cloud_sync_target_count) {
-        dlog(1, "  ... preparing notice to SOS_ROLE_DB at rank %d\n", SOSD.daemon.cloud_sync_target);
+        dlog(1, "  ... preparing notice to SOS_ROLE_AGGREGATOR at rank %d\n", SOSD.daemon.cloud_sync_target);
         /* The first N ranks will notify the N databases... */
         SOS_msg_header header;
         SOS_buffer    *shutdown_msg;
@@ -378,13 +378,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
                   (void *) world_hosts, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, MPI_COMM_WORLD);
 
     // SPLIT: -------------------
-    //  When we split here, we use SOS_ROLE_DAEMON for both DAEMON and DB
+    //  When we split here, we use SOS_ROLE_LISTENER for both DAEMON and DB
     //  so they are still able to communicate with each other (if they want
     //  using a non-analytics, non-MPI_COMM_WORLD communicator.)
     //
     //  The ANALYTICS ranks form their own communicator[s].
     //
-    MPI_Comm_split(MPI_COMM_WORLD, SOS_ROLE_DAEMON, world_rank, &SOSD.daemon.comm);
+    MPI_Comm_split(MPI_COMM_WORLD, SOS_ROLE_LISTENER, world_rank, &SOSD.daemon.comm);
     //
     //  Messages are now point-to-point using MPI_COMM_WORLD.
     //
@@ -395,10 +395,10 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     if (SOSD_ECHO_TO_STDOUT) printf("  ... size: %d\n", SOS->config.comm_size);
     if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
 
-    /* Count the SOS_ROLE_DB's to find out how large our list need be...*/
+    /* Count the SOS_ROLE_AGGREGATOR's to find out how large our list need be...*/
     cloud_sync_target_count = 0;
     for (this_node = 0; this_node < SOS->config.comm_size; this_node++) {
-        if (world_roles[this_node] == SOS_ROLE_DB) { cloud_sync_target_count++; }
+        if (world_roles[this_node] == SOS_ROLE_AGGREGATOR) { cloud_sync_target_count++; }
     }
     if (cloud_sync_target_count == 0) {
         printf("ERROR!  No daemon's are set to receive cloud_sync messages!\n");
@@ -406,17 +406,17 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
     SOSD.daemon.cloud_sync_target_set = (int *) malloc(cloud_sync_target_count * sizeof(int));
     memset(SOSD.daemon.cloud_sync_target_set, '\0', (cloud_sync_target_count * sizeof(int)));
-    /* Compile the list of the SOS_ROLE_DB's ...*/
+    /* Compile the list of the SOS_ROLE_AGGREGATOR's ...*/
     cloud_sync_target_count = 0;
     for (this_node = 0; this_node < SOS->config.comm_size; this_node++) {
-        if (world_roles[this_node] == SOS_ROLE_DB) {
+        if (world_roles[this_node] == SOS_ROLE_AGGREGATOR) {
             SOSD.daemon.cloud_sync_target_set[cloud_sync_target_count] = this_node;
             cloud_sync_target_count++;
         }
     }
     SOSD.daemon.cloud_sync_target_count = cloud_sync_target_count;
 
-    /* Select the SOS_ROLE_DB we're going to cloud_sync with... */
+    /* Select the SOS_ROLE_AGGREGATOR we're going to cloud_sync with... */
     if (SOS->config.comm_rank > 0) {
         SOSD.daemon.cloud_sync_target =                                 \
             SOSD.daemon.cloud_sync_target_set[SOS->config.comm_rank % SOSD.daemon.cloud_sync_target_count];
@@ -440,7 +440,7 @@ int SOSD_cloud_start() {
     int rc;
 
     /*
-    if (SOS->role != SOS_ROLE_DB) {
+    if (SOS->role != SOS_ROLE_AGGREGATOR) {
         if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
         SOSD.sync.cloud.handler = (pthread_t *) malloc(sizeof(pthread_t));
         rc = pthread_create(SOSD.sync.cloud.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud);
