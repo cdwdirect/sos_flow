@@ -299,17 +299,6 @@ endif()
 
 
 
-#TARGET ---> demo_pipe
-#            (test / benchmark queue structure)
-add_executable("demo_pipe" "demo_pipe.c" "sos_pipe.c")
-target_link_libraries("demo_pipe" "sos_pipe")
-if(THREADS_HAVE_PTHREAD_ARG)
-  set_target_properties("demo_pipe" PROPERTY COMPILE_OPTIONS "-pthread")
-endif()
-if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("demo_pipe" "${CMAKE_THREAD_LIBS_INIT}")
-endif()
-
 
 
 INSTALL(FILES showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
