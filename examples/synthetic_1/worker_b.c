@@ -45,7 +45,7 @@ int worker(int argc, char* argv[]) {
     /* validate input */
     validate_input(argc, argv);
 
-    my_printf("Worker B will execute until it sees n iterations.\n", iterations);
+    my_printf("Worker B will execute until it sees %d iterations.\n", iterations);
 
     /* ADIOS: These declarations are required to match the generated
      *        gread_/gwrite_ functions.  (And those functions are

@@ -25,7 +25,7 @@ export cflags=`cc --cray-print-opts=cflags`
 export libs=`cc --cray-print-opts=libs`
 export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_intel_mt.so -DADIOS_ROOT=${ADIOS_ROOT} -DENABLE_ADIOS_EXAMPLES=TRUE -DFIX_ADIOS_DEPENDENCIES=TRUE"
 
-export PKG_CONFIG_PATH=${HOME}/src/chaos/titan-gcc/lib/pkgconfig:${PKG_CONFIG_PATH}
+export PKG_CONFIG_PATH=/project/projectdirs/m1881/khuck/sos_flow/chaos/cori-icc/lib/pkgconfig:${PKG_CONFIG_PATH}
 
 module unload darshan
 module load cmake

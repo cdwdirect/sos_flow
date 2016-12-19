@@ -92,7 +92,7 @@ fi
 
 cmd="cmake \
      -DCMAKE_BUILD_TYPE=${buildtype} \
-     --prefix=${MEMBERWORK/csc103}/sos_flow \
+     --prefix=${BASEDIR}/sos_flow \
      -DCMAKE_C_COMPILER=$CC \
      -DCMAKE_CXX_COMPILER=$CXX \
      -DMPI_C_COMPILER=$MPICC \
