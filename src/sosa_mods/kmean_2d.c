@@ -128,7 +128,7 @@ int main(int argc, char *argv[]) {
     if (rank == 0) { dlog(0, "Registering points...\n"); }
 
     pub = SOS_pub_create(my_sos, "kmeans_2d", SOS_NATURE_KMEAN_2D);
-    if (rank == 0) { dlog(0, "  ... pub->guid  = %ld\n", pub->guid); }
+    if (rank == 0) { dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid); }
 
     int iter;
     int pair;

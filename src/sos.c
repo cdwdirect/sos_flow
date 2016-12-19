@@ -612,7 +612,7 @@ void SOS_uid_init(SOS_runtime *sos_context,  SOS_uid **id_var, SOS_guid set_from
     id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
     id->next = (set_from > 0) ? set_from : 1;
     id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
-    dlog(5, "     ... default set for uid range (%ld -> %ld).\n", id->next, id->last);
+    dlog(5, "     ... default set for uid range (%" SOS_GUID_FMT " -> %" SOS_GUID_FMT ").\n", id->next, id->last);
     dlog(5, "     ... initializing uid mutex.\n");
     id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(id->lock, NULL );
@@ -1678,7 +1678,7 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
 
     dlog(7, "  ... header.msg_size = %d\n", header.msg_size);
     dlog(7, "  ... header.msg_type = %d\n", header.msg_type);
-    dlog(7, "  ... header.msg_from = %ld\n", header.msg_from);
+    dlog(7, "  ... header.msg_from = %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(7, "  ... header.pub_guid = %" SOS_GUID_FMT "\n", header.pub_guid);
     dlog(7, "  ... values:\n");
 

@@ -132,15 +132,14 @@ int main(int argc, char *argv[])  {
 
 
 */
-        // MPI_init has not been called yet...
+    // MPI_init has not been called yet...
     int tmpRank = 0;
-  //MPI_Comm_rank(MPI_COMM_WORLD, &tmpRank);
+    //MPI_Comm_rank(MPI_COMM_WORLD, &tmpRank);
     int tmpSize = 0;
-  //MPI_Comm_size(MPI_COMM_WORLD, &tmpSize);
+    //MPI_Comm_size(MPI_COMM_WORLD, &tmpSize);
 
     printf("Rank(%d)Size(%d) ==>  list:%d    aggr:%d    work:%s    port:%d\n", tmpRank, tmpSize, SOSD.daemon.listener_count, SOSD.daemon.aggregator_count,
     SOSD.daemon.work_dir, SOSD.net.port_number);
-    exit(0);
 
 
     #ifndef SOSD_CLOUD_SYNC

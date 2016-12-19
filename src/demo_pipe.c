@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     write_count = atoll(argv[1]);
     read_count = 0;
 
-    if (VERBOSE) printf("\twrite_count == %ld\n", write_count);
+    if (VERBOSE) printf("\twrite_count == %" SOS_GUID_FMT "\n", write_count);
 
     //pipe_t *p = pipe_new(sizeof(uint64_t), 100000000)
     pipe_t *p = pipe_new(sizeof(uint64_t), 0);
@@ -82,7 +82,7 @@ void *THREAD_write(void *arg) {
         for (i = 0; i < 10; i++) {
             buffer[i] = index;
         }
-        if (VERBOSE) printf("#%ld: <<<<< push { %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }\n", index,
+        if (VERBOSE) printf("#%" SOS_GUID_FMT ": <<<<< push { %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }\n", index,
                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
                buffer[5], buffer[6], buffer[7], buffer[8], buffer[9]);
 
@@ -115,7 +115,7 @@ void *THREAD_read(void *arg) {
 
         in_count = pipe_pop(cons, buffer, 10);
         read_count += in_count;
-        if (VERBOSE) printf("{ %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }    (read_count == %ld)\n",
+        if (VERBOSE) printf("{ %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld, %ld }    (read_count == %" SOS_GUID_FMT ")\n",
                buffer[0], buffer[1], buffer[2], buffer[3], buffer[4],
                buffer[5], buffer[6], buffer[7], buffer[8], buffer[9], read_count);
 

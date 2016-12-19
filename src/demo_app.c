@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     if (rank == 0) dlog(0, "Creating a pub...\n");
 
     pub = SOS_pub_create(my_sos, "demo", SOS_NATURE_CREATE_OUTPUT);
-    if (rank == 0) dlog(0, "  ... pub->guid  = %ld\n", pub->guid);
+    if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
     if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
     strcpy (pub->prog_ver, str_prog_ver);
