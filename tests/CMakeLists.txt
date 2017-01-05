@@ -20,11 +20,11 @@ endif()
 
 
 #TARGET ---> test
-add_executable( "test"
+add_executable( "sos_test"
   "test.c"
   "pack.c"
   "buffer.c"
   "pub.c"
 )
 
-target_link_libraries("test" "sos")
+target_link_libraries("sos_test" "sos")

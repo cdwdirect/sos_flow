@@ -16,6 +16,7 @@ export MPICXX=CC
 export TAU_ARCH=craycnl
 export TAU_OPTIONS=-mpi-pthread
 export TAU_ROOT=$HOME/src/tau2
+export CHAOS=/project/projectdirs/m1881/khuck/sos_flow/chaos/cori-icc
 export ADIOS_ROOT=/project/projectdirs/m1881/khuck/sos_flow/chaos/adios/1.11-icc
 export PATH=${ADIOS_ROOT}/bin:${PATH}
 
@@ -23,9 +24,12 @@ export PATH=${ADIOS_ROOT}/bin:${PATH}
 # need to figure out how to use this
 export cflags=`cc --cray-print-opts=cflags`
 export libs=`cc --cray-print-opts=libs`
-export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_intel_mt.so -DADIOS_ROOT=${ADIOS_ROOT} -DENABLE_ADIOS_EXAMPLES=TRUE -DFIX_ADIOS_DEPENDENCIES=TRUE"
+export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_intel_mt.so"
+export cmake_extras_examples="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_intel_mt.so -DADIOS_ROOT=${ADIOS_ROOT} -DFIX_ADIOS_DEPENDENCIES=TRUE -DSOS_ROOT=${BASEDIR}/${BUILDDIR}"
 
-export PKG_CONFIG_PATH=/project/projectdirs/m1881/khuck/sos_flow/chaos/cori-icc/lib/pkgconfig:${PKG_CONFIG_PATH}
+export PKG_CONFIG_PATH=${CHAOS}/lib/pkgconfig:${PKG_CONFIG_PATH}
+export LD_LIBRARY_PATH=${CHAOS}/lib:${ADIOS_ROOT}/lib64:${LD_LIBRARY_PATH}
+export PATH=${CHAOS}/bin:${ADIOS_ROOT}/bin:${PATH}
 
 module unload darshan
 module load cmake
@@ -37,7 +41,6 @@ export sos_env_set=1
 # TAU=$HOME/src/tau2
 # ADIOS=$HOME/install/adios/1.9.0_gcc-4.9
 # ADIOS=$HOME/install/adios/1.9.0_gcc-4.9-tau
-# CHAOS=$HOME/install/chaos/stable
 # MXML=/usr/local/packages/mxml-2.7/gcc-4.5.3
 # PATH=$HOME/install/gdb/7.9/bin:$ADIOS/bin:$TAU/x86_64/bin:$SOS_ROOT/bin:$PATH
 # LD_LIBRARY_PATH=$CHAOS/lib:$ADIOS/lib:$MXML/lib:$LD_LIBRARY_PATH

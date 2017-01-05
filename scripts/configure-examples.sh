@@ -13,6 +13,8 @@ SCRIPT=$(readlink -f "$0")
 SCRIPTPATH=$(dirname "$SCRIPT")
 echo $SCRIPTPATH
 BASEDIR=$SCRIPTPATH/..
+BUILDDIR=${BUILDDIR}-examples
+BASEDIR=${BASEDIR}/examples
 
 echo "Building SOS $BUILDDIR from source in $BASEDIR"
 
@@ -97,7 +99,7 @@ cmd="cmake \
      -DCMAKE_CXX_COMPILER=$CXX \
      -DMPI_C_COMPILER=$MPICC \
      -DMPI_CXX_COMPILER=$MPICXX \
-     $cmake_extras \
+     $cmake_extras_examples \
      $BASEDIR"
 
      echo $cmd
