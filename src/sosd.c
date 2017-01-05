@@ -98,48 +98,8 @@ int main(int argc, char *argv[])  {
         elem = next_elem + 1;
     }
     if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_UNASSIGNED)) {
-      fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
+        fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
     }
-
-    //GO
-/*
-
-111   * Determine what role this rank of sos_cloud will become. *
-112 
-113   if        (cloud_rank < (cloud_size - count_surplus - count_analytics - count_powsched - count_db)) {
-    114     instance_role = SOS_MONITOR;
-    115     dlog(1, "[sos_cloud(%d)]: --> SOS_MONITOR\n", cloud_rank);
-    116   } else if (cloud_rank < (cloud_size - count_surplus - count_analytics - count_powsched)) {
-        117     instance_role = SOS_DB;
-        118     dlog(1, "[sos_cloud(%d)]: --> SOS_DB\n", cloud_rank);
-        119   } else if (cloud_rank < (cloud_size - count_surplus - count_analytics)) {
-            120     instance_role = SOS_POWSCHED;
-            121     dlog(1, "[sos_cloud(%d)]: --> SOS_POWSCHED\n", cloud_rank);
-            122   } else if (cloud_rank < (cloud_size - count_surplus)) {
-                123     instance_role = SOS_ANALYTICS;
-                124     dlog(1, "[sos_cloud(%d)]: --> SOS_ANALYTICS\n", cloud_rank);
-                125   } else {
-                    126     instance_role = SOS_SURPLUS;
-                    127     * This is a surplus process.  This is sometimes needed to
-                    128     * 'pad' the cores on a node so that a scheduler will allocate
-                    129     * it to you.  Example: BG/Q
-                    130     *
-                    131     dlog(1, "[sos_cloud(%d)]: --> SOS_SURPLUS\n", cloud_rank);
-                    132   }
-                    133 
-
-
-
-
-*/
-    // MPI_init has not been called yet...
-    int tmpRank = 0;
-    //MPI_Comm_rank(MPI_COMM_WORLD, &tmpRank);
-    int tmpSize = 0;
-    //MPI_Comm_size(MPI_COMM_WORLD, &tmpSize);
-
-    printf("Rank(%d)Size(%d) ==>  list:%d    aggr:%d    work:%s    port:%d\n", tmpRank, tmpSize, SOSD.daemon.listener_count, SOSD.daemon.aggregator_count,
-    SOSD.daemon.work_dir, SOSD.net.port_number);
 
 
     #ifndef SOSD_CLOUD_SYNC
@@ -160,7 +120,7 @@ int main(int argc, char *argv[])  {
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... creating SOS_runtime object for daemon use.\n"); fflush(stdout); }
     SOSD.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
     memset(SOSD.sos_context, '\0', sizeof(SOS_runtime));
-    SOSD.sos_context->role = my_role;
+    SOSD.sos_context->role = SOS_ROLE_UNASSIGNED;
 
     #ifdef SOSD_CLOUD_SYNC
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... calling SOSD_cloud_init()...\n"); fflush(stdout); }
@@ -170,8 +130,10 @@ int main(int argc, char *argv[])  {
     #endif
 
     SOS_SET_CONTEXT(SOSD.sos_context, "main");
+    my_role = SOS->role;
+
     dlog(0, "Initializing SOSD:\n");
-    dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( my_role, SOS_ROLE ));
+    dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
     SOSD.sos_context = SOS_init_with_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
 
     dlog(0, "   ... calling SOSD_init()...\n");
@@ -183,6 +145,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "   ... done. (SOSD_init + SOS_init are complete)\n");
     dlog(0, "Calling register_signal_handler()...\n");
     if (SOSD_DAEMON_LOG) SOS_register_signal_handler(SOSD.sos_context);
+
     //GO
     //TODO: Add support for socket interactions to the AGGREGATOR roles...
     if (SOS->role == SOS_ROLE_LISTENER) {

@@ -136,8 +136,8 @@ int main(int argc, char *argv[]) {
     SOS_TIME( time_start );
     for (iter = 0; iter < g_iter_count; iter++) {
         usleep(g_iter_delay);
-        offset_x = (randf(abs(g_offset_max - g_iter_radii)));
-        offset_y = (randf(abs(g_offset_max - g_iter_radii)));
+        offset_x = (randf(fabs(g_offset_max - g_iter_radii)));
+        offset_y = (randf(fabs(g_offset_max - g_iter_radii)));
         for (pair = 0; pair < g_iter_point; pair++) {
             gen_xy(&x, &y, g_iter_radii);
             x += offset_x;

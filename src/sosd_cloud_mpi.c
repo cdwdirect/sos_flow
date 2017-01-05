@@ -340,17 +340,54 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     if (SOSD_ECHO_TO_STDOUT) printf("  ... safely returned.\n");
 
     switch (SOS->config.comm_support) {
-    case MPI_THREAD_SINGLE:     if (SOSD_ECHO_TO_STDOUT) printf("  ... supported: MPI_THREAD_SINGLE (could cause problems)\n"); break;
-    case MPI_THREAD_FUNNELED:   if (SOSD_ECHO_TO_STDOUT) printf("  ... supported: MPI_THREAD_FUNNELED (could cause problems)\n"); break;
-    case MPI_THREAD_SERIALIZED: if (SOSD_ECHO_TO_STDOUT) printf("  ... supported: MPI_THREAD_SERIALIZED\n"); break;
-    case MPI_THREAD_MULTIPLE:   if (SOSD_ECHO_TO_STDOUT) printf("  ... supported: MPI_THREAD_MULTIPLE\n"); break;
-    default:                    if (SOSD_ECHO_TO_STDOUT) printf("  ... WARNING!  The supported threading model (%d) is unrecognized!\n", SOS->config.comm_support); break;
+    case MPI_THREAD_SINGLE:
+        if (SOSD_ECHO_TO_STDOUT) 
+            printf("  ... supported: MPI_THREAD_SINGLE (could cause problems)\n");
+        break; 
+    case MPI_THREAD_FUNNELED:
+        if (SOSD_ECHO_TO_STDOUT)  
+            printf("  ... supported: MPI_THREAD_FUNNELED (could cause problems)\n");
+        break;
+    case MPI_THREAD_SERIALIZED: 
+        if (SOSD_ECHO_TO_STDOUT) 
+            printf("  ... supported: MPI_THREAD_SERIALIZED\n"); 
+            break;
+    case MPI_THREAD_MULTIPLE:
+        if (SOSD_ECHO_TO_STDOUT) 
+            printf("  ... supported: MPI_THREAD_MULTIPLE\n"); 
+        break;
+    default: 
+        if (SOSD_ECHO_TO_STDOUT) 
+            printf("  ... WARNING!  The supported threading model (%d) is unrecognized!\n",  
+                   SOS->config.comm_support); 
+        break;
     }
 
     int world_size = -1;
     int world_rank = -1;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+
+    //GO
+    if ((world_rank >= 0) && (world_rank < SOSD.daemon.listener_count)) {
+        SOS->role = SOS_ROLE_LISTENER;
+        dlog(1, "Becoming a SOS_ROLE_LISTENER...\n");
+    } else if ((world_rank >= SOSD.daemon.listener_count) && (world_rank <= world_size)) { 
+        SOS->role = SOS_ROLE_AGGREGATOR;
+        dlog(1, "Becoming a SOS_ROLE_AGGREGATOR...\n");
+    } 
+    
+    if (SOS->role == SOS_ROLE_UNASSIGNED) {
+        dlog(0, "ERROR: Unable to determine a role for this instance of SOSD!\n");
+        dlog(0, "ERROR: Verify the number of ranks matches the reqested roles.\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Rank(%d)Size(%d)Role(%d) ==>  ", world_rank, world_size, SOS->role);
+    printf("list:%d    aggr:%d    work:%s    port:%d\n",
+            SOSD.daemon.listener_count, SOSD.daemon.aggregator_count,
+            SOSD.daemon.work_dir, SOSD.net.port_number);
+
 
 
     /* ----- Setup the cloud_sync target: ----------*/
@@ -376,6 +413,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     MPI_Allgather((void *) &my_role, 1, MPI_INT, world_roles, 1, MPI_INT, MPI_COMM_WORLD);
     MPI_Allgather((void *) my_host, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
                   (void *) world_hosts, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, MPI_COMM_WORLD);
+
+
+    // GO
+    // TODO : (Warning) This use case is deprecated. Future will have
+    //        Analytics tasks run as independent applications.
 
     // SPLIT: -------------------
     //  When we split here, we use SOS_ROLE_LISTENER for both DAEMON and DB
