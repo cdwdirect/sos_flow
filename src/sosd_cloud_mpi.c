@@ -390,6 +390,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
 
 
+    //GO
+    //TODO: Self-assign the role we are to become here. 
+
+
+
     /* ----- Setup the cloud_sync target: ----------*/
     if (SOSD_ECHO_TO_STDOUT) printf("Broadcasting world roles and host names...\n");
 
