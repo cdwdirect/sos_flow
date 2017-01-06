@@ -40,7 +40,11 @@ message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package("Sqlite3" REQUIRED)
 find_package("MPI" REQUIRED)
-find_package("Threads" REQUIRED)
+# set everything up to use -pthread
+set(CMAKE_THREAD_PREFER_PTHREAD ON)
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
+set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
