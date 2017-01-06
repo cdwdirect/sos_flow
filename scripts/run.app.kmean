@@ -1,0 +1,2 @@
+echo "../scripts/run.app.kmean <ranks> <iters> <points_per> <radii> <max_offset>"
+mpirun -np $1 $SOS_BUILD_DIR/bin/sosa_kmean_2d -n $2 -d 100000 -p $3 -r $4 -o $5

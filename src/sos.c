@@ -265,7 +265,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
         dlog(1, "  ... configuring uid sets.\n");
 
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
-        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* DAEMON doesn't use this, it's for CLIENTS. */
+        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* LISTENER doesn't use this, it's for CLIENTS. */
 
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -276,7 +276,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     } else {
         /*
          *
-         *  CONFIGURATION: DAEMON / DATABASE / etc.
+         *  CONFIGURATION: LISTENER / AGGREGATOR / etc.
          *
          */
 
@@ -612,7 +612,7 @@ void SOS_uid_init(SOS_runtime *sos_context,  SOS_uid **id_var, SOS_guid set_from
     id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
     id->next = (set_from > 0) ? set_from : 1;
     id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
-    dlog(5, "     ... default set for uid range (%ld -> %ld).\n", id->next, id->last);
+    dlog(5, "     ... default set for uid range (%" SOS_GUID_FMT " -> %" SOS_GUID_FMT ").\n", id->next, id->last);
     dlog(5, "     ... initializing uid mutex.\n");
     id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(id->lock, NULL );
@@ -653,14 +653,14 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
      * will not occur for them.
      */
 
-        if (SOS->role == SOS_ROLE_DAEMON) {
-            /* NOTE: There is no recourse if a DAEMON runs out of GUIDs.
+        if (SOS->role != SOS_ROLE_CLIENT) {
+            /* NOTE: There is no recourse if a sosd daemon runs out of GUIDs.
              *       That should *never* happen.
              */
             dlog(0, "ERROR:  This sosd instance has run out of GUIDs!  Terminating.\n");
             exit(EXIT_FAILURE);
         } else {
-            /* Acquire a fresh block of GUIDs from the DAEMON... */
+            /* Acquire a fresh block of GUIDs from the sosd daemon... */
             SOS_msg_header header;
             SOS_buffer *buf;
             int offset;
@@ -779,6 +779,8 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
             new_pub->data[i]->type      = SOS_VAL_TYPE_INT;
             new_pub->data[i]->val_len   = 0;
             new_pub->data[i]->val.l_val = 0;
+            new_pub->data[i]->val.c_val = 0;
+            new_pub->data[i]->val.d_val = 0.0;
             new_pub->data[i]->state     = SOS_VAL_STATE_EMPTY;
             new_pub->data[i]->time.pack = 0.0;
             new_pub->data[i]->time.send = 0.0;
@@ -952,6 +954,8 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
 
         data->type  = pack_type;
         data->guid  = SOS_uid_next(SOS->uid.my_guid_pool);
+        data->val.c_val = NULL;
+        data->val_len = 0;
         strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
 
     } else {
@@ -963,7 +967,9 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     switch(data->type) {
         
     case SOS_VAL_TYPE_STRING:
-        if (data->val.c_val != NULL) { free(data->val.c_val); }
+        if (data->val.c_val != NULL) {
+            free(data->val.c_val);
+        }
         if (pack_val.c_val != NULL) {
             data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
             data->val_len   = strlen(pack_val.c_val);
@@ -1033,9 +1039,11 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     case SOS_VAL_TYPE_BYTES:
         snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
         memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
+        break;
 
     case SOS_VAL_TYPE_STRING:
         snap->val.c_val = strndup(data->val.c_val, SOS_DEFAULT_STRING_LEN);
+        break;
 
     case SOS_VAL_TYPE_INT:
     case SOS_VAL_TYPE_LONG:
@@ -1314,9 +1322,8 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
         case SOS_VAL_TYPE_LONG:   SOS_buffer_unpack(buffer, &offset, "l", &snap->val.l_val); break;
         case SOS_VAL_TYPE_DOUBLE: SOS_buffer_unpack(buffer, &offset, "d", &snap->val.d_val); break;
         case SOS_VAL_TYPE_STRING:
-            snap->val.c_val = NULL; //unpack will automatically malloc for it.
+            snap->val.c_val = (char *) malloc (snap->val_len * sizeof(char));
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
-            dlog(7, "[STRING] Extracted val_snap string: %s\n", snap->val.c_val);
             break;
         case SOS_VAL_TYPE_BYTES:
             memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
@@ -1435,7 +1442,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         /* Only CLIENT updates the frame when sending, in case this is re-used
-         * internally / on the backplane by the DB or DAEMON. */
+         * internally / on the backplane by the LISTENER / AGGREGATOR. */
         this_frame = pub->frame++;
     }
 
@@ -1671,7 +1678,7 @@ void SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *snap_qu
 
     dlog(7, "  ... header.msg_size = %d\n", header.msg_size);
     dlog(7, "  ... header.msg_type = %d\n", header.msg_type);
-    dlog(7, "  ... header.msg_from = %ld\n", header.msg_from);
+    dlog(7, "  ... header.msg_from = %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(7, "  ... header.pub_guid = %" SOS_GUID_FMT "\n", header.pub_guid);
     dlog(7, "  ... values:\n");
 

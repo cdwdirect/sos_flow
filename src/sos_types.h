@@ -18,8 +18,8 @@
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_UNASSIGNED)                   \
     ROLE(SOS_ROLE_CLIENT)                       \
-    ROLE(SOS_ROLE_DAEMON)                       \
-    ROLE(SOS_ROLE_DB)                           \
+    ROLE(SOS_ROLE_LISTENER)                     \
+    ROLE(SOS_ROLE_AGGREGATOR)                   \
     ROLE(SOS_ROLE_ANALYTICS)                    \
     ROLE(SOS_ROLE_RUNTIME_UTILITY)              \
     ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
@@ -53,6 +53,7 @@
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
     MSG_TYPE(SOS_MSG_TYPE_PROBE)                \
     MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
+    MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 
@@ -164,6 +165,7 @@
     NATURE(SOS_NATURE_SUPPORT_EXEC)             \
     NATURE(SOS_NATURE_SUPPORT_FLOW)             \
     NATURE(SOS_NATURE_CONTROL_FLOW)             \
+    NATURE(SOS_NATURE_KMEAN_2D)                 \
     NATURE(SOS_NATURE_SOS)                      \
     NATURE(SOS_NATURE___MAX)
         
@@ -426,6 +428,7 @@ typedef struct {
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;
+
 
 typedef struct {
     void               *sos_context;

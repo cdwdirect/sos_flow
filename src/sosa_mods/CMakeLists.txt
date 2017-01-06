@@ -3,7 +3,7 @@ set(POSITION_INDEPENDENT_CODE True)
 
 include_directories("${MPI_INCLUDE_PATH}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
-   link_directories("${sos_flow_SOURCE_DIR}/lib")
+#   link_directories("${sos_flow_SOURCE_DIR}/lib")
 
 if(DEFINED SQLITE3_INCLUDE_DIR)
     include_directories("${SQLITE3_INCLUDE_DIR}")
@@ -33,7 +33,7 @@ file(GLOB sosa_mod_src_file_list
 foreach(src_file_name ${sosa_mod_src_file_list})
   string(REGEX REPLACE "\\.[^.]*$" "" bin_file_name ${src_file_name})
   add_executable("sosa_${bin_file_name}" "../sosa.c" "${src_file_name}")
-  target_link_libraries("sosa_${bin_file_name}" "sos" "sosa" "${MPI_LIBRARIES}")
+  target_link_libraries("sosa_${bin_file_name}" "sos" "m" "sosa" "${MPI_LIBRARIES}")
   if(MPI_COMPILE_FLAGS)
     set_target_properties("sosa_${bin_file_name}" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
   endif()

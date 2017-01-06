@@ -9,6 +9,7 @@ export SOS_DB_PORT=22503
 export SOS_ROOT=$BASEDIR
 export SOS_WORK=.
 export BUILDDIR=build-titan
+export SOS_BUILD_DIR=$BASEDIR/$BUILDDIR
 export CC=gcc
 export CXX=g++
 export MPICC=cc
@@ -25,4 +26,4 @@ export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIB
 module load cmake
 module swap PrgEnv-pgi PrgEnv-gnu
 
-export sos_env_set=1
+export SOS_ENV_SET=1
