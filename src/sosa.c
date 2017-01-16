@@ -660,7 +660,7 @@ SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
     // Count the number of database roles  (The 'i' index == MPI rank)
     SOSA.db_role_count = 0;
     for (i = 0; i < world_size; i++) {
-        if (world_roles[i] == SOS_ROLE_DB) {
+        if (world_roles[i] == SOS_ROLE_AGGREGATOR) {
             SOSA.db_role_count++;
         }
     }
@@ -675,7 +675,7 @@ SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
         int found_db_index = 0;
         SOSA.db_role_ranks = (int *) calloc(SOSA.db_role_count, sizeof(int));
         for (i = 0; i < world_size; i++) {
-            if (world_roles[i] == SOS_ROLE_DB) {
+            if (world_roles[i] == SOS_ROLE_AGGREGATOR) {
                 SOSA.db_role_ranks[found_db_index++] = i;
                 dlog(0, "    ... SOSA.db_role_ranks[%3d]  == %d\n", (found_db_index - 1), i);
             }
@@ -686,7 +686,7 @@ SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
     SOSA.db_target_rank             = -1;
     SOS->config.locale = -1;
     for (i = 0; i < world_size; i++) {
-        if (world_roles[i] == SOS_ROLE_DB) {
+        if (world_roles[i] == SOS_ROLE_AGGREGATOR) {
             if (strncmp(my_host, (world_hosts + (i * MPI_MAX_PROCESSOR_NAME)), MPI_MAX_PROCESSOR_NAME) == 0) {
                 // We're on the same node as this database...
                 SOSA.db_target_rank = i;

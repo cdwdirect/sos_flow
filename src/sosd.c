@@ -5,6 +5,12 @@
  *
  */
 
+
+#define USAGE          "usage:   $ sosd  -l, --listeners <count>\n" \
+                       "                 -a, --aggregators <count>\n" \
+                       "                 -w, --work_dir <full_path>\n"
+
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/time.h>
@@ -40,7 +46,6 @@
 #include "sos_qhashtbl.h"
 #include "sos_buffer.h"
 
-#define USAGE          "usage:   $ sosd  --role <role>  --port <monitor_port>  --work_dir <path>"
 
 void SOSD_display_logo(void);
 
@@ -63,40 +68,44 @@ int main(int argc, char *argv[])  {
     SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
 
-    my_role = SOS_ROLE_DAEMON; /* This can be overridden by command line argument. */
+    my_role = SOS_ROLE_UNASSIGNED;
 
-    SOSD.net.buffer_len = SOS_DEFAULT_BUFFER_MAX;
     SOSD.net.listen_backlog = 10;
+
+
+    // Grab the port from the environment variable SOS_CMD_PORT
+    SOSD.net.server_port = getenv("SOS_CMD_PORT");
+    SOSD.net.port_number = atoi(SOSD.net.server_port);
 
     /* Process command-line arguments */
     if ( argc < 7 ) { fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE); exit(EXIT_FAILURE); }
-    SOSD.net.port_number    = -1;
-    SOSD.net.buffer_len     = -1;
     SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
-        if (      strcmp(argv[elem], "--port"            ) == 0) { SOSD.net.server_port    = argv[next_elem];       }
-        /*  
-         *  else if ( strcmp(argv[elem], "--buffer_len"      ) == 0) { SOSD.net.buffer_len     = atoi(argv[next_elem]); }
-         *  else if ( strcmp(argv[elem], "--listen_backlog"  ) == 0) { SOSD.net.listen_backlog = atoi(argv[next_elem]); }
-         */
-        else if ( strcmp(argv[elem], "--work_dir"        ) == 0) { SOSD.daemon.work_dir    = argv[next_elem];       }
-        else if ( strcmp(argv[elem], "--role"            ) == 0) {
-            if (      strcmp(argv[next_elem], "SOS_ROLE_DAEMON" ) == 0)  { my_role = SOS_ROLE_DAEMON; }
-            else if ( strcmp(argv[next_elem], "SOS_ROLE_DB" ) == 0)      { my_role = SOS_ROLE_DB; }
-            else {  fprintf(stderr, "Unknown role: %s %s\n", argv[elem], argv[next_elem]); }
-        } else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
+        if (      (strcmp(argv[elem], "--listeners"       ) == 0)
+        ||        (strcmp(argv[elem], "-l"                ) == 0)) {
+            SOSD.daemon.listener_count = atoi(argv[next_elem]);
+        }
+        else if ( (strcmp(argv[elem], "--aggregators"     ) == 0)
+        ||        (strcmp(argv[elem], "-a"                ) == 0)) {
+            SOSD.daemon.aggregator_count = atoi(argv[next_elem]);
+        }
+        else if ( (strcmp(argv[elem], "--work_dir"        ) == 0)
+        ||        (strcmp(argv[elem], "-w"                ) == 0)) {
+            SOSD.daemon.work_dir    = argv[next_elem];
+        }
+        else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
-    SOSD.net.port_number = atoi(SOSD.net.server_port);
-    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_DAEMON)) {
-      fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
+    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_UNASSIGNED)) {
+        fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
     }
 
+
     #ifndef SOSD_CLOUD_SYNC
-    if (my_role != SOS_ROLE_DAEMON) {
+    if (my_role != SOS_ROLE_LISTENER) {
         printf("NOTE: Terminating an instance of sosd with pid: %d\n", getpid());
-        printf("NOTE: SOSD_CLOUD_SYNC is disabled but this instance is not a SOS_ROLE_DAEMON!\n");
+        printf("NOTE: SOSD_CLOUD_SYNC is disabled but this instance is not a SOS_ROLE_LISTENER!\n");
         fflush(stdout);
         exit(EXIT_FAILURE);
     }
@@ -111,7 +120,7 @@ int main(int argc, char *argv[])  {
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... creating SOS_runtime object for daemon use.\n"); fflush(stdout); }
     SOSD.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
     memset(SOSD.sos_context, '\0', sizeof(SOS_runtime));
-    SOSD.sos_context->role = my_role;
+    SOSD.sos_context->role = SOS_ROLE_UNASSIGNED;
 
     #ifdef SOSD_CLOUD_SYNC
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... calling SOSD_cloud_init()...\n"); fflush(stdout); }
@@ -121,8 +130,10 @@ int main(int argc, char *argv[])  {
     #endif
 
     SOS_SET_CONTEXT(SOSD.sos_context, "main");
+    my_role = SOS->role;
+
     dlog(0, "Initializing SOSD:\n");
-    dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( my_role, SOS_ROLE ));
+    dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
     SOSD.sos_context = SOS_init_with_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
 
     dlog(0, "   ... calling SOSD_init()...\n");
@@ -134,7 +145,10 @@ int main(int argc, char *argv[])  {
     dlog(0, "   ... done. (SOSD_init + SOS_init are complete)\n");
     dlog(0, "Calling register_signal_handler()...\n");
     if (SOSD_DAEMON_LOG) SOS_register_signal_handler(SOSD.sos_context);
-    if (SOS->role == SOS_ROLE_DAEMON) {
+
+    //GO
+    //TODO: Add support for socket interactions to the AGGREGATOR roles...
+    if (SOS->role == SOS_ROLE_LISTENER) {
         dlog(0, "Calling daemon_setup_socket()...\n");
         SOSD_setup_socket();
     }
@@ -145,7 +159,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Initializing the sync framework...\n");
     SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
     #ifdef SOSD_CLOUD_SYNC
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), SOSD_THREAD_cloud_sync);
         SOSD_cloud_start();
     }
@@ -158,12 +172,12 @@ int main(int argc, char *argv[])  {
 
     /* Go! */
     switch (SOS->role) {
-    case SOS_ROLE_DAEMON:
+    case SOS_ROLE_LISTENER:
         SOS->config.locale = SOS_LOCALE_APPLICATION;
         SOSD_listen_loop();
         break;
 
-    case SOS_ROLE_DB:
+    case SOS_ROLE_AGGREGATOR:
         SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
         #ifdef SOSD_CLOUD_SYNC
         SOSD_cloud_listen_loop();
@@ -205,7 +219,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "  ... done.\n");
     dlog(0, "Closing the database.\n");
     SOSD_db_close_database();
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         dlog(0, "Closing the socket.\n");
         shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     }
@@ -410,6 +424,7 @@ void* SOSD_THREAD_local_sync(void *args) {
         case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer); break;
         case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer); break;
         case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (buffer); break;
+        case SOS_MSG_TYPE_KMEAN_DATA: SOSD_handle_kmean_data (buffer); break;
         default:
             dlog(0, "ERROR: An invalid message type (%d) was placed in the local_sync queue!\n", header.msg_type);
             dlog(0, "ERROR: Destroying it.\n");
@@ -420,12 +435,12 @@ void* SOSD_THREAD_local_sync(void *args) {
             continue;
         }
 
-        if (SOS->role == SOS_ROLE_DAEMON) {
+        if (SOS->role == SOS_ROLE_LISTENER) {
             pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
             pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
             SOSD.sync.cloud.queue->elem_count++;
             pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
-        } else if (SOS->role == SOS_ROLE_DB) {
+        } else if (SOS->role == SOS_ROLE_AGGREGATOR) {
             //DB role's can go ahead and release the buffer.
             SOS_buffer_destroy(buffer);
         }
@@ -643,6 +658,46 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
 
 
+
+void SOSD_handle_kmean_data(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_kmean_data");
+    // For parsing the buffer:
+    char             pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    SOS_pub         *pub;
+    SOS_msg_header   header;
+    int              offset;
+    int              rc;
+    // For unpacking / using the contents:
+    SOS_guid         guid;
+    SOSD_km2d_point  point;
+        
+    dlog(5, "header.msg_type = SOS_MSG_TYPE_KMEAN_DATA\n");
+
+    offset = 0;
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+                      &header.msg_size,
+                      &header.msg_type,
+                      &header.msg_from,
+                      &header.pub_guid);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.pub_guid);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+
+    if (pub == NULL) {
+        dlog(0, "ERROR: No pub exists for header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid); 
+        dlog(0, "ERROR: Destroying message and returning.\n");
+        SOS_buffer_destroy(buffer);
+        return;
+    }
+
+    //...
+
+    dlog(5, "Nothing to do... returning...");
+
+    return;
+}
+
+
+
 void SOSD_handle_sosa_query(SOS_buffer *buffer) { 
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_query");
     SOS_msg_header header;
@@ -748,7 +803,33 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     //}
 
     dlog(5, "  ... done.\n");
-        
+
+
+    // Spin off the k-means information to be treated
+    //   in parallel with its database injection:
+    if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
+        && (SOS->role == SOS_ROLE_LISTENER)) {
+        dlog(4, "Re-queing the k-means task for processing...\n");
+        SOS_buffer *copy;
+        // Make a copy of this buffer.
+        SOS_buffer_clone(&copy, buffer); 
+        // Set it to be the KMEAN type of data:
+        offset = 0;
+        header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
+        SOS_buffer_pack(copy, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+        // Enqueue it to be handled:
+        pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+        pipe_push(SOSD.sync.local.queue->intake, (void *)&copy, 1);
+        SOSD.sync.local.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+    }
+
+
+
     return;
 }
 
@@ -953,7 +1034,32 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     } else {
         pthread_mutex_unlock(pub->lock);
     }
-    
+
+    // Spin off the k-means information to be treated
+    //   in parallel with its database injection:
+    if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
+        && (SOS->role == SOS_ROLE_LISTENER)) {
+        dlog(4, "Re-queing the k-means task for processing...\n");
+        SOS_buffer *copy;
+        // Make a copy of this buffer.
+        SOS_buffer_clone(&copy, buffer); 
+        // Set it to be the KMEAN type of data:
+        offset = 0;
+        header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
+        SOS_buffer_pack(copy, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+        // Enqueue it to be handled:
+        pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+        pipe_push(SOSD.sync.local.queue->intake, (void *) &copy, 1);
+        SOSD.sync.local.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+     }
+
+
+
     return;
 }
 
@@ -977,7 +1083,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
                              &header.msg_from,
                              &header.pub_guid);
 
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_PACK_ACK(reply);
         
         i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
@@ -1032,7 +1138,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         &header.msg_from,
         &header.pub_guid);
 
-    if (SOS->role == SOS_ROLE_DAEMON) {
+    if (SOS->role == SOS_ROLE_LISTENER) {
         /* Build a reply: */
         memset(&header, '\0', sizeof(SOS_msg_header));
         header.msg_size = -1;
@@ -1213,7 +1319,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
     dlog(1, "header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
     dlog(1, "header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
 
-    if (SOS->role == SOS_ROLE_DB) {
+    if (SOS->role == SOS_ROLE_AGGREGATOR) {
         SOS_buffer_destroy(reply);
         return;
     }
@@ -1317,8 +1423,8 @@ void SOSD_init() {
      *     assign a name appropriate for whether it is participating in a cloud or not
      */
     switch (SOS->role) {
-    case SOS_ROLE_DAEMON:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
-    case SOS_ROLE_DB:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
+    case SOS_ROLE_LISTENER:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
+    case SOS_ROLE_AGGREGATOR:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
     default: break;
     }
 

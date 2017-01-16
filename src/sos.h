@@ -138,11 +138,11 @@ extern "C" {
     char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                                                                         \
     snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");                                                               \
     switch (SOS->role) {                                                                                                   \
-    case SOS_ROLE_CLIENT    : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
-    case SOS_ROLE_DAEMON    : sprintf(SOS_WHOAMI, "daemon(%d).%s",                 SOS->config.comm_rank, __SOS_str_funcname); break; \
-    case SOS_ROLE_DB        : sprintf(SOS_WHOAMI, "db(%d).%s",                     SOS->config.comm_rank, __SOS_str_funcname); break; \
-    case SOS_ROLE_ANALYTICS : sprintf(SOS_WHOAMI, "analytics(%d).%s",              SOS->config.comm_rank, __SOS_str_funcname); break; \
-    default                 : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
+    case SOS_ROLE_CLIENT     : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
+    case SOS_ROLE_LISTENER   : sprintf(SOS_WHOAMI, "listener(%d).%s",                 SOS->config.comm_rank, __SOS_str_funcname); break; \
+    case SOS_ROLE_AGGREGATOR : sprintf(SOS_WHOAMI, "aggregator(%d).%s",                     SOS->config.comm_rank, __SOS_str_funcname); break; \
+    case SOS_ROLE_ANALYTICS  : sprintf(SOS_WHOAMI, "analytics(%d).%s",              SOS->config.comm_rank, __SOS_str_funcname); break; \
+    default                  : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
  }
 #endif
 

@@ -24,13 +24,13 @@
  *     -1 = disable logging entirely  <--- Faster, but HIDES ALL sosd/sosa logs, too!
  */
 #ifndef SOS_DEBUG
-#define SOS_DEBUG                 0
+#define SOS_DEBUG                 0 
 #endif
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           0
-#define SOSD_ECHO_TO_STDOUT       0
+#define SOSD_DAEMON_LOG           0 
+#define SOSD_ECHO_TO_STDOUT       0 
 
 
 /* Analytics module output verbosity.  (Req. SOS_DEBUG >= 0) */
@@ -86,7 +86,7 @@ FILE   *sos_daemon_log_fptr;
             }                                                           \
         }                                                               \
     } else {                                                            \
-        if (SOS_DEBUG >= level && SOS->role != SOS_ROLE_DAEMON) {       \
+        if (SOS_DEBUG >= level && SOS->role == SOS_ROLE_CLIENT) {       \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 printf("(%s:%d)", __FILE__, __LINE__ );                 \
             }                                                           \

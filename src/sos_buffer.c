@@ -88,6 +88,21 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
 }
 
 
+
+void SOS_buffer_clone(SOS_buffer **dest, SOS_buffer *src) {
+    SOS_SET_CONTEXT(src->sos_context, "SOS_buffer_clone");
+    SOS_buffer *new;
+
+    dlog(4, "Cloning src into dest buffer... ");
+    SOS_buffer_init_sized_locking(src->sos_context, dest, (src->max + 1), src->is_locking);
+    new = *dest;
+    new->len = src->len;
+    memcpy(new->data, src->data, src->len);
+    dlog(4, "done.   (dest->len == %d)\n", new->len);
+    return;
+}
+
+
 void SOS_buffer_lock(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_lock");
 

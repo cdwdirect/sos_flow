@@ -3,7 +3,7 @@ set(POSITION_INDEPENDENT_CODE True)
 
 include_directories("${MPI_INCLUDE_PATH}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
-   link_directories("${sos_flow_SOURCE_DIR}/lib")
+#   link_directories("${sos_flow_SOURCE_DIR}/lib")
 
 if(EXISTS "$ENV{SQLITE}")
 include_directories("$ENV{SQLITE}/include")

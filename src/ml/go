@@ -1,0 +1,1 @@
+time cat points.csv | ./tsv2eps $(wc -l points.csv | awk '{print $1;}') $1 > test.eps && xdg-open test.eps

@@ -108,7 +108,7 @@ int main(int argc, char *argv[]) {
     if (rank == 0) dlog(0, "Creating a pub...\n");
 
     pub = SOS_pub_create(my_sos, "demo", SOS_NATURE_CREATE_OUTPUT);
-    if (rank == 0) dlog(0, "  ... pub->guid  = %ld\n", pub->guid);
+    if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
     if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
     strcpy (pub->prog_ver, str_prog_ver);
@@ -124,8 +124,8 @@ int main(int argc, char *argv[]) {
     var_int = 1234567890;
     snprintf(var_string, 100, "Hello, world!");
 
-    //SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
-    //SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
+    SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
+    SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
 
     var_double = 0.0;
 
