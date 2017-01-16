@@ -99,7 +99,7 @@ cmd="cmake \
      -DCMAKE_CXX_COMPILER=$CXX \
      -DMPI_C_COMPILER=$MPICC \
      -DMPI_CXX_COMPILER=$MPICXX \
-     $cmake_extras_examples \
+     $cmake_extras_examples $tauopts \
      $BASEDIR"
 
      echo $cmd
