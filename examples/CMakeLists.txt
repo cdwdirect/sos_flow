@@ -41,7 +41,7 @@ else()
     message(FATAL ">>> ADIOS  ** ERROR **:  Could not locate an ADIOS installation!  ($PATH, or 'adios_config -d')")
 endif()
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/bin")
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/lib")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/lib")
 

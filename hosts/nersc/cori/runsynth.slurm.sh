@@ -1,18 +1,18 @@
 #!/bin/bash -l
 #SBATCH -p debug
 #SBATCH -N 2
-#SBATCH -A m88
+#SBATCH -A m1881
 #SBATCH -t 0:30:00
-#SBATCH --gres=craynetwork:2
-set -x
+#SBATCH -C haswell
+#SBATCH --gres=craynetwork:4
 
 # See http://www.nersc.gov/users/computational-systems/cori/running-jobs/example-batch-scripts/ for details
 # run this in an interactive session, launced with:
-#   salloc -N 2 -p debug -t 00:30:00 --gres=craynetwork:2 -C haswell
+#   salloc -N 2 -p debug -t 00:30:00 --gres=craynetwork:4 -C haswell
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 source /project/projectdirs/m1881/khuck/sos_flow/sos_flow/hosts/nersc/cori/setenv.sh
-export SOS_WORK=/project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori
+export SOS_WORK=/project/projectdirs/m1881/khuck/sos_flow/sos_flow/working
 
 if [ "x${SOS_ROOT}" == "x" ] ; then 
   echo "Please set the SOS_ROOT environment variable."
@@ -32,7 +32,9 @@ echo "*** Starting [sosd] daemon..."
 echo ""
 echo ""
 
-numprocs=8
+cd ${SOS_WORK}
+
+numprocs=2
 numnodes=$(expr ${SLURM_NNODES} - 1)
 echo "Num Nodes: ${numnodes}"
 cores=$(expr ${numnodes} \* 32)
@@ -50,11 +52,18 @@ cmd="srun --wait 60 -n ${SLURM_NNODES} -N ${SLURM_NNODES} -c 4 --hint=multithrea
 echo $cmd
 $cmd &
 
-sleep 10
+sleep 30
 echo ""
 echo ""
 export OMP_NUM_THREADS=${numthreads}
-cmd="srun -n ${numprocs} -N ${numnodes} -c 2 --hint=multithread --gres=craynetwork:1 --mem=25600 -l $SOS_ROOT/build-cori/bin/demo_app -i 100 -m 10 -p 10"
+# launch our workflow
+cmd="srun -n ${numprocs} -N ${numnodes} -c 2 --hint=multithread --gres=craynetwork:1 --mem=25600 -l $SOS_ROOT/build-cori-examples/bin/synthetic_worker_a 100"
+echo "*** Running [demo_app]... ${cmd}"
+$cmd &
+cmd="srun -n ${numprocs} -N ${numnodes} -c 2 --hint=multithread --gres=craynetwork:1 --mem=25600 -l $SOS_ROOT/build-cori-examples/bin/synthetic_worker_b 100"
+echo "*** Running [demo_app]... ${cmd}"
+$cmd &
+cmd="srun -n ${numprocs} -N ${numnodes} -c 2 --hint=multithread --gres=craynetwork:1 --mem=25600 -l $SOS_ROOT/build-cori-examples/bin/synthetic_worker_c 100"
 echo "*** Running [demo_app]... ${cmd}"
 $cmd
 sleep 20

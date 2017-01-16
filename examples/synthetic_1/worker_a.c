@@ -92,6 +92,11 @@ int worker(int argc, char* argv[]) {
             p[i] = index*1000.0 + myrank*NY + i;
         }
 
+        if (myrank == 0) {
+            printf ("--------- A Step: %d --------------------------------\n",
+                index);
+        }
+
         if (send_to_b) {
             TAU_PROFILE_TIMER(adiostimer, "ADIOS send", __FILE__, TAU_USER);
             TAU_PROFILE_START(adiostimer);

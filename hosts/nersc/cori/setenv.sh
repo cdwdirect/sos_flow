@@ -36,6 +36,7 @@ module load cmake
 module load sqlite 
 #module swap PrgEnv-intel PrgEnv-gnu
 
+export SOS_ENV_SET=1
 export sos_env_set=1
 
 # TAU=$HOME/src/tau2
