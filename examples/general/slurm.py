@@ -109,6 +109,7 @@ def parse_nodefile():
 def generate_commands(data, hostnames):
     commands = []
     logfiles = []
+    profiledirs = []
     global sos_root
     sos_root = data["sos_root"]
     index = 0
@@ -126,14 +127,16 @@ def generate_commands(data, hostnames):
         commands.append(command)
         logfile = node["name"] + ".log"
         logfiles.append(logfile)
-    return commands,logfiles
+        profiledir = "profiles_" + node["name"]
+        profiledirs.append(profiledir)
+    return commands,logfiles,profiledirs
     
 # this method will use the environment variables and JSON config settings to
 # launch the SOS daemons (one per node) and the SOS database (at least one), as
 # well as each of the nodes in the workflow. All system calls are done in the
 # background, with the exception of the last one - this script will wait for
 # that one to finish before continuing.
-def execute_commands(commands, logfiles, data, unique_hostnames):
+def execute_commands(commands, logfiles, profiledirs, data, unique_hostnames):
     sos_root = data["sos_root"]
     sos_bin = data["sos_bin"]
     sos_examples_bin = data["sos_examples_bin"]
@@ -165,7 +168,11 @@ def execute_commands(commands, logfiles, data, unique_hostnames):
     index = 0
     openfiles = []
     # launch all of the nodes in the workflow
-    for command,logfile in zip(commands,logfiles):
+    for command,logfile,profiledir in zip(commands,logfiles,profiledirs):
+        os.environ['PROFILEDIR'] = profiledir
+        makedir = "mkdir -p " + profiledir
+        args = shlex.split(makedir)
+        subprocess.call(args)
         index = index + 1
         print command
         args = shlex.split(command)
@@ -200,9 +207,9 @@ def main():
     #pprint(data)
     generate_xml(data)
     hostnames, unique_hostnames = parse_nodefile()
-    commands,logfiles = generate_commands(data, hostnames)
+    commands,logfiles,profiledirs = generate_commands(data, hostnames)
     try:
-        execute_commands(commands, logfiles, data, unique_hostnames)
+        execute_commands(commands, logfiles, profiledirs, data, unique_hostnames)
     except:
         print "failed!"
         traceback.print_exc(file=sys.stderr)

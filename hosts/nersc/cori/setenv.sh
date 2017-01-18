@@ -20,12 +20,12 @@ export CHAOS=/project/projectdirs/m1881/khuck/sos_flow/chaos/cori-icc
 export ADIOS_ROOT=/project/projectdirs/m1881/khuck/sos_flow/chaos/adios/1.11-icc
 export PATH=${ADIOS_ROOT}/bin:${PATH}
 
-
 # need to figure out how to use this
 export cflags=`cc --cray-print-opts=cflags`
 export libs=`cc --cray-print-opts=libs`
 export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_intel_mt.so"
 export cmake_extras_examples="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIBRARIES=${CRAY_MPICH2_DIR}/lib/libmpich_intel_mt.so -DADIOS_ROOT=${ADIOS_ROOT} -DFIX_ADIOS_DEPENDENCIES=TRUE -DSOS_ROOT=${BASEDIR}/${BUILDDIR}"
+export ADIOS_WRAPPER_FLAGS=${ADIOS_ROOT}/adios_wrapper/link_options.tau
 
 export PKG_CONFIG_PATH=${CHAOS}/lib/pkgconfig:${PKG_CONFIG_PATH}
 export LD_LIBRARY_PATH=${CHAOS}/lib:${ADIOS_ROOT}/lib64:${LD_LIBRARY_PATH}
@@ -39,7 +39,9 @@ module load sqlite
 export SOS_ENV_SET=1
 export sos_env_set=1
 
-# TAU=$HOME/src/tau2
+TAU=/project/projectdirs/m1881/khuck/sos_flow/tau_contrib/tau2
+PATH=$ADIOS/bin:$TAU/craycnl/bin:$PATH
+LD_LIBRARY_PATH=$TAU/craycnl/lib:$LD_LIBRARY_PATH
 # ADIOS=$HOME/install/adios/1.9.0_gcc-4.9
 # ADIOS=$HOME/install/adios/1.9.0_gcc-4.9-tau
 # MXML=/usr/local/packages/mxml-2.7/gcc-4.5.3
