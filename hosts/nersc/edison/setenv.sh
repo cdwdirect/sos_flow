@@ -29,4 +29,4 @@ export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIB
 
 export PKG_CONFIG_PATH=${HOME}/src/chaos/titan-gcc/lib/pkgconfig:${PKG_CONFIG_PATH}
 
-export sos_env_set=1
+export SOS_ENV_SET=1

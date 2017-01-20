@@ -89,18 +89,19 @@ fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
-    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_OPTIONS=$TAU_OPTIONS"
+    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=${TAU_ROOT} -DTAU_ARCH=${TAU_ARCH} -DTAU_OPTIONS=${TAU_OPTIONS}"
+    ldflags="-DADIOS_WRAPPER_FLAGS=${ADIOS_WRAPPER_FLAGS} "
 fi
 
 cmd="cmake \
      -DCMAKE_BUILD_TYPE=${buildtype} \
      -DCMAKE_INSTALL_PREFIX=. \
-     -DCMAKE_C_COMPILER=$CC \
-     -DCMAKE_CXX_COMPILER=$CXX \
-     -DMPI_C_COMPILER=$MPICC \
-     -DMPI_CXX_COMPILER=$MPICXX \
-     $cmake_extras_examples \
-     $BASEDIR"
+     -DCMAKE_C_COMPILER=${CC} \
+     -DCMAKE_CXX_COMPILER=${CXX} \
+     -DMPI_C_COMPILER=${MPICC} \
+     -DMPI_CXX_COMPILER=${MPICXX} \
+     ${cmake_extras_examples} ${tauopts} ${ldflags} \
+     ${BASEDIR}"
 
-     echo $cmd
-     $cmd
+     echo ${cmd}
+     ${cmd}

@@ -27,6 +27,9 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ADIOS_ROOT}/etc)
 find_package(ADIOS REQUIRED)
 
 if(ADIOS_FOUND)
+    if(DEFINED ADIOS_WRAPPER_FLAGS)
+        file(READ ${ADIOS_WRAPPER_FLAGS} ADIOS_TAU_FLAGS)
+    endif(DEFINED ADIOS_WRAPPER_FLAGS)
     message(STATUS ">>> ADIOS:  ADIOS has been found!")
     message(STATUS ">>> ADIOS:  Building the ADIOS-enabled workflow examples with ADIOS ${ADIOS_VERSION}.")
 	if(FIX_ADIOS_DEPENDENCIES)
@@ -41,7 +44,9 @@ else()
     message(FATAL ">>> ADIOS  ** ERROR **:  Could not locate an ADIOS installation!  ($PATH, or 'adios_config -d')")
 endif()
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/bin")
+find_package(TAU REQUIRED)
+
+# set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/lib")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/lib")
 

@@ -277,18 +277,10 @@ endif()
 
 
 
-#TARGET ---> demo_pipe
-#            (test / benchmark queue structure)
-add_executable("demo_pipe" "demo_pipe.c" "sos_pipe.c")
-target_link_libraries("demo_pipe" "sos_pipe")
-if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("demo_pipe" "${CMAKE_THREAD_LIBS_INIT}")
-endif()
-
 INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
   OWNER_READ GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ)
 
 INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
-#INSTALL(TARGETS sos_pipe sos_buffer sos sosa sosd_stop sosd_probe demo_app demo_sweep proc_app demo_pipe RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib) 
+#INSTALL(TARGETS sos_pipe sos_buffer sos sosa sosd_stop sosd_probe demo_app demo_sweep proc_app RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib) 
