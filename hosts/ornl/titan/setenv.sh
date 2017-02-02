@@ -15,7 +15,7 @@ export CXX=g++
 export MPICC=cc
 export MPICXX=CC
 export TAU_ARCH=craycnl
-export TAU_OPTIONS=-mpi-pthread
+export TAU_CONFIG=-mpi-pthread
 export TAU_ROOT=$HOME/src/tau2
 
 # need to figure out how to use this

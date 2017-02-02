@@ -42,7 +42,7 @@ else
          -DUSE_TAU=TRUE \
          -DTAU_ROOT=$HOME/src/tau2 \
          -DTAU_ARCH=x86_64 \
-         -DTAU_OPTIONS=-mpi-pthread \
+         -DTAU_CONFIG=-mpi-pthread \
          $others \
          ..
     fi

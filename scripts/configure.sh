@@ -104,7 +104,7 @@ fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
-    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_OPTIONS=$TAU_OPTIONS"
+    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_CONFIG=$TAU_CONFIG"
 fi
 
 cmd="cmake \
