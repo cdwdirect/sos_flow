@@ -39,10 +39,22 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 }
 
 
+/* name.......: SOSD_cloud_start
+ * description: In the event that initialization and activation are not
+ *    necessarily the same, when this function returns the communication
+ *    between sosd instances is active, and all cloud functions are
+ *    operating.
+ */
+int SOSD_cloud_start(void) {
+    return 0;
+}
+
+
+
 /* name.......: SOSD_cloud_send
  * description: Actually send a message off-node.  (blocking)
  */
-int SOSD_cloud_send(unsigned char *msg, int msg_len) {
+int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.EVPATH");
 
     return 0;
@@ -52,7 +64,7 @@ int SOSD_cloud_send(unsigned char *msg, int msg_len) {
 /* name.......: SOSD_cloud_enqueue
  * description: Accept a message into the async send-queue.  (non-blocking)
  */
-void  SOSD_cloud_enqueue(unsigned char *msg, int msg_len) {
+void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.EVPATH");
 
     return;

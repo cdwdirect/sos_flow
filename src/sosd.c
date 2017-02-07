@@ -5,10 +5,23 @@
  *
  */
 
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    #define OPT_PARAMS "\n" \
+                       "optional parameter (EVPath only):\n" \
+                       "\n" \
+                       "                 -m, --master dfg\n" \
+                       "\n" \
+                       "                                   Coordinate the EVPath initialization.\n" \
+                       "                         Only one sosd instance is given this parameter.\n"
+#else
+    #define OPT_PARAMS " "
+#endif
+
 
 #define USAGE          "usage:   $ sosd  -l, --listeners <count>\n" \
                        "                 -a, --aggregators <count>\n" \
-                       "                 -w, --work_dir <full_path>\n"
+                       "                 -w, --work_dir <full_path>\n" \
+                       OPT_PARAMS
 
 
 #include <sys/types.h>
