@@ -1,6 +1,7 @@
 #!/usr/bin/python 
 
-import simplejson as json
+#import simplejson as json
+import json
 from pprint import pprint
 import argparse
 import subprocess

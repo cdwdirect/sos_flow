@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-if [ "x$sos_env_set" == "x" ] ; then
+if [ "x$SOS_ENV_SET" == "x" ] ; then
 	echo "Please set up your SOS environment first (source hosts/<org>/<hostname>/setenv.sh)"
     kill -INT $$
 fi
