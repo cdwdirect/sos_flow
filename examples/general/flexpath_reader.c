@@ -19,6 +19,8 @@
 #include "adios.h"
 #include "adios_read.h"
 #include "main.h"
+#include <unistd.h>
+
 
 typedef struct __adios_metadata__ {
     ADIOS_FILE* afile;

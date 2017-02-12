@@ -1,35 +1,20 @@
-#!/bin/bash 
+#!/bin/bash -e
 
-if [ "x$SOS_ENV_SET" == "x" ] ; then
-	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
+if [ "x$sos_env_set" == "x" ] ; then
+	echo "Please set up your SOS environment first (source hosts/<org>/<hostname>/setenv.sh)"
     kill -INT $$
 fi
 
 # remember where we are
 STARTDIR=`pwd`
-BUILD_ENVIRONMENT=`uname`
-
-case "${BUILD_ENVIRONMENT}" in
-    Linux)
-        echo "Build environment detected: Linux"
-        # Absolute path to this script, e.g. /home/user/bin/foo.sh
-        SCRIPT=$(readlink -f "$0")
-        ;;
-    Darwin)
-        echo "Build environment detected: Mac OS"
-        # Absolute path to this script, e.g. /home/user/bin/foo.sh
-        SCRIPT=$(readlink "$0")
-        ;;
-     *)
-        # --- default case ---
-        echo "WARNING: Unrecognized build environment.    (${BUILD_ENVIRONMENT})"
-        ;;
-esac
-
+# Absolute path to this script, e.g. /home/user/bin/foo.sh
+SCRIPT=$(readlink -f "$0")
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH=$(dirname "$SCRIPT")
 echo $SCRIPTPATH
 BASEDIR=$SCRIPTPATH/..
+BUILDDIR=${BUILDDIR}-examples
+BASEDIR=${BASEDIR}/examples
 
 echo "Building SOS $BUILDDIR from source in $BASEDIR"
 
@@ -104,18 +89,19 @@ fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
-    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_OPTIONS=$TAU_OPTIONS"
+    tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=${TAU_ROOT} -DTAU_ARCH=${TAU_ARCH} -DTAU_OPTIONS=${TAU_OPTIONS}"
+    ldflags="-DADIOS_WRAPPER_FLAGS=${ADIOS_WRAPPER_FLAGS} "
 fi
 
 cmd="cmake \
      -DCMAKE_BUILD_TYPE=${buildtype} \
      -DCMAKE_INSTALL_PREFIX=. \
-     -DCMAKE_C_COMPILER=$CC \
-     -DCMAKE_CXX_COMPILER=$CXX \
-     -DMPI_C_COMPILER=$MPICC \
-     -DMPI_CXX_COMPILER=$MPICXX \
-     $cmake_extras \
-     $BASEDIR"
+     -DCMAKE_C_COMPILER=${CC} \
+     -DCMAKE_CXX_COMPILER=${CXX} \
+     -DMPI_C_COMPILER=${MPICC} \
+     -DMPI_CXX_COMPILER=${MPICXX} \
+     ${cmake_extras_examples} ${tauopts} ${ldflags} \
+     ${BASEDIR}"
 
-     echo $cmd
-     $cmd
+     echo ${cmd}
+     ${cmd}

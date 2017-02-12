@@ -3,16 +3,18 @@
 #include "stdlib.h"
 #include "adios_read.h"
 #include <stdbool.h>
+#include "sos.h"
 
 /* 
- * Worker A is the second application in the workflow.
+ * Worker C is the third application in the workflow.
  * It waits for input from worker B, does some
  * "computation" and communication,
  * and it produces "output" that is "input" to worker_c.
  */
 
 int iterations = 1;
-//extern SOS_pub *example_pub;
+
+extern SOS_pub *example_pub;
 
 void validate_input(int argc, char* argv[]) {
     if (argc < 2) {
@@ -28,7 +30,6 @@ void validate_input(int argc, char* argv[]) {
     iterations = atoi(argv[1]);
 }
 
-
 int worker(int argc, char* argv[]) {
     TAU_PROFILE_TIMER(timer, __func__, __FILE__, TAU_USER);
     TAU_PROFILE_START(timer);
@@ -37,7 +38,7 @@ int worker(int argc, char* argv[]) {
     /* validate input */
     validate_input(argc, argv);
 
-    my_printf("Worker C will execute until it sees n iterations.\n", iterations);
+    my_printf("Worker C will execute until it sees %d iterations.\n", iterations);
 
     /* ADIOS: These declarations are required to match the generated
      *        gread_/gwrite_ functions.  (And those functions are
@@ -58,8 +59,8 @@ int worker(int argc, char* argv[]) {
      *        can write lock-free by using different areas.
      */
     MPI_Comm  adios_comm;
-    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
     adios_comm = MPI_COMM_WORLD;
+    //MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
 
     enum ADIOS_READ_METHOD method = ADIOS_READ_METHOD_FLEXPATH;
     adios_read_init_method(method, adios_comm, "verbose=3");
@@ -170,8 +171,8 @@ int worker(int argc, char* argv[]) {
      */
     adios_read_finalize_method(method);
 
-    //MPI_Comm_free(&adios_comm);
     free(data);
+    //MPI_Comm_free(&adios_comm);
 
     TAU_PROFILE_STOP(timer);
     /* exit */

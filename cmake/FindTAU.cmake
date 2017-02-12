@@ -37,15 +37,13 @@ else()
 endif()
 
 find_path(TAU_LIBRARY_DIR_2 NAMES libTauPthreadWrap.a
-             HINTS ${TAU_ROOT}/${TAU_ARCH}/lib/static${TAU_OPTIONS})
+             HINTS ${TAU_LIBRARY_DIR}/static-pthread)
 
 if (TAU_LIBRARY_DIR_2_FOUND)
     set(TAU_LIBRARIES ${TAU_LIBRARY} -L${TAU_LIBRARY_DIR_2} -Wl,-wrap,pthread_create -Wl,-wrap,pthread_join -Wl,-wrap,pthread_exit -Wl,-wrap,pthread_barrier_wait -lTauPthreadWrap )
 else()
     set(TAU_LIBRARIES ${TAU_LIBRARY})
 endif()
-
-#set(TAU_LIBRARIES ${TAU_LIBRARIES} -L${TAU_ROOT}/${TAU_ARCH}/lib/static${TAU_OPTIONS} -Wl,-wrap,fopen -Wl,-wrap,fopen64 -Wl,-wrap,fclose -Wl,-wrap,lseek -Wl,-wrap,fseek -Wl,-wrap,lseek64 -Wl,-wrap,fsync -Wl,-wrap,open -Wl,-wrap,close -Wl,-wrap,read -Wl,-wrap,fread -Wl,-wrap,fwrite -Wl,-wrap,readv -Wl,-wrap,writev -Wl,-wrap,write -Wl,-wrap,select -Wl,-wrap,stat -Wl,-wrap,stat64 -Wl,-wrap,lstat -Wl,-wrap,lstat64 -Wl,-wrap,fstat -Wl,-wrap,fstat64 -Wl,-wrap,dup -Wl,-wrap,dup2 -Wl,-wrap,open64 -Wl,-wrap,creat  -Wl,-wrap,creat64  -Wl,-wrap,socket -Wl,-wrap,pipe -Wl,-wrap,fdatasync -Wl,-wrap,accept -Wl,-wrap,connect -Wl,-wrap,bind -Wl,-wrap,socketpair -Wl,-wrap,fcntl -Wl,-wrap,pread -Wl,-wrap,pwrite -Wl,-wrap,pread64 -Wl,-wrap,pwrite64 -lTauPosixWrap)
 
 set(TAU_INCLUDE_DIRS ${TAU_INCLUDE_DIR} )
 

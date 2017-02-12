@@ -45,7 +45,7 @@ int worker(int argc, char* argv[]) {
     /* validate input */
     validate_input(argc, argv);
 
-    my_printf("Worker B will execute until it sees n iterations.\n", iterations);
+    my_printf("Worker B will execute until it sees %d iterations.\n", iterations);
 
     /* ADIOS: These declarations are required to match the generated
      *        gread_/gwrite_ functions.  (And those functions are
@@ -208,9 +208,8 @@ int worker(int argc, char* argv[]) {
                 TAU_PROFILE_STOP(adios_send_timer);
             #if 1
             if (!announced) {
-                SOS_val foo;
-                foo.i_val = NX;
-                SOS_pack(example_pub, "NX", SOS_VAL_TYPE_INT, foo);
+                int foo = NX;
+                SOS_pack(example_pub, "NX", SOS_VAL_TYPE_INT, &foo);
                 SOS_announce(example_pub);
                 SOS_publish(example_pub);
                 announced = true;

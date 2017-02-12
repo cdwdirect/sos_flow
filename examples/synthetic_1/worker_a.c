@@ -92,6 +92,11 @@ int worker(int argc, char* argv[]) {
             p[i] = index*1000.0 + myrank*NY + i;
         }
 
+        if (myrank == 0) {
+            printf ("--------- A Step: %d --------------------------------\n",
+                index);
+        }
+
         if (send_to_b) {
             TAU_PROFILE_TIMER(adiostimer, "ADIOS send", __FILE__, TAU_USER);
             TAU_PROFILE_START(adiostimer);
@@ -114,9 +119,8 @@ int worker(int argc, char* argv[]) {
             TAU_PROFILE_STOP(adiostimer);
             #if 1
             if (!announced) {
-                SOS_val foo;
-                foo.i_val = NX;
-                SOS_pack(example_pub, "NX", SOS_VAL_TYPE_INT, foo);
+                int foo = NX;
+                SOS_pack(example_pub, "NX", SOS_VAL_TYPE_INT, &foo);
                 SOS_announce(example_pub);
                 SOS_publish(example_pub);
                 announced = true;

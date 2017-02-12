@@ -1,0 +1,22 @@
+{
+    "nodes": [{
+        "name": "a",
+        "mpi_ranks": "1",
+        "children": ["b"],
+        "parents": [],
+        "iterations": 10
+    }, {
+        "name": "b",
+        "mpi_ranks": "1",
+        "children": [],
+        "parents": ["a"]
+    }],
+    "sos_root": "/project/projectdirs/m1881/khuck/sos_flow/sos_flow",
+    "sos_bin": "/project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori/bin",
+    "sos_examples_bin": "/project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori-examples/bin",
+    "sos_working_dir": "/project/projectdirs/m1881/khuck/sos_flow/sos_flow/working",
+    "sos_num_daemons": "2",
+    "sos_cmd_port": "22500",
+    "sos_num_dbs": "1",
+    "sos_db_port": "22503"
+}

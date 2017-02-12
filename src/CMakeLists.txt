@@ -42,10 +42,6 @@ endif()
 #TARGET ---> sos_pipe
 #            (library)
 add_library("sos_pipe" "sos_pipe.c")
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "sos_pipe" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos_pipe" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
-endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos_pipe" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
@@ -53,10 +49,6 @@ endif()
 #TARGET ---> sos_buffer
 #            (library)
 add_library("sos_buffer" "sos_buffer.c")
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "sos_buffer" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos_buffer" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
-endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos_buffer" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
@@ -73,12 +65,6 @@ add_library("sos_qhashtbl" "sos_qhashtbl.c")
 #add_library("sos" SHARED "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
 add_library("sos" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
 # add_library("sos_static" STATIC "sos.c" "sos_pack_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "sos" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sos" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
-  # target_compile_options(TARGET "sos_static" PROPERTY COMPILE_OPTIONS "-pthread")
-  # target_compile_options(TARGET "sos_static" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread")
-endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos"
     "sos_buffer"
@@ -92,10 +78,6 @@ endif()
 #TARGET ---> sosa
 #            (library)
 add_library("sosa" "sosa.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "sosa" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sosa" PROPERTY INTERFACE_COMPILE_OPTIONS "-pthread") 
-endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosa"
     "sos_buffer"
@@ -219,10 +201,6 @@ else()
 
 endif()
 
-if(THREADS_HAVE_PTHREAD_ARG)
-  target_compile_options(TARGET "sosd" PROPERTY COMPILE_OPTIONS "-pthread")
-  target_compile_options(TARGET "sosd" PROPERTY COMPILE_OPTIONS "-pthread")
-endif()
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosd" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
@@ -298,10 +276,10 @@ endif()
 
 
 
-
-
-
-INSTALL(FILES showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
+INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
   OWNER_READ GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ)
+
+INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
+#INSTALL(TARGETS sos_pipe sos_buffer sos sosa sosd_stop sosd_probe demo_app demo_sweep proc_app RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib) 
