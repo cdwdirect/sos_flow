@@ -17,7 +17,7 @@ export TAU_ARCH=craycnl
 export TAU_CONFIG=-intel-mpi-pthread-pdt
 export TAU_ROOT=/project/projectdirs/m1881/khuck/sos_flow/tau_contrib/tau2
 export CHAOS=/project/projectdirs/m1881/khuck/sos_flow/chaos/cori-icc
-export ADIOS_ROOT=/project/projectdirs/m1881/khuck/sos_flow/chaos/adios/1.11-icc
+export ADIOS_ROOT=/project/projectdirs/m1881/khuck/sos_flow/chaos/adios/git-icc
 export PATH=${ADIOS_ROOT}/bin:${PATH}
 
 # need to figure out how to use this

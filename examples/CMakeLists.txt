@@ -44,7 +44,10 @@ else()
     message(FATAL ">>> ADIOS  ** ERROR **:  Could not locate an ADIOS installation!  ($PATH, or 'adios_config -d')")
 endif()
 
-find_package(TAU REQUIRED)
+find_package(TAU)
+if(TAU_FOUND)
+    add_definitions(-DSOS_HAVE_TAU)
+endif(TAU_FOUND)
 
 # set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_examples_BINARY_DIR}/lib")
