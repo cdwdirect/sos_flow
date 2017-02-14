@@ -9,8 +9,13 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
-#include <mpi.h>
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
+  #include <mpi.h>
+  #define IF_MPI(X) {if (SOSD_CLOUD_SYNC_WITH_MPI) {X} }
+#else
+  #define SOSD_CLOUD_SYNC_WITH_MPI 0
+  #define IF_MPI(X)   
+  #define MPI_COMM_WORLD -1
 #endif
 
 #define USAGE "./proc_app -d <loop_delay_seconds>"
@@ -51,8 +56,8 @@ int main(int argc, char *argv[]) {
     int    elem;
     int    next_elem;
 
-    log("[MPI_init]\n");
-    MPI_Init(&argc, &argv);
+    IF_MPI( log("[MPI_init]\n"); );
+    IF_MPI( MPI_Init(&argc, &argv); );
 
     /* Process command-line arguments */
     if ( argc < 3 )  { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -153,7 +158,7 @@ int main(int argc, char *argv[]) {
     }//while:running
     log("[SOS_finalize]\n");
     SOS_finalize(my_sos);
-    log("[MPI_finalize]\b");
-    MPI_Finalize();
+    IF_MPI( log("[MPI_finalize]\b"); );
+    IF_MPI( MPI_Finalize(); );
     return (EXIT_SUCCESS);
 }

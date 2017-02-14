@@ -10,8 +10,14 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
-#include <mpi.h>
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
+  #include <mpi.h>
+  #define IF_MPI(X) {if (SOSD_CLOUD_SYNC_WITH_MPI) {X} }
+#else
+  #define SOSD_CLOUD_SYNC_WITH_MPI 0
+  #define IF_MPI(X)   
+  #define MPI_MAX_PROCESSOR_NAME 256
+  #define MPI_COMM_WORLD -1 
 #endif
 
 #define DEFAULT_MAX_SEND_COUNT 2400
@@ -44,9 +50,9 @@ int main(int argc, char *argv[]) {
     int    SMIN, SMAX, SSTEP;
     int    DMIN, DMAX, DSTEP;
 
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Get_processor_name(host, &host_len);
+    IF_MPI( MPI_Init(&argc, &argv); );
+    IF_MPI( MPI_Comm_rank(MPI_COMM_WORLD, &rank); );
+    IF_MPI( MPI_Get_processor_name(host, &host_len); );
 
     if (rank == 0) {
       printf("\"rank\",\"host\",\"pid\"\n");
@@ -55,12 +61,12 @@ int main(int argc, char *argv[]) {
       usleep(10000);
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    IF_MPI( MPI_Barrier(MPI_COMM_WORLD); );
 
     printf("%d, \"%s\", %d\n", rank, host, getpid());
     fflush(stdout);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    IF_MPI( MPI_Barrier(MPI_COMM_WORLD); );
 
     if (rank == 0) {
       printf("----------\n");
@@ -160,7 +166,7 @@ int main(int argc, char *argv[]) {
 
           SOS_pub_destroy(pub);
           SWEEP_wait_for_empty_queue(my_sos);
-          MPI_Barrier(MPI_COMM_WORLD);
+          IF_MPI( MPI_Barrier(MPI_COMM_WORLD); );
 
         } //size          
       } //iter
@@ -169,7 +175,7 @@ int main(int argc, char *argv[]) {
     zlog("Done.\n");
 
     SOS_finalize(my_sos);
-    MPI_Finalize();
+    IF_MPI( MPI_Finalize(); );
 
     return (EXIT_SUCCESS);
 }

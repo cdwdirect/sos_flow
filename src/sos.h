@@ -69,7 +69,7 @@ extern "C" {
 
 
     /* --- "private" functions used by SOS / SOSD --- */
-
+    int       SOS_file_exists(char *path);
     SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
     int       SOS_pub_search(SOS_pub *pub, const char *name);
     void      SOS_pub_destroy(SOS_pub *pub);

@@ -29,8 +29,8 @@
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           0 
-#define SOSD_ECHO_TO_STDOUT       0 
+#define SOSD_DAEMON_LOG           5 
+#define SOSD_ECHO_TO_STDOUT       1 
 
 
 /* Analytics module output verbosity.  (Req. SOS_DEBUG >= 0) */
@@ -58,6 +58,10 @@ FILE   *sos_daemon_log_fptr;
                 if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
                     printf("(%s:%d)", __FILE__, __LINE__ );             \
                 }                                                       \
+                if (SOS_WHOAMI == NULL) {                               \
+                    printf("ERROR: SOS_WHOAMI == NULL !\n");            \
+                    exit(EXIT_FAILURE);                                 \
+                }                                                       \
                 printf("[%s]: ", SOS_WHOAMI);                           \
                 printf(__VA_ARGS__);                                    \
                 if (stdout) fflush(stdout);                             \
@@ -69,6 +73,10 @@ FILE   *sos_daemon_log_fptr;
                         fprintf(sos_daemon_log_fptr, "(%s:%d)",         \
                                 __FILE__, __LINE__ );                   \
                     }                                                   \
+                }                                                       \
+                if (SOS_WHOAMI == NULL) {                               \
+                    printf("ERROR: SOS_WHOAMI == NULL !\n");            \
+                    exit(EXIT_FAILURE);                                 \
                 }                                                       \
                 if (sos_daemon_log_fptr != NULL) {                      \
                     fprintf(sos_daemon_log_fptr, "[%s]: ", SOS_WHOAMI); \
@@ -89,6 +97,10 @@ FILE   *sos_daemon_log_fptr;
         if (SOS_DEBUG >= level && SOS->role == SOS_ROLE_CLIENT) {       \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
                 printf("(%s:%d)", __FILE__, __LINE__ );                 \
+            }                                                           \
+            if (SOS_WHOAMI == NULL) {                                   \
+                printf("ERROR: SOS_WHOAMI == NULL !\n");                \
+                exit(EXIT_FAILURE);                                     \
             }                                                           \
             printf("[%s]: ", SOS_WHOAMI);                               \
             printf(__VA_ARGS__);                                        \

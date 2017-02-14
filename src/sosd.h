@@ -5,7 +5,15 @@
 #include <signal.h>
 #include <time.h>
 
-#include <mpi.h>
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
+#undef SOSD_CLOUD_SYNC_WITH_MPI
+//#include <mpi.h>
+#endif
+
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+#include "evpath.h"
+#include "ev_dfg.h"
+#endif
 
 #include "sos.h"
 #include "sos_types.h"
@@ -109,6 +117,25 @@ typedef struct {
     socklen_t           peer_addr_len;
 } SOSD_net;
 
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+typedef struct {
+    CManager            cm;
+    int                 node_count;
+    int                 is_master;
+    char               *instance_name;
+    char              **node_names;
+    char               *str_contact;
+    EVmaster            dfg_master;
+    EVdfg               dfg;
+    EVclient            client;
+    EVdfg_stone         src;
+    EVdfg_stone         sink;
+    EVsource            source_handle;
+    EVclient_sinks      sink_capabilities;
+    EVclient_sources    source_capabilities;
+} SOSD_evpath;
+#endif
+
 typedef struct {
     char               *work_dir;
     char               *lock_file;
@@ -122,7 +149,12 @@ typedef struct {
     int                 listener_count;
     int                 aggregator_count;
     SOSD_counts         countof;
-    MPI_Comm            comm;
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
+    MPI_comm            comm;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    SOSD_evpath         evpath;
+#endif
 } SOSD_runtime;
 
 typedef struct {

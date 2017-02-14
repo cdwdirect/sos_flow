@@ -9,10 +9,11 @@
     #define OPT_PARAMS "\n" \
                        "optional parameter (EVPath only):\n" \
                        "\n" \
-                       "                 -m, --master dfg\n" \
-                       "\n" \
-                       "                                   Coordinate the EVPath initialization.\n" \
-                       "                         Only one sosd instance is given this parameter.\n"
+                       "                 -m, --master <name>\n" \
+                       "                 -c, --client <name>\n" \
+                        "\n" \
+                       "                         Coordinate the EVPath initialization.\n" \
+                       "                         Only one sosd instance is the master.\n"
 #else
     #define OPT_PARAMS " "
 #endif
@@ -82,6 +83,9 @@ int main(int argc, char *argv[])  {
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
 
     my_role = SOS_ROLE_UNASSIGNED;
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    SOSD.daemon.evpath.is_master = -999;
+#endif
 
     SOSD.net.listen_backlog = 10;
 
@@ -107,6 +111,22 @@ int main(int argc, char *argv[])  {
         ||        (strcmp(argv[elem], "-w"                ) == 0)) {
             SOSD.daemon.work_dir    = argv[next_elem];
         }
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+        else if ( (strcmp(argv[elem], "--client"          ) == 0)
+        ||        (strcmp(argv[elem], "-c"                ) == 0)) {
+            SOSD.daemon.evpath.instance_name = argv[next_elem];
+            SOSD.daemon.evpath.is_master = 0;
+            printf("NOTE: Starting up as EVPath DFG client...\n");
+            fflush(stdout);
+        }
+        else if ( (strcmp(argv[elem], "--master"          ) == 0)
+        ||        (strcmp(argv[elem], "-m"                ) == 0)) {
+            SOSD.daemon.evpath.instance_name = argv[next_elem];
+            SOSD.daemon.evpath.is_master = 1;
+            printf("NOTE: Starting up as EVPath DFG master...\n");
+            fflush(stdout);
+        }
+#endif
         else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
@@ -124,6 +144,15 @@ int main(int argc, char *argv[])  {
     }
     #endif
 
+
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    if (SOSD.daemon.evpath.is_master < 0) {
+        printf("NOTE: Terminating an instance of sosd with pid: %d\n", getpid());
+        printf("NOTE: No parameters were provided for the EVPath role and name.\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
+    }
+#endif
 
     unsetenv("SOS_SHUTDOWN");
 
@@ -1451,12 +1480,18 @@ void SOSD_init() {
     #endif
     sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n", SOSD.daemon.name, SOSD.daemon.lock_file, SOSD.daemon.work_dir);
+        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n",
+            SOSD.daemon.name,
+            SOSD.daemon.lock_file,
+            SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
     if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): AN INSTANCE IS ALREADY RUNNING!\n", SOSD.daemon.name);
+        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not lock instance id file %s in directory %s\n",
+            SOSD.daemon.name,
+            SOSD.daemon.lock_file,
+            SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
