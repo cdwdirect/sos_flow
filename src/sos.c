@@ -38,10 +38,9 @@ SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_l
 /* [util]                                   */
 /* **************************************** */
 
-int SOS_file_exist (char *filename)
-{
+int SOS_file_exists(char *filepath) {
     struct stat   buffer;   
-    return (stat (filename, &buffer) == 0);
+    return (stat(filepath, &buffer) == 0);
 }
 
 SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_layer layer) {

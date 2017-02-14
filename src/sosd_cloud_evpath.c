@@ -8,6 +8,7 @@
 #include "evpath.h"
 #include "ev_dfg.h"
 
+
 static int
 simple_handler(CManager cm, void *vevent, void *client_data, attr_list attrs)
 {
@@ -49,6 +50,13 @@ simple_handler(CManager cm, void *vevent, void *client_data, attr_list attrs)
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.EVPATH");
+
+    SOS->config.comm_rank = 1;
+    SOS->config.comm_size = 2;
+    SOS->config.comm_support = -1;
+
+    SOSD.daemon.cloud_sync_target_count = 2;
+    SOSD.daemon.cloud_sync_target = 0;
 
     //TODO: Hardcoded node names for now. Fix when switching to ad hoc joins.
     SOSD.daemon.evpath.node_names = (char **) malloc(3 * sizeof(char *));
@@ -99,8 +107,12 @@ int SOSD_cloud_init(int *argc, char ***argv) {
                 SOSD.daemon.evpath.dfg_master,
                 SOSD.daemon.evpath.source_capabilities,
                 SOSD.daemon.evpath.sink_capabilities);
-        //TODO: Write this out to a file...
-        //   fopen("/tmp/sosd_evpath_contact.keyline");
+
+        FILE *contact_file;
+        contact_file = fopen("/tmp/sosd_evpath_contact.keyline", "w");
+        fprintf(contact_file, "%s", SOSD.daemon.evpath.str_contact);
+        fflush(contact_file);
+        fclose(contact_file);
 
         printf("Contact list is \"%s\"\n", SOSD.daemon.evpath.str_contact);
     } else {
@@ -109,9 +121,17 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         while (!SOS_file_exists("/tmp/sosd_evpath_contact.keyline")) {
             usleep(100000);
         }
-        //TODO: Read the contact data from the file.
-        // ...
-        dlog(0, "   ... Got it: %s\n");
+
+        FILE *contact_file;
+        contact_file = fopen("/tmp/sosd_evpath_contact.keyline", "r");
+        SOSD.daemon.evpath.str_contact = (char *)calloc(1024, sizeof(char));
+        if (fgets(SOSD.daemon.evpath.str_contact, 1024, contact_file) == NULL) {
+            dlog(0, "Error reading the contact key file. Aborting.\n");
+            exit(EXIT_FAILURE);
+        }
+        fclose(contact_file);
+
+        dlog(0, "   ... Got it: %s\n", SOSD.daemon.evpath.str_contact);
 
         SOSD.daemon.evpath.client =
             EVclient_assoc(
@@ -135,7 +155,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             rec.data = (char *) malloc(256 * sizeof(char));
             snprintf(rec.data, 256, "Hello, world!");
             rec.size = strnlen(rec.data, 256);
-            EVsubmit(source_handle, &rec, NULL);
+            EVsubmit(SOSD.daemon.evpath.source_handle, &rec, NULL);
         }
     }
 
