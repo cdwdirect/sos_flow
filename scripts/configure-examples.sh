@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-if [ "x$sos_env_set" == "x" ] ; then
+if [ "x$SOS_ENV_SET" == "x" ] ; then
 	echo "Please set up your SOS environment first (source hosts/<org>/<hostname>/setenv.sh)"
     kill -INT $$
 fi
@@ -90,7 +90,9 @@ fi
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
     tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=${TAU_ROOT} -DTAU_ARCH=${TAU_ARCH} -DTAU_CONFIG=${TAU_CONFIG}"
-    #ldflags="-DADIOS_WRAPPER_FLAGS=${ADIOS_WRAPPER_FLAGS} "
+    if [ "x$ADIOS_WRAPPER_FLAGS" != "x" ] ; then
+        ldflags="-DADIOS_WRAPPER_FLAGS=${ADIOS_WRAPPER_FLAGS} "
+    fi
 fi
 
 cmd="cmake \
