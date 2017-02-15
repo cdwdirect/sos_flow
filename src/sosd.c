@@ -171,6 +171,8 @@ int main(int argc, char *argv[])  {
     dlog(0, "   ... WARNING: There is no CLOUD_SYNC configured for this SOSD.\n");
     #endif
 
+    //TODO: We need to set our role here...
+
     SOS_SET_CONTEXT(SOSD.sos_context, "main");
     my_role = SOS->role;
 
