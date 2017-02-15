@@ -26,11 +26,11 @@ option(SOSD_CLOUD_SYNC
 
 option(SOSD_CLOUD_SYNC_WITH_MPI
        "Use MPI discover and synchronize data between daemons?"
-       OFF)
+       ON)
 
 option(SOSD_CLOUD_SYNC_WITH_EVPATH
        "Use EVPATH synchronize data between daemons?"
-       ON)
+       OFF)
 
 ###########
 ###########
@@ -69,13 +69,20 @@ message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package("Sqlite3" REQUIRED)
 
-#if(SOSD_CLOUD_SYNC_WITH_MPI)
-  message(STATUS ">>> MPI:")
-  message(STATUS ">>> MPI:  Locating package...")
-  find_package("MPI" REQUIRED)
-  message(STATUS ">>> MPI:  Found!")
-  message(STATUS ">>> MPI:")
-#endif()
+#  Always include the MPI stuff, some components reference it
+#  and not including it will cause the project not to build.
+#  Despite the fact that we are including it, if you specify
+#  EVPath as the communications framework, the SOS daemon
+#  will not conduct any of its business using MPI.
+message(STATUS ">>> MPI:")
+message(STATUS ">>> MPI:  Locating package...")
+find_package("MPI" REQUIRED)
+message(STATUS ">>> MPI:  Found!")
+message(STATUS ">>> MPI:")
+
+if(SOSD_CLOUD_SYNC_WITH_MPI)
+  add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
+endif()
 
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:")

@@ -11,7 +11,7 @@
                        "\n" \
                        "                 -m, --master <name>\n" \
                        "                 -c, --client <name>\n" \
-                        "\n" \
+                       "\n" \
                        "                         Coordinate the EVPath initialization.\n" \
                        "                         Only one sosd instance is the master.\n"
 #else
@@ -171,9 +171,11 @@ int main(int argc, char *argv[])  {
     dlog(0, "   ... WARNING: There is no CLOUD_SYNC configured for this SOSD.\n");
     #endif
 
-    //TODO: We need to set our role here...
-
     SOS_SET_CONTEXT(SOSD.sos_context, "main");
+
+    //TODO: We need to set our role here...
+    //SOS->role = SOS_ROLE_LISTENER;
+
     my_role = SOS->role;
 
     dlog(0, "Initializing SOSD:\n");

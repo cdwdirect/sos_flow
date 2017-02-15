@@ -6,8 +6,7 @@
 #include <time.h>
 
 #ifdef SOSD_CLOUD_SYNC_WITH_MPI
-#undef SOSD_CLOUD_SYNC_WITH_MPI
-//#include <mpi.h>
+#include <mpi.h>
 #endif
 
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
@@ -150,7 +149,7 @@ typedef struct {
     int                 aggregator_count;
     SOSD_counts         countof;
 #ifdef SOSD_CLOUD_SYNC_WITH_MPI
-    MPI_comm            comm;
+    MPI_Comm            comm;
 #endif
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     SOSD_evpath         evpath;
