@@ -13,13 +13,12 @@
     }],
     "iterations": 5,
     "oversubscribe" : true,
-    "sos_root": "/home/users/khuck/src/sos_flow/build-linux-examples",
-    "sos_num_daemons": "1",
+    "sos_root": "/home/users/khuck/src/sos_flow",
+    "sos_bin": "/home/users/khuck/src/sos_flow/build-linux/bin",
+    "sos_examples_bin": "/home/users/khuck/src/sos_flow/build-linux-examples/bin",
+    "sos_working_dir": "/tmp/sos_flow_working",
+    "sos_num_daemons": "2",
     "sos_cmd_port": "22500",
-    "sos_cmd_buffer_len": "8388608",
     "sos_num_dbs": "1",
-    "sos_db_port": "22503",
-    "sos_db_buffer_len": "8388608",
-    "sos_cmd_working_dir": "/tmp/sos_flow_working",
-    "sos_db_working_dir": "/tmp/sos_flow_working"
+    "sos_db_port": "22503"
 }

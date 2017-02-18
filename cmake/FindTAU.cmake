@@ -36,13 +36,19 @@ else()
       HINTS ${TAU_ROOT}/${TAU_ARCH}/lib ${TAU_ROOT}/${CMAKE_SYSTEM_PROCESSOR}/lib  ${TAU_ROOT}/*/lib )
 endif()
 
-find_path(TAU_LIBRARY_DIR_2 NAMES libTauPthreadWrap.a
-             HINTS ${TAU_LIBRARY_DIR}/static-pthread)
+message(STATUS "Looking for TAU Pthread wrapper in ${TAU_LIBRARY_DIR}/static${TAU_CONFIG}")
+find_path(TAU_LIBRARY_DIR_2 NAME libTauPthreadWrap.a
+             PATHS ${TAU_LIBRARY_DIR}/static${TAU_CONFIG})
 
-if (TAU_LIBRARY_DIR_2_FOUND)
-    set(TAU_LIBRARIES ${TAU_LIBRARY} -L${TAU_LIBRARY_DIR_2} -Wl,-wrap,pthread_create -Wl,-wrap,pthread_join -Wl,-wrap,pthread_exit -Wl,-wrap,pthread_barrier_wait -lTauPthreadWrap )
+set(TAU_LIBRARIES ${TAU_LIBRARY})
+if (TAU_LIBRARY_DIR_2)
+    message(STATUS "TAU Pthread wrapper found: ${TAU_LIBRARY_DIR_2}")
+    file(READ ${TAU_LIBRARY_DIR}/wrappers/pthread_wrapper/link_options.tau TAU_PTHREAD_FLAGS)
+    string(STRIP ${TAU_PTHREAD_FLAGS} TAU_PTHREAD_FLAGS_STRIPPED)
+    set(TAU_PTHREAD_WRAPPER -L${TAU_LIBRARY_DIR_2} ${TAU_PTHREAD_FLAGS_STRIPPED})
+    message(STATUS "TAU_PTHREAD_WRAPPER: ${TAU_PTHREAD_WRAPPER}")
 else()
-    set(TAU_LIBRARIES ${TAU_LIBRARY})
+    set(TAU_PTHREAD_WRAPPER "")
 endif()
 
 set(TAU_INCLUDE_DIRS ${TAU_INCLUDE_DIR} )

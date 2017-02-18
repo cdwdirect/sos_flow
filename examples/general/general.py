@@ -108,6 +108,7 @@ def parse_nodefile():
 def generate_commands(data, hostnames):
     commands = []
     logfiles = []
+    profiledirs = []
     global sos_root
     sos_root = data["sos_root"]
     index = 0
@@ -123,7 +124,7 @@ def generate_commands(data, hostnames):
                 index = index + 1
             f.close()
             hostfile_arg = " --hostfile " + hostfile
-        command = "mpirun -np " + node["mpi_ranks"] + hostfile_arg + " " + sos_root + "/bin/generic_node --name " + node["name"]
+        command = "mpirun -np " + node["mpi_ranks"] + hostfile_arg + " " + data["sos_examples_bin"] + "/generic_node --name " + node["name"]
         if "iterations" in node:
             command = command + " --iterations " + str(node["iterations"])
         #command = command + " --iterations " + str(data["iterations"])
@@ -134,29 +135,29 @@ def generate_commands(data, hostnames):
         commands.append(command)
         logfile = node["name"] + ".log"
         logfiles.append(logfile)
-    return commands,logfiles
+        profiledir = "profiles_" + node["name"]
+        profiledirs.append(profiledir)
+    return commands,logfiles,profiledirs
     
 # this method will use the environment variables and JSON config settings to
 # launch the SOS daemons (one per node) and the SOS database (at least one), as
 # well as each of the nodes in the workflow. All system calls are done in the
 # background, with the exception of the last one - this script will wait for
 # that one to finish before continuing.
-def execute_commands(commands, logfiles, data, unique_hostnames):
+def execute_commands(commands, logfiles, profiledirs, data, unique_hostnames):
     sos_root = data["sos_root"]
-    sos_num_daemons = data["sos_num_daemons"]
+    sos_bin = data["sos_bin"]
+    sos_examples_bin = data["sos_examples_bin"]
+    sos_working_dir = data["sos_working_dir"]
+    sos_num_daemons = int(data["sos_num_daemons"])
     sos_cmd_port = data["sos_cmd_port"]
-    sos_cmd_buffer_len = data["sos_cmd_buffer_len"]
     sos_num_dbs = data["sos_num_dbs"]
     sos_db_port = data["sos_db_port"]
-    sos_db_buffer_len = data["sos_db_buffer_len"]
-    sos_cmd_working_dir = data["sos_cmd_working_dir"]
-    sos_db_working_dir = data["sos_db_working_dir"]
-    os.environ['SOS_WORKING'] = sos_cmd_working_dir
     os.environ['SOS_ROOT'] = sos_root
+    os.environ['SOS_WORK'] = sos_working_dir
     os.environ['SOS_CMD_PORT'] = sos_cmd_port
     os.environ['SOS_DB_PORT'] = sos_db_port
-    daemon = sos_root + "/bin/sosd"
-    sos_num_daemons = len(unique_hostnames)
+    daemon = sos_bin + "/sosd"
     """
     hostfile = "hostfile_sos"
     f = open (hostfile, 'w')
@@ -165,7 +166,8 @@ def execute_commands(commands, logfiles, data, unique_hostnames):
     f.close()
     """
     # launch the SOS daemon(s) and SOS database(s)
-    arguments = "mpirun -pernode -np " + str(sos_num_daemons) + " " + daemon + " --role SOS_ROLE_DAEMON --port " + sos_cmd_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_cmd_working_dir + " : -np " + sos_num_dbs + " " +  daemon + " --role SOS_ROLE_DB --port " + sos_db_port + " --buffer_len " + sos_cmd_buffer_len + " --listen_backlog 10 --work_dir " + sos_db_working_dir 
+    arguments = "mpirun -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
+    #arguments = "mpirun -pernode -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
     print arguments
     args = shlex.split(arguments)
     subprocess.Popen(args)
@@ -173,7 +175,11 @@ def execute_commands(commands, logfiles, data, unique_hostnames):
     index = 0
     openfiles = []
     # launch all of the nodes in the workflow
-    for command,logfile in zip(commands,logfiles):
+    for command,logfile,profiledir in zip(commands,logfiles,profiledirs):
+        os.environ['PROFILEDIR'] = profiledir
+        makedir = "mkdir -p " + profiledir
+        args = shlex.split(makedir)
+        subprocess.call(args)
         index = index + 1
         print command
         args = shlex.split(command)
@@ -194,7 +200,8 @@ def execute_commands(commands, logfiles, data, unique_hostnames):
     print "Waiting for all processes to finish..."
     time.sleep(2)
     print "Stopping the database..."
-    arguments = sos_root + "/bin/sosd_stop"
+    arguments = "mpirun -np " + str(sos_num_daemons-1) + " " + data["sos_bin"] + "/sosd_stop"
+    print arguments
     args = shlex.split(arguments)
     subprocess.call(args)
 
@@ -207,13 +214,14 @@ def main():
     #pprint(data)
     generate_xml(data)
     hostnames, unique_hostnames = parse_nodefile()
-    commands,logfiles = generate_commands(data, hostnames)
+    commands,logfiles,profiledirs = generate_commands(data, hostnames)
     try:
-        execute_commands(commands, logfiles, data, unique_hostnames)
+        execute_commands(commands, logfiles, profiledirs, data, unique_hostnames)
     except:
         print "failed!"
         traceback.print_exc(file=sys.stderr)
-        arguments = sos_root + "/bin/sosd_stop"
+        sos_num_daemons = len(unique_hostnames)
+        arguments = "mpirun -np " + str(sos_num_daemons-1) + " " + sos_root + "/bin/sosd_stop"
         args = shlex.split(arguments)
         subprocess.call(args)
 
