@@ -23,6 +23,7 @@ include_directories(${SOS_INCLUDE_DIRS})
 set(LIBS ${LIBS} ${SOS_LIBRARIES})
 
 message(STATUS ">>> ADIOS:  Searching for the ADIOS install location...")
+message(STATUS ">>> ADIOS:  ...which is: ${ADIOS_ROOT}/etc")
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${ADIOS_ROOT}/etc)
 find_package(ADIOS REQUIRED)
 
