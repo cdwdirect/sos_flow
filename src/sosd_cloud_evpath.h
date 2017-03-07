@@ -30,7 +30,7 @@ static FMField SOSD_buffer_field_list[] =
         sizeof(int),            FMOffset(buffer_rec_ptr, size)},
     {"type", "integer",
         sizeof(int),            FMOffset(buffer_rec_ptr, type)},
-    {"data", "unsigned char[size]", 
+    {"data", "char[size]", 
         sizeof(unsigned char),  FMOffset(buffer_rec_ptr, data)},
 
     {NULL, NULL, 0, 0}
