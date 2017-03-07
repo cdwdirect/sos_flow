@@ -163,6 +163,8 @@ if(SOSD_CLOUD_SYNC)
       "sos_pipe"
       "sosa"
       "evpath"
+      "ffs"
+      "atl"
       "${SQLITE3_LIBRARY}")
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.

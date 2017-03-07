@@ -11,7 +11,6 @@
 
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 #include "evpath.h"
-#include "ev_dfg.h"
 #endif
 
 #include "sos.h"
@@ -118,20 +117,27 @@ typedef struct {
 
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 typedef struct {
+    char                name[256];
+    char               *contact_string;
+    EVsource            src;
+    EVstone             out_stone;
+    EVstone             rmt_stone;
+} SOSD_evpath_node;
+
+
+
+typedef struct {
     CManager            cm;
-    int                 node_count;
-    int                 is_master;
     char               *instance_name;
-    char              **node_names;
-    char               *str_contact;
-    EVmaster            dfg_master;
-    EVdfg               dfg;
-    EVclient            client;
-    EVdfg_stone         src;
-    EVdfg_stone         sink;
-    EVsource            source_handle;
-    EVclient_sinks      sink_capabilities;
-    EVclient_sources    source_capabilities;
+    char               *instance_role;
+    int                 is_master;
+    int                 node_count;
+    SOSD_evpath_node  **node;
+    char               *string_list;
+    attr_list           contact_list;
+    EVstone             stone;
+    EVstone             remote_stone;
+    EVsource            source;
 } SOSD_evpath;
 #endif
 
@@ -182,7 +188,8 @@ typedef struct {
 
 typedef struct {
     SOSD_sync_context    local;
-    SOSD_sync_context    cloud;
+    SOSD_sync_context    cloud_send;
+    SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
     qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
@@ -230,7 +237,8 @@ extern "C" {
                                  void* (*thread_func)(void *thread_param));
 
     void* SOSD_THREAD_local_sync(void *args);
-    void* SOSD_THREAD_cloud_sync(void *args);
+    void* SOSD_THREAD_cloud_send(void *args);
+    void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
 
     void  SOSD_listen_loop(void);
