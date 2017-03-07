@@ -102,9 +102,9 @@ def parse_nodefile():
     f.close()
     return hostnames, unique_hostnames
 
-# This method will generate the mpirun commands for each node in the workflow
+# This method will generate the aprun commands for each node in the workflow
 # graph. It should generate something like this:
-# "mpirun -np 1 --hostfile hostfile_a /sos_flow/bin/generic_node --name a --iterations 10 --writeto b"
+# "aprun -n 1 -N 1 --hostfile hostfile_a /sos_flow/bin/generic_node --name a --iterations 10 --writeto b"
 def generate_commands(data, hostnames):
     commands = []
     logfiles = []
@@ -124,7 +124,7 @@ def generate_commands(data, hostnames):
                 index = index + 1
             f.close()
             hostfile_arg = " --hostfile " + hostfile
-        command = "mpirun -np " + node["mpi_ranks"] + hostfile_arg + " " + data["sos_examples_bin"] + "/generic_node --name " + node["name"]
+        command = "aprun -N 1 -n " + node["mpi_ranks"] + hostfile_arg + " " + data["sos_examples_bin"] + "/generic_node --name " + node["name"]
         if "iterations" in node:
             command = command + " --iterations " + str(node["iterations"])
         #command = command + " --iterations " + str(data["iterations"])
@@ -165,24 +165,26 @@ def execute_commands(commands, logfiles, profiledirs, data, unique_hostnames):
         f.write(i + "\n")
     f.close()
     """
+    """
     # launch the SOS daemon(s) and SOS database(s)
-    arguments = "mpirun -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
-    #arguments = "mpirun -pernode -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
+    arguments = "aprun -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
+    #arguments = "aprun -pernode -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
     print arguments
-    args = shlex.split(arguments)
+    args = shlex.split(arguments.encode('ascii'))
     subprocess.Popen(args)
     time.sleep(1)
+    """
     index = 0
     openfiles = []
     # launch all of the nodes in the workflow
     for command,logfile,profiledir in zip(commands,logfiles,profiledirs):
         os.environ['PROFILEDIR'] = profiledir
         makedir = "mkdir -p " + profiledir
-        args = shlex.split(makedir)
+        args = shlex.split(makedir.encode('ascii'))
         subprocess.call(args)
         index = index + 1
         print command
-        args = shlex.split(command)
+        args = shlex.split(command.encode('ascii'))
         #lf = open(logfile,'w')
         #openfiles.append(lf)
         if index == len(commands):
@@ -199,11 +201,13 @@ def execute_commands(commands, logfiles, profiledirs, data, unique_hostnames):
     # shut down - wait for a bit so we can shutdown the database server cleanly.
     print "Waiting for all processes to finish..."
     time.sleep(2)
+    """
     print "Stopping the database..."
-    arguments = "mpirun -np " + str(sos_num_daemons-1) + " " + data["sos_bin"] + "/sosd_stop"
+    arguments = "aprun -np " + str(sos_num_daemons-1) + " " + data["sos_bin"] + "/sosd_stop"
     print arguments
-    args = shlex.split(arguments)
+    args = shlex.split(arguments.encode('ascii'))
     subprocess.call(args)
+    """
 
 # main, baby - main!
 def main():
@@ -221,9 +225,11 @@ def main():
         print "failed!"
         traceback.print_exc(file=sys.stderr)
         sos_num_daemons = len(unique_hostnames)
-        arguments = "mpirun -np " + str(sos_num_daemons-1) + " " + sos_root + "/bin/sosd_stop"
-        args = shlex.split(arguments)
+        """
+        arguments = "aprun -np " + str(sos_num_daemons-1) + " " + sos_root + "/bin/sosd_stop"
+        args = shlex.split(arguments.encode('ascii'))
         subprocess.call(args)
+        """
 
 if __name__ == "__main__":
     main()

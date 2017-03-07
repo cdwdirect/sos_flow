@@ -248,7 +248,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         if (retval < 0) {
             dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
-            exit(EXIT_FAILURE);
+            //exit(EXIT_FAILURE);
+            return NULL;
         } else {
             dlog(1, "   ... registration message sent.   (retval == %d)\n", retval);
         }
