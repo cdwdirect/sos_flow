@@ -19,6 +19,8 @@ SOSD_evpath_message_handler(
     void *client_data,
     attr_list attrs)
 {
+    SOS_SET_CONTEXT("SOSD_evpath_message_handler");
+    /*   
         buffer_rec_ptr buffer = vevent;
         if (SOSD.sos_context->role == SOS_ROLE_LISTENER) {
             printf("[listener]..: ");
@@ -28,7 +30,70 @@ SOSD_evpath_message_handler(
         printf("I got %d, %s\n", buffer->size, buffer->data);
         fflush(stdout);
         return 1;
-}
+    */
+
+    buffer_rec_ptr evp_buffer = vevent;
+
+    SOS_buffer *buffer; 
+    SOS_buffer_init_sized_locking(SOS, &buffer, (evp_buffer->size + 1), false);
+    memcpy(buffer->data, evp_buffer->data, evp_buffer->size);
+
+    int entry        = 0;
+    int entry_count  = 0;
+    int displaced    = 0;
+    int offset       = 0;
+
+    SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
+    dlog(1, "  ... message contains %d entries.\n", entry_count);
+
+    // Extract one-at-a-time single messages into 'msg'
+    for (entry = 0; entry < entry_count; entry++) {
+        dlog(1, "[ccc] ... processing entry %d of %d @ offset == %d \n",
+            (entry + 1), entry_count, offset);
+        memset(&header, '\0', sizeof(SOS_msg_header));
+        displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+        dlog(1, "     ... header.msg_size == %d\n",
+            header.msg_size);
+        dlog(1, "     ... header.msg_type == %s  (%d)\n",
+            SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
+        dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n",
+            header.msg_from);
+        dlog(1, "     ... header.pub_guid == %" SOS_GUID_FMT "\n",
+            header.pub_guid);
+
+        offset -= displaced;
+
+        //Create a new message buffer:
+        SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
+
+        dlog(1, "[ccc] (%d of %d) <<< bringing in msg(%15s).size == %d from offset:%d\n",
+                (entry + 1), entry_count, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+                header.msg_size, offset);
+
+        //Copy the data into the new message directly:
+        memcpy(msg->data, (buffer->data + offset), header.msg_size);
+        msg->len = header.msg_size;
+        offset += header.msg_size;
+
+        //Enqueue this new message into the local_sync:
+        switch (header.msg_type) {
+            case SOS_MSG_TYPE_ANNOUNCE:
+            case SOS_MSG_TYPE_PUBLISH:
+            case SOS_MSG_TYPE_VAL_SNAPS:
+                pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+                pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
+                SOSD.sync.local.queue->elem_count++;
+                pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+                break;
+
+            case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
+            default:                      SOSD_handle_unknown    (msg); break;
+        }
+    }
 
 /* name.........: SOSD_cloud_init
  * parameters...: argc, argv (passed in by address)
@@ -84,16 +149,22 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             % SOSD.daemon.aggregator_count;
         SOSD.daemon.cloud_sync_target = aggregation_rank;
     }
-
+    dlog(0, "   ... aggregation_rank: %d\n", aggregation_rank);
 
     char *contact_filename = (char *) calloc(2048, sizeof(char));
     snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
         SOSD.daemon.work_dir, aggregation_rank);
+    dlog(0, "   ... contact_filename: %s\n", contact_filename);
 
+    dlog(0, "   ... creating connection manager: ");
     evp->cm = CManager_create();
     CMlisten(evp->cm);
+    dlog(0, "done.\n");
+
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
+        dlog(0, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
+        dlog(0, "   ... creating objects to coordinate with listeners: ");
         evp->node = (SOSD_evpath_node **)
             malloc(expected_node_count * sizeof(SOSD_evpath_node *));
         int node_idx = 0; 
@@ -104,7 +175,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
                 (SOSD_evpath_node *) calloc(1, sizeof(SOSD_evpath_node));
             snprintf(evp->node[node_idx]->name, 256, "%d", node_idx);
         }
+        dlog(0, "done.\n");
 
+        dlog(0, "   ... configuring stones: ");
         evp->stone = EValloc_stone(evp->cm);
         EVassoc_terminal_action(
             evp->cm,
@@ -112,9 +185,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             SOSD_buffer_format_list,
             SOSD_evpath_message_handler,
             NULL);
+        dlog(0, "done.\n");
 
         evp->string_list =
         attr_list_to_string(CMget_contact_list(evp->cm));
+        dlog(0, "   ... connection string: %s\n", evp->string_list);
 
         FILE *contact_file;
         contact_file = fopen(contact_filename, "w");
@@ -122,10 +197,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         fflush(contact_file);
         fclose(contact_file);
 
-        printf("Contact list is \"%s\"\n", evp->string_list);
     } else {
         
-        dlog(0, "Waiting for coordinator to share contact information...\n");
+        dlog(0, "   ... waiting for coordinator to share contact information.\n");
         while (!SOS_file_exists(contact_filename)) {
             usleep(100000);
         }
@@ -142,8 +216,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             usleep(500000);
         }
 
-        dlog(0, "   ... Got it: %s\n", evp->string_list);
+        dlog(0, "   ... targeting aggregator at: %s\n", evp->string_list);
 
+        dlog(0, "   ... configuring stones: ");
         evp->stone        = EValloc_stone(evp->cm);
         evp->contact_list = attr_list_from_string(evp->string_list);
         EVassoc_bridge_action(
@@ -155,12 +230,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             evp->cm,
             evp->stone,
             SOSD_buffer_format_list);
+        dlog(0, "done.\n");
 
         // evp->source is where we drop messages to send...
         // Example:  EVsubmit(evp->source, &msg, NULL);
-
         evp->string_list =
         attr_list_to_string(CMget_contact_list(evp->cm));
+        dlog(0, "   ... feedback connection string: %s\n", evp->string_list);
 
         // Send this to the master.
         SOS_buffer *buffer;
@@ -191,6 +267,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
 
     free(contact_filename);
+    dlog(0, "   ... done.\n");
 
     return 0;
 }
