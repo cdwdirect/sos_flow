@@ -20,7 +20,7 @@ include_directories("${ADIOS_INCLUDE_DIRS}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
 
 # add our executables
-add_executable (generic_node main.c mpi_reader.c mpi_writer.c flexpath_reader.c flexpath_writer.c mandelbrot.c) 
+add_executable (generic_node main.c mpi_reader.c mpi_writer.c flexpath_reader.c flexpath_writer.c exchange.c mandelbrot.c) 
 
 # Link the executable to the correct libraries
 target_link_libraries (generic_node ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ADIOS_LIBRARIES} ${ENET_LDFLAGS} ${RCA_LDFLAGS} ${ADIOS_TAU_FLAGS} ${TAU_PTHREAD_WRAPPER}) 
