@@ -191,7 +191,12 @@ int main(int argc, char *argv[])  {
 
     #ifdef SOSD_CLOUD_SYNC
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... calling SOSD_cloud_init()...\n"); fflush(stdout); }
-    SOSD_cloud_init( &argc, &argv);
+    // Start the msg_recv loop before anything, to handle registration replies
+    // between the aggregator and the listeners. It has an internal gate that
+    // does not open until the bare minimum objects are in place halfway
+    // through the SOSD_cloud_init routine.
+    SOSD_sync_context_init(SOSD.sos_context, &SOSD.sync.cloud_recv, sizeof(SOS_buffer *), SOSD_THREAD_cloud_recv);
+     SOSD_cloud_init( &argc, &argv);
     #else
     dlog(0, "   ... WARNING: There is no CLOUD_SYNC configured for this SOSD.\n");
     #endif
@@ -230,8 +235,7 @@ int main(int argc, char *argv[])  {
     }
     #else
     #endif
-    SOSD_sync_context_init(SOS, &SOSD.sync.cloud_recv, sizeof(SOS_buffer *), SOSD_THREAD_cloud_recv);
-    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
+   SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
 
 
     dlog(0, "Entering listening loops...\n");

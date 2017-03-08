@@ -18,6 +18,8 @@ int   SOSD_cloud_finalize(void);
 void  SOSD_cloud_shutdown_notice(void);
 void  SOSD_cloud_listen_loop(void);
 
+
+
 typedef struct _buffer_rec {
         int            size;
         SOS_msg_type   type;

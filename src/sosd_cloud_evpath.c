@@ -7,8 +7,9 @@
 #include "string.h"
 #include "evpath.h"
 
+bool SOSD_evpath_ready_to_listen;
 bool SOSD_cloud_shutdown_underway;
-
+void SOSD_evpath_register_connection(SOS_buffer *msg);
 
 // Extract the buffer from EVPath and drop it into the SOSD
 // message processing queue:
@@ -19,22 +20,11 @@ SOSD_evpath_message_handler(
     void *client_data,
     attr_list attrs)
 {
-    SOS_SET_CONTEXT("SOSD_evpath_message_handler");
-    /*   
-        buffer_rec_ptr buffer = vevent;
-        if (SOSD.sos_context->role == SOS_ROLE_LISTENER) {
-            printf("[listener]..: ");
-        } else {
-            printf("[aggregator]: ");
-        }
-        printf("I got %d, %s\n", buffer->size, buffer->data);
-        fflush(stdout);
-        return 1;
-    */
-
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_message_handler");
     buffer_rec_ptr evp_buffer = vevent;
 
-    SOS_buffer *buffer; 
+    SOS_msg_header    header;
+    SOS_buffer       *buffer; 
     SOS_buffer_init_sized_locking(SOS, &buffer, (evp_buffer->size + 1), false);
     memcpy(buffer->data, evp_buffer->data, evp_buffer->size);
 
@@ -67,7 +57,9 @@ SOSD_evpath_message_handler(
 
         offset -= displaced;
 
+
         //Create a new message buffer:
+        SOS_buffer *msg;
         SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
 
         dlog(1, "[ccc] (%d of %d) <<< bringing in msg(%15s).size == %d from offset:%d\n",
@@ -89,11 +81,40 @@ SOSD_evpath_message_handler(
                 SOSD.sync.local.queue->elem_count++;
                 pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
                 break;
-
+            case SOS_MSG_TYPE_REGISTER:   SOSD_evpath_register_connection(msg);
             case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
             default:                      SOSD_handle_unknown    (msg); break;
         }
     }
+
+    return 0;
+}
+
+// With EVPath, the aggregator has to build stones back down
+// to the listeners that so that it is able to send feedback
+// messages out to everyone it is in touch with.
+
+void SOSD_evpath_register_connection(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_handle_register");
+
+    SOS_msg_header header;
+    int offset = 0;
+
+    SOS_buffer_unpack(msg, &offset, "iigg",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+
+    SOSD_evpath *evp = &SOSD.daemon.evpath;
+    SOS_buffer_unpack(msg, &offset, "s",
+        &evp->node[header.msg_from]->contact_string);
+ 
+
+    return;
+}
+
+
 
 /* name.........: SOSD_cloud_init
  * parameters...: argc, argv (passed in by address)
@@ -122,6 +143,8 @@ SOSD_evpath_message_handler(
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.EVPATH");
+
+    SOSD_evpath_ready_to_listen = false;
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
 
@@ -159,6 +182,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(0, "   ... creating connection manager: ");
     evp->cm = CManager_create();
     CMlisten(evp->cm);
+    SOSD_evpath_ready_to_listen = true;
     dlog(0, "done.\n");
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
@@ -245,7 +269,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         SOS_msg_header header;
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
-        header.msg_from = 0;
+        header.msg_from = SOSD.sos_context->config.comm_rank;
         header.pub_guid = 0;
 
         int offset = 0;
@@ -380,6 +404,10 @@ void  SOSD_cloud_shutdown_notice(void) {
  */
 void  SOSD_cloud_listen_loop(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop");
+
+    while(!SOSD_evpath_ready_to_listen) {
+            usleep(50000);
+    }
 
     CMrun_network(SOSD.daemon.evpath.cm);
 
