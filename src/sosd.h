@@ -130,6 +130,7 @@ typedef struct {
     CManager            cm;
     char               *instance_name;
     char               *instance_role;
+    char               *meetup_path;
     int                 is_master;
     int                 node_count;
     SOSD_evpath_node  **node;

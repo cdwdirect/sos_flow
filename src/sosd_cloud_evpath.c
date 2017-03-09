@@ -145,8 +145,19 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.EVPATH");
 
     SOSD_evpath_ready_to_listen = false;
-
     SOSD_evpath *evp = &SOSD.daemon.evpath;
+
+    evp->meetup_path = NULL;
+    evp->meetup_path = getenv("SOS_EVPATH_MEETUP");
+    if ((evp->meetup_path == NULL) || (strlen(evp->meetup_path) < 1)) {
+        char *meetup_error =
+            "ERROR: Please set the SOS_EVPATH_MEETUP environment variable\n" \
+            "       with a valid path that all instances of SOS daemons\n" \
+            "       will be able to access, typically an NFS location.\n";
+        fprintf(stderr, "%s", meetup_error);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
 
     int expected_node_count =
         SOSD.daemon.aggregator_count + 
@@ -176,7 +187,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     char *contact_filename = (char *) calloc(2048, sizeof(char));
     snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
-        SOSD.daemon.work_dir, aggregation_rank);
+        evp->meetup_path, aggregation_rank);
     dlog(0, "   ... contact_filename: %s\n", contact_filename);
 
     dlog(0, "   ... creating connection manager: ");
