@@ -43,11 +43,25 @@ int SOS_file_exists(char *filepath) {
     return (stat(filepath, &buffer) == 0);
 }
 
-SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_layer layer) {
-    return SOS_init_with_runtime(argc, argv, role, layer, NULL);
+void
+SOS_init(
+    int *argc,
+    char ***argv,
+    SOS_runtime **runtime,
+    SOS_role role,
+    SOS_receives receives)
+{
+    return SOS_init_with_runtime(argc, argv, runtime, role, receives);
 }
 
-SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime ) {
+void
+SOS_init_with_runtime(
+    int *argc,
+    char ***argv,
+    SOS_runtime **extant_sos_runtime,
+    SOS_role role,
+    SOS_receives receives)
+{
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
@@ -56,28 +70,13 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
 
     SOS_runtime *NEW_SOS = NULL;
-    if (extant_sos_runtime == NULL) {
+    if (*extant_sos_runtime == NULL) {
         NEW_SOS = (SOS_runtime *) malloc(sizeof(SOS_runtime));
         memset(NEW_SOS, '\0', sizeof(SOS_runtime));
     } else {
-        NEW_SOS = extant_sos_runtime;
+        NEW_SOS = *extant_sos_runtime;
     }
 
-    /*
-     *  Before SOS_init returned a unique context per caller, we wanted
-     *  to make it re-entrant.  This saved mistakes from being made when
-     *  multiple parts of a single binary were independently instrumented
-     *  with SOS calls reflecting different layers or metadata.
-     *
-     *  The way it works now, wrappers and libraries and applications
-     *  can all have their own unique contexts and metadata, this is better.
-     *
-    static bool _initialized = false;   //old way
-    if (_initialized) return;
-    _initialized = true;
-    */
-
-    
     NEW_SOS->config.offline_test_mode = false;
     NEW_SOS->config.runtime_utility   = false;
 
@@ -127,17 +126,8 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
             SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
             SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
             SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-            retval = pthread_create( SOS->task.feedback, NULL, SOS_THREAD_feedback, (void *) SOS );
-            if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
-            if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
-            if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-        }
-        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
-        if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-    }
+
+            SOS_initiate_receiver(SOS, receiver);
 
     if (SOS->config.offline_test_mode == true) {
         /* Here, the offline mode finishes up any non-networking initialization and bails out. */
@@ -298,6 +288,42 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 }
 
 
+
+void
+SOS_receiver_init(SOS_runtime *sos_context) {
+    retval = pthread_create(SOS->task.feedback, NULL,
+        SOS_THREAD_feedback, (void *) SOS);
+    if (retval != 0) {
+        dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
+            " thread!  (%s)\n", retval, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
+    if (retval != 0) {
+        dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
+            "  (%s)\n", retval, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
+    if (retval != 0) {
+        dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
+            "  (%s)\n", retval, strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+
+    SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+    if (retval != 0) {
+        dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
+        "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+    }
+
+    return;
+}
+
+
 /* TODO: { FEEDBACK } */
 int SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data)) {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
@@ -443,6 +469,17 @@ void SOS_finalize(SOS_runtime *sos_context) {
 
     return;
 }
+
+    //TODO: Here we are making our incision...
+    //      This function is getting made optional,
+    //      where SOS can be configured to check for
+    //      feedback in a push-pull model, or in the
+    //      alternative, it can monitor a socket for
+    //      direct messages from the daemon.
+
+
+
+//SLICE
 
 
 
