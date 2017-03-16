@@ -56,7 +56,7 @@
     MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
-#define FOREACH_RECIEVES(RECIEVES)              \
+#define FOREACH_RECEIVES(RECEIVES)              \
     RECEIVES(SOS_RECEIVES_DIRECT_MESSAGES)      \
     RECEIVES(SOS_RECEIVES_TIMED_CHECKIN)        \
     RECEIVES(SOS_RECEIVES_MANUAL_CHECKIN)       \
@@ -66,9 +66,7 @@
 
 #define FOREACH_FEEDBACK(FEEDBACK)              \
     FEEDBACK(SOS_FEEDBACK_CONTINUE)             \
-    FEEDBACK(SOS_FEEDBACK_EXEC_FUNCTION)        \
-    FEEDBACK(SOS_FEEDBACK_SET_PARAMETER)        \
-    FEEDBACK(SOS_FEEDBACK_EFFECT_CHANGE)        \
+    FEEDBACK(SOS_FEEDBACK_CUSTOM)               \
     FEEDBACK(SOS_FEEDBACK___MAX)
     
 #define FOREACH_PRI(PRI)                        \
@@ -156,6 +154,7 @@
     SCOPE(SOS_SCOPE___MAX)
 
 #define FOREACH_LAYER(LAYER)                    \
+    LAYER(SOS_LAYER_DEFAULT)                    \
     LAYER(SOS_LAYER_APP)                        \
     LAYER(SOS_LAYER_OS)                         \
     LAYER(SOS_LAYER_LIB)                        \
@@ -368,6 +367,8 @@ typedef struct {
 } SOS_pub;
 
 
+
+
 typedef struct {
     SOS_guid            guid;
     SOS_guid            client_guid;
@@ -408,7 +409,25 @@ typedef struct {
     int                 buffer_len;
     pthread_mutex_t    *send_lock;
     SOS_buffer         *recv_part;
-} SOS_socket_set;
+} SOS_socket_out;
+
+typedef struct {
+    int                 server_socket_fd;
+    int                 client_socket_fd;
+    int                 port_number;
+    char               *server_port;
+    int                 listen_backlog;
+    int                 client_len;
+    struct addrinfo     server_hint;
+    struct addrinfo    *server_addr;
+    char               *client_host;
+    char               *client_port;
+    struct addrinfo    *result;
+    struct sockaddr_storage   peer_addr;
+    socklen_t           peer_addr_len;
+} SOS_socket_in;
+
+
 
 typedef struct {
     int                 msg_size;
@@ -429,6 +448,7 @@ typedef struct {
     SOS_layer           layer;
     SOS_locale          locale;
     SOS_receives        receives;
+    int                 receives_port;
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;
@@ -461,7 +481,7 @@ typedef struct {
     SOS_status          status;
     SOS_unique_set      uid;
     SOS_task_set        task;
-    SOS_socket_set      net;
+    SOS_socket_out      net;
     SOS_guid            my_guid;
 } SOS_runtime;
 

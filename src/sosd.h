@@ -99,22 +99,6 @@ typedef struct {
 } SOSD_km2d_point;
 
 
-typedef struct {
-    int                 server_socket_fd;
-    int                 client_socket_fd;
-    int                 port_number;
-    char               *server_port;
-    int                 listen_backlog;
-    int                 client_len;
-    struct addrinfo     server_hint;
-    struct addrinfo    *server_addr;
-    char               *client_host;
-    char               *client_port;
-    struct addrinfo    *result;
-    struct sockaddr_storage   peer_addr;
-    socklen_t           peer_addr_len;
-} SOSD_net;
-
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 typedef struct {
     char                name[256];
@@ -199,7 +183,7 @@ typedef struct {
     SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
-    SOSD_net            net;
+    SOS_socket          net;
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
@@ -262,7 +246,7 @@ extern "C" {
 
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
-    extern SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
+    extern void SOS_init_with_runtime(int *argc, char ***argv, SOS_runtime **runtime, SOS_role role, SOS_receives receives);
 
 
 #ifdef __cplusplus

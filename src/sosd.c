@@ -1758,8 +1758,10 @@ void SOSD_display_logo(void) {
     }
 
     printf("\n");
-    printf("   Version: %s\n", SOS_VERSION);
-    printf("   Builder: %s\n", SOS_BUILDER);
+    printf("   Version....: %s\n", SOS_VERSION);
+    printf("   Builder....: %s\n", SOS_BUILDER);
+    printf("   Built for..: %s\n", SOS_BUILT_FOR);
+    printf("          on..: %s %s\n", __DATE__, __TIME__);
     printf("\n");
     printf("--------------------------------------------------------------------------------\n");
 

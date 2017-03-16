@@ -30,8 +30,18 @@ void*        SOS_THREAD_feedback(void *arg);
 void         SOS_handle_feedback(SOS_buffer *buffer);
 void         SOS_expand_data(SOS_pub *pub);
 
-SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
+void
+SOS_init_with_runtime(
+    int *argc,
+    char ***argv,
+    SOS_runtime **extant_sos_runtime,
+    SOS_role role,
+    SOS_receives receives
+);
 
+
+void SOS_receiver_init(SOS_runtime *sos_context);
+void SOS_process_feedback(SOS_buffer *buffer);
 
 
 /* **************************************** */
@@ -49,9 +59,11 @@ SOS_init(
     char ***argv,
     SOS_runtime **runtime,
     SOS_role role,
-    SOS_receives receives)
+    SOS_receives receives,
+    SOS_feedback_handler_f handler)
 {
-    return SOS_init_with_runtime(argc, argv, runtime, role, receives);
+    SOS_init_with_runtime(argc, argv, runtime, role, receives);
+    return;
 }
 
 void
@@ -60,7 +72,8 @@ SOS_init_with_runtime(
     char ***argv,
     SOS_runtime **extant_sos_runtime,
     SOS_role role,
-    SOS_receives receives)
+    SOS_receives receives,
+    SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
@@ -95,7 +108,8 @@ SOS_init_with_runtime(
     }
 
     NEW_SOS->status = SOS_STATUS_INIT;
-    NEW_SOS->config.layer  = layer;
+    NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
+    NEW_SOS->config.receives = receives;
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
 
     dlog(1, "Initializing SOS ...\n");
@@ -121,13 +135,9 @@ SOS_init_with_runtime(
     if (SOS->role == SOS_ROLE_CLIENT) {
         SOS->config.locale = SOS_LOCALE_APPLICATION;
 
-        if (SOS->config.runtime_utility == false) {
-            dlog(1, "  ... launching libsos runtime thread[s].\n");
-            SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
-            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-            SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-
-            SOS_initiate_receiver(SOS, receiver);
+        if (SOS->config.runtime_utility == false) { 
+            SOS_receiver_init(SOS);
+        }
 
     if (SOS->config.offline_test_mode == true) {
         /* Here, the offline mode finishes up any non-networking initialization and bails out. */
@@ -291,33 +301,83 @@ SOS_init_with_runtime(
 
 void
 SOS_receiver_init(SOS_runtime *sos_context) {
-    retval = pthread_create(SOS->task.feedback, NULL,
-        SOS_THREAD_feedback, (void *) SOS);
-    if (retval != 0) {
-        dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
-            " thread!  (%s)\n", retval, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+    SOS_SET_CONTEXT(sos_context, "SOS_receiver_init");
+    switch (SOS->config.receives) {
 
-    retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
-    if (retval != 0) {
-        dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
-            "  (%s)\n", retval, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+        case SOS_RECEIVES_MANUAL_CHECKIN:
+        case SOS_RECEIVES_NO_FEEDBACK:
+        case SOS_RECEIVES_DAEMON_MODE:
+            return;
+            break;
 
-    retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
-    if (retval != 0) {
-        dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
-            "  (%s)\n", retval, strerror(errno));
-        exit(EXIT_FAILURE);
-    }
+        case SOS_RECEIVES_TIMED_CHECKIN:
+            dlog(1, "  ... launching libsos runtime thread[s].\n");
+            SOS->task.feedback = (pthread_t *) malloc(sizeof(pthread_t));
+            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            SOS->task.feedback_cond = (pthread_cond_t *)  malloc(sizeof(pthread_cond_t));
+            retval = pthread_create(SOS->task.feedback, NULL,
+                SOS_THREAD_receives_timed, (void *) SOS);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
+                    " thread!  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
+                "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+            }
+            break;
 
-    SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    retval = pthread_mutex_init(SOS->net.send_lock, NULL);
-    if (retval != 0) {
-        dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
-        "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+        case SOS_RECEIVES_DIRECT_MESSAGES:
+            dlog(1, "  ... launching libsos runtime thread[s].\n");
+            SOS->task.feedback = (pthread_t *) malloc(sizeof(pthread_t));
+            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            SOS->task.feedback_cond = (pthread_cond_t *)  malloc(sizeof(pthread_cond_t));
+            retval = pthread_create(SOS->task.feedback, NULL,
+                SOS_THREAD_receives_direct, (void *) SOS);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
+                    " thread!  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
+                "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+            }
+            break;
+
+        default:
+            dlog(0, " ... WARNING: An invalid value was specified for the"
+                " feedback receipt mode!  (%d)\n", receives)
+            break;
     }
 
     return;
@@ -470,22 +530,101 @@ void SOS_finalize(SOS_runtime *sos_context) {
     return;
 }
 
-    //TODO: Here we are making our incision...
-    //      This function is getting made optional,
-    //      where SOS can be configured to check for
-    //      feedback in a push-pull model, or in the
-    //      alternative, it can monitor a socket for
-    //      direct messages from the daemon.
 
-
-
-//SLICE
-
-
-
-void* SOS_THREAD_feedback( void *args ) {
+void*
+SOS_THREAD_receives_direct(void *args)
+{
     SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
-    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_feedback");
+    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_direct");
+
+    //Get a socket to receive direct feedback messages and begin
+    //listening to it.
+
+    SOS_socket_in insock;
+
+    int i;
+    int yes;
+    int opts;
+
+    yes = 1;
+
+    insock.server_port = 0;    // NOTE: 0 = Request an OS-assigned open port.
+
+    memset(&insock.server_hint, '\0', sizeof(struct addrinfo));
+    insock.server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+    insock.server_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+    insock.server_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
+    insock.server_hint.ai_protocol   = 0;             /* Any protocol */
+    insock.server_hint.ai_canonname  = NULL;
+    insock.server_hint.ai_addr       = NULL;
+    insock.server_hint.ai_next       = NULL;
+
+    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint, &insock.result);
+    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", strerror(errno)); exit(EXIT_FAILURE); }
+
+    for ( insock.server_addr = insock.result ; insock.server_addr != NULL ; insock.server_addr = insock.server_addr->ai_next ) {
+        dlog(1, "Trying an address...\n");
+
+        insock.server_socket_fd = socket(insock.server_addr->ai_family, insock.server_addr->ai_socktype, insock.server_addr->ai_protocol );
+        if ( insock.server_socket_fd < 1) {
+            dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
+            continue;
+        }
+
+        // Allow this socket to be reused/rebound quickly by the daemon.
+        if ( setsockopt( insock.server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+            dlog(0, "  ... could not set socket options.  (%s)\n", strerror(errno));
+            continue;
+        }
+
+        if ( bind( insock.server_socket_fd, insock.server_addr->ai_addr, insock.server_addr->ai_addrlen ) == -1 ) {
+            dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
+            close( insock.server_socket_fd );
+            continue;
+        } 
+        // If we get here, we're good to stop looking.
+        break;
+    }
+
+    if ( insock.server_socket_fd < 0 ) {
+        dlog(0, "  ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", errno, strerror(errno));
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(0, "  ... got a socket, and bound to it!\n");
+    }
+
+    freeaddrinfo(insock.result);
+
+     // Enforce that this is a BLOCKING socket:
+    opts = fcntl(insock.server_socket_fd, F_GETFL);
+    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", strerror(errno)); }
+ 
+    opts = opts & !(O_NONBLOCK);
+    i    = fcntl(insock.server_socket_fd, F_SETFL, opts);
+    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", strerror(errno)); }
+
+
+    listen( insock.server_socket_fd, insock.listen_backlog );
+    dlog(0, "Listening on socket.\n");
+
+    if (insock.server_addr->sa_family == AF_INET) {
+        SOS->config.receives_port = (int) (((struct sockaddr_in*)insock.server_addr)->sin_port);
+    } else {
+        SOS->config.receives_port = (int) (((struct sockaddr_in6*)insock.server_addr)->sin6_port);
+    }
+
+    //Part 2: Listening loop for feedback messages.
+
+    //void SOS_feedback_receiver_f ( void (*f)(SOS_feedback feedback, SOS_buffer *msg );
+    
+
+    return NULL;
+}
+
+
+void* SOS_THREAD_receives_timed(void *args) {
+    SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
+    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_timed");
     struct timespec ts;
     struct timeval  tp;
     int wake_type;
@@ -602,14 +741,28 @@ void* SOS_THREAD_feedback( void *args ) {
 }
 
 
-void SOS_handle_feedback(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(buffer->sos_context, "SOS_handle_feedback");
+void SOS_process_feedback(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_process_feedback");
     int  activity_code;
     char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
 
     SOS_msg_header header;
 
     int offset;
+
+
+    //SLICE: This function is used by ALL THREE types of feedback
+    //       modes to process the buffer sent back from the daemon.
+    
+    //NOTE: The daemon can pack multiple feedback messages into one
+    //  reply, in the case that some of them had stacked up between
+    //  the checkins in the TIMED/MANUAL modes. The first value in
+    //  the buffer is thus an int that says how many messages are
+    //  enqueued in the buffer, and (like aggregator messages) we
+    //  roll through the buffer for each one extracting out the length
+    //  that was encoded in the header, and pass the message on to
+    //  the user-supplied callback one at a time.
+
 
     dlog(4, "Determining appropriate action RE:feedback from daemon.\n");
 

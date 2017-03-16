@@ -67,6 +67,9 @@ endif()
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
+add_definitions("-DSOS_BUILDER=$ENV{USER}")
+add_definitions("-DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME}")
+
 find_package("Sqlite3" REQUIRED)
 
 #  Always include the MPI stuff, some components reference it
