@@ -10,9 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
 #include <mpi.h>
-#endif
 
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
@@ -52,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     MPI_Init(&argc, &argv);
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 
     /* Process command-line arguments */
     if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -188,6 +186,6 @@ int main(int argc, char *argv[]) {
 
     if (rank == 0) dlog(0, "demo_app finished successfully!\n");
     SOS_finalize(my_sos);
-    MPI_Finalize();
+    MPI_Finalize(); 
     return (EXIT_SUCCESS);
 }

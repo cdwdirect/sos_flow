@@ -1,7 +1,8 @@
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"
 echo $SCRIPTPATH
-BASEDIR=$SCRIPTPATH/../../..
+# Old way (relative pathing):  BASEDIR=$SCRIPTPATH/../../..
+BASEDIR="$(cd "$SCRIPTPATH/../../.."; pwd)"
 echo $BASEDIR
 
 export SOS_CMD_PORT=22500

@@ -1,0 +1,34 @@
+echo "Starting AGGREGATOR 0..."
+env SOS_CMD_PORT=20506 ./bin/sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
+echo "Starting AGGREGATOR 1..."
+env SOS_CMD_PORT=20507 ./bin/sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
+eecho "Starting AGGREGATOR 2..."
+env SOS_CMD_PORT=20508 ./bin/sosd -l 10 -a 3 -w `pwd` -k 2 -r aggregator &
+echo "Waiting for 3 seconds..."
+sleep 3
+echo "Starting LISTENERS..."
+env SOS_CMD_PORT=22500 ./bin/sosd -l 10 -a 3 -w `pwd` -k 3 -r listener &
+env SOS_CMD_PORT=22501 ./bin/sosd -l 10 -a 3 -w `pwd` -k 4 -r listener &
+env SOS_CMD_PORT=22502 ./bin/sosd -l 10 -a 3 -w `pwd` -k 5 -r listener &
+env SOS_CMD_PORT=22503 ./bin/sosd -l 10 -a 3 -w `pwd` -k 6 -r listener &
+env SOS_CMD_PORT=22504 ./bin/sosd -l 10 -a 3 -w `pwd` -k 7 -r listener &
+env SOS_CMD_PORT=22505 ./bin/sosd -l 10 -a 3 -w `pwd` -k 8 -r listener &
+env SOS_CMD_PORT=22506 ./bin/sosd -l 10 -a 3 -w `pwd` -k 9 -r listener &
+env SOS_CMD_PORT=22507 ./bin/sosd -l 10 -a 3 -w `pwd` -k 10 -r listener &
+env SOS_CMD_PORT=22508 ./bin/sosd -l 10 -a 3 -w `pwd` -k 11 -r listener &
+env SOS_CMD_PORT=22509 ./bin/sosd -l 10 -a 3 -w `pwd` -k 12 -r listener &
+echo "All listeners are now online (ports 22500-22509)"
+echo "Waiting for 3 seconds..."
+sleep 3
+echo "Starting demo_apps (1 per listener)"
+env SOS_CMD_PORT=22500 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22501 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22502 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22503 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22504 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22505 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22506 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22507 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22508 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+env SOS_CMD_PORT=22509 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
+echo "Script complete ... demo_apps running."

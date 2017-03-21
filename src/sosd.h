@@ -5,7 +5,13 @@
 #include <signal.h>
 #include <time.h>
 
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
 #include <mpi.h>
+#endif
+
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+#include "evpath.h"
+#endif
 
 #include "sos.h"
 #include "sos_types.h"
@@ -109,6 +115,33 @@ typedef struct {
     socklen_t           peer_addr_len;
 } SOSD_net;
 
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+typedef struct {
+    char                name[256];
+    char               *contact_string;
+    EVsource            src;
+    EVstone             out_stone;
+    EVstone             rmt_stone;
+} SOSD_evpath_node;
+
+
+
+typedef struct {
+    CManager            cm;
+    char               *instance_name;
+    char               *instance_role;
+    char               *meetup_path;
+    int                 is_master;
+    int                 node_count;
+    SOSD_evpath_node  **node;
+    char               *string_list;
+    attr_list           contact_list;
+    EVstone             stone;
+    EVstone             remote_stone;
+    EVsource            source;
+} SOSD_evpath;
+#endif
+
 typedef struct {
     char               *work_dir;
     char               *lock_file;
@@ -122,7 +155,12 @@ typedef struct {
     int                 listener_count;
     int                 aggregator_count;
     SOSD_counts         countof;
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
     MPI_Comm            comm;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    SOSD_evpath         evpath;
+#endif
 } SOSD_runtime;
 
 typedef struct {
@@ -151,7 +189,8 @@ typedef struct {
 
 typedef struct {
     SOSD_sync_context    local;
-    SOSD_sync_context    cloud;
+    SOSD_sync_context    cloud_send;
+    SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
     qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
@@ -199,7 +238,8 @@ extern "C" {
                                  void* (*thread_func)(void *thread_param));
 
     void* SOSD_THREAD_local_sync(void *args);
-    void* SOSD_THREAD_cloud_sync(void *args);
+    void* SOSD_THREAD_cloud_send(void *args);
+    void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
 
     void  SOSD_listen_loop(void);

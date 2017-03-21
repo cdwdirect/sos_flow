@@ -5,10 +5,31 @@
  *
  */
 
+#ifndef SOSD_CLOUD_SYNC
+    #define OPT_PARAMS "\n" \
+                       "                 The following parameters are REQUIRED for STANDALONE operation:\n" \
+                       "\n" \
+                       "                 -k, --rank <rank within listener set>\n" \
+                       "\n"
+ 
+#endif
 
-#define USAGE          "usage:   $ sosd  -l, --listeners <count>\n" \
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    #define OPT_PARAMS "\n" \
+                       "                 The following parameters are REQUIRED for EVPath:\n" \
+                       "\n" \
+                       "                 -k, --rank <rank within role set>\n" \
+                       "                 -r, --role <listener | aggregator>\n" \
+                       "\n" 
+#else
+    #define OPT_PARAMS "\n"
+#endif
+
+
+#define USAGE          "USAGE:   $ sosd  -l, --listeners <count>\n" \
                        "                 -a, --aggregators <count>\n" \
-                       "                 -w, --work_dir <full_path>\n"
+                       "                 -w, --work_dir <full_path>\n" \
+                       OPT_PARAMS
 
 
 #include <sys/types.h>
@@ -50,9 +71,11 @@
 void SOSD_display_logo(void);
 
 int main(int argc, char *argv[])  {
-    int elem, next_elem;
-    int retval;
-    SOS_role my_role;
+    int        elem;
+    int        next_elem;
+    int        retval;
+    SOS_role   my_role;
+    int        my_rank;
 
     /* [countof]
      *    statistics for daemon activity.
@@ -69,7 +92,7 @@ int main(int argc, char *argv[])  {
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
 
     my_role = SOS_ROLE_UNASSIGNED;
-
+    my_rank = -1;
     SOSD.net.listen_backlog = 10;
 
 
@@ -78,7 +101,14 @@ int main(int argc, char *argv[])  {
     SOSD.net.port_number = atoi(SOSD.net.server_port);
 
     /* Process command-line arguments */
-    if ( argc < 7 ) { fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE); exit(EXIT_FAILURE); }
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    if ( argc < 11 ) {
+#else
+    if ( argc < 7 ) {
+#endif
+        fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE);
+        exit(EXIT_FAILURE);
+    }
     SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
@@ -94,13 +124,34 @@ int main(int argc, char *argv[])  {
         ||        (strcmp(argv[elem], "-w"                ) == 0)) {
             SOSD.daemon.work_dir    = argv[next_elem];
         }
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+        else if ( (strcmp(argv[elem], "--rank"            ) == 0)
+        ||        (strcmp(argv[elem], "-k"                ) == 0)) {
+            my_rank = atoi(argv[next_elem]);
+        }
+        else if ( (strcmp(argv[elem], "--role"            ) == 0)
+        ||        (strcmp(argv[elem], "-r"                ) == 0)) {
+            SOSD.daemon.evpath.instance_role = argv[next_elem];
+            if (strcmp(argv[next_elem], "listener") == 0) {
+                my_role = SOS_ROLE_LISTENER;
+            } else if (strcmp(argv[next_elem], "aggregator") == 0) {
+                my_role = SOS_ROLE_AGGREGATOR;
+            } else {
+                fprintf(stderr, "ERROR!  Invalid sosd role specified.  (%s)\n",
+                    argv[next_elem]);
+                exit(EXIT_FAILURE);
+            }
+            fflush(stdout);
+        }
+#endif
         else    { fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
     }
-    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_UNASSIGNED)) {
-        fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE); exit(EXIT_FAILURE);
-    }
 
+    if ((SOSD.net.port_number < 1) && (my_role == SOS_ROLE_UNASSIGNED)) {
+        fprintf(stderr, "ERROR: No port was specified for the daemon to monitor.\n\n%s\n", USAGE);
+        exit(EXIT_FAILURE);
+    }
 
     #ifndef SOSD_CLOUD_SYNC
     if (my_role != SOS_ROLE_LISTENER) {
@@ -111,6 +162,20 @@ int main(int argc, char *argv[])  {
     }
     #endif
 
+    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    if (SOSD.daemon.evpath.instance_role == NULL) {
+        fprintf(stderr, "ERROR: Please select an instance role.\n%s\n", USAGE);
+        exit(EXIT_FAILURE);
+    }
+
+    if (my_rank < 0) {
+        fprintf(stderr, "ERROR: No rank was assigned for this daemon.\n\n%s\n", USAGE);
+        exit(EXIT_FAILURE);
+    }
+
+    #endif
+
+    // Done with param processing... fire things up.
 
     unsetenv("SOS_SHUTDOWN");
 
@@ -120,16 +185,24 @@ int main(int argc, char *argv[])  {
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... creating SOS_runtime object for daemon use.\n"); fflush(stdout); }
     SOSD.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
     memset(SOSD.sos_context, '\0', sizeof(SOS_runtime));
-    SOSD.sos_context->role = SOS_ROLE_UNASSIGNED;
+
+    SOSD.sos_context->role              = my_role;
+    SOSD.sos_context->config.comm_rank  = my_rank;
 
     #ifdef SOSD_CLOUD_SYNC
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... calling SOSD_cloud_init()...\n"); fflush(stdout); }
-    SOSD_cloud_init( &argc, &argv);
+    // Start the msg_recv loop before anything, to handle registration replies
+    // between the aggregator and the listeners. It has an internal gate that
+    // does not open until the bare minimum objects are in place halfway
+    // through the SOSD_cloud_init routine.
+    SOSD_sync_context_init(SOSD.sos_context, &SOSD.sync.cloud_recv, sizeof(SOS_buffer *), SOSD_THREAD_cloud_recv);
+     SOSD_cloud_init( &argc, &argv);
     #else
     dlog(0, "   ... WARNING: There is no CLOUD_SYNC configured for this SOSD.\n");
     #endif
 
     SOS_SET_CONTEXT(SOSD.sos_context, "main");
+
     my_role = SOS->role;
 
     dlog(0, "Initializing SOSD:\n");
@@ -138,20 +211,17 @@ int main(int argc, char *argv[])  {
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
+    dlog(0, "   ... done. (SOSD_init + SOS_init are complete)\n");
+
     if (SOS->config.comm_rank == 0) {
         SOSD_display_logo();
     }
 
-    dlog(0, "   ... done. (SOSD_init + SOS_init are complete)\n");
     dlog(0, "Calling register_signal_handler()...\n");
     if (SOSD_DAEMON_LOG) SOS_register_signal_handler(SOSD.sos_context);
 
-    //GO
-    //TODO: Add support for socket interactions to the AGGREGATOR roles...
-    if (SOS->role == SOS_ROLE_LISTENER) {
-        dlog(0, "Calling daemon_setup_socket()...\n");
-        SOSD_setup_socket();
-    }
+    dlog(0, "Calling daemon_setup_socket()...\n");
+    SOSD_setup_socket();
 
     dlog(0, "Calling daemon_init_database()...\n");
     SOSD_db_init_database();
@@ -160,33 +230,35 @@ int main(int argc, char *argv[])  {
     SOSD_sync_context_init(SOS, &SOSD.sync.db,   sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_LISTENER) {
-        SOSD_sync_context_init(SOS, &SOSD.sync.cloud, sizeof(SOS_buffer *), SOSD_THREAD_cloud_sync);
+        SOSD_sync_context_init(SOS, &SOSD.sync.cloud_send, sizeof(SOS_buffer *), SOSD_THREAD_cloud_send);
         SOSD_cloud_start();
     }
     #else
     #endif
-    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
+   SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
 
 
-    dlog(0, "Entering listening loop...\n");
+    dlog(0, "Entering listening loops...\n");
 
-    /* Go! */
     switch (SOS->role) {
     case SOS_ROLE_LISTENER:
         SOS->config.locale = SOS_LOCALE_APPLICATION;
-        SOSD_listen_loop();
         break;
-
     case SOS_ROLE_AGGREGATOR:
         SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
-        #ifdef SOSD_CLOUD_SYNC
-        SOSD_cloud_listen_loop();
-        #endif
         break;
     default: break;
     }
 
-    /* Done!  Cleanup and shut down. */
+    //
+    //
+    // Start listening to the socket with the main thread:
+    //
+    SOSD_listen_loop();
+    //
+    // Done!  Cleanup and shut down.
+    //
+    //
 
 
     dlog(0, "Closing the sync queues:\n");
@@ -194,22 +266,18 @@ int main(int argc, char *argv[])  {
         dlog(0, "  .. SOSD.sync.local.queue\n");
         pipe_producer_free(SOSD.sync.local.queue->intake);
     }
-    if (SOSD.sync.cloud.queue != NULL) {
-        dlog(0, "  .. SOSD.sync.cloud.queue\n");
-        pipe_producer_free(SOSD.sync.cloud.queue->intake);
+    if (SOSD.sync.cloud_send.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.cloud_send.queue\n");
+        pipe_producer_free(SOSD.sync.cloud_send.queue->intake);
+    }
+    if (SOSD.sync.cloud_recv.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.cloud_recv.queue\n");
+        pipe_producer_free(SOSD.sync.cloud_recv.queue->intake);
     }
     if (SOSD.sync.db.queue != NULL) {
         dlog(0, "  .. SOSD.sync.db.queue\n");
         pipe_producer_free(SOSD.sync.db.queue->intake);
     }
-
-    /* TODO: { SHUTDOWN } Add cascading queue fflush here to prevent deadlocks. */
-    //dlog(0, "     (waiting for local.queue->elem_count == 0)\n");
-    //dlog(0, "  .. SOSD.sync.cloud.queue\n");
-    //pipe_producer_free(SOSD.sync.cloud.queue->intake);
-    //dlog(0, "  .. SOSD.sync.db.queue\n");
-    //pipe_producer_free(SOSD.sync.db.queue->intake);
-
 
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
@@ -249,7 +317,10 @@ int main(int argc, char *argv[])  {
 
 
 
-
+// The main loop for listening to the on-node socket.
+// Messages received here are placed in the local_sync queue
+//     for processing, so we can go back and grab the next
+//     socket message ASAP.
 void SOSD_listen_loop() {
     SOS_SET_CONTEXT(SOSD.sos_context, "daemon_listen_loop");
     SOS_msg_header header;
@@ -436,10 +507,10 @@ void* SOSD_THREAD_local_sync(void *args) {
         }
 
         if (SOS->role == SOS_ROLE_LISTENER) {
-            pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
-            pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, 1);
-            SOSD.sync.cloud.queue->elem_count++;
-            pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
+            pthread_mutex_lock(SOSD.sync.cloud_send.queue->sync_lock);
+            pipe_push(SOSD.sync.cloud_send.queue->intake, (void *) &buffer, 1);
+            SOSD.sync.cloud_send.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.cloud_send.queue->sync_lock);
         } else if (SOS->role == SOS_ROLE_AGGREGATOR) {
             //DB role's can go ahead and release the buffer.
             SOS_buffer_destroy(buffer);
@@ -545,11 +616,19 @@ void* SOSD_THREAD_db_sync(void *args) {
     pthread_exit(NULL);
 }
 
+// NOTE: This function is needed for the EVPath implementation.
+void* SOSD_THREAD_cloud_recv(void *args) {
+    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+        SOSD_cloud_listen_loop();
+    #else
+        return NULL;
+    #endif
+}
 
 
-void* SOSD_THREAD_cloud_sync(void *args) {
+void* SOSD_THREAD_cloud_send(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
-    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_cloud_sync");
+    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_cloud_send");
     struct timeval   now;
     struct timespec  wait;
     SOS_buffer      *buffer;
@@ -637,7 +716,7 @@ void* SOSD_THREAD_cloud_sync(void *args) {
 
         SOSD_cloud_send(buffer, reply);
 
-        /* TODO: { CLOUD, REPLY} Handle any replies here. */
+        //TODO: Handle replies here (MPI only...?)
 
         SOS_buffer_wipe(buffer);
         SOS_buffer_wipe(reply);
@@ -790,18 +869,10 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     task->pub = pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
 
-    //pthread_mutex_lock(SOSD.db.snap_queue->sync_lock);
-    //if (SOSD.db.snap_queue->sync_pending == 0) {
-    //    SOSD.db.snap_queue->sync_pending = 1;
-    //    pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
-        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-        SOSD.sync.db.queue->elem_count++;
-        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    //} else {
-    //    pthread_mutex_unlock(SOSD.db.snap_queue->sync_lock);
-    //}
-
+    pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+    pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+    SOSD.sync.db.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
     dlog(5, "  ... done.\n");
 
 
@@ -1207,7 +1278,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
 
     /* Don't need to lock for probing because it doesn't matter if we're a little off. */
     uint64_t queue_depth_local     = SOSD.sync.local.queue->elem_count;
-    uint64_t queue_depth_cloud     = SOSD.sync.cloud.queue->elem_count;
+    uint64_t queue_depth_cloud     = SOSD.sync.cloud_send.queue->elem_count;
     uint64_t queue_depth_db_tasks  = SOSD.sync.db.queue->elem_count;
     uint64_t queue_depth_db_snaps  = SOSD.db.snap_queue->elem_count;
 
@@ -1438,12 +1509,18 @@ void SOSD_init() {
     #endif
     sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n", SOSD.daemon.name, SOSD.daemon.lock_file, SOSD.daemon.work_dir);
+        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n",
+            SOSD.daemon.name,
+            SOSD.daemon.lock_file,
+            SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
     if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): AN INSTANCE IS ALREADY RUNNING!\n", SOSD.daemon.name);
+        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not lock instance id file %s in directory %s\n",
+            SOSD.daemon.name,
+            SOSD.daemon.lock_file,
+            SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
@@ -1537,7 +1614,7 @@ void SOSD_init() {
     #if (SOSD_CLOUD_SYNC > 0)
         SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
         SOS_guid guid_my_first   = (SOS_guid) SOS->config.comm_rank * guid_block_size;
-        //printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT, SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
+        printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT, SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
         SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
         dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");
