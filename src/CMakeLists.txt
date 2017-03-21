@@ -21,6 +21,12 @@ else()
     endif()
 endif()
 
+if(DEFINED EVPATH_FOUND)
+    include_directories(${EVPATH_INCLUDE_DIRS})
+    link_directories(${EVPATH_LIBRARY_DIRS})
+    link_libraries(${EVPATH_LIBRARIES})
+endif()
+
 if(SOS_SILENCE_DEBUG)
   add_definitions("-DSOS_DEBUG=0")
 endif()
