@@ -14,6 +14,11 @@ else()
     endif()
 endif()
 
+if(DEFINED PYTHON_INCLUDE_DIR)
+    include_directories("${PYTHON_INCLUDE_DIR}")
+    link_directories("${PYTHON_INCLUDE_DIR}/../../lib")
+endif()
+
 if(SOS_SILENCE_DEBUG)
   add_definitions("-DSOS_DEBUG=0")
 endif()
@@ -41,6 +46,11 @@ foreach(src_file_name ${sosa_mod_src_file_list})
     set_target_properties("sosa_${bin_file_name}" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
   endif()
 endforeach()
+
+# target_link_libraries(sosa_py_runner ${PYTHON_LIBRARIES})
+# target_include_directories(sosa_py_runner PUBLIC ${PYTHON_INCLUDE_DIRS})
+# target_compile_options(sosa_py_runner PUBLIC ${PYTHON_CFLAGS_OTHER})
+
 
 
 

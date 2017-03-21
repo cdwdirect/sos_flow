@@ -41,8 +41,11 @@ endif()
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
+find_package(PkgConfig REQUIRED)
 find_package("Sqlite3" REQUIRED)
 find_package("MPI" REQUIRED)
+#pkg_search_module(PYTHON REQUIRED python)
+
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)

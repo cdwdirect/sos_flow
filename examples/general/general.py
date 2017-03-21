@@ -124,7 +124,11 @@ def generate_commands(data, hostnames):
                 index = index + 1
             f.close()
             hostfile_arg = " --hostfile " + hostfile
-        command = "mpirun -np " + node["mpi_ranks"] + hostfile_arg + " " + data["sos_examples_bin"] + "/generic_node --name " + node["name"]
+        basename = data["sos_examples_bin"] + "/generic_node"
+        specname = data["sos_examples_bin"] + "/generic_node_" + node["name"]
+        if not os.path.exists(specname):
+            os.symlink(basename, specname)
+        command = "mpirun -np " + node["mpi_ranks"] + hostfile_arg + " " + specname + " --name " + node["name"]
         if "iterations" in node:
             command = command + " --iterations " + str(node["iterations"])
         #command = command + " --iterations " + str(data["iterations"])
