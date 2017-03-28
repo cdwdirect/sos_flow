@@ -183,7 +183,7 @@ typedef struct {
     SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
-    SOS_socket          net;
+    SOS_socket_in       net;
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
@@ -246,7 +246,6 @@ extern "C" {
 
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
-    extern void SOS_init_with_runtime(int *argc, char ***argv, SOS_runtime **runtime, SOS_role role, SOS_receives receives);
 
 
 #ifdef __cplusplus

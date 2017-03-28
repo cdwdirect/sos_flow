@@ -83,6 +83,15 @@ extern "C" {
 
 
     /* --- "private" functions used by SOS / SOSD --- */
+
+    void      SOS_init_with_runtime(
+                int *argc,
+                char ***argv,
+                SOS_runtime **extant_sos_runtime,
+                SOS_role role,
+                SOS_receives receives,
+                SOS_feedback_handler_f handler);
+
     int       SOS_file_exists(char *path);
     SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
     int       SOS_pub_search(SOS_pub *pub, const char *name);

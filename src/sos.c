@@ -17,6 +17,7 @@
 
 #include <sys/socket.h>
 #include <netdb.h>
+#include <fcntl.h>
 
 #include "sos.h"
 #include "sos_types.h"
@@ -26,19 +27,10 @@
 #include "sos_qhashtbl.h"
 
 /* Private functions (not in the header file) */
-void*        SOS_THREAD_feedback(void *arg);
+void*        SOS_THREAD_receives_timed(void *sos_runtime_ptr);
+void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
 void         SOS_handle_feedback(SOS_buffer *buffer);
 void         SOS_expand_data(SOS_pub *pub);
-
-void
-SOS_init_with_runtime(
-    int *argc,
-    char ***argv,
-    SOS_runtime **extant_sos_runtime,
-    SOS_role role,
-    SOS_receives receives
-);
-
 
 void SOS_receiver_init(SOS_runtime *sos_context);
 void SOS_process_feedback(SOS_buffer *buffer);
@@ -62,7 +54,7 @@ SOS_init(
     SOS_receives receives,
     SOS_feedback_handler_f handler)
 {
-    SOS_init_with_runtime(argc, argv, runtime, role, receives);
+    SOS_init_with_runtime(argc, argv, runtime, role, receives, handler);
     return;
 }
 
@@ -111,6 +103,7 @@ SOS_init_with_runtime(
     NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
     NEW_SOS->config.receives = receives;
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
+    // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
 
     dlog(1, "Initializing SOS ...\n");
     dlog(1, "  ... setting argc / argv\n");
@@ -147,7 +140,7 @@ SOS_init_with_runtime(
         SOS->status = SOS_STATUS_RUNNING;
         dlog(1, "  ... done with SOS_init().  [OFFLINE_TEST_MODE]\n");
         dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
-        return SOS;
+        return;
     }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
@@ -249,7 +242,8 @@ SOS_init_with_runtime(
         if (retval < 0) {
             dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
             //exit(EXIT_FAILURE);
-            return NULL;
+            SOS = NULL;
+            return;
         } else {
             dlog(1, "   ... registration message sent.   (retval == %d)\n", retval);
         }
@@ -294,7 +288,7 @@ SOS_init_with_runtime(
 
     dlog(1, "  ... done with SOS_init().\n");
     dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
-    return SOS;
+    return;
 }
 
 
@@ -607,14 +601,16 @@ SOS_THREAD_receives_direct(void *args)
     listen( insock.server_socket_fd, insock.listen_backlog );
     dlog(0, "Listening on socket.\n");
 
-    if (insock.server_addr->sa_family == AF_INET) {
-        SOS->config.receives_port = (int) (((struct sockaddr_in*)insock.server_addr)->sin_port);
+    if (insock.server_addr->ai_addr->sa_family == AF_INET) {
+        SOS->config.receives_port =
+            (int) (((struct sockaddr_in*)insock.server_addr->ai_addr)->sin_port);
     } else {
-        SOS->config.receives_port = (int) (((struct sockaddr_in6*)insock.server_addr)->sin6_port);
+        SOS->config.receives_port =
+        (int) (((struct sockaddr_in6*)insock.server_addr->ai_addr)->sin6_port);
     }
 
     //Part 2: Listening loop for feedback messages.
-
+    //TODO / SLICE
     //void SOS_feedback_receiver_f ( void (*f)(SOS_feedback feedback, SOS_buffer *msg );
     
 
@@ -713,9 +709,7 @@ void* SOS_THREAD_receives_timed(void *args) {
 
         switch (feedback) {
         case SOS_FEEDBACK_CONTINUE: break;
-        case SOS_FEEDBACK_EXEC_FUNCTION: 
-        case SOS_FEEDBACK_SET_PARAMETER: 
-        case SOS_FEEDBACK_EFFECT_CHANGE: 
+        case SOS_FEEDBACK_CUSTOM: 
             SOS_handle_feedback(feedback_buffer);
             break;
 
@@ -743,12 +737,10 @@ void* SOS_THREAD_receives_timed(void *args) {
 
 void SOS_process_feedback(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_process_feedback");
-    int  activity_code;
-    char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
-
-    SOS_msg_header header;
-
-    int offset;
+    int               msg_count;
+    SOS_msg_header    header;
+    int               offset;
+    int               activity_code;
 
 
     //SLICE: This function is used by ALL THREE types of feedback
@@ -769,26 +761,27 @@ void SOS_process_feedback(SOS_buffer *buffer) {
     SOS_buffer_lock(buffer);
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
+    SOS_buffer_unpack(buffer, &offset, "i", &msg_count);
 
-    SOS_buffer_unpack(buffer, &offset, "i",
-        &activity_code);
-    
-    switch (activity_code) {
-    case SOS_FEEDBACK_CONTINUE: break;
-    case SOS_FEEDBACK_EXEC_FUNCTION:
-        /* TODO: { FEEDBACK } */
-        SOS_buffer_unpack(buffer, &offset, "s", function_sig);
-        dlog(5, "FEEDBACK activity_code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", activity_code, function_sig);
-        break;
+    int msg = 0;
+    for (msg = 0; msg < msg_count; msg++) {
 
-    case SOS_FEEDBACK_SET_PARAMETER: break;
-    case SOS_FEEDBACK_EFFECT_CHANGE: break;
-    default: break;
+        SOS_buffer_unpack(buffer, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+
+        SOS_buffer_unpack(buffer, &offset, "i", &activity_code);
+
+        switch (activity_code) {
+            case SOS_FEEDBACK_CONTINUE: break;
+            case SOS_FEEDBACK_CUSTOM: 
+                //... do something
+                break;
+            default: break;
+        }
+
     }
 
     SOS_buffer_unlock(buffer);
