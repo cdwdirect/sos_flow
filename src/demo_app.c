@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
     
     if (rank == 0) dlog(0, "Creating a pub...\n");
 
-    pub = SOS_pub_create(my_sos, "demo", SOS_NATURE_CREATE_OUTPUT);
+    SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
     if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
     if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");

@@ -207,7 +207,7 @@ int main(int argc, char *argv[])  {
 
     dlog(0, "Initializing SOSD:\n");
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context) ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
-    SOSD.sos_context = SOS_init_with_runtime( &argc, &argv, my_role, SOS_LAYER_SOS_RUNTIME, SOSD.sos_context );
+    SOS_init( &argc, &argv, &SOSD.sos_context, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
@@ -1019,7 +1019,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
-        pub = SOS_pub_create(SOS, pub_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_create(SOS, &pub, pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str, pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.pub_guid;
@@ -1079,7 +1079,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
         /* If it's not in the table, add it. */
     dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT ") NOT FOUND! (WEIRD!)\n", header.pub_guid);
     dlog(0, "ERROR: .... ADDING previously unknown pub to the table... (this is bogus, man)\n");
-        pub = SOS_pub_create(SOS, pub_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_create(SOS, &pub, pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str, pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.pub_guid;
@@ -1228,7 +1228,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",
-            SOS_FEEDBACK_EXEC_FUNCTION,
+            SOS_FEEDBACK_CUSTOM,
             function_name);
 
         /* Go back and set the message length to the actual length. */
@@ -1758,9 +1758,9 @@ void SOSD_display_logo(void) {
     }
 
     printf("\n");
-    printf("   Version....: %s\n", SOS_VERSION);
-    printf("   Builder....: %s\n", SOS_BUILDER);
-    printf("   Built for..: %s\n", SOS_BUILT_FOR);
+    printf("   Version....: %s\n", "SOS_VERSION");
+    printf("   Builder....: %s\n", "SOS_BUILDER");
+    printf("   Built for..: %s\n", "SOS_BUILT_FOR");
     printf("          on..: %s %s\n", __DATE__, __TIME__);
     printf("\n");
     printf("--------------------------------------------------------------------------------\n");

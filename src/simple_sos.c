@@ -1,5 +1,7 @@
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <inttypes.h>
 
 #include "simple_sos.h"
@@ -8,7 +10,7 @@
 
 int              g_sos_is_online = 0;
 SOS_runtime     *g_sos = NULL;
-SOS_pub_handle  *g_pub = NULL;
+SOS_pub         *g_pub = NULL;
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
 {                                                           \
@@ -32,7 +34,7 @@ void SSOS_init(void) {
     while (g_sos == NULL) {
         SOS_init(NULL, NULL,
             &g_sos, SOS_ROLE_CLIENT,
-            SOS_RECEIVES_NOTHING, SSOS_feedback_handler);
+            SOS_RECEIVES_NO_FEEDBACK, NULL);
 
         if (g_sos == NULL) {
             attempt += 1;
@@ -49,7 +51,7 @@ void SSOS_init(void) {
     }
 
     g_pub = NULL;
-    SOS_pub_create(g_sos, g_pub, "ssos.source", SOS_NATURE_DEFAULT);
+    SOS_pub_create(g_sos, &g_pub, "ssos.source", SOS_NATURE_DEFAULT);
 
     if (g_pub == NULL) {
         fprintf(stderr, "SSOS (PID:%d) -- Failed to create pub handle.\n",
@@ -67,7 +69,7 @@ void SSOS_is_online(int32_t *addr_of_flag) {
 }
 
 
-void SSOS_pack(const char *name, uint32 pack_type, void *pack_val) {
+void SSOS_pack(const char *name, int32_t pack_type, void *pack_val) {
     SSOS_CONFIRM_ONLINE("SSOS_pack");
     SOS_val_type is_a;
     switch(pack_type) {
@@ -104,7 +106,6 @@ void SSOS_finalize(void) {
 }
 
 void* SSOS_feedback_handler(SOS_feedback feedback, SOS_buffer *msg) {
-    SSOS_CONFIRM_ONLINE("SSOS_feedback_handler");
     fprintf(stderr, "SSOS (PID:%d) -- Feedback handler called,"
         " should not be.\n", getpid());
     return NULL;

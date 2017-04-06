@@ -53,7 +53,7 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
-    my_SOS = SOS_init(&argc, &argv, SOS_ROLE_RUNTIME_UTILITY, SOS_LAYER_SOS_RUNTIME);
+    SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
     dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));

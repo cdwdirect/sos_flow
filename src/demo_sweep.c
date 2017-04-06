@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "%s\n", USAGE); exit(1);
     }
 
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_sos, "demo_sweep.main");
     srandom(my_sos->my_guid);
 
@@ -142,7 +142,7 @@ int main(int argc, char *argv[]) {
                    iter_now, size_now, usec_now);
           zlog("Running: %s\n", pub_title);
 
-          pub = SOS_pub_create(my_sos, pub_title, SOS_NATURE_CREATE_OUTPUT);
+          SOS_pub_create(my_sos, &pub, pub_title, SOS_NATURE_CREATE_OUTPUT);
 
           int iter_walk = 0;
           int elem_walk = 0;

@@ -26,7 +26,7 @@
 #include "sos_pipe.h"
 #include "sos_qhashtbl.h"
 
-/* Private functions (not in the header file) */
+// Private functions (not in the header file)
 void*        SOS_THREAD_receives_timed(void *sos_runtime_ptr);
 void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
 void         SOS_handle_feedback(SOS_buffer *buffer);
@@ -36,36 +36,14 @@ void SOS_receiver_init(SOS_runtime *sos_context);
 void SOS_process_feedback(SOS_buffer *buffer);
 
 
-/* **************************************** */
-/* [util]                                   */
-/* **************************************** */
-
 int SOS_file_exists(char *filepath) {
     struct stat   buffer;   
     return (stat(filepath, &buffer) == 0);
 }
 
 void
-SOS_init(
-    int *argc,
-    char ***argv,
-    SOS_runtime **runtime,
-    SOS_role role,
-    SOS_receives receives,
-    SOS_feedback_handler_f handler)
-{
-    SOS_init_with_runtime(argc, argv, runtime, role, receives, handler);
-    return;
-}
-
-void
-SOS_init_with_runtime(
-    int *argc,
-    char ***argv,
-    SOS_runtime **extant_sos_runtime,
-    SOS_role role,
-    SOS_receives receives,
-    SOS_feedback_handler_f handler)
+SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
+    SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
@@ -75,11 +53,11 @@ SOS_init_with_runtime(
 
 
     SOS_runtime *NEW_SOS = NULL;
-    if (*extant_sos_runtime == NULL) {
+    if (*sos_runtime == NULL) {
         NEW_SOS = (SOS_runtime *) malloc(sizeof(SOS_runtime));
         memset(NEW_SOS, '\0', sizeof(SOS_runtime));
     } else {
-        NEW_SOS = *extant_sos_runtime;
+        NEW_SOS = *sos_runtime;
     }
 
     NEW_SOS->config.offline_test_mode = false;
@@ -131,6 +109,7 @@ SOS_init_with_runtime(
         if (SOS->config.runtime_utility == false) { 
             SOS_receiver_init(SOS);
         }
+    }
 
     if (SOS->config.offline_test_mode == true) {
         /* Here, the offline mode finishes up any non-networking initialization and bails out. */
@@ -265,7 +244,7 @@ SOS_init_with_runtime(
         dlog(1, "  ... configuring uid sets.\n");
 
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
-        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* LISTENER doesn't use this, it's for CLIENTS. */
+        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);
 
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -274,11 +253,9 @@ SOS_init_with_runtime(
 
 
     } else {
-        /*
-         *
-         *  CONFIGURATION: LISTENER / AGGREGATOR / etc.
-         *
-         */
+         //
+         //  CONFIGURATION: LISTENER / AGGREGATOR / etc.
+         //
 
         dlog(1, "  ... skipping socket setup (becase we're the daemon).\n");
         
@@ -294,15 +271,17 @@ SOS_init_with_runtime(
 
 
 void
-SOS_receiver_init(SOS_runtime *sos_context) {
+SOS_receiver_init(SOS_runtime *sos_context)
+{
     SOS_SET_CONTEXT(sos_context, "SOS_receiver_init");
+    int retval;
+
     switch (SOS->config.receives) {
 
         case SOS_RECEIVES_MANUAL_CHECKIN:
         case SOS_RECEIVES_NO_FEEDBACK:
         case SOS_RECEIVES_DAEMON_MODE:
             return;
-            break;
 
         case SOS_RECEIVES_TIMED_CHECKIN:
             dlog(1, "  ... launching libsos runtime thread[s].\n");
@@ -332,7 +311,8 @@ SOS_receiver_init(SOS_runtime *sos_context) {
             retval = pthread_mutex_init(SOS->net.send_lock, NULL);
             if (retval != 0) {
                 dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
-                "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+                "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
             }
             break;
 
@@ -370,31 +350,30 @@ SOS_receiver_init(SOS_runtime *sos_context) {
 
         default:
             dlog(0, " ... WARNING: An invalid value was specified for the"
-                " feedback receipt mode!  (%d)\n", receives)
+                " feedback receipt mode!  (%d)\n", receives);
             break;
-    }
+    }//switch
 
     return;
 }
 
 
-/* TODO: { FEEDBACK } */
-int SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data)) {
+// TODO: { FEEDBACK }
+void
+SOS_sense_register(SOS_runtime *sos_context, char *handle)
+{
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
-
-
-
-    return 0;
-}
-
-
-/* TODO: { FEEDBACK } */
-void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length) {
-    SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
-
     return;
 }
 
+void
+SOS_sense_activate(SOS_runtime *sos_context,
+    char *handle, void *data, int data_length)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
+    return;
+}
+// ----------
 
 
 void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
@@ -710,7 +689,7 @@ void* SOS_THREAD_receives_timed(void *args) {
         switch (feedback) {
         case SOS_FEEDBACK_CONTINUE: break;
         case SOS_FEEDBACK_CUSTOM: 
-            SOS_handle_feedback(feedback_buffer);
+            SOS_process_feedback(feedback_buffer);
             break;
 
         default: break;
@@ -898,11 +877,18 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
 }
 
 
-SOS_pub* SOS_pub_create(SOS_runtime *sos_context, char *title, SOS_nature nature) {
-    return SOS_pub_create_sized(sos_context, title, nature, SOS_DEFAULT_ELEM_MAX);
+void
+SOS_pub_create(SOS_runtime *sos_context,
+    SOS_pub **pub_handle, char *title, SOS_nature nature)
+{
+     SOS_pub_create_sized(sos_context, pub_handle, title, nature, SOS_DEFAULT_ELEM_MAX);
+     return;
 }
 
-SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature nature, int new_size) {
+void
+SOS_pub_create_sized(SOS_runtime *sos_context,
+    SOS_pub **pub_handle, char *title, SOS_nature nature, int new_size)
+{
     SOS_SET_CONTEXT(sos_context, "SOS_pub_create_sized");
     SOS_pub   *new_pub;
     int        i;
@@ -995,7 +981,9 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
     dlog(6, "  ... done.\n");
     pthread_mutex_unlock(new_pub->lock);
 
-    return new_pub;
+    *pub_handle = new_pub;
+
+    return;
 }
 
 

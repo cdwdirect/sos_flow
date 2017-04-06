@@ -94,10 +94,6 @@ extern "C" {
 
     // ---------- internal / utility functions -----------------
 
-    void SOS_init_with_runtime(int *argc, char ***argv,
-        SOS_runtime **extant_sos_runtime, SOS_role role,
-        SOS_receives receives, SOS_feedback_handler_f handler);
-
     int SOS_file_exists(char *path);
 
     void SOS_pub_create_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
@@ -191,7 +187,7 @@ extern "C" {
     case SOS_ROLE_AGGREGATOR : sprintf(SOS_WHOAMI, "aggregator(%d).%s",                     SOS->config.comm_rank, __SOS_str_funcname); break; \
     case SOS_ROLE_ANALYTICS  : sprintf(SOS_WHOAMI, "analytics(%d).%s",              SOS->config.comm_rank, __SOS_str_funcname); break; \
     default                  : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
- }
+    }
 #endif
 
 
