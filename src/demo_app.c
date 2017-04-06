@@ -96,6 +96,7 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
+    my_sos = NULL;
     SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 

@@ -51,7 +51,6 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
 
-
     SOS_runtime *NEW_SOS = NULL;
     if (*sos_runtime == NULL) {
         NEW_SOS = (SOS_runtime *) malloc(sizeof(SOS_runtime));
@@ -161,6 +160,12 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
         SOS_buffer_init(SOS, &SOS->net.recv_part);
 
+        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+        if (retval != 0) {
+            dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
+            "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+        }
         SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
@@ -261,6 +266,7 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
         
     }
 
+    *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
 
     dlog(1, "  ... done with SOS_init().\n");
@@ -307,14 +313,7 @@ SOS_receiver_init(SOS_runtime *sos_context)
                     "  (%s)\n", retval, strerror(errno));
                 exit(EXIT_FAILURE);
             }
-            SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-            retval = pthread_mutex_init(SOS->net.send_lock, NULL);
-            if (retval != 0) {
-                dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
-                "  (%s)\n", retval, strerror(errno));
-                exit(EXIT_FAILURE);
-            }
-            break;
+           break;
 
         case SOS_RECEIVES_DIRECT_MESSAGES:
             dlog(1, "  ... launching libsos runtime thread[s].\n");
@@ -340,17 +339,11 @@ SOS_receiver_init(SOS_runtime *sos_context)
                     "  (%s)\n", retval, strerror(errno));
                 exit(EXIT_FAILURE);
             }
-            SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-            retval = pthread_mutex_init(SOS->net.send_lock, NULL);
-            if (retval != 0) {
-                dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
-                "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
-            }
             break;
 
         default:
             dlog(0, " ... WARNING: An invalid value was specified for the"
-                " feedback receipt mode!  (%d)\n", receives);
+                " feedback receipt mode!  (%d)\n", SOS->config.receives);
             break;
     }//switch
 
@@ -470,7 +463,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
     free(SOS->config.node_id);
 
     if (SOS->role == SOS_ROLE_CLIENT) {
-        if (SOS->config.runtime_utility == false) {
+        if (SOS->config.receives != SOS_RECEIVES_NO_FEEDBACK) {
             dlog(1, "  ... Joining threads...\n");
             pthread_cond_signal(SOS->task.feedback_cond);
             pthread_join(*SOS->task.feedback, NULL);
