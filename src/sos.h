@@ -61,54 +61,79 @@
 extern "C" {
 #endif
 
-    /* --- "public" functions for users of SOS --- */
-
-
     typedef void (*SOS_feedback_handler_f)(SOS_feedback feedback, SOS_buffer *msg); 
  
+    // ---------- primary functions --------------------
+
     void SOS_init(int *argc, char ***argv,
-        SOS_runtime **runtime, SOS_role role, SOS_receives receives,
-        SOS_feedback_handler_f handler);
+        SOS_runtime **runtime, SOS_role role,
+        SOS_receives receives, SOS_feedback_handler_f handler);
+
+    void SOS_pub_create(SOS_runtime *sos_context,
+        SOS_pub **pub_handle, char *pub_title, SOS_nature nature);
+
+    int SOS_pack(SOS_pub *pub, const char *name,
+        SOS_val_type pack_type, void *pack_val_var);
+
+    int SOS_event(SOS_pub *pub, const char *name,
+        SOS_val_semantic semantic);
+
+    void SOS_announce(SOS_pub *pub);
+
+    void SOS_publish(SOS_pub *pub);
+
+    void SOS_sense_register(SOS_runtime *sos_context, char *handle);
+
+    void SOS_sense_activate(SOS_runtime *sos_context,
+        char *handle, void *data, int data_length);
+
+    void SOS_finalize(SOS_runtime *sos_context);
 
 
-    SOS_pub*     SOS_pub_create(SOS_runtime *sos_context, char *pub_title, SOS_nature nature);
-    int          SOS_pack(SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack_val_var);
-    int          SOS_event(SOS_pub *pub, const char *name, SOS_val_semantic semantic);
-    void         SOS_announce(SOS_pub *pub);
-    void         SOS_publish(SOS_pub *pub);
-    int          SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *your_data));
-    void         SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length);
-    void         SOS_finalize(SOS_runtime *sos_context);
 
 
+    // ---------- internal / utility functions -----------------
 
-    /* --- "private" functions used by SOS / SOSD --- */
+    void SOS_init_with_runtime(int *argc, char ***argv,
+        SOS_runtime **extant_sos_runtime, SOS_role role,
+        SOS_receives receives, SOS_feedback_handler_f handler);
 
-    void      SOS_init_with_runtime(
-                int *argc,
-                char ***argv,
-                SOS_runtime **extant_sos_runtime,
-                SOS_role role,
-                SOS_receives receives,
-                SOS_feedback_handler_f handler);
+    int SOS_file_exists(char *path);
 
-    int       SOS_file_exists(char *path);
-    SOS_pub*  SOS_pub_create_sized(SOS_runtime *sos_context, char *pub_title, SOS_nature nature, int new_size);
-    int       SOS_pub_search(SOS_pub *pub, const char *name);
-    void      SOS_pub_destroy(SOS_pub *pub);
-    void      SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
-    void      SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub);
-    void      SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
-    void      SOS_publish_from_buffer(SOS_buffer *buffer, SOS_pub *pub, SOS_pipe *optional_snap_queue);
-    void      SOS_uid_init(SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
-    SOS_guid  SOS_uid_next(SOS_uid *uid);
-    void      SOS_uid_destroy(SOS_uid *uid);
-    void      SOS_val_snap_queue_to_buffer(SOS_pub *pub, SOS_buffer *buffer, bool destroy_snaps);
-    void      SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SOS_pub *pub);
-    void      SOS_strip_str(char *str);
-    char*     SOS_uint64_to_str(uint64_t val, char *result, int result_len);
-    void      SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
-    /* NOTE: See [sos.c] and [sosd.c] for additional "private" functions. */
+    void SOS_pub_create_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
+        char *pub_title, SOS_nature nature, int new_size);
+
+    int SOS_pub_search(SOS_pub *pub, const char *name);
+
+    void SOS_pub_destroy(SOS_pub *pub);
+
+    void SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+
+    void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub);
+
+    void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
+
+    void SOS_publish_from_buffer(SOS_buffer *buffer,
+        SOS_pub *pub, SOS_pipe *optional_snap_queue);
+
+    void SOS_uid_init(SOS_runtime *sos_context,
+        SOS_uid **uid, SOS_guid from, SOS_guid to);
+
+    SOS_guid SOS_uid_next(SOS_uid *uid);
+
+    void SOS_uid_destroy(SOS_uid *uid);
+
+    void SOS_val_snap_queue_to_buffer(SOS_pub *pub,
+        SOS_buffer *buffer, bool destroy_snaps);
+
+    void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer,
+        SOS_pipe *snap_queue, SOS_pub *pub);
+
+    void SOS_strip_str(char *str);
+
+    char* SOS_uint64_to_str(uint64_t val, char *result, int result_len);
+
+    void SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
 
 
 #ifdef __cplusplus
