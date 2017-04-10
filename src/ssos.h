@@ -1,11 +1,9 @@
-#ifndef SIMPLE_SOS_H
-#define SIMPLE_SOS_H
+#ifndef SSOS_H
+#define SSOS_H
 
 /*
- * simple_sos.h         Minimal "common case" SOSflow API wrapper
- *                      intended to ease ports to additional languages.
- *                      
- *                      
+ * ssos.h               "Simple SOS" common case SOSflow API wrapper,
+ *                      useful for ports to additional languages.
  */
 
 #include <stdio.h>
@@ -51,8 +49,8 @@ extern "C" {
 #endif
 
     void SSOS_init(void);
-    void SSOS_is_online(int32_t *addr_of_int32_flag);
-    void SSOS_pack(const char *name, int32_t pack_type, void *pack_val_var);
+    void SSOS_is_online(int *addr_of_int_flag);
+    void SSOS_pack(char *name, int pack_type, void *addr_of_value);
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
@@ -61,4 +59,4 @@ extern "C" {
 }
 #endif
 
-#endif //SIMPLE_SOS_H
+#endif //SSOS_H

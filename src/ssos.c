@@ -1,10 +1,17 @@
 
+
+/*
+ * ssos.c               "Simple SOS" common case SOSflow API wrapper,
+ *                      useful for ports to additional languages. 
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "simple_sos.h"
+#include "ssos.h"
 #include "sos.h"
 #include "sos_types.h"
 
@@ -63,13 +70,13 @@ void SSOS_init(void) {
     return;
 }
 
-void SSOS_is_online(int32_t *addr_of_flag) {
+void SSOS_is_online(int *addr_of_flag) {
     *addr_of_flag = g_sos_is_online;
     return;
 }
 
 
-void SSOS_pack(const char *name, int32_t pack_type, void *pack_val) {
+void SSOS_pack(char *name, int pack_type, void *pack_val) {
     SSOS_CONFIRM_ONLINE("SSOS_pack");
     SOS_val_type is_a;
     switch(pack_type) {
