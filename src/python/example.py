@@ -34,7 +34,7 @@ def demonstrateSSOSPython():
         count = int(0)
         count_max = int(sys.argv[1])
 
-        print "Publishing " + sys.argv[1] + " integer values in a loop..."
+        print "   Packing " + sys.argv[1] + " integer values in a loop..."
 
         loop_name = ffi.new("char[]", "loop_val")
         loop_type = lib.SSOS_TYPE_INT
@@ -50,7 +50,11 @@ def demonstrateSSOSPython():
             loop_addr[0] = count
             count = count + 1
             lib.SSOS_pack(loop_name, loop_type, loop_addr)
-            lib.SSOS_publish()
+
+        print "   Publishing the values..."
+        lib.SSOS_publish()
+        print "      ...OK!"
+
 
     print "Finalizing..."
     lib.SSOS_finalize();
