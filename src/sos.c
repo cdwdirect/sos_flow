@@ -1,9 +1,19 @@
 
-/*
- * sos.c                 SOS library routines
+/**
+ * @file sos.c
+ * @author Chad Wood
+ * @brief Core SOS library routines
  *
+ * These routines provide the essential functionality of SOS
+ * and are used by both the client library as well as the
+ * daemons.
  *
+ * All of the custom types and enumerations used by SOS are
+ * defined in the @c sos_types.h file, as well as the
+ * @c sos_buffer.h @c sos_pipe.h and @c sos_qhashtbl.h files.
  */
+
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,20 +37,69 @@
 #include "sos_qhashtbl.h"
 
 // Private functions (not in the header file)
-void*        SOS_THREAD_receives_timed(void *sos_runtime_ptr);
-void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
-void         SOS_handle_feedback(SOS_buffer *buffer);
-void         SOS_expand_data(SOS_pub *pub);
 
-void SOS_receiver_init(SOS_runtime *sos_context);
+/**
+ * @brief Check for feedback from the daemon on a regular heartbeat.
+ */
+void*        SOS_THREAD_receives_timed(void *sos_runtime_ptr);
+
+
+/**
+ * @brief Open a socket and actively listen for feedback messages.
+ */
+void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
+
+/**
+ * @brief Process the feedback messages, by whatever means they came in.
+ */
 void SOS_process_feedback(SOS_buffer *buffer);
 
+/**
+ * @brief An internal utility function for growing a pub to hold more data.
+ */
+void         SOS_expand_data(SOS_pub *pub);
 
+/**
+ * @brief Launch a thread for feedback handling specified by the user.
+ */
+void SOS_receiver_init(SOS_runtime *sos_context);
+
+/**
+ * @brief Internal utility function to see if a file exists.
+ * @return 1 == file exists, 0 == file does not exist.
+ */
 int SOS_file_exists(char *filepath) {
     struct stat   buffer;   
     return (stat(filepath, &buffer) == 0);
 }
 
+/**
+ * @brief Initialize the SOS library and register with the SOS runtime.
+ *
+ * This is the first SOS function that gets called. If the client
+ * application is an MPI application, the SOS_init function is
+ * traditionally invoked immediately following MPI_Init.
+ *
+ * Users do not need to allocate memory for the @p sos_runtime variable,
+ * when the address of a pointer is passed in, the SOS library will
+ * allocate all of the memory needed to populate it. This runtime is
+ * then passed to SOS object creation functions to connect the various
+ * runtime elements together into a unified context that shares metadata
+ * and uses a common block of GUID values.
+ *
+ * If this SOS client is not interested in receiving or processing
+ * feedback from the SOS runtime or analytics modules, the
+ * @p receives parameter should be set to SOS_RECEIVES_NO_FEEDBACK
+ * and the @p handler can be set to NULL.
+ *
+ * @param argc The address of the argc variable from main, or NULL.
+ * @param argv The address of the argv variable from main, or NULL.
+ * @param sos_runtime The address of an uninitialized SOS_runtime pointer.
+ * @param role What this client is doing, e.g: @c SOS_ROLE_CLIENT
+ * @param receives If feedback is expected, how to do so, e.g: @c SOS_RECEIVES_NO_FEEDBACK
+ * @param handler Function pointer to a user-defined feedback handler.
+ * @warning The SOS daemon needs to be up and running before calling.
+ */
 void
 SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
