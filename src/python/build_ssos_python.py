@@ -10,11 +10,12 @@ ffibuilder.set_source(
 
     """,
     sources=[
-       "ssos.c"
+       "../ssos.c"
     ],
     libraries=["ssos", "sos"],
     library_dirs=["../../build-linux/lib"],
-    include_dirs=['..'])
+    include_dirs=[".."],
+    extra_compile_args=["-Wno-unused-variable"])
 
 ffibuilder.cdef("""    
 
