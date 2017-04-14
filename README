@@ -135,7 +135,7 @@ situ daemon takes place over the same local TCP/IP socket.
 Though the SOS daemon can be compiled as an MPI application,
 and the SOS client library can be linked into and used by
 and MPI application, the interactions between SOS clients
-and the SOS daemon do not use any MPI resources or and are
+and the SOS daemon do not use any MPI resources and are
 entirely transparent to the MPI functionality of existing
 codes.
 
@@ -170,7 +170,8 @@ scalable and efficient push/pull model it presently uses.
 The SOS client library is reentrant and thread-safe, and can
 be invoked from multiple components or threads within the same
 application binary. Because it is thread safe, it is advised
-that independent threads create their own publication handles
+that independent libraries or components within an application,
+or any non-coupled threads, create their own publication handles
 to avoid sharing mutexes. After information has been submitted
 to the SOS runtime, it can later be searched for and aggregated
 on the PID of the source application, so independent pub
@@ -235,7 +236,7 @@ int main(int argc, char **argv) {
     // longer be contributing to the SOS environment or responding
     // to feedback directives from SOS.
     // In an MPI application, the client usually will call this
-    // immediately before the call to SOS_finalize().
+    // immediately before the call to MPI_finalize().
     SOS_finalize(sos);
 
     return 0;
