@@ -1,15 +1,20 @@
 ![Alt](/ref/sosflow_masthead.png "SOSflow")
 
 The Scalable Observation System for Scientific Workflows (SOSflow)
-is a service environment and client API designed to facilitate
+is a runtime service and client API designed for low-overhead
 online capture of performance data and user-defined events from
-many sources within massively parallel High-Performance Computing
-(HPC) systems. Data gathered into SOSflow is annotated with context and meaning,
+many sources within massively parallel HPC systems.
+
+Data gathered into SOSflow is annotated with context and meaning,
 and is stored in a way that can be searched in situ with dynamic queries
 in real-time, as well as being aggregated for global perspective and
 long-term archival.
 
-## COMPATIBILITY
+## Compatibility
+
+The SOSflow runtime environment is built and tested on
+various modern Linux systems (CentOS, RHEL, Linux Mint, etc)
+and OS X.
 
 SOSflow has the following requirements:
 * C99
@@ -18,10 +23,7 @@ SOSflow has the following requirements:
 * SQLite 3
 * CMake 2.8+
 
-The SOSflow runtime environment is built and tested on
-various modern Linux systems and Apple OS X.
-
-## DOWNLOADING
+## Downloading
 
 Open a Terminal and issue the following command to pull down
 the latest copy of SOSflow into a new folder named "sos_flow":
@@ -37,7 +39,7 @@ commands below.
 The "master" repository branch is the default and contains the
 latest stable source code.
 
-## CONFIGURATION
+## Configuration
 
 See the [SOSROOT]/CMakeLists.txt file's OPTION settings for
 various ways to build SOSflow.  The default settings should
@@ -48,7 +50,7 @@ there are other options available such as EVPath.
 Make sure to adjust these settings prior to running the
 configuration scripts when building SOSflow.
 
-## ENVIRONMENT
+## Environment
 
 Configurations for various target environments are included
 in the [SOSROOT]/hosts folder. SOSflow provides scripts to
@@ -69,7 +71,7 @@ You should see an environment variable named $SOS_ROOT that
 has the full path that we are using here as [SOSROOT]. Now
 you should be ready to build and run SOSflow.
 
-## COMPILATION
+## Compilation
 
 A configuration script is provided to create a build folder
 and drive CMake's Makefile generation process. To run the
@@ -91,7 +93,7 @@ This should complete successfully if there are no missing
 required libraries. Get in touch with the SOSflow AUTHORS
 if you have any issues at this step.
 
-## TESTING
+## Testing
 
 To start up a single-node test configuration of the SOSflow
 runtime environment, enter the following command at your
@@ -105,9 +107,10 @@ as background processes. After a few seconds you can press
 your Return (ENTER) key several times and see the command
 prompt ready for new commands.
 
-The working directory for SOSflow will be the same place
-where you built and launched the daemons. You should see
-several new files in that folder, such as:
+When following these directions, using the provided example
+scripts as above, the working directory for SOSflow will be
+the same place where you built and launched the daemons.
+You should see several new files in that folder, such as:
 
     sosd.00000.db
     sosd.00000.lock
@@ -135,7 +138,7 @@ throughput and latency of information moving through the
 system, as well as the total capacity of the daemon to
 handle various workloads.
 
-## BASIC CONCEPTS
+## Basic Concepts 
 
 The SOS daemon is running and listening to a port on its node
 as specified by the $SOS_CMD_PORT environment variable.
@@ -205,7 +208,7 @@ making calls to the SOS API natively within Python scripts.
 Instructions for building and an example of using this
 module are found in the [SOSROOT]/src/python directory.
 
-## EXAMPLE CODE
+## Example Code
 
 The following ANSI C99 code provides a minimal example of using
 the SOSflow runtime to capture some values:
