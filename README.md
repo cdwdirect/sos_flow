@@ -12,9 +12,10 @@ long-term archival.
 
 ## Compatibility
 
-SOSflow is built and tested on various modern Linux systems
-(CentOS, Linux Mint, ...) and OS X. SOSflow has the following
-requirements:
+The core components of SOSflow are developed and tested in various
+modern Linux systems (CentOS, Linux Mint, etc.) and OS X.
+
+SOSflow has the following requirements:
 * C Compiler (C99 or newer)
 * POSIX Threads
 * Message Passing Interface (MPI)
