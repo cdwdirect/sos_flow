@@ -1,4 +1,4 @@
-# SOSflow
+![Alt](/ref/sosflow_masthead.png "SOSflow")
 
 The Scalable Observation System for Scientific Workflows (SOSflow)
 is a service environment and client API designed to facilitate
