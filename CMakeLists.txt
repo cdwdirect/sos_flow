@@ -26,11 +26,11 @@ option(SOSD_CLOUD_SYNC
 
 option(SOSD_CLOUD_SYNC_WITH_MPI
        "Use MPI discover and synchronize data between daemons?"
-       OFF)
+       ON)
 
 option(SOSD_CLOUD_SYNC_WITH_EVPATH
        "Use EVPATH synchronize data between daemons?"
-       ON)
+       OFF)
 
 ###########
 ###########
