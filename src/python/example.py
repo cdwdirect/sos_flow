@@ -3,11 +3,11 @@
 #
 #   See also:   ./trace_example.sh [loop_count]
 #
-#   Supported SSOS.pack(name, type, value) types:
-#           SSOS.INT
-#           SSOS.LONG
-#           SSOS.DOUBLE
-#           SSOS.STRING
+#   Supported SOS.pack(name, type, value) types:
+#           SOS.INT
+#           SOS.LONG
+#           SOS.DOUBLE
+#           SOS.STRING
 #
 
 import sys
