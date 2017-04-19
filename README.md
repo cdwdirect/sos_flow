@@ -12,14 +12,12 @@ long-term archival.
 
 ## Compatibility
 
-The SOSflow runtime environment is built and tested on
-various modern Linux systems (CentOS, RHEL, Linux Mint, etc)
-and OS X.
-
-SOSflow has the following requirements:
-* C99
+SOSflow is built and tested on various modern Linux systems
+(CentOS, Linux Mint, ...) and OS X. SOSflow has the following
+requirements:
+* C Compiler (C99 or newer)
 * POSIX Threads
-* MPI
+* Message Passing Interface (MPI)
 * SQLite 3
 * CMake 2.8+
 
