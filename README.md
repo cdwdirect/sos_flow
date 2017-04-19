@@ -12,8 +12,8 @@ long-term archival.
 
 ## Compatibility
 
-The core components of SOSflow are developed and tested in various
-modern Linux systems (CentOS, Linux Mint, etc.) and OS X.
+The primary components of SOSflow are developed and tested in various
+modern Linux systems and OS X.
 
 SOSflow has the following requirements:
 * C Compiler (C99 or newer)
