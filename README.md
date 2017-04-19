@@ -209,8 +209,8 @@ module are found in the [SOSROOT]/src/python directory.
 
 ## Example Code
 
-The following ANSI C99 code provides a minimal example of using
-the SOSflow runtime to capture some values:
+The following C source provides a minimal example of using
+the SOSflow runtime to capture values:
 ```C
 #include <stdio.h>
 #include "sos.h"
