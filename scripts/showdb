@@ -2,7 +2,7 @@ if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
 then 
     for db in $SOS_WORK/sosd.*.db ; do
         echo -n "[${db}]: max(rowid)|avg(latency) = "
-        sqlite3 ${db} "select max(rowid), avg(time_recv - time_pack) from tblvals;"
+        sqlite3 ${db} "select max(rowid), avg(time_recv - time_send) from tblvals;"
     done
 else
     echo ""

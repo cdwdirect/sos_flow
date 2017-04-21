@@ -10,10 +10,6 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
-#include <mpi.h>
-#endif
-
 #define USAGE "./latency -d <initial_delay_seconds>"
 
 // NOTE:SOSA_MODULE_COLOR ....... should be unique among active sosa modules.
@@ -57,13 +53,17 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-    SOSA.sos_context = SOSA_init_for_mpi( &argc, &argv, SOSA_MODULE_COLOR);
-    SOS_SET_CONTEXT(SOSA.sos_context, "latency:main()");
-    srandom(SOS->my_guid);
-    dlog(0, "Initialization complete.\n");
-    dlog(0, "Waiting for %d seconds...\n", initial_delay_seconds);
-    sleep(initial_delay_seconds);
+    SOS_runtime *SOS = NULL;
+    SOS_init(&argc, &argv, &SOS,
+        SOS_ROLE_ANALYTICS, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    if (SOS == NULL) {
+        fprintf(stderr, "ERROR: Could not connect to SOS daemon.\n");
+        exit(EXIT_FAILURE);
+    }
 
+    srandom(SOS->my_guid);
+    sleep(initial_delay_seconds);
+    
 
     /*
   ****   [ insert your analytics code here ]
@@ -73,28 +73,21 @@ int main(int argc, char *argv[]) {
     SOSA_results *results;
     SOSA_results_init(SOS, &results);
 
-    char *query    = "SELECT max(rowid), time_pack, time_recv FROM tblvals;";
+    char *query    = "SELECT max(rowid), avg(time_recv - time_send) FROM tblvals;";
     int   count    = 0;
 
-    FILE *fptr = NULL;
+    //FILE *fptr = NULL;
+    //if (file_path == NULL) {
+    //  fptr = fopen("sosa_latency.csv", "a");
+    //} else {
+    //  fptr = fopen(file_path, "a");
+    //}
 
-    if (file_path == NULL) {
-      fptr = fopen("sosa_latency.csv", "a");
-    } else {
-      fptr = fopen(file_path, "a");
-    }
+    SOSA_results_wipe(results);
+    SOSA_exec_query(SOS, query, results);
+    SOSA_results_output_to(stdout, results, "latency", SOSA_OUTPUT_DEFAULT);
 
-    do {
-        SOSA_results_wipe(results);
-        dlog(0, "Submitting query request #%d...\n", count);
-        SOSA_exec_query(query, results);
-
-        SOSA_results_output_to(fptr, results, "latency", SOSA_OUTPUT_DEFAULT);
-
-        usleep(5000000); //1,000,000 = 1 sec.
-    } while(atoi(results->data[0][0]) < 14000000);
-
-    fclose(fptr);
+    //fclose(fptr);
 
     SOSA_results_destroy(results);
     
@@ -102,9 +95,6 @@ int main(int argc, char *argv[]) {
   ****
      */
 
-    dlog(0, "Finalizing analytics module...  (will block until SOS runtime is stopped)\n");
-    SOSA_finalize();
-    MPI_Finalize();
-    dlog(0, "    ... done.\n");
+    SOS_finalize(SOS);
     return (EXIT_SUCCESS);
 }

@@ -53,7 +53,13 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
+    my_SOS = NULL;
     SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    if (my_SOS == NULL) {
+        dlog(0, "sosd_stop: Failed to connect to the SOS daemon.\n");
+        exit(EXIT_FAILURE);
+    }
+
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
     dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));

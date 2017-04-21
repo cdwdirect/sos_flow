@@ -150,7 +150,8 @@
     SCOPE(SOS_SCOPE_DEFAULT)                    \
     SCOPE(SOS_SCOPE_SELF)                       \
     SCOPE(SOS_SCOPE_NODE)                       \
-    SCOPE(SOS_SCOPE_ENCLAVE)                    \
+    SCOPE(SOS_SCOPE_AGGREGATOR)                 \
+    SCOPE(SOS_SCOPE_GLOBAL)                     \
     SCOPE(SOS_SCOPE___MAX)
 
 #define FOREACH_LAYER(LAYER)                    \

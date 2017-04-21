@@ -10,16 +10,10 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
-#include <mpi.h>
-#endif
-
 #define USAGE "./extract_tau -d <initial_delay_seconds>"
 
 #include "sos.h"
-#include "sosd.h"
 #include "sosa.h"
-#include "sos_debug.h"
 
 
 int main(int argc, char *argv[]) {
@@ -47,12 +41,15 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
+    SOS_runtime *SOS = NULL;
+    SOS_init(&argc, &argv, &SOS,
+        SOS_ROLE_ANALYTICS, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    if (SOS == NULL) {
+        fprintf(stderr, "ERROR: Could not initialize SOS.\n");
+        exit (EXIT_FAILURE);
+    }
 
-    SOSA.sos_context = SOSA_init_for_mpi( &argc, &argv, 800);
-    SOS_SET_CONTEXT(SOSA.sos_context, "main");
     srandom(SOS->my_guid);
-    dlog(1, "Initialization complete.\n");
-
     sleep(initial_delay_seconds);
 
 
@@ -67,9 +64,7 @@ int main(int argc, char *argv[]) {
   ****
      */
 
-    dlog(0, "Finished successfully!\n");
-    SOSA_finalize();
-    MPI_Finalize();
+   SOS_finalize(SOS);
 
     return (EXIT_SUCCESS);
 }

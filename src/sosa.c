@@ -19,11 +19,8 @@
 #include "sos_types.h"
 #include "sos_debug.h"
 
-SOSA_runtime SOSA;
-
-
-void SOSA_exec_query(char *query, SOSA_results *results) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_exec_query");
+void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *results) {
+    SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
 
     if (results == NULL) {
         dlog(0, "ERROR: Attempted to exec a query w/NULL results object!\n");
@@ -304,8 +301,8 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
 
 // NOTE: Only call this when you already hold the uid->lock
-void SOSA_guid_request(SOS_uid *uid) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_guid_request");
+void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
+    SOS_SET_CONTEXT(sos_context, "SOSA_guid_request");
 
     dlog(7, "Obtaining new guid range...\n");
 
@@ -317,7 +314,7 @@ void SOSA_guid_request(SOS_uid *uid) {
     SOS_msg_header header;
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
-    header.msg_from = SOSA.world_rank;
+    header.msg_from = SOS->config.comm_rank;
     header.pub_guid = 0;
 
     int offset = 0;
@@ -535,29 +532,21 @@ void SOSA_results_destroy(SOSA_results *results) {
 
 
 
-
-void SOSA_finalize(void) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_finalize");    
-
-    // TODO: Clean up any SOS.sos_context stuff?
-
-    free(SOSA.analytics_locales);
-    free(SOSA.world_roles);
-    free(SOSA.world_hosts);
-
-    return;
-}
-
-
-
 void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_send_to_target_db");
+    SOS_SET_CONTEXT(msg->sos_context, "SOSA_send_to_target_db");
 
     if ((msg == NULL) || (reply == NULL)) {
         dlog(0, "ERROR: Buffer pointer supplied with NULL value!\n");
         exit(EXIT_FAILURE);
     }
 
+    SOS_send_to_daemon(msg, reply);
+
+    return;
+
+    /*
+     *   DEPRECATED: This is now going over the socket.
+     *
     SOS_buffer *wrapper;
     SOS_buffer_init_sized_locking(SOS, &wrapper, (1 + msg->len + sizeof(int)), false);
 
@@ -570,11 +559,8 @@ void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
     // Copy the message memory directly into the wrapper's data area:
     memcpy((wrapper->data + offset), msg->data, msg->len);
     wrapper->len += msg->len;
-
     dlog(7, "Sending message of %d bytes...\n", wrapper->len);
     MPI_Ssend((void *) wrapper->data, wrapper->len, MPI_CHAR, SOSA.db_target_rank, 0, MPI_COMM_WORLD);
-
-
     dlog(7, "Waiting for a reply...\n");
     MPI_Status status;
     int msg_waiting = 0;
@@ -582,20 +568,18 @@ void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
         MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
         usleep(1000);
     } while (msg_waiting == 0);
-
     int mpi_reply_len = -1;
     MPI_Get_count(&status, MPI_CHAR, &mpi_reply_len);
-
     while(reply->max < mpi_reply_len) {
         SOS_buffer_grow(reply, (1 + (mpi_reply_len - reply->max)), SOS_WHOAMI);
     }
-
     MPI_Recv((void *) reply->data, mpi_reply_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
     reply->len = mpi_reply_len;
     dlog(7, "  ... reply of %d bytes received from rank %d!\n", mpi_reply_len, status.MPI_SOURCE);
     dlog(7, "Done.\n");
+    *
+    */
 
-    return;
 }
 
 
@@ -604,7 +588,9 @@ SOS_runtime* SOSA_init_for_socket(int *argc, char ***argv, int unique_color) {
     return NULL;
 }
 
-
+/*
+ * DEPRECATED: SOSA modules use the standard SOS_init(...) routine now.
+ *
 SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
     SOSA.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
 
@@ -728,7 +714,9 @@ SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
     dlog(0, "   ... done.\n");
     return SOSA.sos_context;
 }
-
+ *
+ *
+ */
 
 
 /**
