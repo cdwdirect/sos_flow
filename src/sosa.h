@@ -4,7 +4,6 @@
 #include <pthread.h>
 #include <signal.h>
 #include <time.h>
-#include <mpi.h>
 
 #include "sos.h"
 #include "sosd.h"

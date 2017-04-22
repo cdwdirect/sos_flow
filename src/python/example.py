@@ -12,6 +12,7 @@
 
 import sys
 import time
+import pprint as pp
 from ssos import SSOS
 
 def demonstrateSOS():
@@ -43,6 +44,12 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
+    print "Running a query..."
+    sql_string = "select * from tblvals where rowid < 11;"
+    print "SQL: " + sql_string
+    results, col_names = SOS.query(sql_string)
+    pp.pprint(col_names)
+    pp.pprint(results)
 
     print "Finalizing..."
     SOS.finalize();

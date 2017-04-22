@@ -11,13 +11,15 @@
 #include <unistd.h>
 #include <inttypes.h>
 
-#include "ssos.h"
 #include "sos.h"
+#include "sosa.h"
 #include "sos_types.h"
+#include "ssos.h"
 
 int              g_sos_is_online = 0;
 SOS_runtime     *g_sos = NULL;
 SOS_pub         *g_pub = NULL;
+SOSA_results    *g_res = NULL;
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
 {                                                           \
@@ -32,6 +34,25 @@ SOS_pub         *g_pub = NULL;
 // Definition for stub function, as the 'simple' interface does
 // not yet support receiving feedback from the SOS daemon.
 void* SSOS_feedback_handler(SOS_feedback feedback, SOS_buffer *msg);
+
+void SSOS_exec_query(char *sql, SSOS_query_results *results) {
+
+    // Run the query with the traditional SOSA API.
+    SOSA_results_wipe(g_res);
+    SOSA_exec_query(g_sos, sql, g_res);
+
+    // Make the simplified struct point to the same results and return.
+    results->col_count = g_res->col_count;
+    results->col_names = g_res->col_names;
+    results->row_count = g_res->row_count;
+    results->data      = g_res->data;
+
+    printf("SSOS.results->col_count == %d\n", results->col_count);
+    printf("SSOS.results->row_count == %d\n", results->row_count);
+    fflush(stdout);
+
+    return;
+}
 
 void SSOS_init(void) {
     g_sos_is_online = 0;
@@ -56,6 +77,9 @@ void SSOS_init(void) {
             return;
         }
     }
+
+    g_res = NULL;
+    SOSA_results_init(g_sos, &g_res);
 
     g_pub = NULL;
     SOS_pub_create(g_sos, &g_pub, "ssos.source", SOS_NATURE_DEFAULT);
@@ -108,6 +132,7 @@ void SSOS_publish(void) {
 void SSOS_finalize(void) {
     SSOS_CONFIRM_ONLINE("SSOS_finalize");
     g_sos_is_online = 0;
+    SOSA_results_destroy(g_res);
     SOS_finalize(g_sos);
     return;
 }
