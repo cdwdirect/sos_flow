@@ -104,10 +104,10 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
     dlog(6, "Enqueueing a %s message of %d bytes...\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
     if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR: buffer->len(%d) != header.msg_size(%d)", buffer->len, header.msg_size); }
 
-    pthread_mutex_lock(SOSD.sync.cloud.queue->sync_lock);
-    pipe_push(SOSD.sync.cloud.queue->intake, (void *) &buffer, sizeof(SOS_buffer *));
-    SOSD.sync.cloud.queue->elem_count++;
-    pthread_mutex_unlock(SOSD.sync.cloud.queue->sync_lock);
+    pthread_mutex_lock(SOSD.sync.cloud_send.queue->sync_lock);
+    pipe_push(SOSD.sync.cloud_send.queue->intake, (void *) &buffer, sizeof(SOS_buffer *));
+    SOSD.sync.cloud_send.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.cloud_send.queue->sync_lock);
 
     dlog(1, "  ... done.\n");
     return;
@@ -116,9 +116,9 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
 
 void SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush");
-    dlog(5, "Signaling SOSD.sync.cloud.queue->sync_cond ...\n");
-    if (SOSD.sync.cloud.queue != NULL) {
-        pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+    dlog(5, "Signaling SOSD.sync.cloud_send.queue->sync_cond ...\n");
+    if (SOSD.sync.cloud_send.queue != NULL) {
+        pthread_cond_signal(SOSD.sync.cloud_send.queue->sync_cond);
     }
     return;
 }
@@ -489,13 +489,13 @@ int SOSD_cloud_start() {
     /*
     if (SOS->role != SOS_ROLE_AGGREGATOR) {
         if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
-        SOSD.sync.cloud.handler = (pthread_t *) malloc(sizeof(pthread_t));
-        rc = pthread_create(SOSD.sync.cloud.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud);
+        SOSD.sync.cloud_send.handler = (pthread_t *) malloc(sizeof(pthread_t));
+        rc = pthread_create(SOSD.sync.cloud_send.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud_send.;
         if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
     }
     */
 
-    pthread_cond_signal(SOSD.sync.cloud.queue->sync_cond);
+    pthread_cond_signal(SOSD.sync.cloud_send.queue->sync_cond);
 
     return 0;
 }
@@ -511,9 +511,9 @@ int SOSD_cloud_finalize(void) {
     dlog(1, "  ... forcing the cloud_sync buffer to flush.  (flush thread exits)\n");
     SOSD_cloud_fflush();
     dlog(1, "  ... joining the cloud_sync flush thread.\n");
-    if (SOSD.sync.cloud.handler != NULL) {
-        pthread_join(*SOSD.sync.cloud.handler, NULL);
-        free(SOSD.sync.cloud.handler);
+    if (SOSD.sync.cloud_send.handler != NULL) {
+        pthread_join(*SOSD.sync.cloud_send.handler, NULL);
+        free(SOSD.sync.cloud_send.handler);
     }
 
     dlog(1, "  ... cleaning up the cloud_sync_set list.\n");

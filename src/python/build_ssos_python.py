@@ -7,18 +7,25 @@ ffibuilder.set_source(
     "ssos_python", """ 
 
     #include "ssos.h"
+    #include "sosa.h"
 
     """,
     sources=[
        "../ssos.c"
     ],
-    libraries=["ssos", "sos"],
+    libraries=["ssos", "sos", "sosa"],
     library_dirs=["../../build-linux/lib"],
     include_dirs=[".."],
     extra_compile_args=["-Wno-unused-variable"])
 
 ffibuilder.cdef("""    
 
+   typedef struct {
+       int          col_count;
+       char       **col_names;
+       int          row_count;
+       char      ***data;
+   } SSOS_query_results;
     
     void SSOS_init(void);
     void SSOS_is_online(int *addr_of_int32_flag);
@@ -26,6 +33,8 @@ ffibuilder.cdef("""
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
+
+    void SSOS_exec_query(char *sql, SSOS_query_results *results);
 
     #define SSOS_TYPE_INT     1
     #define SSOS_TYPE_LONG    2

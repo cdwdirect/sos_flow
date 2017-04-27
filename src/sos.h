@@ -94,6 +94,10 @@ extern "C" {
 
     // ---------- internal / utility functions -----------------
 
+    void SOS_init_existing_runtime(int *argc, char ***argv,
+        SOS_runtime **runtime, SOS_role role,
+        SOS_receives receives, SOS_feedback_handler_f handler);
+
     int SOS_file_exists(char *path);
 
     void SOS_pub_create_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,

@@ -44,6 +44,16 @@
 
 // --------------------
 
+
+typedef struct {
+    int          col_count;
+    char       **col_names;
+    int          row_count;
+    char      ***data;
+} SSOS_query_results;
+
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -54,6 +64,8 @@ extern "C" {
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
+
+    void SSOS_exec_query(char *sql, SSOS_query_results *results);
 
 #ifdef __cplusplus
 }

@@ -104,6 +104,41 @@ void
 SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
+    *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
+     memset(*sos_runtime, '\0', sizeof(SOS_runtime));
+    SOS_init_existing_runtime(argc, argv, sos_runtime, role, receives, handler);
+    return;
+}
+
+/**
+ * @brief Initialize the SOS library using an existing context handle.
+ *
+ * This function is used when special circumstances (like the SOS daemon)
+ * require a complex chain of initialization behaviors using parts of
+ * the runtime context prior to it being fully initialized. Use this
+ * function only if you have already allocated memory for the SOS_runtime
+ * object.
+ *
+ * Most users will call the @c SOS_init(...) function instead of this,
+ * as sending a pointer in that does not reference the correct amount
+ * of memory that is owned by this process ( @c sizeof(SOS_runtime) )
+ * can trigger a segmentation fault error.
+ *
+ * The normal @c SOS_init(...) routine handles the allocation of memory
+ * for the runtime object and then calls this function.
+ *
+ * @param argc The address of the argc variable from main, or NULL.
+ * @param argv The address of the argv variable from main, or NULL.
+ * @param sos_runtime The address of an uninitialized SOS_runtime pointer.
+ * @param role What this client is doing, e.g: @c SOS_ROLE_CLIENT
+ * @param receives If feedback is expected, how to do so, e.g: @c SOS_RECEIVES_NO_FEEDBACK
+ * @param handler Function pointer to a user-defined feedback handler.
+ * @warning The SOS daemon needs to be up and running before calling.
+ */
+void
+SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
+    SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
+{
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
@@ -111,12 +146,7 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_guid guid_pool_to;
 
     SOS_runtime *NEW_SOS = NULL;
-    if (*sos_runtime == NULL) {
-        NEW_SOS = (SOS_runtime *) malloc(sizeof(SOS_runtime));
-        memset(NEW_SOS, '\0', sizeof(SOS_runtime));
-    } else {
-        NEW_SOS = *sos_runtime;
-    }
+    NEW_SOS = *sos_runtime;
 
     NEW_SOS->config.offline_test_mode = false;
     NEW_SOS->config.runtime_utility   = false;
@@ -209,7 +239,9 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
         }
     }
 
-    if (SOS->role == SOS_ROLE_CLIENT) {
+    if ((SOS->role == SOS_ROLE_CLIENT )
+        || (SOS->role == SOS_ROLE_ANALYTICS))
+        {
         /*
          *
          *  CLIENT
