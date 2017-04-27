@@ -5,7 +5,13 @@
 #include <signal.h>
 #include <time.h>
 
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
 #include <mpi.h>
+#endif
+
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+#include "evpath.h"
+#endif
 
 #include "sos.h"
 #include "sos_types.h"
@@ -93,21 +99,32 @@ typedef struct {
 } SOSD_km2d_point;
 
 
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 typedef struct {
-    int                 server_socket_fd;
-    int                 client_socket_fd;
-    int                 port_number;
-    char               *server_port;
-    int                 listen_backlog;
-    int                 client_len;
-    struct addrinfo     server_hint;
-    struct addrinfo    *server_addr;
-    char               *client_host;
-    char               *client_port;
-    struct addrinfo    *result;
-    struct sockaddr_storage   peer_addr;
-    socklen_t           peer_addr_len;
-} SOSD_net;
+    char                name[256];
+    char               *contact_string;
+    EVsource            src;
+    EVstone             out_stone;
+    EVstone             rmt_stone;
+} SOSD_evpath_node;
+
+
+
+typedef struct {
+    CManager            cm;
+    char               *instance_name;
+    char               *instance_role;
+    char               *meetup_path;
+    int                 is_master;
+    int                 node_count;
+    SOSD_evpath_node  **node;
+    char               *string_list;
+    attr_list           contact_list;
+    EVstone             stone;
+    EVstone             remote_stone;
+    EVsource            source;
+} SOSD_evpath;
+#endif
 
 typedef struct {
     char               *work_dir;
@@ -122,7 +139,12 @@ typedef struct {
     int                 listener_count;
     int                 aggregator_count;
     SOSD_counts         countof;
+#ifdef SOSD_CLOUD_SYNC_WITH_MPI
     MPI_Comm            comm;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    SOSD_evpath         evpath;
+#endif
 } SOSD_runtime;
 
 typedef struct {
@@ -151,7 +173,8 @@ typedef struct {
 
 typedef struct {
     SOSD_sync_context    local;
-    SOSD_sync_context    cloud;
+    SOSD_sync_context    cloud_send;
+    SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
     qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
@@ -160,7 +183,7 @@ typedef struct {
     SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
-    SOSD_net            net;
+    SOS_socket_in       net;
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
@@ -199,7 +222,8 @@ extern "C" {
                                  void* (*thread_func)(void *thread_param));
 
     void* SOSD_THREAD_local_sync(void *args);
-    void* SOSD_THREAD_cloud_sync(void *args);
+    void* SOSD_THREAD_cloud_send(void *args);
+    void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
 
     void  SOSD_listen_loop(void);
@@ -222,7 +246,6 @@ extern "C" {
 
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
-    extern SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
 
 
 #ifdef __cplusplus

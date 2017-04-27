@@ -1,22 +1,48 @@
 cmake_minimum_required (VERSION 2.8)
 
-option(ENABLE_ADIOS_EXAMPLES        "Build the examples that require the presence of ADIOS?" OFF)
-option(ENABLE_TAU_WRAPPER           "Compile the codes with tau_cc.sh?" OFF)
+option(ENABLE_ADIOS_EXAMPLES
+       "Build the examples that require the presence of ADIOS?"
+       OFF)
 
-option(SOS_SILENCE_DEBUG            "Disable DEBUG messages?" OFF)
-option(SOSD_DAEMON_LOGGING          "Should the sosd daemon produce a log file?" ON)
-option(SOSD_DAEMON_DETACH           "Have the daemon fork, detach, and get its own session?  (Consider disabling for MPI)" OFF)
+option(ENABLE_TAU_WRAPPER
+       "Compile the codes with tau_cc.sh?"
+       OFF)
 
-option(SOSD_CLOUD_SYNC              "Activate cloud_sync operations for the daemon, if possible.  (Pick one and only one method.)" ON)
-option(SOSD_CLOUD_SYNC_WITH_MPI     "Use MPI discover and synchronize data between daemons?" ON)
-option(SOSD_CLOUD_SYNC_WITH_EVPATH  "Use EVPATH synchronize data between daemons?" OFF)
+option(SOS_SILENCE_DEBUG
+       "Disable DEBUG messages?"
+       OFF)
+
+option(SOSD_DAEMON_LOGGING
+       "Should the sosd daemon produce a log file?"
+       ON)
+
+option(SOSD_DAEMON_DETACH
+       "Have the daemon fork, detach, and get its own session?  (DEPRECATED)"
+       OFF)
+
+option(SOSD_CLOUD_SYNC
+       "Activate cloud_sync operations for the daemon?"
+       ON)
+
+option(SOSD_CLOUD_SYNC_WITH_MPI
+       "Use MPI discover and synchronize data between daemons?"
+       OFF)
+
+option(SOSD_CLOUD_SYNC_WITH_EVPATH
+       "Use EVPATH synchronize data between daemons?"
+       ON)
+
+###########
+###########
 
 if(SOSD_CLOUD_SYNC_WITH_MPI AND SOSD_CLOUD_SYNC_WITH_EVPATH)
-  message(FATAL_ERROR "You cannot use both MPI and EVPATH for daemon cloud_sync operations!  Please select only one.")
+  message(FATAL_ERROR
+  "You cannot use both MPI and EVPATH for daemon cloud_sync operations!  Please select only one.")
 endif()
 
 if((SOSD_CLOUD_SYNC_WITH_MPI OR SOSD_CLOUD_SYNC_WITH_EVPATH) AND NOT SOSD_CLOUD_SYNC)
-  message(FATAL_ERROR "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
+  message(FATAL_ERROR
+  "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
 endif()
 
 #set(RULE_MESSAGES OFF)
@@ -41,8 +67,36 @@ endif()
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
+add_definitions("-DSOS_BUILDER=$ENV{USER}")
+add_definitions("-DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME}")
+
 find_package("Sqlite3" REQUIRED)
+
+#  Always include the MPI stuff, some components reference it
+#  and not including it will cause the project not to build.
+#  Despite the fact that we are including it, if you specify
+#  EVPath as the communications framework, the SOS daemon
+#  will not conduct any of its business using MPI.
+message(STATUS ">>> MPI:")
+message(STATUS ">>> MPI:  Locating package...")
 find_package("MPI" REQUIRED)
+message(STATUS ">>> MPI:  Found!")
+message(STATUS ">>> MPI:")
+
+if(SOSD_CLOUD_SYNC_WITH_MPI)
+  add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
+endif()
+
+if(SOSD_CLOUD_SYNC_WITH_EVPATH)
+  message(STATUS ">>> EVPATH:")
+  #message(STATUS ">>> EVPATH:  Locating package...")
+  #find_package("evpath" REQUIRED)
+  #message(STATUS ">>> EVPATH:  Found!")
+  message(STATUS ">>> EVPATH:  Using EVPath for communication...")
+  message(STATUS ">>> EVPATH:")
+  add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
+endif()
+
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)

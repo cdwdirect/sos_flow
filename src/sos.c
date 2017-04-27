@@ -1,9 +1,19 @@
 
-/*
- * sos.c                 SOS library routines
+/**
+ * @file sos.c
+ * @author Chad Wood
+ * @brief Core SOS library routines
  *
+ * These routines provide the essential functionality of SOS
+ * and are used by both the client library as well as the
+ * daemons.
  *
+ * All of the custom types and enumerations used by SOS are
+ * defined in the @c sos_types.h file, as well as the
+ * @c sos_buffer.h @c sos_pipe.h and @c sos_qhashtbl.h files.
  */
+
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,6 +27,7 @@
 
 #include <sys/socket.h>
 #include <netdb.h>
+#include <fcntl.h>
 
 #include "sos.h"
 #include "sos_types.h"
@@ -25,54 +36,118 @@
 #include "sos_pipe.h"
 #include "sos_qhashtbl.h"
 
-/* Private functions (not in the header file) */
-void*        SOS_THREAD_feedback(void *arg);
-void         SOS_handle_feedback(SOS_buffer *buffer);
+// Private functions (not in the header file)
+
+/**
+ * @brief Check for feedback from the daemon on a regular heartbeat.
+ */
+void*        SOS_THREAD_receives_timed(void *sos_runtime_ptr);
+
+
+/**
+ * @brief Open a socket and actively listen for feedback messages.
+ */
+void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
+
+/**
+ * @brief Process the feedback messages, by whatever means they came in.
+ */
+void SOS_process_feedback(SOS_buffer *buffer);
+
+/**
+ * @brief An internal utility function for growing a pub to hold more data.
+ */
 void         SOS_expand_data(SOS_pub *pub);
 
-SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
+/**
+ * @brief Launch a thread for feedback handling specified by the user.
+ */
+void SOS_receiver_init(SOS_runtime *sos_context);
 
-
-
-/* **************************************** */
-/* [util]                                   */
-/* **************************************** */
-
-SOS_runtime* SOS_init( int *argc, char ***argv, SOS_role role, SOS_layer layer) {
-    return SOS_init_with_runtime(argc, argv, role, layer, NULL);
+/**
+ * @brief Internal utility function to see if a file exists.
+ * @return 1 == file exists, 0 == file does not exist.
+ */
+int SOS_file_exists(char *filepath) {
+    struct stat   buffer;   
+    return (stat(filepath, &buffer) == 0);
 }
 
-SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime ) {
+/**
+ * @brief Initialize the SOS library and register with the SOS runtime.
+ *
+ * This is the first SOS function that gets called. If the client
+ * application is an MPI application, the SOS_init function is
+ * traditionally invoked immediately following MPI_Init.
+ *
+ * Users do not need to allocate memory for the @p sos_runtime variable,
+ * when the address of a pointer is passed in, the SOS library will
+ * allocate all of the memory needed to populate it. This runtime is
+ * then passed to SOS object creation functions to connect the various
+ * runtime elements together into a unified context that shares metadata
+ * and uses a common block of GUID values.
+ *
+ * If this SOS client is not interested in receiving or processing
+ * feedback from the SOS runtime or analytics modules, the
+ * @p receives parameter should be set to SOS_RECEIVES_NO_FEEDBACK
+ * and the @p handler can be set to NULL.
+ *
+ * @param argc The address of the argc variable from main, or NULL.
+ * @param argv The address of the argv variable from main, or NULL.
+ * @param sos_runtime The address of an uninitialized SOS_runtime pointer.
+ * @param role What this client is doing, e.g: @c SOS_ROLE_CLIENT
+ * @param receives If feedback is expected, how to do so, e.g: @c SOS_RECEIVES_NO_FEEDBACK
+ * @param handler Function pointer to a user-defined feedback handler.
+ * @warning The SOS daemon needs to be up and running before calling.
+ */
+void
+SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
+    SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
+{
+    *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
+     memset(*sos_runtime, '\0', sizeof(SOS_runtime));
+    SOS_init_existing_runtime(argc, argv, sos_runtime, role, receives, handler);
+    return;
+}
+
+/**
+ * @brief Initialize the SOS library using an existing context handle.
+ *
+ * This function is used when special circumstances (like the SOS daemon)
+ * require a complex chain of initialization behaviors using parts of
+ * the runtime context prior to it being fully initialized. Use this
+ * function only if you have already allocated memory for the SOS_runtime
+ * object.
+ *
+ * Most users will call the @c SOS_init(...) function instead of this,
+ * as sending a pointer in that does not reference the correct amount
+ * of memory that is owned by this process ( @c sizeof(SOS_runtime) )
+ * can trigger a segmentation fault error.
+ *
+ * The normal @c SOS_init(...) routine handles the allocation of memory
+ * for the runtime object and then calls this function.
+ *
+ * @param argc The address of the argc variable from main, or NULL.
+ * @param argv The address of the argv variable from main, or NULL.
+ * @param sos_runtime The address of an uninitialized SOS_runtime pointer.
+ * @param role What this client is doing, e.g: @c SOS_ROLE_CLIENT
+ * @param receives If feedback is expected, how to do so, e.g: @c SOS_RECEIVES_NO_FEEDBACK
+ * @param handler Function pointer to a user-defined feedback handler.
+ * @warning The SOS daemon needs to be up and running before calling.
+ */
+void
+SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
+    SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
+{
     SOS_msg_header header;
     unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
 
-
     SOS_runtime *NEW_SOS = NULL;
-    if (extant_sos_runtime == NULL) {
-        NEW_SOS = (SOS_runtime *) malloc(sizeof(SOS_runtime));
-        memset(NEW_SOS, '\0', sizeof(SOS_runtime));
-    } else {
-        NEW_SOS = extant_sos_runtime;
-    }
+    NEW_SOS = *sos_runtime;
 
-    /*
-     *  Before SOS_init returned a unique context per caller, we wanted
-     *  to make it re-entrant.  This saved mistakes from being made when
-     *  multiple parts of a single binary were independently instrumented
-     *  with SOS calls reflecting different layers or metadata.
-     *
-     *  The way it works now, wrappers and libraries and applications
-     *  can all have their own unique contexts and metadata, this is better.
-     *
-    static bool _initialized = false;   //old way
-    if (_initialized) return;
-    _initialized = true;
-    */
-
-    
     NEW_SOS->config.offline_test_mode = false;
     NEW_SOS->config.runtime_utility   = false;
 
@@ -91,8 +166,10 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     }
 
     NEW_SOS->status = SOS_STATUS_INIT;
-    NEW_SOS->config.layer  = layer;
+    NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
+    NEW_SOS->config.receives = receives;
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
+    // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
 
     dlog(1, "Initializing SOS ...\n");
     dlog(1, "  ... setting argc / argv\n");
@@ -117,21 +194,9 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
     if (SOS->role == SOS_ROLE_CLIENT) {
         SOS->config.locale = SOS_LOCALE_APPLICATION;
 
-        if (SOS->config.runtime_utility == false) {
-            dlog(1, "  ... launching libsos runtime thread[s].\n");
-            SOS->task.feedback =            (pthread_t *) malloc(sizeof(pthread_t));
-            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-            SOS->task.feedback_cond =  (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
-            retval = pthread_create( SOS->task.feedback, NULL, SOS_THREAD_feedback, (void *) SOS );
-            if (retval != 0) { dlog(0, " ... ERROR (%d) launching SOS->task.feedback thread!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
-            if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
-            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
-            if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
+        if (SOS->config.runtime_utility == false) { 
+            SOS_receiver_init(SOS);
         }
-        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
-        if (retval != 0) { dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE); }
     }
 
     if (SOS->config.offline_test_mode == true) {
@@ -142,7 +207,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
         SOS->status = SOS_STATUS_RUNNING;
         dlog(1, "  ... done with SOS_init().  [OFFLINE_TEST_MODE]\n");
         dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
-        return SOS;
+        return;
     }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
@@ -174,7 +239,9 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
         }
     }
 
-    if (SOS->role == SOS_ROLE_CLIENT) {
+    if ((SOS->role == SOS_ROLE_CLIENT )
+        || (SOS->role == SOS_ROLE_ANALYTICS))
+        {
         /*
          *
          *  CLIENT
@@ -184,6 +251,12 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         SOS_buffer_init(SOS, &SOS->net.recv_part);
 
+        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+        if (retval != 0) {
+            dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
+            "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+        }
         SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
@@ -243,7 +316,9 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
         if (retval < 0) {
             dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
-            exit(EXIT_FAILURE);
+            //exit(EXIT_FAILURE);
+            SOS = NULL;
+            return;
         } else {
             dlog(1, "   ... registration message sent.   (retval == %d)\n", retval);
         }
@@ -265,7 +340,7 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
         dlog(1, "  ... configuring uid sets.\n");
 
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
-        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);   /* LISTENER doesn't use this, it's for CLIENTS. */
+        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);
 
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -274,41 +349,115 @@ SOS_runtime* SOS_init_with_runtime( int *argc, char ***argv, SOS_role role, SOS_
 
 
     } else {
-        /*
-         *
-         *  CONFIGURATION: LISTENER / AGGREGATOR / etc.
-         *
-         */
+         //
+         //  CONFIGURATION: LISTENER / AGGREGATOR / etc.
+         //
 
         dlog(1, "  ... skipping socket setup (becase we're the daemon).\n");
         
     }
 
+    *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
 
     dlog(1, "  ... done with SOS_init().\n");
     dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
-    return SOS;
+    return;
 }
 
 
-/* TODO: { FEEDBACK } */
-int SOS_sense_register(SOS_runtime *sos_context, char *handle, void (*your_callback)(void *data)) {
-    SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
 
+void
+SOS_receiver_init(SOS_runtime *sos_context)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_receiver_init");
+    int retval;
 
+    switch (SOS->config.receives) {
 
-    return 0;
-}
+        case SOS_RECEIVES_MANUAL_CHECKIN:
+        case SOS_RECEIVES_NO_FEEDBACK:
+        case SOS_RECEIVES_DAEMON_MODE:
+            return;
 
+        case SOS_RECEIVES_TIMED_CHECKIN:
+            dlog(1, "  ... launching libsos runtime thread[s].\n");
+            SOS->task.feedback = (pthread_t *) malloc(sizeof(pthread_t));
+            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            SOS->task.feedback_cond = (pthread_cond_t *)  malloc(sizeof(pthread_cond_t));
+            retval = pthread_create(SOS->task.feedback, NULL,
+                SOS_THREAD_receives_timed, (void *) SOS);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
+                    " thread!  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+           break;
 
-/* TODO: { FEEDBACK } */
-void SOS_sense_activate(SOS_runtime *sos_context, char *handle, SOS_layer layer, void *data, int data_length) {
-    SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
+        case SOS_RECEIVES_DIRECT_MESSAGES:
+            dlog(1, "  ... launching libsos runtime thread[s].\n");
+            SOS->task.feedback = (pthread_t *) malloc(sizeof(pthread_t));
+            SOS->task.feedback_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+            SOS->task.feedback_cond = (pthread_cond_t *)  malloc(sizeof(pthread_cond_t));
+            retval = pthread_create(SOS->task.feedback, NULL,
+                SOS_THREAD_receives_direct, (void *) SOS);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
+                    " thread!  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
+            if (retval != 0) {
+                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
+                    "  (%s)\n", retval, strerror(errno));
+                exit(EXIT_FAILURE);
+            }
+            break;
+
+        default:
+            dlog(0, " ... WARNING: An invalid value was specified for the"
+                " feedback receipt mode!  (%d)\n", SOS->config.receives);
+            break;
+    }//switch
 
     return;
 }
 
+
+// TODO: { FEEDBACK }
+void
+SOS_sense_register(SOS_runtime *sos_context, char *handle)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
+    return;
+}
+
+void
+SOS_sense_activate(SOS_runtime *sos_context,
+    char *handle, void *data, int data_length)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
+    return;
+}
+// ----------
 
 
 void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
@@ -405,7 +554,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
     free(SOS->config.node_id);
 
     if (SOS->role == SOS_ROLE_CLIENT) {
-        if (SOS->config.runtime_utility == false) {
+        if (SOS->config.receives != SOS_RECEIVES_NO_FEEDBACK) {
             dlog(1, "  ... Joining threads...\n");
             pthread_cond_signal(SOS->task.feedback_cond);
             pthread_join(*SOS->task.feedback, NULL);
@@ -439,10 +588,102 @@ void SOS_finalize(SOS_runtime *sos_context) {
 }
 
 
-
-void* SOS_THREAD_feedback( void *args ) {
+void*
+SOS_THREAD_receives_direct(void *args)
+{
     SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
-    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_feedback");
+    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_direct");
+
+    //Get a socket to receive direct feedback messages and begin
+    //listening to it.
+
+    SOS_socket_in insock;
+
+    int i;
+    int yes;
+    int opts;
+
+    yes = 1;
+
+    insock.server_port = 0;    // NOTE: 0 = Request an OS-assigned open port.
+
+    memset(&insock.server_hint, '\0', sizeof(struct addrinfo));
+    insock.server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+    insock.server_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+    insock.server_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
+    insock.server_hint.ai_protocol   = 0;             /* Any protocol */
+    insock.server_hint.ai_canonname  = NULL;
+    insock.server_hint.ai_addr       = NULL;
+    insock.server_hint.ai_next       = NULL;
+
+    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint, &insock.result);
+    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", strerror(errno)); exit(EXIT_FAILURE); }
+
+    for ( insock.server_addr = insock.result ; insock.server_addr != NULL ; insock.server_addr = insock.server_addr->ai_next ) {
+        dlog(1, "Trying an address...\n");
+
+        insock.server_socket_fd = socket(insock.server_addr->ai_family, insock.server_addr->ai_socktype, insock.server_addr->ai_protocol );
+        if ( insock.server_socket_fd < 1) {
+            dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
+            continue;
+        }
+
+        // Allow this socket to be reused/rebound quickly by the daemon.
+        if ( setsockopt( insock.server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+            dlog(0, "  ... could not set socket options.  (%s)\n", strerror(errno));
+            continue;
+        }
+
+        if ( bind( insock.server_socket_fd, insock.server_addr->ai_addr, insock.server_addr->ai_addrlen ) == -1 ) {
+            dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
+            close( insock.server_socket_fd );
+            continue;
+        } 
+        // If we get here, we're good to stop looking.
+        break;
+    }
+
+    if ( insock.server_socket_fd < 0 ) {
+        dlog(0, "  ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", errno, strerror(errno));
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(0, "  ... got a socket, and bound to it!\n");
+    }
+
+    freeaddrinfo(insock.result);
+
+     // Enforce that this is a BLOCKING socket:
+    opts = fcntl(insock.server_socket_fd, F_GETFL);
+    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", strerror(errno)); }
+ 
+    opts = opts & !(O_NONBLOCK);
+    i    = fcntl(insock.server_socket_fd, F_SETFL, opts);
+    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", strerror(errno)); }
+
+
+    listen( insock.server_socket_fd, insock.listen_backlog );
+    dlog(0, "Listening on socket.\n");
+
+    if (insock.server_addr->ai_addr->sa_family == AF_INET) {
+        SOS->config.receives_port =
+            (int) (((struct sockaddr_in*)insock.server_addr->ai_addr)->sin_port);
+    } else {
+        SOS->config.receives_port =
+        (int) (((struct sockaddr_in6*)insock.server_addr->ai_addr)->sin6_port);
+    }
+
+    //Part 2: Listening loop for feedback messages.
+    //TODO / SLICE
+    //void SOS_feedback_receiver_f ( void (*f)(SOS_feedback feedback, SOS_buffer *msg );
+    
+
+    return NULL;
+}
+
+
+void* SOS_THREAD_receives_timed(void *args) {
+    SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
+    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_timed");
     struct timespec ts;
     struct timeval  tp;
     int wake_type;
@@ -531,10 +772,8 @@ void* SOS_THREAD_feedback( void *args ) {
 
         switch (feedback) {
         case SOS_FEEDBACK_CONTINUE: break;
-        case SOS_FEEDBACK_EXEC_FUNCTION: 
-        case SOS_FEEDBACK_SET_PARAMETER: 
-        case SOS_FEEDBACK_EFFECT_CHANGE: 
-            SOS_handle_feedback(feedback_buffer);
+        case SOS_FEEDBACK_CUSTOM: 
+            SOS_process_feedback(feedback_buffer);
             break;
 
         default: break;
@@ -559,40 +798,53 @@ void* SOS_THREAD_feedback( void *args ) {
 }
 
 
-void SOS_handle_feedback(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(buffer->sos_context, "SOS_handle_feedback");
-    int  activity_code;
-    char function_sig[SOS_DEFAULT_STRING_LEN] = {0};
+void SOS_process_feedback(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_process_feedback");
+    int               msg_count;
+    SOS_msg_header    header;
+    int               offset;
+    int               activity_code;
 
-    SOS_msg_header header;
 
-    int offset;
+    //SLICE: This function is used by ALL THREE types of feedback
+    //       modes to process the buffer sent back from the daemon.
+    
+    //NOTE: The daemon can pack multiple feedback messages into one
+    //  reply, in the case that some of them had stacked up between
+    //  the checkins in the TIMED/MANUAL modes. The first value in
+    //  the buffer is thus an int that says how many messages are
+    //  enqueued in the buffer, and (like aggregator messages) we
+    //  roll through the buffer for each one extracting out the length
+    //  that was encoded in the header, and pass the message on to
+    //  the user-supplied callback one at a time.
+
 
     dlog(4, "Determining appropriate action RE:feedback from daemon.\n");
 
     SOS_buffer_lock(buffer);
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
+    SOS_buffer_unpack(buffer, &offset, "i", &msg_count);
 
-    SOS_buffer_unpack(buffer, &offset, "i",
-        &activity_code);
-    
-    switch (activity_code) {
-    case SOS_FEEDBACK_CONTINUE: break;
-    case SOS_FEEDBACK_EXEC_FUNCTION:
-        /* TODO: { FEEDBACK } */
-        SOS_buffer_unpack(buffer, &offset, "s", function_sig);
-        dlog(5, "FEEDBACK activity_code {%d} called --> EXEC_FUNCTION(%s) triggered.\n", activity_code, function_sig);
-        break;
+    int msg = 0;
+    for (msg = 0; msg < msg_count; msg++) {
 
-    case SOS_FEEDBACK_SET_PARAMETER: break;
-    case SOS_FEEDBACK_EFFECT_CHANGE: break;
-    default: break;
+        SOS_buffer_unpack(buffer, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+
+        SOS_buffer_unpack(buffer, &offset, "i", &activity_code);
+
+        switch (activity_code) {
+            case SOS_FEEDBACK_CONTINUE: break;
+            case SOS_FEEDBACK_CUSTOM: 
+                //... do something
+                break;
+            default: break;
+        }
+
     }
 
     SOS_buffer_unlock(buffer);
@@ -709,11 +961,18 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
 }
 
 
-SOS_pub* SOS_pub_create(SOS_runtime *sos_context, char *title, SOS_nature nature) {
-    return SOS_pub_create_sized(sos_context, title, nature, SOS_DEFAULT_ELEM_MAX);
+void
+SOS_pub_create(SOS_runtime *sos_context,
+    SOS_pub **pub_handle, char *title, SOS_nature nature)
+{
+     SOS_pub_create_sized(sos_context, pub_handle, title, nature, SOS_DEFAULT_ELEM_MAX);
+     return;
 }
 
-SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature nature, int new_size) {
+void
+SOS_pub_create_sized(SOS_runtime *sos_context,
+    SOS_pub **pub_handle, char *title, SOS_nature nature, int new_size)
+{
     SOS_SET_CONTEXT(sos_context, "SOS_pub_create_sized");
     SOS_pub   *new_pub;
     int        i;
@@ -806,7 +1065,9 @@ SOS_pub* SOS_pub_create_sized(SOS_runtime *sos_context, char *title, SOS_nature 
     dlog(6, "  ... done.\n");
     pthread_mutex_unlock(new_pub->lock);
 
-    return new_pub;
+    *pub_handle = new_pub;
+
+    return;
 }
 
 

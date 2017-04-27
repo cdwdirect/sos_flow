@@ -116,7 +116,7 @@ int main(int argc, char *argv[]) {
     
     snprintf(XY_NAME, 1024, "2D:(X,Y)");
 
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_sos, "kmean_2d.main");
 
     srandom(my_sos->my_guid);
@@ -127,7 +127,7 @@ int main(int argc, char *argv[]) {
 
     if (rank == 0) { dlog(0, "Registering points...\n"); }
 
-    pub = SOS_pub_create(my_sos, "kmeans_2d", SOS_NATURE_KMEAN_2D);
+    SOS_pub_create(my_sos, &pub, "kmeans_2d", SOS_NATURE_KMEAN_2D);
     if (rank == 0) { dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid); }
 
     int iter;

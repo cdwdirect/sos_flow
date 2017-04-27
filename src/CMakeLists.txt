@@ -1,7 +1,10 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 set(POSITION_INDEPENDENT_CODE True)
 
+#if(SOSD_CLOUD_SYNC_WITH_MPI)
 include_directories("${MPI_INCLUDE_PATH}")
+#endif()
+
 include_directories("${sos_flow_SOURCE_DIR}/src")
 #   link_directories("${sos_flow_SOURCE_DIR}/lib")
 
@@ -67,6 +70,19 @@ add_library("sos" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
 # add_library("sos_static" STATIC "sos.c" "sos_pack_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos"
+    "sos_buffer"
+    "sos_qhashtbl"
+    "sos_pipe"
+    "${CMAKE_THREAD_LIBS_INIT}")
+  # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+
+#TARGET ---> ssos
+#            (library)
+add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries("ssos"
+    "sos"
     "sos_buffer"
     "sos_qhashtbl"
     "sos_pipe"
@@ -153,13 +169,15 @@ if(SOSD_CLOUD_SYNC)
       "sosa.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
-    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_EVPATH")
     target_link_libraries("sosd"
       "sos"
       "sos_qhashtbl"
       "sos_buffer"
       "sos_pipe"
       "sosa"
+      "evpath"
+      "ffs"
+      "atl"
       "${SQLITE3_LIBRARY}")
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.

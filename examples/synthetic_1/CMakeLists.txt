@@ -4,14 +4,14 @@ if (POLICY CMP0004)
 endif()
 
 # TAU is NOT required.
-if (DEFINED TAU_ROOT AND USE_TAU)
-    find_package(TAU)
+#if (DEFINED TAU_ROOT AND USE_TAU)
+#    find_package(TAU)
     if (TAU_FOUND)
         include_directories(${TAU_INCLUDE_DIRS})
         set(LIBS ${LIBS} ${TAU_LIBRARIES})
         set (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_RPATH} ${TAU_LIBRARY_DIR})
     endif()
-endif()
+#endif()
 
 # Make sure the compiler can find include files from MPI
 include_directories (.)

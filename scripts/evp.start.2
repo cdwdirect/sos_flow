@@ -1,0 +1,7 @@
+echo "Starting AGGREGATOR..."
+env SOS_CMD_PORT=20506 ./bin/sosd -l 1 -a 1 -w `pwd` -k 0 -r aggregator &
+echo "Waiting for 3 seconds..."
+sleep 3
+echo "Starting LISTENER..."
+./bin/sosd -l 1 -a 1 -w `pwd` -k 1 -r listener &
+

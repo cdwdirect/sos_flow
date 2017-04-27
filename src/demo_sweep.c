@@ -10,9 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
 #include <mpi.h>
-#endif
 
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
@@ -44,9 +42,9 @@ int main(int argc, char *argv[]) {
     int    SMIN, SMAX, SSTEP;
     int    DMIN, DMAX, DSTEP;
 
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Get_processor_name(host, &host_len);
+    MPI_Init(&argc, &argv); 
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+    MPI_Get_processor_name(host, &host_len); 
 
     if (rank == 0) {
       printf("\"rank\",\"host\",\"pid\"\n");
@@ -60,7 +58,7 @@ int main(int argc, char *argv[]) {
     printf("%d, \"%s\", %d\n", rank, host, getpid());
     fflush(stdout);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(MPI_COMM_WORLD); 
 
     if (rank == 0) {
       printf("----------\n");
@@ -120,7 +118,7 @@ int main(int argc, char *argv[]) {
       fprintf(stderr, "%s\n", USAGE); exit(1);
     }
 
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_sos, "demo_sweep.main");
     srandom(my_sos->my_guid);
 
@@ -144,7 +142,7 @@ int main(int argc, char *argv[]) {
                    iter_now, size_now, usec_now);
           zlog("Running: %s\n", pub_title);
 
-          pub = SOS_pub_create(my_sos, pub_title, SOS_NATURE_CREATE_OUTPUT);
+          SOS_pub_create(my_sos, &pub, pub_title, SOS_NATURE_CREATE_OUTPUT);
 
           int iter_walk = 0;
           int elem_walk = 0;
@@ -160,7 +158,7 @@ int main(int argc, char *argv[]) {
 
           SOS_pub_destroy(pub);
           SWEEP_wait_for_empty_queue(my_sos);
-          MPI_Barrier(MPI_COMM_WORLD);
+          MPI_Barrier(MPI_COMM_WORLD); 
 
         } //size          
       } //iter
@@ -169,7 +167,7 @@ int main(int argc, char *argv[]) {
     zlog("Done.\n");
 
     SOS_finalize(my_sos);
-    MPI_Finalize();
+    MPI_Finalize(); 
 
     return (EXIT_SUCCESS);
 }

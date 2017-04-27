@@ -47,11 +47,14 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-
-    SOSA.sos_context = SOSA_init_for_mpi(&argc, &argv, 800);
-    SOS_SET_CONTEXT(SOSA.sos_context, "main");
+    SOS_runtime *SOS = NULL;
+    SOS_init(&argc, &argv, &SOS,
+        SOS_ROLE_ANALYTICS, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    if (SOS == NULL) {
+        fprintf(stderr, "ERROR: Could not connect to SOS daemon.\n");
+        exit(EXIT_FAILURE);
+    }
     srandom(SOS->my_guid);
-    dlog(1, "Initialization complete.\n");
 
     sleep(initial_delay_seconds);
 
@@ -66,10 +69,6 @@ int main(int argc, char *argv[]) {
     /*
   ****
      */
-
-    dlog(0, "Finished successfully!\n");
-    SOSA_finalize();
-    MPI_Finalize();
 
     return (EXIT_SUCCESS);
 }

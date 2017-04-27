@@ -10,9 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#if (SOSD_CLOUD_SYNC > 0)
 #include <mpi.h>
-#endif
 
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
@@ -52,7 +50,7 @@ int main(int argc, char *argv[]) {
 
     MPI_Init(&argc, &argv);
     int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 
     /* Process command-line arguments */
     if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
@@ -98,7 +96,8 @@ int main(int argc, char *argv[]) {
     int      var_int;
     double   var_double;
     
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_CLIENT, SOS_LAYER_APP);
+    my_sos = NULL;
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
@@ -107,7 +106,7 @@ int main(int argc, char *argv[]) {
     
     if (rank == 0) dlog(0, "Creating a pub...\n");
 
-    pub = SOS_pub_create(my_sos, "demo", SOS_NATURE_CREATE_OUTPUT);
+    SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
     if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
     if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
@@ -188,6 +187,6 @@ int main(int argc, char *argv[]) {
 
     if (rank == 0) dlog(0, "demo_app finished successfully!\n");
     SOS_finalize(my_sos);
-    MPI_Finalize();
+    MPI_Finalize(); 
     return (EXIT_SUCCESS);
 }
