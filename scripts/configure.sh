@@ -38,6 +38,7 @@ args=$(getopt -l "searchpath:" -o "cdht" -- "$@")
 clean=0
 debug=0
 tau=0
+mpi=0
 
 eval set -- "${args}"
 
@@ -59,11 +60,16 @@ while [ $# -ge 1 ]; do
             tau=1
             echo "doing TAU configure"
             ;;
+        -m)
+            mpi=1
+            echo "doing MPI configure (no EVPath)"
+            ;;
         -h)
             echo "$0 [-c]"
             echo "-c : Clean"
             echo "-d : Debug"
             echo "-t : Use TAU"
+            echo "-m : Use MPI"
             kill -INT $$
             ;;
         esac
@@ -107,13 +113,17 @@ if [ ${tau} -eq 1 ] ; then
     tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_CONFIG=$TAU_CONFIG"
 fi
 
+evpathopts="-DEVPATH_ROOT=$CHAOS -DSOSD_CLOUD_SYNC_WITH_EVPATH=TRUE -DSOSD_CLOUD_SYNC_WITH_MPI=FALSE"
+if [ ${mpi} -eq 1 ] ; then
+    evpathopts="-DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX"
+fi
+
 cmd="cmake \
      -DCMAKE_BUILD_TYPE=${buildtype} \
      -DCMAKE_INSTALL_PREFIX=. \
      -DCMAKE_C_COMPILER=$CC \
      -DCMAKE_CXX_COMPILER=$CXX \
-     -DMPI_C_COMPILER=$MPICC \
-     -DMPI_CXX_COMPILER=$MPICXX \
+     ${evpathopts} \
      $cmake_extras \
      $BASEDIR"
 
