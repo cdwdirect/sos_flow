@@ -35,7 +35,7 @@ export PATH=${CHAOS}/bin:${ADIOS_ROOT}/bin:${PATH}
 module unload darshan
 module load cmake
 module load sqlite 
-#module swap PrgEnv-intel PrgEnv-gnu
+module swap PrgEnv-intel PrgEnv-gnu
 
 export SOS_ENV_SET=1
 export sos_env_set=1

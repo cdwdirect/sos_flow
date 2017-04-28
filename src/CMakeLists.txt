@@ -83,6 +83,19 @@ if(CMAKE_THREAD_LIBS_INIT)
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+#TARGET ---> ssos
+#            (library)
+add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
+if(CMAKE_THREAD_LIBS_INIT)
+  target_link_libraries("ssos"
+    "sos"
+    "sos_buffer"
+    "sos_qhashtbl"
+    "sos_pipe"
+    "${CMAKE_THREAD_LIBS_INIT}")
+  # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
+endif()
+
 
 #TARGET ---> sosa
 #            (library)
