@@ -264,21 +264,13 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS->net.server_port   = getenv("SOS_CMD_PORT");
-        if ( SOS->net.server_port == NULL ) {
-            fprintf(stderr, "ERROR!  SOS_CMD_PORT environment variable is not set!\n");
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
-            free(*sos_runtime);
-            *sos_runtime = NULL;
-            return;
-        }
-        if ( strlen(SOS->net.server_port) < 2 ) {
-            fprintf(stderr, "ERROR!  SOS_CMD_PORT environment variable is not set!\n");
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
-            free(*sos_runtime);
-            *sos_runtime = NULL;
-            return;
+        if ((SOS->net.server_port == NULL) || (strlen(SOS->net.server_port)) < 2) {
+            fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+                    SOS_DEFAULT_SERVER_PORT);
+            fflush(stderr);
+            SOS->net.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+            snprintf(SOS->net.server_port, SOS_DEFAULT_STRING_LEN, "%d",
+                    SOS_DEFAULT_SERVER_PORT);
         }
 
         SOS->net.server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6

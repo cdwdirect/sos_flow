@@ -9,7 +9,7 @@
     #define OPT_PARAMS "\n" \
                        "                 The following parameters are REQUIRED for STANDALONE operation:\n" \
                        "\n" \
-                       "                 -k, --rank <rank within listener set>\n" \
+                       "                 -k, --rank <rank within ALL sosd instances>\n" \
                        "\n"
  
 #endif
@@ -18,8 +18,11 @@
     #define OPT_PARAMS "\n" \
                        "                 The following parameters are REQUIRED for EVPath:\n" \
                        "\n" \
-                       "                 -k, --rank <rank within role set>\n" \
+                       "                 -k, --rank <rank within ALL sosd instances>\n" \
                        "                 -r, --role <listener | aggregator>\n" \
+                       "\n" \
+                       "                 NOTE: Aggregator ranks [-k #] need to be contiguous from 0 to n-1 aggregators.\n" \
+                       "\n" \
                        "\n" 
 #else
     #define OPT_PARAMS "\n"
@@ -28,7 +31,7 @@
 
 #define USAGE          "USAGE:   $ sosd  -l, --listeners <count>\n" \
                        "                 -a, --aggregators <count>\n" \
-                       "                 -w, --work_dir <full_path>\n" \
+                       "                [-w, --work_dir <full_path>]\n" \
                        OPT_PARAMS
 
 
@@ -86,10 +89,17 @@ int main(int argc, char *argv[])  {
         pthread_mutex_init(SOSD.daemon.countof.lock_stats, NULL);
     }
 
-    SOSD.daemon.work_dir    = (char *) &SOSD_DEFAULT_DIR;
+    SOSD.daemon.work_dir    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN); 
     SOSD.daemon.name        = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
     SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
+
+    // Default the working directory to the current working directory,
+    // can be overridden at the command line with the -w option.
+    if (!getcwd(SOSD.daemon.work_dir, SOS_DEFAULT_STRING_LEN)) {
+        fprintf(stderr, "STATUS: The getcwd() function did not succeed, make"
+                " sure to provide a -w <path> command line option.\n");
+    }
 
     my_role = SOS_ROLE_UNASSIGNED;
     my_rank = -1;
@@ -98,13 +108,22 @@ int main(int argc, char *argv[])  {
 
     // Grab the port from the environment variable SOS_CMD_PORT
     SOSD.net.server_port = getenv("SOS_CMD_PORT");
+    if ((SOSD.net.server_port == NULL) || (strlen(SOSD.net.server_port)) < 2) {
+        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+                SOS_DEFAULT_SERVER_PORT);
+        fflush(stderr);
+        SOSD.net.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+        snprintf(SOSD.net.server_port, SOS_DEFAULT_STRING_LEN, "%d",
+                SOS_DEFAULT_SERVER_PORT);
+    }
+
     SOSD.net.port_number = atoi(SOSD.net.server_port);
 
     /* Process command-line arguments */
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
-    if ( argc < 11 ) {
+    if ( argc < 9 ) {
 #else
-    if ( argc < 7 ) {
+    if ( argc < 5 ) {
 #endif
         fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE);
         exit(EXIT_FAILURE);
@@ -122,6 +141,7 @@ int main(int argc, char *argv[])  {
         }
         else if ( (strcmp(argv[elem], "--work_dir"        ) == 0)
         ||        (strcmp(argv[elem], "-w"                ) == 0)) {
+            free(SOSD.daemon.work_dir); // Default getcwd() string.
             SOSD.daemon.work_dir    = argv[next_elem];
         }
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
@@ -181,7 +201,16 @@ int main(int argc, char *argv[])  {
 
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
-    if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("Preparing to initialize:\n"); fflush(stdout); }
+    if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) {
+        printf("Preparing to initialize:\n");
+        fflush(stdout);
+    }
+
+    if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) {
+        printf("   ... working directory: %s:\n", SOSD.daemon.work_dir);
+        fflush(stdout);
+    }
+
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) { printf("   ... creating SOS_runtime object for daemon use.\n"); fflush(stdout); }
     SOSD.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
     memset(SOSD.sos_context, '\0', sizeof(SOS_runtime));
@@ -735,6 +764,110 @@ void* SOSD_THREAD_cloud_send(void *args) {
 
 /* -------------------------------------------------- */
 
+
+
+void
+SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
+    SOS_SET_CONTEXT(send_buffer->sos_context, "SOSD_send_to_self");
+    SOS_msg_header header;
+    int            server_socket_fd;
+    int            offset      = 0;
+    int            inset       = 0;
+    int            retval      = 0;
+    double         time_start  = 0.0;
+    double         time_out    = 0.0;
+
+    dlog(1, "Processing a self-send...\n");
+
+    SOS_socket_out out;
+    out.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
+    out.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
+    out.server_host   = SOS_DEFAULT_SERVER_HOST;
+    out.server_port   = getenv("SOS_CMD_PORT");
+    if ((out.server_port == NULL) || (strlen(out.server_port)) < 2) {
+        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+                SOS_DEFAULT_SERVER_PORT);
+        fflush(stderr);
+        out.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+        snprintf(out.server_port, SOS_DEFAULT_STRING_LEN, "%d",
+                SOS_DEFAULT_SERVER_PORT);
+    }
+
+    out.server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6
+    out.server_hint.ai_protocol  = 0;                // Any protocol
+    out.server_hint.ai_socktype  = SOCK_STREAM;      // SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW
+    out.server_hint.ai_flags     = AI_NUMERICSERV | out.server_hint.ai_flags;
+
+    retval = getaddrinfo(out.server_host, out.server_port,
+        &out.server_hint, &out.result_list);
+    if (retval < 0) {
+        dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
+            out.server_host, out.server_port );
+        return;
+    }
+   
+    dlog(1, "Looking for connections.\n");
+
+    // Iterate the possible connections and register with the SOS daemon:
+    for (out.server_addr = out.result_list ;
+        out.server_addr != NULL ;
+        out.server_addr = out.server_addr->ai_next)
+    {
+        server_socket_fd = socket(out.server_addr->ai_family,
+            out.server_addr->ai_socktype,
+            out.server_addr->ai_protocol);
+        if (server_socket_fd == -1) { continue; }
+        if (connect(server_socket_fd, out.server_addr->ai_addr,
+            out.server_addr->ai_addrlen) != -1) break; // Success!
+        close(server_socket_fd);
+    }
+    
+    freeaddrinfo( out.result_list );
+    
+    if (server_socket_fd == 0) {
+        dlog(0, "Error attempting to connect to the server.  (%s:%s)\n",
+            out.server_host, out.server_port);
+        return;
+    }
+
+    int more_to_send      = 1;
+    int failed_send_count = 0;
+    int total_bytes_sent  = 0;
+    retval = 0;
+
+    SOS_TIME(time_start);
+    while (more_to_send) {
+        if (failed_send_count > 8) {
+            dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts.\n");
+            return;
+        }
+        retval = send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
+        if (retval < 0) {
+            failed_send_count++;
+            dlog(0, "ERROR: Could not send message to daemon. (%s)\n", strerror(errno));
+            dlog(0, "ERROR:    ...retrying %d more times after a brief delay.\n", (8 - failed_send_count));
+            usleep(100000);
+            continue;
+        } else {
+            total_bytes_sent += retval;
+        }
+        if (total_bytes_sent >= send_buffer->len) {
+            more_to_send = 0;
+        }
+    }//while
+
+    dlog(1, "Send complete, waiting for a reply...\n");
+
+    offset = 0;
+
+    reply_buffer->len = recv(server_socket_fd, reply_buffer->data, reply_buffer->max, 0);
+    // Done!
+    close( server_socket_fd );
+
+    dlog(1, "Reply fully received.  reply_buffer->len == %d\n", reply_buffer->len);
+
+    return;
+}
 
 
 
@@ -1614,7 +1747,8 @@ void SOSD_init() {
     #if (SOSD_CLOUD_SYNC > 0)
         SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
         SOS_guid guid_my_first   = (SOS_guid) SOS->config.comm_rank * guid_block_size;
-        printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT "\n", SOS->config.comm_rank, guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
+        //printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT "\n", SOS->config.comm_rank,
+        //        guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
         SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
     #else
         dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");

@@ -8,7 +8,7 @@
 #include "evpath.h"
 
 bool SOSD_evpath_ready_to_listen = false;
-bool SOSD_cloud_shutdown_underway;
+bool SOSD_cloud_shutdown_underway = false;
 void SOSD_evpath_register_connection(SOS_buffer *msg);
 
 // Extract the buffer from EVPath and drop it into the SOSD
@@ -81,8 +81,24 @@ SOSD_evpath_message_handler(
                 SOSD.sync.local.queue->elem_count++;
                 pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
                 break;
-            case SOS_MSG_TYPE_REGISTER:   SOSD_evpath_register_connection(msg);
-            case SOS_MSG_TYPE_SHUTDOWN:   SOSD.daemon.running = 0;
+
+            case SOS_MSG_TYPE_REGISTER:
+                SOSD_evpath_register_connection(msg);
+                break;
+
+            case SOS_MSG_TYPE_SHUTDOWN:
+                SOSD.daemon.running = 0;
+                SOS_buffer *shutdown_msg;
+                SOS_buffer *shutdown_rep;
+                SOS_buffer_init_sized_locking(SOS, &shutdown_msg, 1024, false);
+                SOS_buffer_init_sized_locking(SOS, &shutdown_rep, 1024, false);
+                offset = 0;
+                SOS_buffer_pack(shutdown_msg, &offset, "i", offset);
+                SOSD_send_to_self(shutdown_msg, shutdown_rep);
+                SOS_buffer_destroy(shutdown_msg);
+                SOS_buffer_destroy(shutdown_rep);
+                break;
+
             default:                      SOSD_handle_unknown    (msg); break;
         }
     }
@@ -152,13 +168,16 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     evp->meetup_path = NULL;
     evp->meetup_path = getenv("SOS_EVPATH_MEETUP");
     if ((evp->meetup_path == NULL) || (strlen(evp->meetup_path) < 1)) {
-        char *meetup_error =
-            "ERROR: Please set the SOS_EVPATH_MEETUP environment variable\n" \
-            "       with a valid path that all instances of SOS daemons\n" \
-            "       will be able to access, typically an NFS location.\n";
-        fprintf(stderr, "%s", meetup_error);
+        evp->meetup_path = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
+        if (!getcwd(evp->meetup_path, SOS_DEFAULT_STRING_LEN)) {
+            fprintf(stderr, "ERROR: The SOS_EVPATH_MEETUP evar was not set,"
+                    " and getcwd() failed! Set the evar and retry.\n");
+            fflush(stderr);
+            exit(EXIT_FAILURE);
+        }
+        fprintf(stderr, "STATUS: The SOS_EVPATH_MEETUP evar was not set."
+                " Using getcwd() path:\n\t%s\n", evp->meetup_path);
         fflush(stderr);
-        exit(EXIT_FAILURE);
     }
 
     int expected_node_count =
@@ -167,6 +186,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     SOS->config.comm_size = expected_node_count;;
     SOS->config.comm_support = -1; // Used for MPI only.
+
+    // Do some sanity checks.
+
+    
+
 
     // The cloud sync stuff gets calculated after we know
     // how many targets have connected as aggregators,
@@ -413,8 +437,59 @@ int   SOSD_cloud_finalize(void) {
 void  SOSD_cloud_shutdown_notice(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_shutdown_notice.EVPATH");
 
-    // NOTE: This is not used with EVPath.
+    SOS_buffer *shutdown_msg;
+    SOS_buffer_init(SOS, &shutdown_msg);
+
+    dlog(1, "Providing shutdown notice to the cloud_sync backend...\n");
+    SOSD_cloud_shutdown_underway = true;
+
+    if ((SOS->config.comm_rank - SOSD.daemon.cloud_sync_target_count)
+            < SOSD.daemon.cloud_sync_target_count)
+    {
+        dlog(1, "  ... preparing notice to SOS_ROLE_AGGREGATOR at"
+                " rank %d\n", SOSD.daemon.cloud_sync_target);
+        /* The first N listener ranks will notify the N aggregators... */
+        SOS_msg_header header;
+        SOS_buffer    *shutdown_msg;
+        SOS_buffer    *reply;
+        int            embedded_msg_count;
+        int            offset;
+        int            msg_inset;
+
+        SOS_buffer_init(SOS, &shutdown_msg);
+        SOS_buffer_init_sized_locking(SOS, &reply, 10, false);
+
+        embedded_msg_count = 1;
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
+        header.msg_from = SOS->my_guid;
+        header.pub_guid = 0;
+
+        offset = 0;
+        SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
+        msg_inset = offset;
+
+        header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
+                                          header.msg_size,
+                                          header.msg_type,
+                                          header.msg_from,
+                                          header.pub_guid);
+        offset = 0;
+        SOS_buffer_pack(shutdown_msg, &offset, "ii",
+                        embedded_msg_count,
+                        header.msg_size);
+
+        dlog(1, "  ... sending notice\n");
+        SOSD_cloud_send(shutdown_msg, reply); 
+        dlog(1, "  ... sent successfully\n");
+
+        SOS_buffer_destroy(shutdown_msg);
+        SOS_buffer_destroy(reply);
+
+    }
     
+    dlog(1, "  ... done\n");
+
     return;
 }
 
