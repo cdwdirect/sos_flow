@@ -7,7 +7,7 @@
 #include "string.h"
 #include "evpath.h"
 
-bool SOSD_evpath_ready_to_listen;
+bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway;
 void SOSD_evpath_register_connection(SOS_buffer *msg);
 
@@ -91,11 +91,12 @@ SOSD_evpath_message_handler(
 }
 
 // With EVPath, the aggregator has to build stones back down
-// to the listeners that so that it is able to send feedback
-// messages out to everyone it is in touch with.
-
+// to the listener daemons so that it is able to send feedback
+// messages out to everyone it is in touch with, and to route
+// appropriate messages to everyone that originated in situ.
+// TODO: HANDLE IT!
 void SOSD_evpath_register_connection(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_handle_register");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_register_connection");
 
     SOS_msg_header header;
     int offset = 0;
@@ -109,7 +110,8 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
     SOSD_evpath *evp = &SOSD.daemon.evpath;
     SOS_buffer_unpack(msg, &offset, "s",
         &evp->node[header.msg_from]->contact_string);
- 
+
+    //TODO: Complete this.
 
     return;
 }
@@ -339,6 +341,11 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
 
 /* name.......: SOSD_cloud_enqueue
  * description: Accept a message into the async send-queue.  (non-blocking)
+ *              The purpose of this abstraction is to eventually allow
+ *              SOSD to manage the bundling of multiple messages before
+ *              passing them off to the underlying transport API. In the
+ *              case of fine-grained messaging layers like EVPath, this
+ *              is likely overkill, but nevertheless, here it is.
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
@@ -380,7 +387,7 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
 void  SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.EVPATH");
 
-    // NOTE: This is unused with EVPath.
+    // NOTE: This not used with EVPath.
 
     return;
 }
@@ -392,6 +399,8 @@ void  SOSD_cloud_fflush(void) {
 int   SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.EVPATH");
 
+    // NOTE: This is not used with EVPath.
+    
     return 0;
 }
 
@@ -403,6 +412,9 @@ int   SOSD_cloud_finalize(void) {
  */
 void  SOSD_cloud_shutdown_notice(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_shutdown_notice.EVPATH");
+
+    // NOTE: This is not used with EVPath.
+    
     return;
 }
 

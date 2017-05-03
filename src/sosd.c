@@ -195,8 +195,8 @@ int main(int argc, char *argv[])  {
     // between the aggregator and the listeners. It has an internal gate that
     // does not open until the bare minimum objects are in place halfway
     // through the SOSD_cloud_init routine.
+    SOSD_cloud_init( &argc, &argv);
     SOSD_sync_context_init(SOSD.sos_context, &SOSD.sync.cloud_recv, sizeof(SOS_buffer *), SOSD_THREAD_cloud_recv);
-     SOSD_cloud_init( &argc, &argv);
     #else
     dlog(0, "   ... WARNING: There is no CLOUD_SYNC configured for this SOSD.\n");
     #endif

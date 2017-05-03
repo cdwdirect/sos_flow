@@ -172,10 +172,10 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
 
     dlog(1, "Initializing SOS ...\n");
-    dlog(1, "  ... setting argc / argv\n");
+    dlog(4, "  ... setting argc / argv\n");
 
     if (argc == NULL || argv == NULL) {
-        dlog(1, "NOTE: argc == NULL || argv == NULL, using safe but meaningles values.\n");
+        dlog(4, "NOTE: argc == NULL || argv == NULL, using safe but meaningles values.\n");
         SOS->config.argc = 2;
         SOS->config.argv = (char **) malloc(2 * sizeof(char *));
         SOS->config.argv[0] = strdup("[NULL]");
@@ -189,7 +189,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
-    dlog(1, "  ... node_id: %s\n", SOS->config.node_id );
+    dlog(4, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         SOS->config.locale = SOS_LOCALE_APPLICATION;
@@ -205,8 +205,8 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool, 0, SOS_DEFAULT_UID_MAX);
         SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
         SOS->status = SOS_STATUS_RUNNING;
-        dlog(1, "  ... done with SOS_init().  [OFFLINE_TEST_MODE]\n");
-        dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
+        dlog(4, "  ... done with SOS_init().  [OFFLINE_TEST_MODE]\n");
+        dlog(4, "SOS->status = SOS_STATUS_RUNNING\n");
         return;
     }
 
@@ -221,7 +221,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             /* MPICH_ */
             SOS->config.comm_rank = atoi(env_rank);
             SOS->config.comm_size = atoi(env_size);
-            dlog(1, "  ... MPICH environment detected. (rank: %d/ size:%d)\n", SOS->config.comm_rank, SOS->config.comm_size);
+            dlog(4, "  ... MPICH environment detected. (rank: %d/ size:%d)\n", SOS->config.comm_rank, SOS->config.comm_size);
         } else {
             env_rank = getenv("OMPI_COMM_WORLD_RANK");
             env_size = getenv("OMPI_COMM_WORLD_SIZE");
@@ -229,12 +229,12 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
                 /* OpenMPI */
                 SOS->config.comm_rank = atoi(env_rank);
                 SOS->config.comm_size = atoi(env_size);
-                dlog(1, "  ... OpenMPI environment detected. (rank: %d/ size:%d)\n", SOS->config.comm_rank, SOS->config.comm_size);
+                dlog(4, "  ... OpenMPI environment detected. (rank: %d/ size:%d)\n", SOS->config.comm_rank, SOS->config.comm_size);
             } else {
                 /* non-MPI client. */
                 SOS->config.comm_rank = 0;
                 SOS->config.comm_size = 1;
-                dlog(1, "  ... Non-MPI environment detected. (rank: %d/ size:%d)\n", SOS->config.comm_rank, SOS->config.comm_size);
+                dlog(4, "  ... Non-MPI environment detected. (rank: %d/ size:%d)\n", SOS->config.comm_rank, SOS->config.comm_size);
             }
         }
     }
@@ -247,44 +247,84 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
          *  CLIENT
          *
          */
-        dlog(1, "  ... setting up socket communications with the daemon.\n" );
+        dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
         SOS_buffer_init(SOS, &SOS->net.recv_part);
 
         SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
         retval = pthread_mutex_init(SOS->net.send_lock, NULL);
         if (retval != 0) {
-            dlog(0, " ... ERROR (%d) creating SOS->net.send_lock!"
-            "  (%s)\n", retval, strerror(errno)); exit(EXIT_FAILURE);
+            fprintf(stderr, " ... ERROR (%d) creating SOS->net.send_lock!"
+                "  (%s)\n", retval, strerror(errno));
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
         }
         SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
         SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
         SOS->net.server_port   = getenv("SOS_CMD_PORT");
-        if ( SOS->net.server_port == NULL ) { fprintf(stderr, "ERROR!  SOS_CMD_PORT environment variable is not set!\n"); exit(EXIT_FAILURE); }
-        if ( strlen(SOS->net.server_port) < 2 ) { fprintf(stderr, "ERROR!  SOS_CMD_PORT environment variable is not set!\n"); exit(EXIT_FAILURE); }
+        if ( SOS->net.server_port == NULL ) {
+            fprintf(stderr, "ERROR!  SOS_CMD_PORT environment variable is not set!\n");
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
+        }
+        if ( strlen(SOS->net.server_port) < 2 ) {
+            fprintf(stderr, "ERROR!  SOS_CMD_PORT environment variable is not set!\n");
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
+        }
 
-        SOS->net.server_hint.ai_family    = AF_UNSPEC;        /* Allow IPv4 or IPv6 */
-        SOS->net.server_hint.ai_protocol  = 0;                /* Any protocol */
-        SOS->net.server_hint.ai_socktype  = SOCK_STREAM;      /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+        SOS->net.server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6
+        SOS->net.server_hint.ai_protocol  = 0;                // Any protocol
+        SOS->net.server_hint.ai_socktype  = SOCK_STREAM;      // SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW
         SOS->net.server_hint.ai_flags     = AI_NUMERICSERV | SOS->net.server_hint.ai_flags;
 
-            retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port, &SOS->net.server_hint, &SOS->net.result_list );
-            if ( retval < 0 ) { dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port ); exit(1); }
+        retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port,
+             &SOS->net.server_hint, &SOS->net.result_list );
+        if (retval < 0) {
+            fprintf(stderr, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
+                SOS->net.server_host, SOS->net.server_port );
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
+        }
 
-        for ( SOS->net.server_addr = SOS->net.result_list ; SOS->net.server_addr != NULL ; SOS->net.server_addr = SOS->net.server_addr->ai_next ) {
-            /* Iterate the possible connections and register with the SOS daemon: */
-            server_socket_fd = socket(SOS->net.server_addr->ai_family, SOS->net.server_addr->ai_socktype, SOS->net.server_addr->ai_protocol );
-            if ( server_socket_fd == -1 ) continue;
-            if ( connect(server_socket_fd, SOS->net.server_addr->ai_addr, SOS->net.server_addr->ai_addrlen) != -1 ) break; /* success! */
+        for (SOS->net.server_addr = SOS->net.result_list ;
+            SOS->net.server_addr != NULL ;
+            SOS->net.server_addr = SOS->net.server_addr->ai_next)
+        {
+            // Iterate the possible connections and register with the SOS daemon:
+            server_socket_fd = socket(SOS->net.server_addr->ai_family,
+                SOS->net.server_addr->ai_socktype, SOS->net.server_addr->ai_protocol);
+            if (server_socket_fd == -1) { continue; }
+            if (connect(server_socket_fd, SOS->net.server_addr->ai_addr,
+                    SOS->net.server_addr->ai_addrlen) != -1 ) break;  // Success!
             close( server_socket_fd );
         }
 
         freeaddrinfo( SOS->net.result_list );
         
-        if (server_socket_fd == 0) { dlog(0, "ERROR!  Could not connect to the server.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port); exit(1); }
+        if (server_socket_fd == 0) {
+            fprintf(stderr, "ERROR!  Could not connect to the server.  (%s:%s)\n",
+                SOS->net.server_host, SOS->net.server_port);
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
+        }
 
-        dlog(1, "  ... registering this instance with SOS->   (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
+        dlog(4, "  ... registering this instance with SOS->   (%s:%s)\n",
+            SOS->net.server_host, SOS->net.server_port);
 
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
@@ -307,27 +347,30 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
         pthread_mutex_lock(SOS->net.send_lock);
 
-        dlog(1, "Built a registration message:\n");
-        dlog(1, "  ... buffer->data == %ld\n", (long) buffer->data);
-        dlog(1, "  ... buffer->len  == %d\n", buffer->len);
-        dlog(1, "Calling send...\n");
+        dlog(4, "Built a registration message:\n");
+        dlog(4, "  ... buffer->data == %ld\n", (long) buffer->data);
+        dlog(4, "  ... buffer->len  == %d\n", buffer->len);
+        dlog(4, "Calling send...\n");
 
         retval = send( server_socket_fd, buffer->data, buffer->len, 0);
 
         if (retval < 0) {
-            dlog(0, "ERROR!  Could not write to server socket!  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
-            //exit(EXIT_FAILURE);
-            SOS = NULL;
+            fprintf(stderr, "ERROR!  Could not write to server socket!  (%s:%s)\n",
+                SOS->net.server_host, SOS->net.server_port);
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
             return;
         } else {
-            dlog(1, "   ... registration message sent.   (retval == %d)\n", retval);
+            dlog(4, "Registration message sent.   (retval == %d)\n", retval);
         }
 
         SOS_buffer_wipe(buffer);
 
-        dlog(1, "  ... listening for the server to reply...\n");
-        buffer->len = recv( server_socket_fd, (void *) buffer->data, buffer->max, 0);
-        dlog(6, "  ... server responded with %d bytes.\n", retval);
+        dlog(4, "  ... listening for the server to reply...\n");
+        buffer->len = recv(server_socket_fd, (void *) buffer->data, buffer->max, 0);
+        dlog(4, "  ... server responded with %d bytes.\n", retval);
 
         close( server_socket_fd );
         pthread_mutex_unlock(SOS->net.send_lock);
@@ -336,14 +379,16 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS_buffer_unpack(buffer, &offset, "gg",
                           &guid_pool_from,
                           &guid_pool_to);
-        dlog(1, "  ... received guid range from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
-        dlog(1, "  ... configuring uid sets.\n");
+        dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
+            SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
+        dlog(4, "  ... configuring uid sets.\n");
 
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
-        SOS_uid_init(SOS, &SOS->uid.my_guid_pool, guid_pool_from, guid_pool_to);
+        SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
+            guid_pool_from, guid_pool_to);
 
-        SOS->my_guid = SOS_uid_next( SOS->uid.my_guid_pool );
-        dlog(1, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
+        SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
+        dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
 
         SOS_buffer_destroy(buffer);
 
@@ -352,16 +397,14 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
          //
          //  CONFIGURATION: LISTENER / AGGREGATOR / etc.
          //
-
-        dlog(1, "  ... skipping socket setup (becase we're the daemon).\n");
-        
+         // This space reserved for future use.  ^_^ 
     }
 
     *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
 
     dlog(1, "  ... done with SOS_init().\n");
-    dlog(1, "SOS->status = SOS_STATUS_RUNNING\n");
+    dlog(4, "SOS->status = SOS_STATUS_RUNNING\n");
     return;
 }
 
@@ -483,22 +526,36 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     pthread_mutex_lock(SOS->net.send_lock);
     dlog(6, "Processing a send to the daemon.\n");
 
-    retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port, &SOS->net.server_hint, &SOS->net.result_list );
-    if ( retval < 0 ) { dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port ); exit(1); }
+    retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port,
+        &SOS->net.server_hint, &SOS->net.result_list);
+    if (retval < 0) {
+        dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
+            SOS->net.server_host, SOS->net.server_port );
+        pthread_mutex_unlock(SOS->net.send_lock);
+        return;
+    }
     
-    /* Iterate the possible connections and register with the SOS daemon: */
-    for ( SOS->net.server_addr = SOS->net.result_list ; SOS->net.server_addr != NULL ; SOS->net.server_addr = SOS->net.server_addr->ai_next ) {
-        server_socket_fd = socket(SOS->net.server_addr->ai_family, SOS->net.server_addr->ai_socktype, SOS->net.server_addr->ai_protocol );
-        if ( server_socket_fd == -1 ) continue;
-        if ( connect( server_socket_fd, SOS->net.server_addr->ai_addr, SOS->net.server_addr->ai_addrlen) != -1 ) break; /* success! */
-        close( server_socket_fd );
+    // Iterate the possible connections and register with the SOS daemon:
+    for (SOS->net.server_addr = SOS->net.result_list ;
+        SOS->net.server_addr != NULL ;
+        SOS->net.server_addr = SOS->net.server_addr->ai_next)
+    {
+        server_socket_fd = socket(SOS->net.server_addr->ai_family,
+            SOS->net.server_addr->ai_socktype,
+            SOS->net.server_addr->ai_protocol);
+        if (server_socket_fd == -1) { continue; }
+        if (connect(server_socket_fd, SOS->net.server_addr->ai_addr,
+            SOS->net.server_addr->ai_addrlen) != -1) break; // Success!
+        close(server_socket_fd);
     }
     
     freeaddrinfo( SOS->net.result_list );
     
     if (server_socket_fd == 0) {
-        dlog(0, "Error attempting to connect to the server.  (%s:%s)\n", SOS->net.server_host, SOS->net.server_port);
-        exit(1);
+        dlog(0, "Error attempting to connect to the server.  (%s:%s)\n",
+            SOS->net.server_host, SOS->net.server_port);
+        pthread_mutex_unlock(SOS->net.send_lock);
+        return;
     }
 
     int more_to_send      = 1;
@@ -509,8 +566,9 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
     SOS_TIME(time_start);
     while (more_to_send) {
         if (failed_send_count > 8) {
-            dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts. Terminating.\n");
-            exit(EXIT_FAILURE);
+            dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts.\n");
+            pthread_mutex_unlock(SOS->net.send_lock);
+            return;
         }
         retval = send(server_socket_fd, (send_buffer->data + retval), send_buffer->len, 0 );
         if (retval < 0) {
@@ -531,9 +589,11 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
 
     offset = 0;
 
-    /* TODO: { COMMUNICATION, SOCKET } Make this a nice loop like the daemon... */
+    // TODO: { COMMUNICATION, SOCKET } Make this a nice loop like the daemon... 
     reply_buffer->len = recv(server_socket_fd, reply_buffer->data, reply_buffer->max, 0);
 
+
+    // Done!
     close( server_socket_fd );
     pthread_mutex_unlock(SOS->net.send_lock);
 
@@ -608,33 +668,51 @@ SOS_THREAD_receives_direct(void *args)
     insock.server_port = 0;    // NOTE: 0 = Request an OS-assigned open port.
 
     memset(&insock.server_hint, '\0', sizeof(struct addrinfo));
-    insock.server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
-    insock.server_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
-    insock.server_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
-    insock.server_hint.ai_protocol   = 0;             /* Any protocol */
+    insock.server_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    insock.server_hint.ai_socktype   = SOCK_STREAM;   // SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW
+    insock.server_hint.ai_flags      = AI_PASSIVE;    // For wildcard IP addresses
+    insock.server_hint.ai_protocol   = 0;             // Any protocol
     insock.server_hint.ai_canonname  = NULL;
     insock.server_hint.ai_addr       = NULL;
     insock.server_hint.ai_next       = NULL;
 
-    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint, &insock.result);
-    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", strerror(errno)); exit(EXIT_FAILURE); }
+    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
+        &insock.result);
 
-    for ( insock.server_addr = insock.result ; insock.server_addr != NULL ; insock.server_addr = insock.server_addr->ai_next ) {
+    if (i != 0) {
+        fprintf(stderr, "ERROR: Feedback broken, client-side getaddrinfo()"
+            " failed. (%s)\n", strerror(errno));
+        fflush(stderr);
+        return NULL;
+    }
+
+    for (insock.server_addr = insock.result ;
+        insock.server_addr != NULL ; 
+        insock.server_addr = insock.server_addr->ai_next )
+    {
         dlog(1, "Trying an address...\n");
 
-        insock.server_socket_fd = socket(insock.server_addr->ai_family, insock.server_addr->ai_socktype, insock.server_addr->ai_protocol );
-        if ( insock.server_socket_fd < 1) {
-            dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
+        insock.server_socket_fd = socket(insock.server_addr->ai_family,
+            insock.server_addr->ai_socktype, insock.server_addr->ai_protocol);
+
+        if (insock.server_socket_fd < 1) {
+            fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
+                strerror(errno));
+            fflush(stderr);
             continue;
         }
 
-        // Allow this socket to be reused/rebound quickly by the daemon.
-        if ( setsockopt( insock.server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-            dlog(0, "  ... could not set socket options.  (%s)\n", strerror(errno));
+        // Allow this socket to be reused/rebound quickly.
+        if (setsockopt(insock.server_socket_fd, SOL_SOCKET, SO_REUSEADDR,
+            &yes, sizeof(int)) == -1)
+        {
+            dlog(0, "  ... could not set socket options.  (%s)\n",
+                strerror(errno));
             continue;
         }
 
-        if ( bind( insock.server_socket_fd, insock.server_addr->ai_addr, insock.server_addr->ai_addrlen ) == -1 ) {
+        if ( bind( insock.server_socket_fd, insock.server_addr->ai_addr,
+                insock.server_addr->ai_addrlen ) == -1 ) {
             dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
             close( insock.server_socket_fd );
             continue;
@@ -644,8 +722,9 @@ SOS_THREAD_receives_direct(void *args)
     }
 
     if ( insock.server_socket_fd < 0 ) {
-        dlog(0, "  ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", errno, strerror(errno));
-        exit(EXIT_FAILURE);
+        dlog(0, "ERROR: Client could not socket/setsockopt/bind to anything"
+            " to receive feedback. (%d:%s)\n", errno, strerror(errno));
+         
     } else {
         dlog(0, "  ... got a socket, and bound to it!\n");
     }
@@ -654,11 +733,17 @@ SOS_THREAD_receives_direct(void *args)
 
      // Enforce that this is a BLOCKING socket:
     opts = fcntl(insock.server_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", strerror(errno)); }
+    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the"
+          " server_socket_fd to get its options.  Carrying on.  (%s)\n",
+          strerror(errno));
+    }
  
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(insock.server_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", strerror(errno)); }
+    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
+        " server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n",
+        strerror(errno));
+    }
 
 
     listen( insock.server_socket_fd, insock.listen_backlog );
@@ -754,10 +839,12 @@ void* SOS_THREAD_receives_timed(void *args) {
             &header.pub_guid);
 
         if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
-            dlog(0, "WARNING: sosd (daemon) responded to a CHECK_IN_MSG with malformed FEEDBACK!\n");
+            dlog(0, "WARNING: sosd (daemon) responded to a CHECK_IN_MSG"
+                " with malformed FEEDBACK!\n");
             error_count++;
             if (error_count > 5) { 
-                dlog(0, "ERROR: Too much mal-formed feedback, shutting down feedback thread.\n");
+                dlog(0, "ERROR: Too much mal-formed feedback, shutting"
+                    " down feedback thread.\n");
                 break;
             }
             gettimeofday(&tp, NULL);

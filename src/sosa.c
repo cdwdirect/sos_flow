@@ -57,7 +57,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     offset = 0;
     SOS_buffer_pack(msg, &offset, "i", header.msg_size);
 
-    dlog(7, "   ... sending to db(world_rank:%d)\n", SOSA.db_target_rank);
+    dlog(7, "   ... sending to aggregator.\n");
     SOSA_send_to_target_db(msg, reply);
 
     dlog(7, "   ... extracting response into result set.\n");
