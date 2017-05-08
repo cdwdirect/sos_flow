@@ -1,9 +1,9 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 set(POSITION_INDEPENDENT_CODE True)
 
-if(SOSD_CLOUD_SYNC_WITH_MPI)
+#if(SOSD_CLOUD_SYNC_WITH_MPI)
 	include_directories("${MPI_INCLUDE_PATH}")
-endif()
+#endif()
 
 include_directories("${sos_flow_SOURCE_DIR}/src")
 #   link_directories("${sos_flow_SOURCE_DIR}/lib")
@@ -108,13 +108,13 @@ if(CMAKE_THREAD_LIBS_INIT)
     "sos_qhashtbl"
     "sos_pipe"
     "${CMAKE_THREAD_LIBS_INIT}"
-    "${MPI_LIBRARIES}")
+    "${MPI_C_LIBRARIES}")
 endif()
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("sosa" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("sosa" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("sosa" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("sosa" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 
@@ -146,7 +146,7 @@ if(SOSD_CLOUD_SYNC)
       "sos_buffer"
       "sos_pipe"
       "sosa"
-      "${MPI_LIBRARIES}"
+      "${MPI_C_LIBRARIES}"
       "${SQLITE3_LIBRARY}"
 	  "${DYNAMICLIB}")
     if(APPLE)
@@ -155,11 +155,11 @@ if(SOSD_CLOUD_SYNC)
         target_link_libraries("sosd" "rt")
     endif()
 
-    if(MPI_COMPILE_FLAGS)
-      set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+    if(MPI_C_COMPILE_FLAGS)
+      set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
     endif()
-    if(MPI_LINK_FLAGS)
-      set_target_properties("sosd" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+    if(MPI_C_LINK_FLAGS)
+      set_target_properties("sosd" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
     endif()
 
 
@@ -240,24 +240,24 @@ endif()
 #TARGET ---> sosd_stop
 #            (shut down the daemon)
 add_executable("sosd_stop" "sosd_stop.c")
-target_link_libraries("sosd_stop" "sos" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("sosd_stop" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+target_link_libraries("sosd_stop" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("sosd_stop" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("sosd_stop" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("sosd_stop" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 
 #TARGET ---> sosd_probe
 #            (get daemon satus and display it)
 add_executable("sosd_probe" "sosd_probe.c")
-target_link_libraries("sosd_probe" "sos" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("sosd_probe" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+target_link_libraries("sosd_probe" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("sosd_probe" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("sosd_probe" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("sosd_probe" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 
@@ -266,23 +266,23 @@ endif()
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "demo_app.c")
-target_link_libraries("demo_app" "sos" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
- 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+target_link_libraries("demo_app" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+ 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
-if(MPI_LINK_FLAGS)
-	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+if(MPI_C_LINK_FLAGS)
+	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 #TARGET ---> demo_sweep
 #            (demonstration / example)
 add_executable("demo_sweep" "demo_sweep.c")
-target_link_libraries("demo_sweep" "sos" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("demo_sweep" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+target_link_libraries("demo_sweep" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("demo_sweep" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("demo_sweep" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("demo_sweep" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 
@@ -292,12 +292,12 @@ endif()
 #TARGET ---> proc_app
 #            (demonstration / example)
 add_executable("proc_app" "proc_app.c")
-target_link_libraries("proc_app" "sos" "${MPI_LIBRARIES}")
-if(MPI_COMPILE_FLAGS)
-  set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
-if(MPI_LINK_FLAGS)
-  set_target_properties("proc_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("proc_app" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 
