@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 echo "Starting AGGREGATOR 0..."
-env SOS_CMD_PORT=22690 ./bin/sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
+env SOS_CMD_PORT=20690 ./bin/sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
 echo "Starting AGGREGATOR 1..."
 env SOS_CMD_PORT=20691 ./bin/sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
 echo "Starting AGGREGATOR 2..."

@@ -1402,6 +1402,8 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     header.msg_from = SOS->config.comm_rank;
     header.pub_guid = -1;
 
+    dlog(5, "Assembling probe data structure...\n");
+
     int offset = 0;
     SOS_buffer_pack(reply, &offset, "iigg",
                     header.msg_size,
@@ -1411,7 +1413,10 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
 
     /* Don't need to lock for probing because it doesn't matter if we're a little off. */
     uint64_t queue_depth_local     = SOSD.sync.local.queue->elem_count;
-    uint64_t queue_depth_cloud     = SOSD.sync.cloud_send.queue->elem_count;
+    uint64_t queue_depth_cloud     = 0;
+    if (SOS->role == SOS_ROLE_LISTENER) {
+        queue_depth_cloud          = SOSD.sync.cloud_send.queue->elem_count;
+    }
     uint64_t queue_depth_db_tasks  = SOSD.sync.db.queue->elem_count;
     uint64_t queue_depth_db_snaps  = SOSD.db.snap_queue->elem_count;
 
@@ -1487,6 +1492,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
 
     // Buffer is now ready to send...
 
+    dlog(5, "   ...sending probe results, len = %d\n", reply->len);
     i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
@@ -1495,6 +1501,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     }
 
     SOS_buffer_destroy(reply);
+    dlog(5, "   ...done.\n");
     return;
 }
 
