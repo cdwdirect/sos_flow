@@ -102,8 +102,6 @@ int main(int argc, char *argv[]) {
 
     srandom(my_sos->my_guid);
 
-    printf("demo_app starting...\n"); fflush(stdout);
-    
     if (rank == 0) dlog(0, "Creating a pub...\n");
 
     SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
@@ -183,9 +181,7 @@ int main(int argc, char *argv[]) {
         //SOS_publish(pub);
     }
 
-    dlog(0, "  ... done.\n");
 
-    if (rank == 0) dlog(0, "demo_app finished successfully!\n");
     SOS_finalize(my_sos);
     MPI_Finalize(); 
     return (EXIT_SUCCESS);

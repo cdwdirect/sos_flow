@@ -1,34 +1,61 @@
+#!/bin/bash
+#
 echo "Starting AGGREGATOR 0..."
-env SOS_CMD_PORT=20506 ./bin/sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
+env SOS_CMD_PORT=22690 ./bin/sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
 echo "Starting AGGREGATOR 1..."
-env SOS_CMD_PORT=20507 ./bin/sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
-eecho "Starting AGGREGATOR 2..."
-env SOS_CMD_PORT=20508 ./bin/sosd -l 10 -a 3 -w `pwd` -k 2 -r aggregator &
+env SOS_CMD_PORT=20691 ./bin/sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
+echo "Starting AGGREGATOR 2..."
+env SOS_CMD_PORT=20692 ./bin/sosd -l 10 -a 3 -w `pwd` -k 2 -r aggregator &
 echo "Waiting for 3 seconds..."
 sleep 3
 echo "Starting LISTENERS..."
-env SOS_CMD_PORT=22500 ./bin/sosd -l 10 -a 3 -w `pwd` -k 3 -r listener &
-env SOS_CMD_PORT=22501 ./bin/sosd -l 10 -a 3 -w `pwd` -k 4 -r listener &
-env SOS_CMD_PORT=22502 ./bin/sosd -l 10 -a 3 -w `pwd` -k 5 -r listener &
-env SOS_CMD_PORT=22503 ./bin/sosd -l 10 -a 3 -w `pwd` -k 6 -r listener &
-env SOS_CMD_PORT=22504 ./bin/sosd -l 10 -a 3 -w `pwd` -k 7 -r listener &
-env SOS_CMD_PORT=22505 ./bin/sosd -l 10 -a 3 -w `pwd` -k 8 -r listener &
-env SOS_CMD_PORT=22506 ./bin/sosd -l 10 -a 3 -w `pwd` -k 9 -r listener &
-env SOS_CMD_PORT=22507 ./bin/sosd -l 10 -a 3 -w `pwd` -k 10 -r listener &
-env SOS_CMD_PORT=22508 ./bin/sosd -l 10 -a 3 -w `pwd` -k 11 -r listener &
-env SOS_CMD_PORT=22509 ./bin/sosd -l 10 -a 3 -w `pwd` -k 12 -r listener &
+for myport in `seq 22500 22509`;
+do
+    let "myrank = $myport - 22500 + 3"
+    env SOS_CMD_PORT=$myport ./bin/sosd -l 10 -a 3 -w `pwd` -k $myrank -r listener &
+done
 echo "All listeners are now online (ports 22500-22509)"
-echo "Waiting for 3 seconds..."
-sleep 3
+echo ""
+echo ""
+VALMAX="100000"
+read -e -p "How many values should be injected into each daemon instance? (100000): " -i "100000" VALMAX 
 echo "Starting demo_apps (1 per listener)"
-env SOS_CMD_PORT=22500 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22501 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22502 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22503 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22504 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22505 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22506 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22507 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22508 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-env SOS_CMD_PORT=22509 ./bin/demo_app -i 10 -m 200000 -p 100 -d 100000 &
-echo "Script complete ... demo_apps running."
+for myport in `seq 22500 22509`;
+do
+    env SOS_CMD_PORT=$myport ./bin/demo_app -i 100 -m $VALMAX -p 100 -d 100000 &
+done
+SLEEPKILL="n"
+read -e -p "Do you want to sleep and then shut down the daemons? (y/N): " -i "n" SLEEPKILL
+if [ "$SLEEPKILL" == "y" ]; then
+    DELAYMAX=20
+    read -e -p "How many seconds should elapse before bringing down the daemons? (20): " -i "20" DELAYMAX
+    echo "Sleeping for $DELAYMAX seconds while they run..."
+    for i in `seq 1 $DELAYMAX`;
+    do
+        echo -n "$i / $DELAYMAX ["
+        for x in `seq 1 10`;
+        do
+            echo -n "."
+            sleep 0.09
+        done
+        echo "]"
+    done
+    echo ""
+    echo "Bringing down the listeners..."
+    for myport in `seq 22500 22509`;
+    do
+        env SOS_CMD_PORT=$myport ./bin/sosd_stop
+    done
+    echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
+    $SOS_ROOT/scripts/showdb
+else
+    echo ""
+    echo "Leaving script.  Daemons and demo_app are likely still running..."
+    echo ""
+    ps
+    echo ""
+    echo "To bring down all the listeners, run this command:"
+    echo ""
+    echo -E "    for myport in \`seq 22500 22509\`; do env SOS_CMD_PORT=\$myport \$SOS_BUILD_DIR/bin/sosd_stop; done; \$SOS_ROOT/scripts/showdb;"
+    echo ""  
+fi
