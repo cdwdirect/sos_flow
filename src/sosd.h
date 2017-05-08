@@ -227,6 +227,8 @@ extern "C" {
     void* SOSD_THREAD_db_sync(void *args);
 
     void  SOSD_listen_loop(void);
+    void  SOSD_send_to_self(SOS_buffer *msg, SOS_buffer *reply);
+
     void  SOSD_handle_register(SOS_buffer *buffer);
     void  SOSD_handle_guid_block(SOS_buffer *buffer);
     void  SOSD_handle_announce(SOS_buffer *buffer);

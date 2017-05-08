@@ -9,7 +9,6 @@ module load cmake
 module swap PrgEnv-pgi PrgEnv-gnu
 
 export SOS_CMD_PORT=22500
-export SOS_DB_PORT=22503
 export SOS_ROOT=$BASEDIR
 export SOS_WORK=.
 export BUILDDIR=build-titan
