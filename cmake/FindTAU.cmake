@@ -40,7 +40,14 @@ message(STATUS "Looking for TAU Pthread wrapper in ${TAU_LIBRARY_DIR}/static${TA
 find_path(TAU_LIBRARY_DIR_2 NAME libTauPthreadWrap.a
              PATHS ${TAU_LIBRARY_DIR}/static${TAU_CONFIG})
 
-set(TAU_LIBRARIES ${TAU_LIBRARY})
+# set(TAU_LIBRARIES ${TAU_LIBRARY})
+# get the full list of TAU libraries.
+set(ENV{TAU_MAKEFILE} ${TAU_ROOT}/${TAU_ARCH}/lib/Makefile.tau${TAU_CONFIG})
+set(TAU_CC_CMD ${TAU_ROOT}/${TAU_ARCH}/bin/tau_cc.sh)
+message(STATUS "TAU CC: ${TAU_CC_CMD}")
+execute_process(COMMAND ${TAU_CC_CMD} -tau:showlibs OUTPUT_VARIABLE TAU_LIBRARIES)
+message(STATUS "TAU libraries: ${TAU_LIBRARIES}")
+
 if (TAU_LIBRARY_DIR_2)
     message(STATUS "TAU Pthread wrapper found: ${TAU_LIBRARY_DIR_2}")
     file(READ ${TAU_LIBRARY_DIR}/wrappers/pthread_wrapper/link_options.tau TAU_PTHREAD_FLAGS)

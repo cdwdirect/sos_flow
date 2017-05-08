@@ -108,6 +108,7 @@ int main (int argc, char *argv[])
     MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
 
     adios_init ("arrays.xml", adios_comm);
+    my_printf("%s %s %d Started ADIOS.\n", argv[0], my_name, getpid());
 
     /*
      * Loop and do the things

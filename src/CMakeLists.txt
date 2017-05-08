@@ -1,9 +1,9 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 set(POSITION_INDEPENDENT_CODE True)
 
-#if(SOSD_CLOUD_SYNC_WITH_MPI)
-include_directories("${MPI_INCLUDE_PATH}")
-#endif()
+if(SOSD_CLOUD_SYNC_WITH_MPI)
+	include_directories("${MPI_INCLUDE_PATH}")
+endif()
 
 include_directories("${sos_flow_SOURCE_DIR}/src")
 #   link_directories("${sos_flow_SOURCE_DIR}/lib")
@@ -25,6 +25,8 @@ if(DEFINED EVPATH_FOUND)
     include_directories(${EVPATH_INCLUDE_DIRS})
     link_directories(${EVPATH_LIBRARY_DIRS})
     link_libraries(${EVPATH_LIBRARIES})
+    link_directories(${FABRIC_LIBRARY_DIRS})
+    link_libraries(${FABRIC_LIBRARIES})
 endif()
 
 if(SOS_SILENCE_DEBUG)
@@ -145,7 +147,8 @@ if(SOSD_CLOUD_SYNC)
       "sos_pipe"
       "sosa"
       "${MPI_LIBRARIES}"
-      "${SQLITE3_LIBRARY}")
+      "${SQLITE3_LIBRARY}"
+	  "${DYNAMICLIB}")
     if(APPLE)
         # Apple does not support the '-lrt' compiler option.
     else()
@@ -173,7 +176,7 @@ if(SOSD_CLOUD_SYNC)
       "sos_buffer.c"
       "sos_pipe.c"
       "sosa.c")
-    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
+    set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC -fsanitize=threads")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     target_link_libraries("sosd"
       "sos"
@@ -184,7 +187,8 @@ if(SOSD_CLOUD_SYNC)
       "evpath"
       "ffs"
       "atl"
-      "${SQLITE3_LIBRARY}")
+      "${SQLITE3_LIBRARY}"
+	  "${DYNAMICLIB}")
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
     else()
@@ -216,7 +220,8 @@ else()
     "sos_buffer"
     "sos_pipe"
     "sosa"
-    "${SQLITE3_LIBRARY}")
+    "${SQLITE3_LIBRARY}"
+	"${DYNAMICLIB}")
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.
   else()
@@ -263,14 +268,11 @@ endif()
 add_executable("demo_app" "demo_app.c")
 target_link_libraries("demo_app" "sos" "${MPI_LIBRARIES}")
 if(MPI_COMPILE_FLAGS)
-  set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
+ 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
 endif()
 if(MPI_LINK_FLAGS)
-  set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
+	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
 endif()
-
-
-
 
 #TARGET ---> demo_sweep
 #            (demonstration / example)
