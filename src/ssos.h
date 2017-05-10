@@ -46,13 +46,14 @@
 
 
 typedef struct {
-    int          col_count;
+    void        *sos_context;
+    uint32_t     col_max;
+    uint32_t     col_count;
     char       **col_names;
-    int          row_count;
+    uint32_t     row_max;
+    uint32_t     row_count;
     char      ***data;
 } SSOS_query_results;
-
-
 
 #ifdef __cplusplus
 extern "C" {

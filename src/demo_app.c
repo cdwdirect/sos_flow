@@ -117,12 +117,11 @@ int main(int argc, char *argv[]) {
     pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
 
-    if (rank == 0) dlog(0, "Packing a couple values...\n");
-    var_int = 1234567890;
-    snprintf(var_string, 100, "Hello, world!");
-
-    SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
-    SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
+    //if (rank == 0) dlog(0, "Packing a couple values...\n");
+    //var_int = 1234567890;
+    //snprintf(var_string, 100, "Hello, world!");
+    //SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
+    //SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
 
     var_double = 0.0;
 

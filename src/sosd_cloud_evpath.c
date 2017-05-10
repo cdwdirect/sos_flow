@@ -222,6 +222,8 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     SOSD_evpath_ready_to_listen = true;
     dlog(0, "done.\n");
 
+    CMfork_comm_thread(evp->cm);
+
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
         dlog(0, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
@@ -423,8 +425,20 @@ void  SOSD_cloud_fflush(void) {
 int   SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.EVPATH");
 
-    // NOTE: This is not used with EVPath.
-    
+    SOSD_evpath *evp = &SOSD.daemon.evpath;
+
+    if (SOSD.sos_context->role != SOS_ROLE_AGGREGATOR) {
+        return 0;
+    }
+    char *contact_filename = (char *) calloc(2048, sizeof(char));
+    snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
+        evp->meetup_path, SOS->config.comm_rank);
+    dlog(1, "   Removing key file: %s\n", contact_filename);
+
+    if (remove(contact_filename) == -1) {
+        dlog(0, "   Error, unable to delete key file!\n");
+    }
+
     return 0;
 }
 
@@ -507,7 +521,7 @@ void  SOSD_cloud_listen_loop(void) {
             usleep(50000);
     }
 
-    CMrun_network(SOSD.daemon.evpath.cm);
+    //CMrun_network(SOSD.daemon.evpath.cm);
 
     return;
 }

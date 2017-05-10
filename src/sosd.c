@@ -911,20 +911,21 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
 
 
 void SOSD_handle_sosa_query(SOS_buffer *buffer) { 
-    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_query");
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_sosa_query");
     SOS_msg_header header;
     int            offset;
     int            rc;
-    SOS_buffer    *result;
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
+    offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
         &header.pub_guid);
 
+    SOS_buffer *result = NULL;
     SOS_buffer_init_sized_locking(SOS, &result, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOSD_db_handle_sosa_query(buffer, result);
