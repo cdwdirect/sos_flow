@@ -1,5 +1,7 @@
+#!/bin/bash
+export ASAN_OPTIONS="abort_on_error=0"
 echo "Starting AGGREGATOR..."
-env SOS_CMD_PORT=20506 ./bin/sosd -l 1 -a 1 -w `pwd` -k 0 -r aggregator &
+env SOS_CMD_PORT=20690 ./bin/sosd -l 1 -a 1 -w `pwd` -k 0 -r aggregator &
 echo "Waiting for 3 seconds..."
 sleep 3
 echo "Starting LISTENER..."

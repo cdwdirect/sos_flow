@@ -45,11 +45,11 @@ def demonstrateSOS():
         print "      ...OK!"
 
     print "Running a query..."
-    sql_string = "select * from tblvals where rowid < 11;"
+    sql_string = "select * from tblvals where rowid < 10;"
     print "SQL: " + sql_string
     results, col_names = SOS.query(sql_string)
-    pp.pprint(col_names)
-    pp.pprint(results)
+    #pp.pprint(col_names)
+    #pp.pprint(results)
 
     print "Finalizing..."
     SOS.finalize();

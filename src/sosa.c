@@ -23,8 +23,8 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
 
     if (results == NULL) {
-        dlog(0, "ERROR: Attempted to exec a query w/NULL results object!\n");
-        exit(EXIT_FAILURE);
+        fprintf(stderr, "ERROR: Attempted to exec a query w/NULL results object!\n");
+        return;
     }
 
     dlog(7, "Running query (%25s) ...\n", query);
@@ -41,10 +41,9 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     header.msg_from = SOS->config.comm_rank;
     header.pub_guid = 0;
 
-    int offset = 0;
-
     dlog(7, "   ... creating msg.\n");
 
+    int offset = 0;
     SOS_buffer_pack(msg, &offset, "iigg",
                     header.msg_size,
                     header.msg_type,
@@ -190,6 +189,13 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
 
     results->col_count = col_incoming;
     results->row_count = row_incoming;
+
+    printf("SOSA: results->col_count == %d\n", results->col_count);
+    printf("SOSA: results->row_count == %d\n", results->row_count);
+    fflush(stdout);
+
+    SOSA_results_output_to(stdout, results, "test", SOSA_OUTPUT_DEFAULT);
+
 
     dlog(7, "   ... done.\n");
     return;
@@ -361,8 +367,13 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
     dlog(7, "Allocating space for a new results set...\n");
 
-    SOSA_results *results = *results_object_ptraddr = (SOSA_results *) calloc(1, sizeof(SOSA_results));
+    if (results_object_ptraddr != NULL) {
+        if (*results_object_ptraddr == NULL) {
+            *results_object_ptraddr = (SOSA_results *) calloc(1, sizeof(SOSA_results));
+        }
+    }
 
+    SOSA_results *results = *results_object_ptraddr; 
     results->sos_context = SOS;
 
     results->col_count   = 0;

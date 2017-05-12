@@ -1,8 +1,22 @@
+#!/bin/bash
 if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
 then 
-    for db in $SOS_WORK/sosd.*.db ; do
-        echo -n "[${db}]: max(rowid)|avg(latency) = "
-        sqlite3 ${db} "select max(rowid), avg(time_recv - time_send) from tblvals;"
+     SQL="SELECT"
+     SQL="$SQL MAX(rowid) AS entry_count,"
+     SQL="$SQL MIN(time_recv - time_send) AS min_latency,"
+     SQL="$SQL AVG(time_recv - time_send) AS avg_latency," 
+     SQL="$SQL MAX(time_recv - time_send) AS max_latency "
+     SQL="$SQL FROM tblVals;"
+     #
+     echo "SQL:"
+     echo "----------"
+     echo "$SQL"
+     echo "----------"
+     for db in $SOS_WORK/sosd.*.db ; do
+        #
+        echo -n "[${db}]:max(rowid)|min|avg|max(latency) == "
+        sqlite3 -separator " | " $db "$SQL"
+        # 
     done
 else
     echo ""

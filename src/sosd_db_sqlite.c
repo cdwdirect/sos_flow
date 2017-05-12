@@ -363,16 +363,18 @@ void SOSD_db_transaction_commit() {
 void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    //pthread_mutex_lock(SOSD.db.lock);
-
-    sqlite3 *sosa_conn;
-    int flags = SQLITE_OPEN_READONLY;
-
-    sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
+    // Technique 1: Open a new connection to the database, read-only...
+    //sqlite3 *sosa_conn;
+    //int flags = SQLITE_OPEN_READONLY;
+    //sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
+    
+    // Technique 2: Lock the database and query it: 
+    pthread_mutex_lock(SOSD.db.lock);
+    sqlite3 *sosa_conn = database;
 
     SOS_msg_header   header;
-    char            *sosa_query      = NULL;
-    sqlite3_stmt    *sosa_statement  = NULL;
+
+    dlog(4, "Extracting the message...\n");
 
     int offset = 0;
     SOS_buffer_unpack(msg, &offset, "iigg",
@@ -381,19 +383,26 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
         &header.msg_from,
         &header.pub_guid);
 
+    char *sosa_query = NULL;
     SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
 
+    dlog(7, "Query extracted: %s\n", sosa_query);
+
     int rc = 0;
-    rc = sqlite3_prepare_v2( sosa_conn, sosa_query, -1, &sosa_statement, NULL);
-    /*    if (rc != SQLITE_OK) {
-    dlog(0, "ERROR: Unable to prepare statement for analytics(rank:%" SOS_GUID_FMT ")'s query:    (%d: %s)\n\n\t%s\n\n",
-        header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
-        exit(EXIT_FAILURE);
-        }*/
+    sqlite3_stmt *sosa_statement = NULL;
+    rc = sqlite3_prepare_v2(sosa_conn, sosa_query,
+            strlen(sosa_query) + 1, &sosa_statement, NULL);
+    if (rc != SQLITE_OK) {
+        fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
+                SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
+                header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
+        pthread_mutex_unlock(SOSD.db.lock);
+        return;
+    } 
 
-    dlog(7, "Building result set...\n");
+    dlog(4, "Building result set...\n");
 
-    SOSA_results *results;
+    SOSA_results *results = NULL;
     SOSA_results_init(SOS, &results);
 
     int col = 0;
@@ -423,10 +432,10 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     }//while:rows
 
     sqlite3_finalize(sosa_statement);
-    sqlite3_close(sosa_conn);
-    //pthread_mutex_unlock(SOSD.db.lock);
+    pthread_mutex_unlock(SOSD.db.lock);
 
     SOSA_results_to_buffer(response, results);
+    SOSA_results_destroy(results);
 
     return;
 }
@@ -810,8 +819,6 @@ void SOSD_db_create_tables(void) {
 
     dlog(1, "  ... done.\n");
     return;
-
-
 
 }
 

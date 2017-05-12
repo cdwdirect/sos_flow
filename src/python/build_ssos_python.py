@@ -20,12 +20,15 @@ ffibuilder.set_source(
 
 ffibuilder.cdef("""    
 
-   typedef struct {
-       int          col_count;
-       char       **col_names;
-       int          row_count;
-       char      ***data;
-   } SSOS_query_results;
+    typedef struct {
+        void        *sos_context;
+        uint32_t     col_max;
+        uint32_t     col_count;
+        char       **col_names;
+        uint32_t     row_max;
+        uint32_t     row_count;
+        char      ***data;
+    } SSOS_query_results;
     
     void SSOS_init(void);
     void SSOS_is_online(int *addr_of_int32_flag);
