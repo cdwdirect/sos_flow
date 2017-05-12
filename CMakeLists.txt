@@ -52,8 +52,9 @@ set(PROJECT_NAME sos_flow)
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
 project(${PROJECT_NAME} C)
-set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g")
-#set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g -pedantic -Wall -Werror -Wno-unused-variable -Wno-unused-but-set-variable -Wno-unused-function -Wno-maybe-uninitialized")
+set(CMAKE_C_FLAGS_RELEASE "-std=gnu99 -O3 -g")
+set(CMAKE_C_FLAGS_DEBUG   "-std=gnu99 -O0 -g -fsanitize=thread")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO   "-std=gnu99 -g -Og")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")

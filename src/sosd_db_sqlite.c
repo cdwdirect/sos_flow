@@ -363,12 +363,14 @@ void SOSD_db_transaction_commit() {
 void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    pthread_mutex_lock(SOSD.db.lock);
-
+    // Technique 1: Open a new connection to the database, read-only...
     //sqlite3 *sosa_conn;
     //int flags = SQLITE_OPEN_READONLY;
-
     //sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
+    
+    // Technique 2: Lock the database and query it: 
+    pthread_mutex_lock(SOSD.db.lock);
+    sqlite3 *sosa_conn = database;
 
     SOS_msg_header   header;
 
@@ -388,7 +390,7 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     int rc = 0;
     sqlite3_stmt *sosa_statement = NULL;
-    rc = sqlite3_prepare_v2(database, sosa_query,
+    rc = sqlite3_prepare_v2(sosa_conn, sosa_query,
             strlen(sosa_query) + 1, &sosa_statement, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
@@ -400,7 +402,7 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     dlog(4, "Building result set...\n");
 
-    SOSA_results *results;
+    SOSA_results *results = NULL;
     SOSA_results_init(SOS, &results);
 
     int col = 0;

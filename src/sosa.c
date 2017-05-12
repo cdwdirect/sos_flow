@@ -367,8 +367,10 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
     dlog(7, "Allocating space for a new results set...\n");
 
-    if (results_object_ptraddr == NULL) {
-        *results_object_ptraddr = (SOSA_results *) calloc(1, sizeof(SOSA_results));
+    if (results_object_ptraddr != NULL) {
+        if (*results_object_ptraddr == NULL) {
+            *results_object_ptraddr = (SOSA_results *) calloc(1, sizeof(SOSA_results));
+        }
     }
 
     SOSA_results *results = *results_object_ptraddr; 

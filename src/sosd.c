@@ -602,7 +602,6 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         dlog(6, "Popped %d elements into %d spaces.\n", count, queue_depth);
 
-
         SOSD_db_transaction_begin();
 
         for (task_index = 0; task_index < count; task_index++) {
