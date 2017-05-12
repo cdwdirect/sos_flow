@@ -103,7 +103,7 @@ static void SOS_custom_signal_handler(int sig) {
     dlog(0, "***************************************\n");
     dlog(0, "\n");
     dlog(0, "\n");
-    pause();
+    exit(EXIT_FAILURE);
 }
 
 int SOS_register_signal_handler(SOS_runtime *sos_context) {

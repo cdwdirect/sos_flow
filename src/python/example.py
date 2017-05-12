@@ -21,10 +21,10 @@ def demonstrateSOS():
     print "Initializing SOS..."
     SOS.init()
 
-    print "Packing, announcing, publishing..."
-    SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
-    SOS.announce()
-    SOS.publish()
+#    print "Packing, announcing, publishing..."
+#    SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
+#    SOS.announce()
+#    SOS.publish()
 
     if (len(sys.argv) > 1):
         count = int(0)
@@ -45,7 +45,7 @@ def demonstrateSOS():
         print "      ...OK!"
 
     print "Running a query..."
-    sql_string = "select * from tblvals where rowid < 10;"
+    sql_string = "select * from tblvals;"
     print "SQL: " + sql_string
     results, col_names = SOS.query(sql_string)
     #pp.pprint(col_names)

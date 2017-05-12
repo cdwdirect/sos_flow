@@ -194,7 +194,7 @@ void SOSD_db_init_database() {
     pthread_mutex_init( SOSD.db.lock, NULL );
     pthread_mutex_lock( SOSD.db.lock );
 
-    flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
+    flags = SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX;
 
     #if (SOSD_CLOUD_SYNC > 0)
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.db", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
@@ -208,7 +208,7 @@ void SOSD_db_init_database() {
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -364,13 +364,15 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
     // Technique 1: Open a new connection to the database, read-only...
-    //sqlite3 *sosa_conn;
-    //int flags = SQLITE_OPEN_READONLY;
-    //sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
+    sqlite3 *sosa_conn;
+    int flags; 
+    flags = SQLITE_OPEN_READONLY
+        | SQLITE_OPEN_FULLMUTEX;
+    sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
     
     // Technique 2: Lock the database and query it: 
-    pthread_mutex_lock(SOSD.db.lock);
-    sqlite3 *sosa_conn = database;
+    //pthread_mutex_lock(SOSD.db.lock);
+    //sqlite3 *sosa_conn = database;
 
     SOS_msg_header   header;
 
@@ -432,10 +434,10 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     }//while:rows
 
     sqlite3_finalize(sosa_statement);
-    pthread_mutex_unlock(SOSD.db.lock);
 
     SOSA_results_to_buffer(response, results);
     SOSA_results_destroy(results);
+    //pthread_mutex_unlock(SOSD.db.lock);
 
     return;
 }
@@ -570,7 +572,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     __ENUM_C_TYPE mood;
 
     SOS_val_type      val_type;
-
+    int           val_insert_count = 0;
 
     val_alloc = (char *) malloc(SOS_DEFAULT_STRING_LEN);
 
@@ -603,7 +605,8 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
             dlog(5, "     ... error: invalid value type.  (%d)\n", val_type); break;
         }
 
-        dlog(5, "     ... binding values\n");
+        dlog(5, "     ... (%d) binding values\n", val_insert_count);
+        val_insert_count++;
 
         CALL_SQLITE (bind_int64  (stmt_insert_val, 1,  guid         ));
         if (val != NULL) {
@@ -630,6 +633,8 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         dlog(5, "     ... grabbing the next snap.\n");
     }
 
+    dlog(5, "   ... No more val snaps to process!\n");
+
     if (re_queue == NULL) {
         // Roll through and free the snaps.
         for (snap_index = 0; snap_index < snap_count ; snap_index++) {
@@ -642,10 +647,12 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         }
     } else {
        // Inject this snap queue into the next one en masse.
+       dlog(5, "Re-queue'ing this snap queue to send to the aggregator.\n");
        pthread_mutex_lock(re_queue->sync_lock);
        pipe_push(re_queue->intake, (void *) snap_list, snap_count);
        re_queue->elem_count += snap_count;
        pthread_mutex_unlock(re_queue->sync_lock);
+       dlog(5, "Done re-queueing.\n");
     }
 
     free(snap_list);
