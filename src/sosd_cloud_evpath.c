@@ -189,7 +189,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     // Do some sanity checks.
 
-    
+    if (SOSD.daemon.aggregator_count == 0) {
+        fprintf(stderr, "ERROR: SOS requires an aggregator.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
 
 
     // The cloud sync stuff gets calculated after we know
