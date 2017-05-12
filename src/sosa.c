@@ -32,7 +32,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     SOS_buffer *msg;
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &msg,   1024, false);
-    SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 204800, false);
 
 
     SOS_msg_header header;
