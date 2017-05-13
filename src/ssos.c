@@ -42,16 +42,6 @@ void SSOS_exec_query(char *sql, SSOS_query_results *results) {
     // Run the query with the traditional SOSA API.
     SOSA_exec_query(g_sos, sql, (SOSA_results *) results);
     
-    //printf("----------> SSOS sees these results:\n");
-    //fflush(stdout);
-    //SOSA_results_output_to(stdout, (SOSA_results *) results, "test", SOSA_OUTPUT_DEFAULT);
-
-    //printf("----------> SSOS has the following column names:\n");
-    int col = 0;
-    for (col = 0; col < results->col_count; col++) {
-        printf("\t%s\n", results->col_names[col]);
-    }
-    printf("Address of results object: %p\n", results);
     return;
 }
 

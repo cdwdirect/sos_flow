@@ -930,12 +930,14 @@ void SOSD_handle_sosa_query(SOS_buffer *buffer) {
     SOSD_db_handle_sosa_query(buffer, result);
 
     rc = send(SOSD.net.client_socket_fd, (void *) result->data, result->len, 0);
+    dlog(5, "replying with result->len == %d bytes, rc == %d\n", result->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
         SOSD_countof(socket_bytes_sent += rc);
     }
-       
+    
+    SOS_buffer_destroy(result);
     return;
 }
 

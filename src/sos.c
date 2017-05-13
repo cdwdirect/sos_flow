@@ -495,7 +495,7 @@ SOS_sense_activate(SOS_runtime *sos_context,
 // ----------
 
 
-void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
+void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply ) {
     SOS_SET_CONTEXT(send_buffer->sos_context, "SOS_send_to_daemon");
     SOS_msg_header header;
     int            server_socket_fd;
@@ -581,15 +581,53 @@ void SOS_send_to_daemon(SOS_buffer *send_buffer, SOS_buffer *reply_buffer ) {
 
     offset = 0;
 
-    // TODO: { COMMUNICATION, SOCKET } Make this a nice loop like the daemon... 
-    reply_buffer->len = recv(server_socket_fd, reply_buffer->data, reply_buffer->max, 0);
+    reply->len = recv(server_socket_fd, reply->data, 
+            reply->max, 0);
+    if (reply->len < 0) {
+        fprintf(stderr, "SOS: recv() call for reply from"
+                " daemon returned an error:\n\t\"%s\"\n",
+                strerror(errno));
+    }
 
+    memset(&header, '\0', sizeof(SOS_msg_header));
+    if (reply->len >= sizeof(SOS_msg_header)) {
+        int offset = 0;
+        SOS_buffer_unpack(reply, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+    } else {
+        fprintf(stderr, "SOS: Received malformed message from the"
+                " daemon.  (bytes: %d)\n", reply->len);
+        return;
+    }
+
+    /* Check the size of the message. We may not have gotten it all. */
+    while (header.msg_size > reply->len) {
+        int old = reply->len;
+        while (header.msg_size > reply->max) {
+            SOS_buffer_grow(reply, 1 + (header.msg_size - reply->max), SOS_WHOAMI);
+        }
+        int rest = recv(server_socket_fd, (void *) (reply->data + old), header.msg_size - old, 0);
+        if (rest < 0) {
+            fprintf(stderr, "SOS: recv() call for reply from"
+                    " daemon returned an error:\n\t\"(%s)\"\n",
+                    strerror(errno));
+            break;
+        } else {
+            dlog(6, "  ... recv() returned %d more bytes.\n", rest);
+        }
+        reply->len += rest;
+    }
+
+    // ###########################
 
     // Done!
     close( server_socket_fd );
     pthread_mutex_unlock(SOS->net.send_lock);
 
-    dlog(6, "Reply fully received.  reply_buffer->len == %d\n", reply_buffer->len);
+    dlog(6, "Reply fully received.  reply->len == %d\n", reply->len);
 
     return;
 }

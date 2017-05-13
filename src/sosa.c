@@ -14,7 +14,7 @@
 #endif
 
 #include "sos.h"
-#include "sosd.h"
+//#include "sosd.h"
 #include "sosa.h"
 #include "sos_types.h"
 #include "sos_debug.h"
@@ -32,7 +32,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     SOS_buffer *msg;
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &msg,   1024, false);
-    SOS_buffer_init_sized_locking(SOS, &reply, 204800, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
 
 
     SOS_msg_header header;
@@ -79,6 +79,9 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
         strval = nullstr;
     }
 
+    dlog(9, "put(row,col)== %d, %d\t\t-> result.max(row,col) == %d, %d\n",
+        row, col, results->row_max, results->col_max);
+
     if ((col >= results->col_max) || (row >= results->row_max)) {
         SOSA_results_grow_to(results, col, row);
     }
@@ -120,7 +123,19 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
 
     dlog(7, "Packing %d rows of %d columns into buffer...\n", results->row_count, results->col_count);
 
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_QUERY;
+    header.msg_from = SOS->config.comm_rank;
+    header.pub_guid = 0;
     int offset = 0;
+    SOS_buffer_pack(buffer, &offset, "iigg",
+        header.msg_size,
+        header.msg_type,
+        header.msg_from,
+        header.pub_guid);
+
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
                     results->row_count);
@@ -139,6 +154,10 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
             SOS_buffer_pack(buffer, &offset, "s", results->data[row][col]);
         }
     }
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
 
     dlog(7, "   ... done.\n");
 
@@ -162,14 +181,29 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
 
     int col_incoming = 0;
     int row_incoming = 0;
+
+    SOS_msg_header header;
     int offset = 0;
 
+    // Strip out the header...
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+
+    // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
                       &col_incoming,
                       &row_incoming);
 
+    dlog(9, "Unpacking a buffer with query results that contains %d rows and %d columns...\n",
+        row_incoming, col_incoming);
+    dlog(9, "results_befor (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
     SOSA_results_grow_to(results, col_incoming, row_incoming);
+    dlog(9, "results_after (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
     SOSA_results_wipe(results);
+    dlog(9, "results_wiped (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
 
     int col = 0;
     int row = 0;
@@ -190,12 +224,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     results->col_count = col_incoming;
     results->row_count = row_incoming;
 
-    printf("SOSA: results->col_count == %d\n", results->col_count);
-    printf("SOSA: results->row_count == %d\n", results->row_count);
     fflush(stdout);
-
-    SOSA_results_output_to(stdout, results, "test", SOSA_OUTPUT_DEFAULT);
-
 
     dlog(7, "   ... done.\n");
     return;
@@ -407,7 +436,7 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
     int row;
     int col;
 
-    if ((new_col_max <= results->col_max) && (new_row_max <= results->row_max)) {
+    if ((new_col_max < results->col_max) && (new_row_max < results->row_max)) {
         dlog(7, "NOTE: results->data[%d][%d] can already handle requested size[%d][%d].\n",
              results->row_max, results->col_max,
              new_row_max, new_col_max );

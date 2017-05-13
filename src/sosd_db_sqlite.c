@@ -208,7 +208,7 @@ void SOSD_db_init_database() {
      *   "unix-dotfile"  =uses a file as the lock.
      */
 
-    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
+    retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-dotfile");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
         sqlite3_close(database);
@@ -364,15 +364,15 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
     // Technique 1: Open a new connection to the database, read-only...
-    sqlite3 *sosa_conn;
-    int flags; 
-    flags = SQLITE_OPEN_READONLY
-        | SQLITE_OPEN_FULLMUTEX;
-    sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
+    // sqlite3 *sosa_conn;
+    // int flags; 
+    // flags = SQLITE_OPEN_READONLY
+     //    | SQLITE_OPEN_FULLMUTEX;
+    // sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
     
     // Technique 2: Lock the database and query it: 
-    //pthread_mutex_lock(SOSD.db.lock);
-    //sqlite3 *sosa_conn = database;
+    pthread_mutex_lock(SOSD.db.lock);
+    sqlite3 *sosa_conn = database;
 
     SOS_msg_header   header;
 
@@ -437,7 +437,7 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     SOSA_results_to_buffer(response, results);
     SOSA_results_destroy(results);
-    //pthread_mutex_unlock(SOSD.db.lock);
+    pthread_mutex_unlock(SOSD.db.lock);
 
     return;
 }
