@@ -44,19 +44,20 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    sql_string = "SELECT * FROM tblVals WHERE rowid < 600;"
-    print "Sending this query to the SOS daemon: " + sql_string
+    sql_string = "SELECT * FROM tblVals WHERE rowid < 4000;"
+    print "Sending this query to the SOS daemon: "
+    print "    " + sql_string
     results, col_names = SOS.query(sql_string)
-    print "Column count...: " + str(len(col_names)) 
-    print "Column names...: " + str(col_names)    #pp.pprint(col_names)
-    print "Output rows....: " + str(len(results))    #pp.pprint(results)
-
+    print "Results:"
+    print "    Output rows....: " + str(len(results))    #pp.pprint(results)
+    print "    Column count...: " + str(len(col_names)) 
+    print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
+    pp.pprint(col_names)
+    print ""
     print "Finalizing..."
     SOS.finalize();
-    print ""
     print "   ...DONE!"
-    print ""
-
+    print 
 
 if __name__ == "__main__":
     demonstrateSOS()
