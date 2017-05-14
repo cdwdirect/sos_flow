@@ -124,6 +124,7 @@ cmd="cmake \
      -DCMAKE_C_COMPILER=$CC \
      -DCMAKE_CXX_COMPILER=$CXX \
      ${evpathopts} \
+     -DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX \
      $cmake_extras \
      $BASEDIR"
 

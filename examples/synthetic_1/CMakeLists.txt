@@ -9,13 +9,15 @@ endif()
     if (TAU_FOUND)
         include_directories(${TAU_INCLUDE_DIRS})
         set(LIBS ${LIBS} ${TAU_LIBRARIES})
-        set (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_RPATH} ${TAU_LIBRARY_DIR})
+        #set (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_RPATH} ${TAU_LIBRARY_DIR})
     endif()
 #endif()
 
 # Make sure the compiler can find include files from MPI
 include_directories (.)
+if(DEFINED MPI_INCLUDE_PATH)
 include_directories("${MPI_INCLUDE_PATH}")
+endif(DEFINED MPI_INCLUDE_PATH)
 include_directories("${ADIOS_INCLUDE_DIRS}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
 
@@ -23,6 +25,12 @@ include_directories("${sos_flow_SOURCE_DIR}/src")
 add_executable (synthetic_worker_a main.c worker_a.c mandelbrot.c) 
 add_executable (synthetic_worker_b main.c worker_b.c mandelbrot.c) 
 add_executable (synthetic_worker_c main.c worker_c.c mandelbrot.c) 
+set_target_properties(synthetic_worker_a PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(synthetic_worker_a PROPERTIES LINK_SEARCH_END_STATIC 1)
+set_target_properties(synthetic_worker_b PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(synthetic_worker_b PROPERTIES LINK_SEARCH_END_STATIC 1)
+set_target_properties(synthetic_worker_c PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(synthetic_worker_c PROPERTIES LINK_SEARCH_END_STATIC 1)
 
 # NOTE: This is commented out because FindADIOS.cmake it likely handling all of it now.
 #

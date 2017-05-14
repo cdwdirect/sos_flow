@@ -1,1 +1,6 @@
-gcc -shared -fPIC leakchk.c -o leakchk.so
+#!/bin/bash
+if [ "x${SOS_ENV_SET}" == "x" ] ; then
+    echo "Please configure your environment for SOS.  (source <sos_root>/hosts/<hostname>/setenv.sh)"
+    kill -INT $$
+fi
+gcc -shared -fPIC leakchk.c -o leakchk.so && cp leakchk.so $SOS_BUILD_DIR/bin

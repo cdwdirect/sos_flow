@@ -7,7 +7,6 @@ echo $BASEDIR
 export EVENT_NOKQUEUE=1
 
 export SOS_CMD_PORT=22500
-export SOS_DB_PORT=22503
 export SOS_ROOT=$BASEDIR
 export SOS_WORK=/tmp
 export BUILDDIR=build-osx

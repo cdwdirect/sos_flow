@@ -29,7 +29,7 @@
 #define SOS_DEBUG_SHOW_LOCATION   0 
 
 /* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           0 
+#define SOSD_DAEMON_LOG           0
 #define SOSD_ECHO_TO_STDOUT       0 
 
 
