@@ -197,8 +197,6 @@ int main(int argc, char *argv[])  {
 
     // Done with param processing... fire things up.
 
-    unsetenv("SOS_SHUTDOWN");
-
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) {
@@ -285,10 +283,13 @@ int main(int argc, char *argv[])  {
     //
     SOSD_listen_loop();
     //
+    // Wait for the database to be done flushing...
+    //
+    pthread_join(*SOSD.sync.db.handler, NULL);
+    //
     // Done!  Cleanup and shut down.
     //
     //
-
 
     dlog(0, "Closing the sync queues:\n");
     if (SOSD.sync.local.queue != NULL) {
@@ -340,6 +341,9 @@ int main(int argc, char *argv[])  {
     remove(SOSD.daemon.lock_file);
     free(SOSD.daemon.name);
     free(SOSD.daemon.lock_file);
+
+    fprintf(stdout, "** SHUTDOWN **: sosd(%d) is exiting cleanly!\n", my_rank);
+    fflush(stdout);
 
     return(EXIT_SUCCESS);
 } //end: main()
@@ -449,12 +453,13 @@ void SOSD_listen_loop() {
             dlog(5, "  ... Done.\n");
             break;
 
-        case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (buffer); break;
-        case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer); break;
-        case SOS_MSG_TYPE_CHECK_IN:   SOSD_handle_check_in   (buffer); break;
-        case SOS_MSG_TYPE_PROBE:      SOSD_handle_probe      (buffer); break;
-        case SOS_MSG_TYPE_QUERY:      SOSD_handle_sosa_query (buffer); break;
-        default:                      SOSD_handle_unknown    (buffer); break;
+        case SOS_MSG_TYPE_ECHO:        SOSD_handle_echo        (buffer); break;
+        case SOS_MSG_TYPE_SHUTDOWN:    SOSD_handle_shutdown    (buffer); break;
+        case SOS_MSG_TYPE_CHECK_IN:    SOSD_handle_check_in    (buffer); break;
+        case SOS_MSG_TYPE_PROBE:       SOSD_handle_probe       (buffer); break;
+        case SOS_MSG_TYPE_QUERY:       SOSD_handle_sosa_query  (buffer); break;
+        case SOS_MSG_TYPE_TRIGGERPULL: SOSD_handle_triggerpull (buffer); break;
+        default:                       SOSD_handle_unknown     (buffer); break;
         }
 
         close( SOSD.net.client_socket_fd );
@@ -570,7 +575,9 @@ void* SOSD_THREAD_db_sync(void *args) {
     gettimeofday(&now, NULL);
     wait.tv_sec  = SOSD_DB_SYNC_WAIT_SEC  + (now.tv_sec);
     wait.tv_nsec = SOSD_DB_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
-    while (SOS->status == SOS_STATUS_RUNNING) {
+    while (SOS->status == SOS_STATUS_RUNNING
+            || my->queue->elem_count > 0)
+    {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
         SOSD_countof(thread_db_wakeup++);
@@ -870,6 +877,31 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
 
 
 
+void SOSD_handle_triggerpull(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
+
+    dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
+    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    SOSD_evpath_handle_triggerpull(msg);
+    #endif
+    dlog(5, "Cloud function returned, sending ACK reply.\n");
+    SOS_buffer *reply;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+
+    int i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
+    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
+    else {
+        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
+    }
+
+    SOS_buffer_destroy(reply);
+
+    return;
+}
+
+
 void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_kmean_data");
     // For parsing the buffer:
@@ -930,12 +962,14 @@ void SOSD_handle_sosa_query(SOS_buffer *buffer) {
     SOSD_db_handle_sosa_query(buffer, result);
 
     rc = send(SOSD.net.client_socket_fd, (void *) result->data, result->len, 0);
+    dlog(5, "replying with result->len == %d bytes, rc == %d\n", result->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
         SOSD_countof(socket_bytes_sent += rc);
     }
-       
+    
+    SOS_buffer_destroy(result);
     return;
 }
 

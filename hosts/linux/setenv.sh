@@ -7,6 +7,7 @@ echo $BASEDIR
 export SOS_CMD_PORT=22500
 export SOS_ROOT=$BASEDIR
 export SOS_WORK=.
+export PATH="${PATH}:$SOS_ROOT/scripts"
 export BUILDDIR=build-linux
 export SOS_BUILD_DIR=$BASEDIR/$BUILDDIR
 export CC=gcc

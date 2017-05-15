@@ -48,7 +48,7 @@ class SSOS:
         res_sql = ffi.new("char[]", sql)
         res_obj = ffi.new("SSOS_query_results*")
         lib.SSOS_exec_query(res_sql, res_obj)
-        results = [[]] 
+        results = [] 
         for row in range(res_obj.row_count):
             thisrow = []
             for col in range(res_obj.col_count):

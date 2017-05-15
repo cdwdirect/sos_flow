@@ -20,14 +20,17 @@
 
 #include "sos.h"
 
+/*
 #ifdef SOS_DEBUG
 #undef SOS_DEBUG
 #endif
 #define SOS_DEBUG 1
+*/
 
 #include "sos_debug.h"
 
 int main(int argc, char *argv[]) {
+    printf("demo_app : Starting...\n");
 
     SOS_runtime *my_sos;
 
@@ -181,5 +184,8 @@ int main(int argc, char *argv[]) {
 
     SOS_finalize(my_sos);
     MPI_Finalize(); 
+
+    printf("demo_app : Done.\n");
+
     return (EXIT_SUCCESS);
 }
