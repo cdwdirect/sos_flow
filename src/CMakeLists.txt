@@ -248,6 +248,17 @@ if(MPI_C_LINK_FLAGS)
   set_target_properties("sosd_stop" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
+#TARGET ---> sosd_trigger
+#            (trigger feedback from aggregator to listeners)
+add_executable("sosd_trigger" "sosd_trigger.c")
+target_link_libraries("sosd_trigger" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("sosd_trigger" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+endif()
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("sosd_trigger" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
+endif()
+
 
 #TARGET ---> sosd_probe
 #            (get daemon satus and display it)

@@ -477,7 +477,6 @@ SOS_receiver_init(SOS_runtime *sos_context)
 }
 
 
-// TODO: { FEEDBACK }
 void
 SOS_sense_register(SOS_runtime *sos_context, char *handle)
 {
@@ -486,10 +485,46 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
 }
 
 void
-SOS_sense_activate(SOS_runtime *sos_context,
+SOS_sense_trigger(SOS_runtime *sos_context,
     char *handle, void *data, int data_length)
 {
-    SOS_SET_CONTEXT(sos_context, "SOS_sense_activate");
+    SOS_SET_CONTEXT(sos_context, "SOS_sense_trigger");
+
+    SOS_msg_header header;
+
+    SOS_buffer *msg;
+    SOS_buffer *reply;
+
+    SOS_buffer_init_sized_locking(SOS, &msg, SOS_DEFAULT_BUFFER_MAX, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 128, false);
+
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
+    header.msg_from = SOS->my_guid;
+    header.pub_guid = 0; 
+
+    int offset = 0;
+    SOS_buffer_pack(msg, &offset, "iigg",
+        header.msg_size,
+        header.msg_type,
+        header.msg_from,
+        header.pub_guid);
+
+    char *packsignature = calloc(1024, sizeof(char));
+    snprintf(packsignature, 1024, "%db", data_length);
+
+    dlog(2, "Packing data with signature: \"%s\"\n",
+        packsignature);
+
+    SOS_buffer_pack(msg, &offset, packsignature,
+        data);
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(msg, &offset, "i", header.msg_size);
+
+    SOS_send_to_daemon(msg, reply);
+
     return;
 }
 // ----------

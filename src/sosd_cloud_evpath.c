@@ -99,13 +99,15 @@ SOSD_evpath_message_handler(
                 SOS_buffer_destroy(shutdown_rep);
                 break;
 
-            case SOS_MSG_TYPE_FEEDBACK:
-                SOSD_evpath_handle_feedback(msg);
+            case SOS_MSG_TYPE_TRIGGERPULL:
+                SOSD_evpath_handle_triggerpull(msg);
                 break;
 
             case SOS_MSG_TYPE_ACK:
-                dlog(1, "Received ACK message from rank %" SOS_GUID_FMT " !\n",
-                        header.msg_from);
+                fprintf(stderr, "sosd(%d) received ACK message"
+                    " from rank %" SOS_GUID_FMT " !\n",
+                        SOSD.sos_context->config.comm_rank, header.msg_from);
+                fflush(stdout);
                 break;
 
             default:    SOSD_handle_unknown    (msg); break;
@@ -130,30 +132,30 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
         &header.pub_guid);
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
-    evp->node[header.msg_from]->contact_string = NULL;
-
-    SOS_buffer_unpack_safestr(msg, &offset, 
-        &evp->node[header.msg_from]->contact_string);
-
-    dlog(3, "   ... connection string: %s\n",
-        evp->node[header.msg_from]->contact_string);
-
     SOSD_evpath_node *node = evp->node[header.msg_from];
 
+    node->contact_string = NULL;
+    SOS_buffer_unpack_safestr(msg, &offset, &node->contact_string);
+
+    dlog(3, "   ... sosd(%" SOS_GUID_FMT ") gave us contact string: %s\n",
+        header.msg_from,
+        node->contact_string);
+
+
     dlog(3, "   ... constructing stone path: ");
-    // Hopefully we don't actually have to do this...
-    //node->cm = CManager_create();
-    //CMlisten(node->cm);
-    //CMfork_comm_thread(node->cm);
-    node->out_stone    = EValloc_stone(evp->cm);
+    node->cm = CManager_create();
+    CMlisten(node->cm);
+    CMfork_comm_thread(node->cm);
+   
+    node->out_stone    = EValloc_stone(node->cm);
     node->contact_list = attr_list_from_string(node->contact_string);
     EVassoc_bridge_action(
-        evp->cm,
+        node->cm,
         node->out_stone,
         node->contact_list,
         node->rmt_stone);
     node->src = EVcreate_submit_handle(
-        evp->cm,
+        node->cm,
         node->out_stone,
         SOSD_buffer_format_list);
 
@@ -196,9 +198,10 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 }
 
 
-
-void SOSD_evpath_handle_feedback(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_feedback");
+// NOTE: Right now this only supports triggers being pulled
+//   on the aggregator nodes.
+void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
 
     SOS_msg_header header;
     int offset = 0;
@@ -212,19 +215,57 @@ void SOSD_evpath_handle_feedback(SOS_buffer *msg) {
 
         // AGGREGATOR
         
-        // Send it to any listeners I know about.
-        //...
-        // Since we don't know how round-robining is going to go
-        //   have each aggregator make enough space for all ranks
-        //   and then when it is sending feedback (for now)
-        //   have it just go through all of them and if there
-        //   is a connection string, send a message to them
+        SOSD_evpath *evp = &SOSD.daemon.evpath;
+        buffer_rec rec;
+
+        dlog(2, "Wrapping the trigger message...\n");
+
+        SOS_buffer *wrapped_msg;
+        SOS_buffer_init_sized_locking(SOS, &wrapped_msg,
+                (msg->len + 128), false);
+
+        int msg_count = 1;
+        offset = 0;
+        SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
+        memcpy((wrapped_msg->data + offset), msg->data, msg->len);
+
+        header.msg_size += (offset + msg->len);
+        msg_count = 1;
+        offset = 0;
+        SOS_buffer_pack(wrapped_msg, &offset, "ii", msg_count, header.msg_size);
+
+        int id = 0;
+        for (id = 0; id < SOS->config.comm_size; id++) {
+            if (evp->node[id]->active == true) {
+                dlog(2, "   ...sending feedback msg to sosd(%d).\n", id);
+                rec.data = (unsigned char *) wrapped_msg->data;
+                rec.size = wrapped_msg->len; 
+                EVsubmit(evp->node[id]->src, &rec, NULL);
+            }
+        }
 
     } else if (SOS->role == SOS_ROLE_LISTENER) {
 
         // LISTENER
 
+        int data_length = -1;
+        int data_offset = offset;
+
+        SOS_buffer_unpack(msg, &offset, "i", &data_length);
+        char *data = calloc(data_length + 1, sizeof(char));
+        offset = data_offset;
+        SOS_buffer_unpack(msg, &offset, "b", &data);
+
+        fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
+                " sosd(%" SOS_GUID_FMT "): %s\n",
+                SOS->config.comm_rank,
+                header.msg_from,
+                data);
+        fflush(stderr);
+
     }
+
+    SOS_buffer_destroy(msg);
 
     return;
 }
@@ -316,33 +357,40 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         evp->meetup_path, aggregation_rank);
     dlog(0, "   ... contact_filename: %s\n", contact_filename);
 
-    dlog(0, "   ... creating connection manager: ");
-    evp->cm = CManager_create();
-    CMlisten(evp->cm);
+    dlog(0, "   ... creating connection manager:\n");
+    dlog(0, "      ... evp->recv.cm\n");
+    evp->recv.cm = CManager_create();
+    CMlisten(evp->recv.cm);
     SOSD_evpath_ready_to_listen = true;
-    dlog(0, "done.\n");
-
-    CMfork_comm_thread(evp->cm);
-
-    // Even the listeners need to be listening for messages (Feedback)
-    dlog(0, "   ... configuring stones: ");
-    evp->stone = EValloc_stone(evp->cm);
+    CMfork_comm_thread(evp->recv.cm);
+    dlog(0, "      ... configuring stones:\n");
+    evp->recv.out_stone = EValloc_stone(evp->recv.cm);
     EVassoc_terminal_action(
-            evp->cm,
-            evp->stone,
+            evp->recv.cm,
+            evp->recv.out_stone,
             SOSD_buffer_format_list,
             SOSD_evpath_message_handler,
             NULL);
-    dlog(0, "done.\n");
+    dlog(0, "      ... evp->send.cm\n");
+    evp->send.cm = CManager_create();
+    CMlisten(evp->send.cm);
+    CMfork_comm_thread(evp->send.cm);
+    evp->send.out_stone = EValloc_stone(evp->send.cm);
+    dlog(0, "      ... done.\n");
+    dlog(0, "  ... done.\n");
 
     // Get the location we're listening on...
-    evp->my_contact_string =
-        attr_list_to_string(CMget_contact_list(evp->cm));
-    dlog(0, "   ... my rank's connection string: %s\n", evp->my_contact_string);
+    evp->recv.contact_string =
+        attr_list_to_string(CMget_contact_list(evp->recv.cm));
+    fprintf(stderr, "\n\nNOTE: sosd(%d) evp->recv.contact_string: %s\n\n\n",
+        SOSD.sos_context->config.comm_rank, evp->recv.contact_string);
+    fflush(stderr);
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
         // AGGREGATOR
+        //   ... the aggregator needs to wait on the registration messages
+        //   before being able to create sending stones.
 
         dlog(0, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
@@ -364,14 +412,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         }
         dlog(0, "done.\n");
 
-
-        evp->string_list =
-        attr_list_to_string(CMget_contact_list(evp->cm));
-        dlog(0, "   ... connection string: %s\n", evp->string_list);
-
         FILE *contact_file;
         contact_file = fopen(contact_filename, "w");
-        fprintf(contact_file, "%s", evp->string_list);
+        fprintf(contact_file, "%s", evp->recv.contact_string);
         fflush(contact_file);
         fclose(contact_file);
 
@@ -385,11 +428,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             usleep(100000);
         }
 
-        evp->string_list = (char *)calloc(1024, sizeof(char));
-        while(strnlen(evp->string_list, 1024) < 1) {
+        evp->send.contact_string = (char *)calloc(1024, sizeof(char));
+        while(strnlen(evp->send.contact_string, 1024) < 1) {
             FILE *contact_file;
             contact_file = fopen(contact_filename, "r");
-            if (fgets(evp->string_list, 1024, contact_file) == NULL) {
+            if (fgets(evp->send.contact_string, 1024, contact_file) == NULL) {
                 dlog(0, "Error reading the contact key file. Aborting.\n");
                 exit(EXIT_FAILURE);
             }
@@ -397,27 +440,24 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             usleep(500000);
         }
 
-        dlog(0, "   ... targeting aggregator at: %s\n", evp->string_list);
-
-        dlog(0, "   ... configuring stones: ");
-        evp->contact_list = attr_list_from_string(evp->string_list);
+        dlog(0, "   ... targeting aggregator at: %s\n", evp->send.contact_string);
+        dlog(0, "   ... configuring stones:\n");
+        evp->send.contact_list = attr_list_from_string(evp->send.contact_string);
+        dlog(0, "      ... try: bridge action.\n");
         EVassoc_bridge_action(
-            evp->cm,
-            evp->stone,
-            evp->contact_list,
-            evp->remote_stone);
-        evp->source = EVcreate_submit_handle(
-            evp->cm,
-            evp->stone,
+            evp->send.cm,
+            evp->send.out_stone,
+            evp->send.contact_list,
+            evp->send.rmt_stone);
+        dlog(0, "      ... try: submit handle.\n");
+        evp->send.src = EVcreate_submit_handle(
+            evp->send.cm,
+            evp->send.out_stone,
             SOSD_buffer_format_list);
         dlog(0, "done.\n");
 
-        // evp->source is where we drop messages to send...
+        // evp->send.src is where we drop messages to send...
         // Example:  EVsubmit(evp->source, &msg, NULL);
-        evp->string_list =
-        attr_list_to_string(CMget_contact_list(evp->cm));
-        dlog(0, "   ... feedback connection string: %s\n", evp->string_list);
-
         SOS_buffer *buffer;
         SOS_buffer_init_sized_locking(SOS, &buffer, 2048, false);
 
@@ -437,7 +477,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             header.msg_from,
             header.pub_guid);
 
-        SOS_buffer_pack(buffer, &offset, "s", evp->my_contact_string);
+        SOS_buffer_pack(buffer, &offset, "s", evp->recv.contact_string);
 
         header.msg_size = offset;
         offset = 0;
@@ -480,7 +520,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     buffer_rec rec;
     rec.data = (unsigned char *) buffer->data;
     rec.size = buffer->len; 
-    EVsubmit(SOSD.daemon.evpath.source, &rec, NULL);
+    EVsubmit(SOSD.daemon.evpath.send.src, &rec, NULL);
 
     return 0;
 }

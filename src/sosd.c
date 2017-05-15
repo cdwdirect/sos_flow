@@ -197,8 +197,6 @@ int main(int argc, char *argv[])  {
 
     // Done with param processing... fire things up.
 
-    unsetenv("SOS_SHUTDOWN");
-
     memset(&SOSD.daemon.pid_str, '\0', 256);
 
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) {
@@ -289,7 +287,6 @@ int main(int argc, char *argv[])  {
     //
     //
 
-
     dlog(0, "Closing the sync queues:\n");
     if (SOSD.sync.local.queue != NULL) {
         dlog(0, "  .. SOSD.sync.local.queue\n");
@@ -340,6 +337,9 @@ int main(int argc, char *argv[])  {
     remove(SOSD.daemon.lock_file);
     free(SOSD.daemon.name);
     free(SOSD.daemon.lock_file);
+
+    fprintf(stdout, "** SHUTDOWN **: sosd(%d) is exiting cleanly!\n", my_rank);
+    fflush(stdout);
 
     return(EXIT_SUCCESS);
 } //end: main()
@@ -449,12 +449,13 @@ void SOSD_listen_loop() {
             dlog(5, "  ... Done.\n");
             break;
 
-        case SOS_MSG_TYPE_ECHO:       SOSD_handle_echo       (buffer); break;
-        case SOS_MSG_TYPE_SHUTDOWN:   SOSD_handle_shutdown   (buffer); break;
-        case SOS_MSG_TYPE_CHECK_IN:   SOSD_handle_check_in   (buffer); break;
-        case SOS_MSG_TYPE_PROBE:      SOSD_handle_probe      (buffer); break;
-        case SOS_MSG_TYPE_QUERY:      SOSD_handle_sosa_query (buffer); break;
-        default:                      SOSD_handle_unknown    (buffer); break;
+        case SOS_MSG_TYPE_ECHO:        SOSD_handle_echo        (buffer); break;
+        case SOS_MSG_TYPE_SHUTDOWN:    SOSD_handle_shutdown    (buffer); break;
+        case SOS_MSG_TYPE_CHECK_IN:    SOSD_handle_check_in    (buffer); break;
+        case SOS_MSG_TYPE_PROBE:       SOSD_handle_probe       (buffer); break;
+        case SOS_MSG_TYPE_QUERY:       SOSD_handle_sosa_query  (buffer); break;
+        case SOS_MSG_TYPE_TRIGGERPULL: SOSD_handle_triggerpull (buffer); break;
+        default:                       SOSD_handle_unknown     (buffer); break;
         }
 
         close( SOSD.net.client_socket_fd );
@@ -868,6 +869,31 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     return;
 }
 
+
+
+void SOSD_handle_triggerpull(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
+
+    dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
+    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    SOSD_evpath_handle_triggerpull(msg);
+    #endif
+    dlog(5, "Cloud function returned, sending ACK reply.\n");
+    SOS_buffer *reply;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+
+    int i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
+    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
+    else {
+        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
+    }
+
+    SOS_buffer_destroy(reply);
+
+    return;
+}
 
 
 void SOSD_handle_kmean_data(SOS_buffer *buffer) {
@@ -1303,6 +1329,11 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     #if (SOSD_CLOUD_SYNC > 0)
     SOSD_cloud_shutdown_notice();
     #endif
+
+    pthread_join(*SOSD.sync.db.handler, NULL);
+    pthread_join(*SOSD.sync.cloud_recv.handler, NULL);
+    pthread_join(*SOSD.sync.cloud_send.handler, NULL);
+    pthread_join(*SOSD.sync.local.handler, NULL);
 
     SOSD.daemon.running = 0;
     SOS->status = SOS_STATUS_SHUTDOWN;

@@ -114,19 +114,16 @@ typedef struct {
 
 
 typedef struct {
-    CManager            cm;
     char               *instance_name;
     char               *instance_role;
     char               *meetup_path;
     int                 is_master;
     int                 node_count;
     SOSD_evpath_node  **node;
-    char               *my_contact_string;
-    char               *string_list;
+    char               *contact_string;
     attr_list           contact_list;
-    EVstone             stone;
-    EVstone             remote_stone;
-    EVsource            source;
+    SOSD_evpath_node    send;
+    SOSD_evpath_node    recv;
 } SOSD_evpath;
 #endif
 
@@ -244,6 +241,7 @@ extern "C" {
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
     void  SOSD_handle_sosa_query(SOS_buffer *buffer);
+    void  SOSD_handle_triggerpull(SOS_buffer *buffer);
     void  SOSD_handle_kmean_data(SOS_buffer *buffer);
 
     void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
