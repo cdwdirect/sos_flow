@@ -88,6 +88,7 @@ SOSD_evpath_message_handler(
 
             case SOS_MSG_TYPE_SHUTDOWN:
                 SOSD.daemon.running = 0;
+                SOSD.sos_context->status = SOS_STATUS_SHUTDOWN;
                 SOS_buffer *shutdown_msg;
                 SOS_buffer *shutdown_rep;
                 SOS_buffer_init_sized_locking(SOS, &shutdown_msg, 1024, false);

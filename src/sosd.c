@@ -283,6 +283,10 @@ int main(int argc, char *argv[])  {
     //
     SOSD_listen_loop();
     //
+    // Wait for the database to be done flushing...
+    //
+    pthread_join(*SOSD.sync.db.handler, NULL);
+    //
     // Done!  Cleanup and shut down.
     //
     //
@@ -571,7 +575,9 @@ void* SOSD_THREAD_db_sync(void *args) {
     gettimeofday(&now, NULL);
     wait.tv_sec  = SOSD_DB_SYNC_WAIT_SEC  + (now.tv_sec);
     wait.tv_nsec = SOSD_DB_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
-    while (SOS->status == SOS_STATUS_RUNNING) {
+    while (SOS->status == SOS_STATUS_RUNNING
+            || my->queue->elem_count > 0)
+    {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
 
         SOSD_countof(thread_db_wakeup++);
@@ -1329,11 +1335,6 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     #if (SOSD_CLOUD_SYNC > 0)
     SOSD_cloud_shutdown_notice();
     #endif
-
-    pthread_join(*SOSD.sync.db.handler, NULL);
-    pthread_join(*SOSD.sync.cloud_recv.handler, NULL);
-    pthread_join(*SOSD.sync.cloud_send.handler, NULL);
-    pthread_join(*SOSD.sync.local.handler, NULL);
 
     SOSD.daemon.running = 0;
     SOS->status = SOS_STATUS_SHUTDOWN;
