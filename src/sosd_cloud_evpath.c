@@ -110,7 +110,6 @@ SOSD_evpath_message_handler(
 // to the listener daemons so that it is able to send feedback
 // messages out to everyone it is in touch with, and to route
 // appropriate messages to everyone that originated in situ.
-// TODO: HANDLE IT!
 void SOSD_evpath_register_connection(SOS_buffer *msg) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_register_connection");
 
@@ -124,10 +123,22 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
         &header.pub_guid);
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
-    SOS_buffer_unpack(msg, &offset, "s",
+    evp->node[header.msg_from]->contact_string = NULL;
+
+    SOS_buffer_unpack_safestr(msg, &offset, 
         &evp->node[header.msg_from]->contact_string);
 
-    //TODO: Complete this.
+    dlog(0, "Received a CONNECTION STRING: %s\n",
+        evp->node[header.msg_from]->contact_string);
+
+
+    // Send them back a hello.
+
+    // Since we don't know how round-robining is going to go
+    //   have each aggregator make enough space for all ranks
+    //   and then when it is sending feedback (for now)
+    //   have it just go through all of them and if there
+    //   is a connection string, send a message to them
 
     return;
 }
@@ -229,6 +240,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     CMfork_comm_thread(evp->cm);
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
+
+        // AGGREGATOR
+
         dlog(0, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
         dlog(0, "   ... creating objects to coordinate with listeners: ");
@@ -265,7 +279,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         fclose(contact_file);
 
     } else {
-        
+
+        //LISTENER
+
         dlog(0, "   ... waiting for coordinator to share contact information.\n");
         while (!SOS_file_exists(contact_filename)) {
             usleep(100000);
@@ -299,13 +315,14 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             SOSD_buffer_format_list);
         dlog(0, "done.\n");
 
+        CMfork_comm_thread(evp->cm);
+
         // evp->source is where we drop messages to send...
         // Example:  EVsubmit(evp->source, &msg, NULL);
         evp->string_list =
         attr_list_to_string(CMget_contact_list(evp->cm));
         dlog(0, "   ... feedback connection string: %s\n", evp->string_list);
 
-        // Send this to the master.
         SOS_buffer *buffer;
         SOS_buffer_init_sized_locking(SOS, &buffer, 2048, false);
 
@@ -315,8 +332,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         header.msg_from = SOSD.sos_context->config.comm_rank;
         header.pub_guid = 0;
 
+        int msg_count = 1;
+
         int offset = 0;
-        SOS_buffer_pack(buffer, &offset, "iigg", 
+        SOS_buffer_pack(buffer, &offset, "iiigg",
+            msg_count,
             header.msg_size,
             header.msg_type,
             header.msg_from,
@@ -327,7 +347,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         header.msg_size = offset;
         offset = 0;
         
-        SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+        SOS_buffer_pack(buffer, &offset, "ii",
+            msg_count,
+            header.msg_size);
 
         SOSD_cloud_send(buffer, NULL);
         SOS_buffer_destroy(buffer);
