@@ -1,9 +1,9 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 set(POSITION_INDEPENDENT_CODE True)
 
-#if(SOSD_CLOUD_SYNC_WITH_MPI)
+if(MPI_INCLUDE_PATH)
 	include_directories("${MPI_INCLUDE_PATH}")
-#endif()
+endif()
 
 include_directories("${sos_flow_SOURCE_DIR}/src")
 #   link_directories("${sos_flow_SOURCE_DIR}/lib")
