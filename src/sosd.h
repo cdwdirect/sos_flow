@@ -101,8 +101,11 @@ typedef struct {
 
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 typedef struct {
+    bool                active;
     char                name[256];
+    CManager            cm;
     char               *contact_string;
+    attr_list           contact_list;
     EVsource            src;
     EVstone             out_stone;
     EVstone             rmt_stone;
@@ -118,6 +121,7 @@ typedef struct {
     int                 is_master;
     int                 node_count;
     SOSD_evpath_node  **node;
+    char               *my_contact_string;
     char               *string_list;
     attr_list           contact_list;
     EVstone             stone;
