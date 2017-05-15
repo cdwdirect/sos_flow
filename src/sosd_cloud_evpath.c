@@ -105,10 +105,9 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_ACK:
-                fprintf(stderr, "sosd(%d) received ACK message"
+                dlog(5, "sosd(%d) received ACK message"
                     " from rank %" SOS_GUID_FMT " !\n",
                         SOSD.sos_context->config.comm_rank, header.msg_from);
-                fflush(stdout);
                 break;
 
             default:    SOSD_handle_unknown    (msg); break;
@@ -222,7 +221,7 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         dlog(2, "Wrapping the trigger message...\n");
 
         SOS_buffer *wrapped_msg;
-        SOS_buffer_init_sized_locking(SOS, &wrapped_msg,
+/*        SOS_buffer_init_sized_locking(SOS, &wrapped_msg,
                 (msg->len + 128), false);
 
         int msg_count = 1;
@@ -234,6 +233,37 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         msg_count = 1;
         offset = 0;
         SOS_buffer_pack(wrapped_msg, &offset, "ii", msg_count, header.msg_size);
+*/
+
+        SOS_buffer_init_sized_locking(SOS, &wrapped_msg, 128, false);
+        
+        char tmpmsg[] = "Hello, world!";
+        int msg_count = 1;
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
+        header.msg_from = SOS->config.comm_rank;
+        header.pub_guid = 0;
+
+        int tmpoffset = 0;
+
+        offset = 0;
+        SOS_buffer_pack(wrapped_msg, &offset, "i",
+            msg_count);
+
+        tmpoffset = offset;
+
+        SOS_buffer_pack(wrapped_msg, &offset, "iiggs",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid,
+            tmpmsg);
+
+        header.msg_size = offset - tmpoffset;
+        offset = 0;
+        SOS_buffer_pack(wrapped_msg, &offset, "ii",
+            msg_count,
+            header.msg_size);
 
         int id = 0;
         for (id = 0; id < SOS->config.comm_size; id++) {
@@ -249,13 +279,16 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
 
         // LISTENER
 
-        int data_length = -1;
+/*        int data_length = -1;
         int data_offset = offset;
 
         SOS_buffer_unpack(msg, &offset, "i", &data_length);
         char *data = calloc(data_length + 1, sizeof(char));
         offset = data_offset;
         SOS_buffer_unpack(msg, &offset, "b", &data);
+*/
+        char *data = NULL;
+        SOS_buffer_unpack_safestr(msg, &offset, &data);
 
         fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
                 " sosd(%" SOS_GUID_FMT "): %s\n",
@@ -383,9 +416,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     // Get the location we're listening on...
     evp->recv.contact_string =
         attr_list_to_string(CMget_contact_list(evp->recv.cm));
-    fprintf(stderr, "\n\nNOTE: sosd(%d) evp->recv.contact_string: %s\n\n\n",
-        SOSD.sos_context->config.comm_rank, evp->recv.contact_string);
-    fflush(stderr);
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
