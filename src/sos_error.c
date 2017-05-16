@@ -77,7 +77,7 @@ static void SOS_custom_signal_handler(int sig) {
     strings = backtrace_symbols( trace, size );
     
     dlog(0, "\n");
-    dlog(0, "BACKTRACE:\n");
+    dlog(0, "BACKTRACE:     Signal %d received.\n", sig);
     dlog(0, "\n");
     dlog(0, "\n");
     
@@ -103,7 +103,7 @@ static void SOS_custom_signal_handler(int sig) {
     dlog(0, "***************************************\n");
     dlog(0, "\n");
     dlog(0, "\n");
-    exit(99);
+    exit(EXIT_FAILURE);
 }
 
 int SOS_register_signal_handler(SOS_runtime *sos_context) {

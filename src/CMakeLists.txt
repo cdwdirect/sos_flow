@@ -1,9 +1,9 @@
 set(CMAKE_POSITION_INDEPENDENT_CODE True)
 set(POSITION_INDEPENDENT_CODE True)
 
-#if(SOSD_CLOUD_SYNC_WITH_MPI)
+if(DEFINED MPI_INCLUDE_PATH)
 	include_directories("${MPI_INCLUDE_PATH}")
-#endif()
+endif()
 
 include_directories("${sos_flow_SOURCE_DIR}/src")
 #   link_directories("${sos_flow_SOURCE_DIR}/lib")
@@ -246,6 +246,17 @@ if(MPI_C_COMPILE_FLAGS)
 endif()
 if(MPI_C_LINK_FLAGS)
   set_target_properties("sosd_stop" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
+endif()
+
+#TARGET ---> sosd_trigger
+#            (trigger feedback from aggregator to listeners)
+add_executable("sosd_trigger" "sosd_trigger.c")
+target_link_libraries("sosd_trigger" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_COMPILE_FLAGS)
+  set_target_properties("sosd_trigger" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+endif()
+if(MPI_C_LINK_FLAGS)
+  set_target_properties("sosd_trigger" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
 

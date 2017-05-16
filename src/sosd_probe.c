@@ -155,7 +155,7 @@ int main(int argc, char *argv[]) {
         // -----=====-----
 
         if (reply->len < sizeof(SOS_msg_header)) {
-            fprintf(stderr, "ERROR: Received short (useless) message from daemon!   (reply->len == %d\n", reply->len);
+            fprintf(stderr, "[sosd_probe]: ERROR! Received short (useless) message from daemon!   (reply->len == %d)\n", reply->len);
             continue;
         }
 

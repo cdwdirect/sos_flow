@@ -48,21 +48,18 @@ class SSOS:
         res_sql = ffi.new("char[]", sql)
         res_obj = ffi.new("SSOS_query_results*")
         lib.SSOS_exec_query(res_sql, res_obj)
-        print "{}{}".format("ssos.py: res_obj.col_count == ", res_obj.col_count)
-        print "{}{}".format("ssos.py: res_obj.row_count == ", res_obj.row_count)
-
-        results = [[]] 
+        results = [] 
         for row in range(res_obj.row_count):
             thisrow = []
             for col in range(res_obj.col_count):
                 thisrow.append(ffi.string(res_obj.data[row][col]))
-            print "results[{}] = {}".format(row, thisrow)
+            #print "results[{}] = {}".format(row, thisrow)
             results.append(thisrow)
+        
 
-
-       # Generate the column name list:
+        # Generate the column name list:
         col_names = []
-        for col in range(0, (res_obj.col_count)):
+        for col in range(0, res_obj.col_count):
            col_names.append(ffi.string(res_obj.col_names[col]))
 
         return (results, col_names)
