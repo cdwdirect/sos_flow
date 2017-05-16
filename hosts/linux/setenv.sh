@@ -18,7 +18,7 @@ export TAU_ARCH=x86_64
 export TAU_CONFIG=-mpi-pthread
 export TAU_ROOT=$HOME/src/tau2
 export ADIOS_ROOT=/usr/local/packages/adios/git-gcc-4.9
-if [ `hostname` = "ln1" ] ; then
+if [ `hostname` = "ln1" ] || [ `hostname` = "ktau" ] ; then
   export CHAOS=$HOME/src/chaos/linux-gcc
   module use /projects/tau/packages/Modules/modulefiles
   module load python/2.7.13
