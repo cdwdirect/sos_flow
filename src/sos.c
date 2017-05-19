@@ -822,10 +822,14 @@ SOS_THREAD_receives_direct(void *args)
         (int) (((struct sockaddr_in6*)insock.server_addr->ai_addr)->sin6_port);
     }
 
-    //Part 2: Listening loop for feedback messages.
-    //TODO / SLICE
-    //void SOS_feedback_receiver_f ( void (*f)(SOS_feedback feedback, SOS_buffer *msg );
-    
+    //Part 2: Notify the listener what port we are monitoring.
+
+
+    //Part 3: Listening loop for feedback messages.
+    while (SOS->status == SOS_STATUS_RUNNING) {
+        //...
+        usleep(500000);
+    }
 
     return NULL;
 }

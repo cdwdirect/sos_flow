@@ -9,14 +9,18 @@
  */
 
 
-#define SOS_VERSION "0.0.0"
+#define SOS_VERSION_MAJOR 0
+#define SOS_VERSION_MINOR 9
+
+#define SOS_Q(x) #x
+#define SOS_QUOTE_DEF_STR(x) SOS_Q(x)
 
 #ifndef SOS_BUILDER
-#define SOS_BUILDER "generic user"
+#define SOS_BUILDER "----------" 
 #endif
 
 #ifndef SOS_BUILT_FOR
-#define SOS_BUILT_FOR "generic system"
+#define SOS_BUILT_FOR "----------"
 #endif
 
 #include <stdio.h>

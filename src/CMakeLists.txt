@@ -87,7 +87,7 @@ endif()
 
 #TARGET ---> ssos
 #            (library)
-add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
+add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("ssos"
     "sos"

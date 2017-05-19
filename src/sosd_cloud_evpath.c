@@ -299,7 +299,6 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
 
     }
 
-    SOS_buffer_destroy(msg);
 
     return;
 }

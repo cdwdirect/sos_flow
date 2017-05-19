@@ -7,6 +7,11 @@ module load cmake
 module swap PrgEnv-pgi PrgEnv-gnu
 module load dataspaces
 
+export SOS_HOST_KNOWN_AS="\"NERSC (Edison)\""
+
+# For tracking the environment that SOS is built in:
+export SOS_HOST_NODE_NAME="\"$(uname -n)\""
+export SOS_HOST_DETAILED="\"$(uname -o) $(uname -r) $(uname -m)\""
 export SOS_CMD_PORT=22500
 export SOS_ROOT=${BASEDIR}
 export SOS_WORK=.
