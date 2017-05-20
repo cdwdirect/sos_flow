@@ -1332,7 +1332,15 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     case SOS_VAL_TYPE_LONG:   pack_val.l_val = *(long *)pack_val_var; break;
     case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = *(double *)pack_val_var; break;
     case SOS_VAL_TYPE_STRING: pack_val.c_val = (char *)pack_val_var; break;
-    case SOS_VAL_TYPE_BYTES:  pack_val.bytes = (SOS_buffer *)pack_val_var; break;
+    case SOS_VAL_TYPE_BYTES:
+        fprintf(stderr, "WARNING: SOS_pack(...) used to pack SOS_VAL_TYPE_BYTES."
+                " This is unsupported.\n");
+        fprintf(stderr, "WARNING: Please use SOS_pack_bytes(...) instead!\n");
+        fprintf(stderr, "WARNING: Doing nothing and returning....\n");
+        fflush(stderr);
+        return -1;
+        break;
+
     default:
         dlog(0, "ERROR: Invalid pack_type sent to SOS_pack.   (%d)\n", (int) pack_type);
         return -1;
@@ -1400,18 +1408,16 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
         break;
 
     case SOS_VAL_TYPE_BYTES:
-        byte_buffer = (SOS_buffer *) pack_val.bytes;
-        if (byte_buffer != NULL) {
-            if (data->val.bytes != NULL) { free(data->val.bytes); }
-            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
-            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
-            data->val_len = byte_buffer->len;
-        } else {
-            dlog(0, "WARNING: You packed a null (SOS_buffer *) for pub(%s)->data[%d]!\n",
-                 pub->title, pos);
-            SOS_buffer_init_sized(SOS, (SOS_buffer **) &data->val.bytes, SOS_DEFAULT_BUFFER_MIN);
-            data->val_len = SOS_DEFAULT_BUFFER_MIN;
-        }
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n");
+        fprintf(stderr, "ERROR: Please use SOS_pack_bytes(...) instead.\n");
+        fprintf(stderr, "ERROR: Somehow libsos passed beyond its safety guard and has\n");
+        fprintf(stderr, "ERROR: modified the state of the publication handle.\n");
+        fprintf(stderr, "ERROR: Since safety/consistency can no longer by guaranteed,\n");
+        fprintf(stderr, "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
         break;
         
     case SOS_VAL_TYPE_INT:
@@ -1454,8 +1460,18 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     
     switch(snap->type) {
     case SOS_VAL_TYPE_BYTES:
-        snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
-        memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n");
+        fprintf(stderr, "ERROR: Please use SOS_pack_bytes(...) instead.\n");
+        fprintf(stderr, "ERROR: Somehow libsos passed beyond its safety guard and has\n");
+        fprintf(stderr, "ERROR: modified the state of the publication handle.\n");
+        fprintf(stderr, "ERROR: Since safety/consistency can no longer by guaranteed,\n");
+        fprintf(stderr, "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+        //snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
+        //memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
         break;
 
     case SOS_VAL_TYPE_STRING:
@@ -1484,6 +1500,21 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
 
     return pos;
 }
+
+
+int
+SOS_pack_bytes(SOS_pub *pub, const char *name,
+        int byte_count, void *pack_source)
+{
+
+    int pos = -1;
+
+    return pos;
+}
+
+
+
+
 
 int SOS_pub_search(SOS_pub *pub, const char *name) {
     long i;
@@ -1744,11 +1775,13 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             break;
         case SOS_VAL_TYPE_BYTES:
             memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
-            offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
-            snap->val_len = string_len;
-            snap->val.bytes = (void *) malloc((1 + string_len) * sizeof(unsigned char));
-            snprintf(unpack_fmt, SOS_DEFAULT_STRING_LEN, "%db", string_len);   //No really needed got unpacking, since the length is already in there...
-            SOS_buffer_unpack(buffer, &offset, unpack_fmt, snap->val.bytes);
+            int rewind_amt = 0;
+            int byte_count = 0;
+            rewind_amt = SOS_buffer_unpack(buffer, &offset, "i", &byte_count);
+            offset -= rewind_amt;
+            snap->val_len = byte_count;
+            snap->val.bytes = (unsigned char *) calloc(sizeof(unsigned char), (byte_count + 1));
+            SOS_buffer_unpack(buffer, &offset, "b", snap->val.bytes);
             break;
         default:
           dlog(6, "ERROR: Invalid type (%d) at index %d with pub->guid == %" SOS_GUID_FMT ".\n", snap->type, snap->elem, pub->guid);
@@ -1899,15 +1932,41 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
                         pub->data[elem]->meta.mood);
 
         switch (pub->data[elem]->type) {
-        case SOS_VAL_TYPE_INT:     SOS_buffer_pack(buffer, &offset, "i", pub->data[elem]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:    SOS_buffer_pack(buffer, &offset, "l", pub->data[elem]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE:  SOS_buffer_pack(buffer, &offset, "d", pub->data[elem]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING:  SOS_buffer_pack(buffer, &offset, "s", pub->data[elem]->val.c_val);
-            dlog(8, "[STRING]: Packing in -> \"%s\" ...\n", pub->data[elem]->val.c_val);
+        case SOS_VAL_TYPE_INT:
+            SOS_buffer_pack(buffer, &offset,
+                    "i", pub->data[elem]->val.i_val);
             break;
-        case SOS_VAL_TYPE_BYTES:   SOS_buffer_pack(buffer, &offset, "b", pub->data[elem]->val.bytes); break;
+
+        case SOS_VAL_TYPE_LONG:
+            SOS_buffer_pack(buffer, &offset,
+                    "l", pub->data[elem]->val.l_val);
+            break;
+
+        case SOS_VAL_TYPE_DOUBLE:
+            SOS_buffer_pack(buffer, &offset,
+                    "d", pub->data[elem]->val.d_val);
+            break;
+
+        case SOS_VAL_TYPE_STRING:
+            SOS_buffer_pack(buffer, &offset,
+                    "s", pub->data[elem]->val.c_val);
+            dlog(8, "[STRING]: Packing in -> \"%s\" ...\n",
+                    pub->data[elem]->val.c_val);
+            break;
+
+        case SOS_VAL_TYPE_BYTES:
+            dlog(0, "WARNING: Use of SOS_pack(...) to pack bytes"
+                    " is discouraged.\n");
+            dlog(0, "WARNING: Please use SOS_pack_bytes(...) instead.\n");
+            SOS_buffer_pack_bytes(buffer, &offset,
+                pub->data[elem]->val_len,
+                (void *) pub->data[elem]->val.bytes);
+            break;
+
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
+            dlog(6, "Invalid type (%d) at index %d of pub->guid"
+                    " == %" SOS_GUID_FMT ".\n", pub->data[elem]->type,
+                    elem, pub->guid);
             break;
         }//switch
     }//for

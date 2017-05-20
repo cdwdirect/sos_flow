@@ -198,8 +198,8 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 }
 
 
-// NOTE: Right now this only supports triggers being pulled
-//   on the aggregator nodes.
+// NOTE: Trigger pulls do not flow out beyond the scope of where
+//       they are pulled (at this time).  They go "down" only.
 void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
 
@@ -221,25 +221,11 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         dlog(2, "Wrapping the trigger message...\n");
 
         SOS_buffer *wrapped_msg;
-/*        SOS_buffer_init_sized_locking(SOS, &wrapped_msg,
-                (msg->len + 128), false);
 
-        int msg_count = 1;
-        offset = 0;
-        SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
-        memcpy((wrapped_msg->data + offset), msg->data, msg->len);
-
-        header.msg_size += (offset + msg->len);
-        msg_count = 1;
-        offset = 0;
-        SOS_buffer_pack(wrapped_msg, &offset, "ii", msg_count, header.msg_size);
-*/
-
-        SOS_buffer_init_sized_locking(SOS, &wrapped_msg, 128, false);
+        SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
         
-        char tmpmsg[] = "Hello, world!";
         int msg_count = 1;
-        header.msg_size = -1;
+        header.msg_size = msg->len;
         header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
         header.msg_from = SOS->config.comm_rank;
         header.pub_guid = 0;
@@ -252,12 +238,13 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
 
         tmpoffset = offset;
 
-        SOS_buffer_pack(wrapped_msg, &offset, "iiggs",
+        SOS_buffer_pack(wrapped_msg, &offset, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid,
-            tmpmsg);
+            header.pub_guid);
+
+        SOS_buffer_pack_bytes(wrapped_msg, &offset, msg->len, msg->data);
 
         header.msg_size = offset - tmpoffset;
         offset = 0;
@@ -279,22 +266,16 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
 
         // LISTENER
 
-/*        int data_length = -1;
-        int data_offset = offset;
+        unsigned char *data = calloc(sizeof(unsigned char),
+                header.msg_size + 1);
 
-        SOS_buffer_unpack(msg, &offset, "i", &data_length);
-        char *data = calloc(data_length + 1, sizeof(char));
-        offset = data_offset;
         SOS_buffer_unpack(msg, &offset, "b", &data);
-*/
-        char *data = NULL;
-        SOS_buffer_unpack_safestr(msg, &offset, &data);
 
         fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
-                " sosd(%" SOS_GUID_FMT "): %s\n",
+                " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
                 SOS->config.comm_rank,
                 header.msg_from,
-                data);
+                header.msg_size);
         fflush(stderr);
 
     }
@@ -358,13 +339,38 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     SOS->config.comm_support = -1; // Used for MPI only.
 
     // Do some sanity checks.
-
     if (SOSD.daemon.aggregator_count == 0) {
         fprintf(stderr, "ERROR: SOS requires an aggregator.\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
-
+    if ((SOS->config.comm_rank < 0)
+        || (SOS->config.comm_rank > expected_node_count)) {
+        fprintf(stderr, "ERROR: SOS rank %d is outside the bounds of"
+                " ranks expected (%d).\n",
+                SOS->config.comm_rank,
+                expected_node_count);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if ((SOS->role == SOS_ROLE_LISTENER)
+        && (SOS->config.comm_rank < SOSD.daemon.aggregator_count)) {
+        fprintf(stderr, "ERROR: SOS listener(%d) was assigned a rank"
+                " inside the range reserved for aggregators (0-%d).\n",
+                SOS->config.comm_rank,
+                (SOSD.daemon.aggregator_count - 1));
+        fflush(stdout);
+        exit(EXIT_FAILURE);
+    }
+    if ((SOS->role == SOS_ROLE_AGGREGATOR)
+        && (SOS->config.comm_rank >= SOSD.daemon.aggregator_count)) {
+        fprintf(stderr, "ERROR: SOS aggregator(%d) was assigned a rank"
+                " outside the range reserved for aggregators (0-%d).\n",
+                SOS->config.comm_rank,
+                (SOSD.daemon.aggregator_count - 1));
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
 
     // The cloud sync stuff gets calculated after we know
     // how many targets have connected as aggregators,
@@ -534,6 +540,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
  *    operating.
  */
 int SOSD_cloud_start(void) {
+    //NOTE: Presently unused for EVPath.
     return 0;
 }
 
@@ -565,7 +572,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
  *              is likely overkill, but nevertheless, here it is.
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.EVPATH");
     SOS_msg_header header;
     int offset;
 
@@ -706,11 +713,14 @@ void  SOSD_cloud_shutdown_notice(void) {
  *              incoming messages from other sosd daemon instances.
  */
 void  SOSD_cloud_listen_loop(void) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop.EVPATH");
 
+    // NOTE: This work is handled by EVPath's message handler.
+    dlog(2, "Entering cloud listening loop...\n");
     while(!SOSD_evpath_ready_to_listen) {
             usleep(50000);
     }
+    dlog(2, "Leaving cloud listening loop.\n");
 
     return;
 }

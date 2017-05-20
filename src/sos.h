@@ -79,6 +79,9 @@ extern "C" {
     int SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type pack_type, void *pack_val_var);
 
+    int SOS_pack_bytes(SOS_pub *pub, const char *name,
+        int byte_count, void *pack_source);
+
     int SOS_event(SOS_pub *pub, const char *name,
         SOS_val_semantic semantic);
 
