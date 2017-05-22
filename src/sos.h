@@ -9,14 +9,24 @@
  */
 
 
-#define SOS_VERSION "0.0.0"
+// NOTE: Major and minor versions should be simple integers,
+//       as they are treated as ints when exchanged between
+//       client and server.
+
+#define SOS_VERSION_MAJOR 0
+#define SOS_VERSION_MINOR 11 
+
+// ...
+
+#define SOS_Q(x) #x
+#define SOS_QUOTE_DEF_STR(x) SOS_Q(x)
 
 #ifndef SOS_BUILDER
-#define SOS_BUILDER "generic user"
+#define SOS_BUILDER "----------" 
 #endif
 
 #ifndef SOS_BUILT_FOR
-#define SOS_BUILT_FOR "generic system"
+#define SOS_BUILT_FOR "----------"
 #endif
 
 #include <stdio.h>
@@ -39,15 +49,15 @@
 #define SOS_DEFAULT_SERVER_PORT     22500
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
 #define SOS_DEFAULT_TIMEOUT_SEC     2.0
-#define SOS_DEFAULT_BUFFER_MAX      2048
+#define SOS_DEFAULT_BUFFER_MAX      4096
 #define SOS_DEFAULT_BUFFER_MIN      512
 #define SOS_DEFAULT_PIPE_DEPTH      100000
 #define SOS_DEFAULT_REPLY_LEN       128
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256
 #define SOS_DEFAULT_RING_SIZE       65536
-#define SOS_DEFAULT_TABLE_SIZE      128
-#define SOS_DEFAULT_GUID_BLOCK      2048
+#define SOS_DEFAULT_TABLE_SIZE      655360
+#define SOS_DEFAULT_GUID_BLOCK      8001027
 #define SOS_DEFAULT_ELEM_MAX        1024
 #define SOS_DEFAULT_UID_MAX         LLONG_MAX
 
@@ -74,6 +84,9 @@ extern "C" {
 
     int SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type pack_type, void *pack_val_var);
+
+    int SOS_pack_bytes(SOS_pub *pub, const char *name,
+        int byte_count, void *pack_source);
 
     int SOS_event(SOS_pub *pub, const char *name,
         SOS_val_semantic semantic);

@@ -31,26 +31,6 @@ typedef struct {
     char      ***data;
 } SOSA_results;
 
-/*
- * DEPRECATED: SOSA modules use the standard SOS_runtime now.
- *
-typedef struct {
-    SOS_runtime *sos_context;
-    MPI_Comm     comm;
-    int          analytics_color;
-    int         *analytics_locales;
-    int          world_rank;
-    int          world_size;
-    int         *world_roles;
-    char        *world_hosts;
-    int          db_role_count;
-    int         *db_role_ranks;
-    int          db_target_rank;
-} SOSA_runtime;
-extern SOSA_runtime SOSA;
- *
- */
-
 
 /* Required if included by C++ code. */
 #ifdef __cplusplus
@@ -82,5 +62,5 @@ extern "C" {
 #endif
 
 
-
 #endif
+//SOSA_H

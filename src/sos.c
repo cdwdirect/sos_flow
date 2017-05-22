@@ -140,7 +140,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
-    unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
@@ -306,8 +305,9 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         freeaddrinfo( SOS->net.result_list );
         
         if (server_socket_fd == 0) {
-            fprintf(stderr, "ERROR!  Could not connect to the server.  (%s:%s)\n",
-                SOS->net.server_host, SOS->net.server_port);
+            fprintf(stderr, "ERROR!  Could not connect to"
+                    " sosd.  (%s:%s)\n",
+                    SOS->net.server_host, SOS->net.server_port);
             pthread_mutex_destroy(SOS->net.send_lock);
             free(SOS->net.send_lock);
             free(*sos_runtime);
@@ -324,7 +324,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         header.pub_guid = 0;
 
         SOS_buffer *buffer;
-        SOS_buffer_init_sized_locking(SOS, &buffer, 64, false);
+        SOS_buffer_init_sized_locking(SOS, &buffer, 1024, false);
         
         int offset = 0;
         SOS_buffer_pack(buffer, &offset, "iigg", 
@@ -332,6 +332,11 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             header.msg_type,
             header.msg_from,
             header.pub_guid);
+
+        //Send client version information:
+        SOS_buffer_pack(buffer, &offset, "ii",
+            SOS_VERSION_MAJOR,
+            SOS_VERSION_MINOR);
 
         header.msg_size = offset;
         offset = 0;
@@ -368,9 +373,38 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         pthread_mutex_unlock(SOS->net.send_lock);
 
         offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+                
         SOS_buffer_unpack(buffer, &offset, "gg",
-                          &guid_pool_from,
-                          &guid_pool_to);
+                &guid_pool_from,
+                &guid_pool_to);
+
+        int server_version_major = -1;
+        int server_version_minor = -1;
+
+        SOS_buffer_unpack(buffer, &offset, "ii",
+                &server_version_major,
+                &server_version_minor);
+
+        if ((server_version_major != SOS_VERSION_MAJOR)
+            || (server_version_minor != SOS_VERSION_MINOR)) {
+            fprintf(stderr, "CRITICAL WARNING: SOS client library (%d.%d) and"
+                    " daemon (%d.%d) versions differ!\n",
+                    SOS_VERSION_MAJOR,
+                    SOS_VERSION_MINOR,
+                    server_version_major,
+                    server_version_minor);
+             fprintf(stderr, "                  ** CLIENT ** Attempting to"
+                    " proceed anyway...\n");
+            fflush(stderr);
+        }
+
+ 
+
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(4, "  ... configuring uid sets.\n");
@@ -822,10 +856,14 @@ SOS_THREAD_receives_direct(void *args)
         (int) (((struct sockaddr_in6*)insock.server_addr->ai_addr)->sin6_port);
     }
 
-    //Part 2: Listening loop for feedback messages.
-    //TODO / SLICE
-    //void SOS_feedback_receiver_f ( void (*f)(SOS_feedback feedback, SOS_buffer *msg );
-    
+    //Part 2: Notify the listener what port we are monitoring.
+
+
+    //Part 3: Listening loop for feedback messages.
+    while (SOS->status == SOS_STATUS_RUNNING) {
+        //...
+        usleep(500000);
+    }
 
     return NULL;
 }
@@ -1071,7 +1109,8 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
 
             SOS_buffer_init_sized_locking(SOS, &buf, sizeof(SOS_msg_header), false);
             
-            dlog(1, "The last guid has been used from SOS->uid.my_guid_pool!  Requesting a new block...\n");
+            dlog(0, "The last guid has been used from SOS->uid.my_guid_pool!"
+                    "  Requesting a new block...\n");
             header.msg_size = -1;
             header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
             header.msg_from = SOS->my_guid;
@@ -1089,17 +1128,26 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
             SOS_buffer_pack(buf, &offset, "i", header.msg_size);
 
             SOS_buffer *reply;
-            SOS_buffer_init_sized_locking(SOS, &reply, (2 * sizeof(uint64_t)), false);
+            SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
             SOS_send_to_daemon(buf, reply);
 
+            offset = 0;
+            SOS_buffer_unpack(reply, &offset, "iigg",
+                    &header.msg_size,
+                    &header.msg_type,
+                    &header.msg_from,
+                    &header.pub_guid);
+
             if (SOS->config.offline_test_mode == true) {
-                /* NOTE: In OFFLINE_TEST_MODE there is zero chance of exhausting GUID's... seriously. */
+                //Do nothing.
             } else {
-                offset = 0;
+                // We are a normal client, move us to the next block.
                 SOS_buffer_unpack(reply, &offset, "g", &id->next);
                 SOS_buffer_unpack(reply, &offset, "g", &id->last);
-                dlog(1, "  ... recieved a new guid block from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", id->next, id->last);
+                dlog(0, "  ... recieved a new guid block from %"
+                        SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n",
+                        id->next, id->last);
             }
             SOS_buffer_destroy(buf);
             SOS_buffer_destroy(reply);
@@ -1328,7 +1376,15 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     case SOS_VAL_TYPE_LONG:   pack_val.l_val = *(long *)pack_val_var; break;
     case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = *(double *)pack_val_var; break;
     case SOS_VAL_TYPE_STRING: pack_val.c_val = (char *)pack_val_var; break;
-    case SOS_VAL_TYPE_BYTES:  pack_val.bytes = (SOS_buffer *)pack_val_var; break;
+    case SOS_VAL_TYPE_BYTES:
+        fprintf(stderr, "WARNING: SOS_pack(...) used to pack SOS_VAL_TYPE_BYTES."
+                " This is unsupported.\n");
+        fprintf(stderr, "WARNING: Please use SOS_pack_bytes(...) instead!\n");
+        fprintf(stderr, "WARNING: Doing nothing and returning....\n");
+        fflush(stderr);
+        return -1;
+        break;
+
     default:
         dlog(0, "ERROR: Invalid pack_type sent to SOS_pack.   (%d)\n", (int) pack_type);
         return -1;
@@ -1396,18 +1452,16 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
         break;
 
     case SOS_VAL_TYPE_BYTES:
-        byte_buffer = (SOS_buffer *) pack_val.bytes;
-        if (byte_buffer != NULL) {
-            if (data->val.bytes != NULL) { free(data->val.bytes); }
-            data->val.bytes = (void *) malloc((1 + byte_buffer->len) * sizeof(unsigned char));
-            memcpy(data->val.bytes, byte_buffer->data, byte_buffer->len);
-            data->val_len = byte_buffer->len;
-        } else {
-            dlog(0, "WARNING: You packed a null (SOS_buffer *) for pub(%s)->data[%d]!\n",
-                 pub->title, pos);
-            SOS_buffer_init_sized(SOS, (SOS_buffer **) &data->val.bytes, SOS_DEFAULT_BUFFER_MIN);
-            data->val_len = SOS_DEFAULT_BUFFER_MIN;
-        }
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n");
+        fprintf(stderr, "ERROR: Please use SOS_pack_bytes(...) instead.\n");
+        fprintf(stderr, "ERROR: Somehow libsos passed beyond its safety guard and has\n");
+        fprintf(stderr, "ERROR: modified the state of the publication handle.\n");
+        fprintf(stderr, "ERROR: Since safety/consistency can no longer by guaranteed,\n");
+        fprintf(stderr, "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
         break;
         
     case SOS_VAL_TYPE_INT:
@@ -1450,8 +1504,18 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
     
     switch(snap->type) {
     case SOS_VAL_TYPE_BYTES:
-        snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
-        memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n");
+        fprintf(stderr, "ERROR: Please use SOS_pack_bytes(...) instead.\n");
+        fprintf(stderr, "ERROR: Somehow libsos passed beyond its safety guard and has\n");
+        fprintf(stderr, "ERROR: modified the state of the publication handle.\n");
+        fprintf(stderr, "ERROR: Since safety/consistency can no longer by guaranteed,\n");
+        fprintf(stderr, "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+        //snap->val.bytes = (unsigned char *) malloc(snap->val_len * sizeof(unsigned char));
+        //memcpy(data->val.bytes, snap->val.bytes, snap->val_len);
         break;
 
     case SOS_VAL_TYPE_STRING:
@@ -1480,6 +1544,21 @@ int SOS_pack( SOS_pub *pub, const char *name, SOS_val_type pack_type, void *pack
 
     return pos;
 }
+
+
+int
+SOS_pack_bytes(SOS_pub *pub, const char *name,
+        int byte_count, void *pack_source)
+{
+
+    int pos = -1;
+
+    return pos;
+}
+
+
+
+
 
 int SOS_pub_search(SOS_pub *pub, const char *name) {
     long i;
@@ -1740,11 +1819,13 @@ void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer, SOS_pipe *snap_queue, SO
             break;
         case SOS_VAL_TYPE_BYTES:
             memset(unpack_fmt, '\0', SOS_DEFAULT_STRING_LEN);
-            offset -= SOS_buffer_unpack(buffer, &offset, "i", &string_len);
-            snap->val_len = string_len;
-            snap->val.bytes = (void *) malloc((1 + string_len) * sizeof(unsigned char));
-            snprintf(unpack_fmt, SOS_DEFAULT_STRING_LEN, "%db", string_len);   //No really needed got unpacking, since the length is already in there...
-            SOS_buffer_unpack(buffer, &offset, unpack_fmt, snap->val.bytes);
+            int rewind_amt = 0;
+            int byte_count = 0;
+            rewind_amt = SOS_buffer_unpack(buffer, &offset, "i", &byte_count);
+            offset -= rewind_amt;
+            snap->val_len = byte_count;
+            snap->val.bytes = (unsigned char *) calloc(sizeof(unsigned char), (byte_count + 1));
+            SOS_buffer_unpack(buffer, &offset, "b", snap->val.bytes);
             break;
         default:
           dlog(6, "ERROR: Invalid type (%d) at index %d with pub->guid == %" SOS_GUID_FMT ".\n", snap->type, snap->elem, pub->guid);
@@ -1895,15 +1976,41 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
                         pub->data[elem]->meta.mood);
 
         switch (pub->data[elem]->type) {
-        case SOS_VAL_TYPE_INT:     SOS_buffer_pack(buffer, &offset, "i", pub->data[elem]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:    SOS_buffer_pack(buffer, &offset, "l", pub->data[elem]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE:  SOS_buffer_pack(buffer, &offset, "d", pub->data[elem]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING:  SOS_buffer_pack(buffer, &offset, "s", pub->data[elem]->val.c_val);
-            dlog(8, "[STRING]: Packing in -> \"%s\" ...\n", pub->data[elem]->val.c_val);
+        case SOS_VAL_TYPE_INT:
+            SOS_buffer_pack(buffer, &offset,
+                    "i", pub->data[elem]->val.i_val);
             break;
-        case SOS_VAL_TYPE_BYTES:   SOS_buffer_pack(buffer, &offset, "b", pub->data[elem]->val.bytes); break;
+
+        case SOS_VAL_TYPE_LONG:
+            SOS_buffer_pack(buffer, &offset,
+                    "l", pub->data[elem]->val.l_val);
+            break;
+
+        case SOS_VAL_TYPE_DOUBLE:
+            SOS_buffer_pack(buffer, &offset,
+                    "d", pub->data[elem]->val.d_val);
+            break;
+
+        case SOS_VAL_TYPE_STRING:
+            SOS_buffer_pack(buffer, &offset,
+                    "s", pub->data[elem]->val.c_val);
+            dlog(8, "[STRING]: Packing in -> \"%s\" ...\n",
+                    pub->data[elem]->val.c_val);
+            break;
+
+        case SOS_VAL_TYPE_BYTES:
+            dlog(0, "WARNING: Use of SOS_pack(...) to pack bytes"
+                    " is discouraged.\n");
+            dlog(0, "WARNING: Please use SOS_pack_bytes(...) instead.\n");
+            SOS_buffer_pack_bytes(buffer, &offset,
+                pub->data[elem]->val_len,
+                (void *) pub->data[elem]->val.bytes);
+            break;
+
         default:
-            dlog(6, "Invalid type (%d) at index %d of pub->guid == %" SOS_GUID_FMT ".\n", pub->data[elem]->type, elem, pub->guid);
+            dlog(6, "Invalid type (%d) at index %d of pub->guid"
+                    " == %" SOS_GUID_FMT ".\n", pub->data[elem]->type,
+                    elem, pub->guid);
             break;
         }//switch
     }//for

@@ -5,6 +5,11 @@ echo $SCRIPTPATH
 BASEDIR="$(cd "$SCRIPTPATH/../../.."; pwd)"
 echo $BASEDIR
 
+export SOS_HOST_KNOWN_AS="\"NERSC (Cori)\""
+
+# For tracking the environment that SOS is built in:
+export SOS_HOST_NODE_NAME="\"$(uname -n)\""
+export SOS_HOST_DETAILED="\"$(uname -o) $(uname -r) $(uname -m)\""
 export SOS_CMD_PORT=22500
 export SOS_ROOT=$BASEDIR
 export SOS_WORK=.
@@ -53,3 +58,13 @@ LD_LIBRARY_PATH=$TAU/craycnl/lib:$LD_LIBRARY_PATH
 # PATH=$TAU/craycnl/bin:$SQLITE_ROOT/bin:$PATH
 # export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-mpi-pthread-pdt
 # export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-ompt-mpi-pdt-openmp
+
+echo "Reconfiguring the build scripts..."
+cd $SOS_ROOT
+$SOS_ROOT/scripts/configure.sh -c
+cd $SOS_BUILD_DIR
+make clean
+echo "-- Compile SOSflow with the following command:"
+echo ""
+echo "        make -j install"
+echo ""
