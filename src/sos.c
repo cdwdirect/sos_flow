@@ -1109,7 +1109,8 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
 
             SOS_buffer_init_sized_locking(SOS, &buf, sizeof(SOS_msg_header), false);
             
-            dlog(1, "The last guid has been used from SOS->uid.my_guid_pool!  Requesting a new block...\n");
+            dlog(0, "The last guid has been used from SOS->uid.my_guid_pool!"
+                    "  Requesting a new block...\n");
             header.msg_size = -1;
             header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
             header.msg_from = SOS->my_guid;
@@ -1127,7 +1128,7 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
             SOS_buffer_pack(buf, &offset, "i", header.msg_size);
 
             SOS_buffer *reply;
-            SOS_buffer_init_sized_locking(SOS, &reply, (2 * sizeof(uint64_t)), false);
+            SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
             SOS_send_to_daemon(buf, reply);
 
@@ -1139,11 +1140,14 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
                     &header.pub_guid);
 
             if (SOS->config.offline_test_mode == true) {
-                /* NOTE: In OFFLINE_TEST_MODE there is zero chance of exhausting GUID's... seriously. */
+                //Do nothing.
             } else {
+                // We are a normal client, move us to the next block.
                 SOS_buffer_unpack(reply, &offset, "g", &id->next);
                 SOS_buffer_unpack(reply, &offset, "g", &id->last);
-                dlog(1, "  ... recieved a new guid block from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", id->next, id->last);
+                dlog(0, "  ... recieved a new guid block from %"
+                        SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n",
+                        id->next, id->last);
             }
             SOS_buffer_destroy(buf);
             SOS_buffer_destroy(reply);

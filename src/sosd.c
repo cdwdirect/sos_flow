@@ -1289,7 +1289,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n");
 
-    SOS_buffer_init_sized_locking(SOS, &reply, (2 * sizeof(uint64_t)), false);
+    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
 
