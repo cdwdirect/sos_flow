@@ -1293,10 +1293,25 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
 
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
+    header.msg_from = SOS->config.comm_rank;
+    header.pub_guid = 0;
+
     offset = 0;
+    SOS_buffer_pack(reply, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+
     SOS_buffer_pack(reply, &offset, "gg",
-        block_from,
-        block_to);
+            block_from,
+            block_to);
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(reply, &offset, "i", header.msg_size);
 
     i = send( SOSD.net.client_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
@@ -1909,13 +1924,13 @@ void SOSD_init() {
 
         /* [file handles]
          *     close unused IO handles
-         */
         if (SOS_DEBUG < 1) {
             dlog(1, "Closing traditional I/O for the daemon...\n");
             close(STDIN_FILENO);
             close(STDOUT_FILENO);
             close(STDERR_FILENO);
         }
+         */
 
         
         dlog(1, "  ... session(%d) successfully split off from parent(%d).\n", getpid(), ppid);

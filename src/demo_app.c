@@ -20,12 +20,12 @@
 
 #include "sos.h"
 
-/*
+
 #ifdef SOS_DEBUG
 #undef SOS_DEBUG
 #endif
 #define SOS_DEBUG 1
-*/
+
 
 #include "sos_debug.h"
 
@@ -126,7 +126,7 @@ int main(int argc, char *argv[]) {
 
     var_double = 0.0;
 
-    int pos = -1;
+/*    int pos = -1;
     for (i = 0; i < PUB_ELEM_COUNT; i++) {
         snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
 
@@ -137,10 +137,7 @@ int main(int argc, char *argv[]) {
         dlog(0, "   pub->data[%d]->guid == %" SOS_GUID_FMT "\n", pos, pub->data[pos]->guid);
         var_double += 0.0000001;
     }
-
-
-    if (rank == 0) dlog(0, "Announcing\n");
-    SOS_announce(pub);
+*/
 
     if (rank == 0) dlog(0, "Re-packing --> Publishing %d values for %d times per iteration:\n",
            PUB_ELEM_COUNT,
@@ -174,13 +171,19 @@ int main(int argc, char *argv[]) {
             var_double += 0.000001;
         }
 
-        if (ones % 2) {
+        if (ones == 1) {
+            if (rank == 0) { dlog(0, "Announcing\n"); }
+            SOS_announce(pub);
+        }
+         //if (ones % 2) {
             /* Publish every other iteration to force local snap-queue use. */
             SOS_publish(pub);
-        }
+        //}
         //SOS_publish(pub);
     }
 
+
+    SOS_publish(pub);
 
     SOS_finalize(my_sos);
     MPI_Finalize(); 

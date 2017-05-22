@@ -9,8 +9,14 @@
  */
 
 
+// NOTE: Major and minor versions should be simple integers,
+//       as they are treated as ints when exchanged between
+//       client and server.
+
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 9 
+#define SOS_VERSION_MINOR 11 
+
+// ...
 
 #define SOS_Q(x) #x
 #define SOS_QUOTE_DEF_STR(x) SOS_Q(x)
@@ -43,7 +49,7 @@
 #define SOS_DEFAULT_SERVER_PORT     22500
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
 #define SOS_DEFAULT_TIMEOUT_SEC     2.0
-#define SOS_DEFAULT_BUFFER_MAX      2048
+#define SOS_DEFAULT_BUFFER_MAX      4096
 #define SOS_DEFAULT_BUFFER_MIN      512
 #define SOS_DEFAULT_PIPE_DEPTH      100000
 #define SOS_DEFAULT_REPLY_LEN       128
@@ -51,7 +57,7 @@
 #define SOS_DEFAULT_STRING_LEN      256
 #define SOS_DEFAULT_RING_SIZE       65536
 #define SOS_DEFAULT_TABLE_SIZE      128
-#define SOS_DEFAULT_GUID_BLOCK      2048
+#define SOS_DEFAULT_GUID_BLOCK      8001027
 #define SOS_DEFAULT_ELEM_MAX        1024
 #define SOS_DEFAULT_UID_MAX         LLONG_MAX
 

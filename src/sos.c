@@ -1131,10 +1131,16 @@ SOS_guid SOS_uid_next( SOS_uid *id ) {
 
             SOS_send_to_daemon(buf, reply);
 
+            offset = 0;
+            SOS_buffer_unpack(reply, &offset, "iigg",
+                    &header.msg_size,
+                    &header.msg_type,
+                    &header.msg_from,
+                    &header.pub_guid);
+
             if (SOS->config.offline_test_mode == true) {
                 /* NOTE: In OFFLINE_TEST_MODE there is zero chance of exhausting GUID's... seriously. */
             } else {
-                offset = 0;
                 SOS_buffer_unpack(reply, &offset, "g", &id->next);
                 SOS_buffer_unpack(reply, &offset, "g", &id->last);
                 dlog(1, "  ... recieved a new guid block from %" SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n", id->next, id->last);
