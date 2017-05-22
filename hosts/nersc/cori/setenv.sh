@@ -59,12 +59,13 @@ LD_LIBRARY_PATH=$TAU/craycnl/lib:$LD_LIBRARY_PATH
 # export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-mpi-pthread-pdt
 # export TAU_MAKEFILE=${TAU}/craycnl/lib/Makefile.tau-gnu-ompt-mpi-pdt-openmp
 
-echo "Reconfiguring the build scripts..."
-cd $SOS_ROOT
-$SOS_ROOT/scripts/configure.sh -c
-cd $SOS_BUILD_DIR
-make clean
-echo "-- Compile SOSflow with the following command:"
-echo ""
-echo "        make -j install"
-echo ""
+#echo "Reconfiguring the build scripts..."
+#cd $SOS_ROOT
+#$SOS_ROOT/scripts/configure.sh -c
+#cd $SOS_BUILD_DIR
+#make clean
+#echo "-- Compile SOSflow with the following command:"
+#echo ""
+#echo "        make -j install"
+#echo ""
+
