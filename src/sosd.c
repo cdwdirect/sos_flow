@@ -1181,7 +1181,6 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
 
 
 
-/* TODO: { VERSIONING } Add SOSD version to this message. */
 void SOSD_handle_register(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_register");
     SOS_msg_header header;
@@ -1203,16 +1202,43 @@ void SOSD_handle_register(SOS_buffer *buffer) {
                       &header.msg_from,
                       &header.pub_guid);
 
+    //Check version of the client against the server's:
+    int client_version_major = -1;
+    int client_version_minor = -1;
+
+    SOS_buffer_unpack(buffer, &offset, "ii",
+            &client_version_major,
+            &client_version_minor);
+
+    if ((client_version_major != SOS_VERSION_MAJOR)
+        || (client_vervsion_minor != SOS_VERSION_MINOR)) {
+        fprintf(stderr, "CRITICAL WARNING: SOS client library (%d.%d) and"
+                " daemon (%d.%d) versions differ!\n",
+                client_version_major,
+                client_version_minor,
+                SOS_VERSION_MAJOR,
+                SOS_VERSION_MINOR);
+        fprintf(stderr, "                  Attempting service anyway...\n");
+        fflush(stderr);
+    }
+
     if (header.msg_from == 0) {
         /* A new client is registering with the daemon.
          * Supply them a block of GUIDs ...
          */
-        SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_block_from, &guid_block_to);
+        SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK,
+                &guid_block_from, &guid_block_to);
+
+
+        //TODO: NOW... make the reply a header-style compliant message.
+
+        header.msg_from = SOS->config.
 
         offset = 0;
         SOS_buffer_pack(reply, &offset, "gg",
                         guid_block_from,
                         guid_block_to);
+
 
     } else {
         /* An existing client (such as a scripting language wrapped library)

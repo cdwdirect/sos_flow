@@ -306,8 +306,9 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         freeaddrinfo( SOS->net.result_list );
         
         if (server_socket_fd == 0) {
-            fprintf(stderr, "ERROR!  Could not connect to the server.  (%s:%s)\n",
-                SOS->net.server_host, SOS->net.server_port);
+            fprintf(stderr, "ERROR!  Could not connect to"
+                    " sosd.  (%s:%s)\n",
+                    SOS->net.server_host, SOS->net.server_port);
             pthread_mutex_destroy(SOS->net.send_lock);
             free(SOS->net.send_lock);
             free(*sos_runtime);
@@ -332,6 +333,11 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             header.msg_type,
             header.msg_from,
             header.pub_guid);
+
+        //Send client version information:
+        SOS_buffer_pack(buffer, &offset, "ii",
+            SOS_VERSION_MAJOR,
+            SOS_VERSION_MINOR);
 
         header.msg_size = offset;
         offset = 0;
