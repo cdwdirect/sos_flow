@@ -10,7 +10,7 @@
 
 
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 9
+#define SOS_VERSION_MINOR 9 
 
 #define SOS_Q(x) #x
 #define SOS_QUOTE_DEF_STR(x) SOS_Q(x)

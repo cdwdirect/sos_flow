@@ -140,7 +140,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
-    unsigned char buffer[SOS_DEFAULT_REPLY_LEN] = {0};
     int i, n, retval, server_socket_fd;
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
@@ -325,7 +324,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         header.pub_guid = 0;
 
         SOS_buffer *buffer;
-        SOS_buffer_init_sized_locking(SOS, &buffer, 64, false);
+        SOS_buffer_init_sized_locking(SOS, &buffer, 1024, false);
         
         int offset = 0;
         SOS_buffer_pack(buffer, &offset, "iigg", 
@@ -374,9 +373,38 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         pthread_mutex_unlock(SOS->net.send_lock);
 
         offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+                
         SOS_buffer_unpack(buffer, &offset, "gg",
-                          &guid_pool_from,
-                          &guid_pool_to);
+                &guid_pool_from,
+                &guid_pool_to);
+
+        int server_version_major = -1;
+        int server_version_minor = -1;
+
+        SOS_buffer_unpack(buffer, &offset, "ii",
+                &server_version_major,
+                &server_version_minor);
+
+        if ((server_version_major != SOS_VERSION_MAJOR)
+            || (server_version_minor != SOS_VERSION_MINOR)) {
+            fprintf(stderr, "CRITICAL WARNING: SOS client library (%d.%d) and"
+                    " daemon (%d.%d) versions differ!\n",
+                    SOS_VERSION_MAJOR,
+                    SOS_VERSION_MINOR,
+                    server_version_major,
+                    server_version_minor);
+             fprintf(stderr, "                  ** CLIENT ** Attempting to"
+                    " proceed anyway...\n");
+            fflush(stderr);
+        }
+
+ 
+
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(4, "  ... configuring uid sets.\n");

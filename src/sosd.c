@@ -1211,14 +1211,15 @@ void SOSD_handle_register(SOS_buffer *buffer) {
             &client_version_minor);
 
     if ((client_version_major != SOS_VERSION_MAJOR)
-        || (client_vervsion_minor != SOS_VERSION_MINOR)) {
+        || (client_version_minor != SOS_VERSION_MINOR)) {
         fprintf(stderr, "CRITICAL WARNING: SOS client library (%d.%d) and"
                 " daemon (%d.%d) versions differ!\n",
                 client_version_major,
                 client_version_minor,
                 SOS_VERSION_MAJOR,
                 SOS_VERSION_MINOR);
-        fprintf(stderr, "                  Attempting service anyway...\n");
+        fprintf(stderr, "                  ** DAEMON ** Attempting"
+                " service anyway...\n");
         fflush(stderr);
     }
 
@@ -1229,16 +1230,33 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK,
                 &guid_block_from, &guid_block_to);
 
-
-        //TODO: NOW... make the reply a header-style compliant message.
-
-        header.msg_from = SOS->config.
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_REGISTER;
+        header.msg_from = SOS->config.comm_rank;
+        header.pub_guid = 0;
 
         offset = 0;
-        SOS_buffer_pack(reply, &offset, "gg",
-                        guid_block_from,
-                        guid_block_to);
 
+        SOS_buffer_pack(reply, &offset, "iigg",
+                header.msg_type,
+                header.msg_size,
+                header.msg_from,
+                header.pub_guid);
+
+        //Pack in the GUID's
+        SOS_buffer_pack(reply, &offset, "gg",
+                guid_block_from,
+                guid_block_to);
+
+        //Pack in the server's version # (just in case)
+        SOS_buffer_pack(reply, &offset, "ii",
+                SOS_VERSION_MAJOR,
+                SOS_VERSION_MINOR);
+
+        header.msg_size = offset;
+        offset = 0;
+        SOS_buffer_pack(reply, &offset, "i",
+                header.msg_size);
 
     } else {
         /* An existing client (such as a scripting language wrapped library)
