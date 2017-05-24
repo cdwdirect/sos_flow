@@ -14,7 +14,7 @@
 #endif
 
 #include "sos.h"
-#include "sosd.h"
+//#include "sosd.h"
 #include "sosa.h"
 #include "sos_types.h"
 #include "sos_debug.h"
@@ -32,7 +32,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     SOS_buffer *msg;
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &msg,   1024, false);
-    SOS_buffer_init_sized_locking(SOS, &reply, 204800, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
 
 
     SOS_msg_header header;
@@ -79,6 +79,9 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
         strval = nullstr;
     }
 
+    dlog(9, "put(row,col)== %d, %d\t\t-> result.max(row,col) == %d, %d\n",
+        row, col, results->row_max, results->col_max);
+
     if ((col >= results->col_max) || (row >= results->row_max)) {
         SOSA_results_grow_to(results, col, row);
     }
@@ -120,7 +123,19 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
 
     dlog(7, "Packing %d rows of %d columns into buffer...\n", results->row_count, results->col_count);
 
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_QUERY;
+    header.msg_from = SOS->config.comm_rank;
+    header.pub_guid = 0;
     int offset = 0;
+    SOS_buffer_pack(buffer, &offset, "iigg",
+        header.msg_size,
+        header.msg_type,
+        header.msg_from,
+        header.pub_guid);
+
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
                     results->row_count);
@@ -139,6 +154,10 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
             SOS_buffer_pack(buffer, &offset, "s", results->data[row][col]);
         }
     }
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
 
     dlog(7, "   ... done.\n");
 
@@ -162,14 +181,29 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
 
     int col_incoming = 0;
     int row_incoming = 0;
+
+    SOS_msg_header header;
     int offset = 0;
 
+    // Strip out the header...
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+        &header.msg_size,
+        &header.msg_type,
+        &header.msg_from,
+        &header.pub_guid);
+
+    // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
                       &col_incoming,
                       &row_incoming);
 
+    dlog(9, "Unpacking a buffer with query results that contains %d rows and %d columns...\n",
+        row_incoming, col_incoming);
+    dlog(9, "results_befor (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
     SOSA_results_grow_to(results, col_incoming, row_incoming);
+    dlog(9, "results_after (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
     SOSA_results_wipe(results);
+    dlog(9, "results_wiped (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
 
     int col = 0;
     int row = 0;
@@ -190,12 +224,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     results->col_count = col_incoming;
     results->row_count = row_incoming;
 
-    printf("SOSA: results->col_count == %d\n", results->col_count);
-    printf("SOSA: results->row_count == %d\n", results->row_count);
     fflush(stdout);
-
-    SOSA_results_output_to(stdout, results, "test", SOSA_OUTPUT_DEFAULT);
-
 
     dlog(7, "   ... done.\n");
     return;
@@ -407,7 +436,7 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
     int row;
     int col;
 
-    if ((new_col_max <= results->col_max) && (new_row_max <= results->row_max)) {
+    if ((new_col_max < results->col_max) && (new_row_max < results->row_max)) {
         dlog(7, "NOTE: results->data[%d][%d] can already handle requested size[%d][%d].\n",
              results->row_max, results->col_max,
              new_row_max, new_col_max );
@@ -594,218 +623,4 @@ void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply) {
 }
 
 
-SOS_runtime* SOSA_init_for_socket(int *argc, char ***argv, int unique_color) {
-    //TODO
-    return NULL;
-}
 
-/*
- * DEPRECATED: SOSA modules use the standard SOS_init(...) routine now.
- *
-SOS_runtime* SOSA_init_for_mpi(int *argc, char ***argv, int unique_color) {
-    SOSA.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
-
-    SOSA.sos_context->role = SOS_ROLE_ANALYTICS;
-    SOSA.sos_context->status = SOS_STATUS_RUNNING;
-    SOSA.sos_context->config.argc = *argc;
-    SOSA.sos_context->config.argv = *argv;
-
-    MPI_Init_thread(argc, argv, MPI_THREAD_MULTIPLE, &SOSA.sos_context->config.comm_support);
-
-    int world_size = -1;
-    int world_rank = -1;
-    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-
-    // Information about this rank.
-    int   my_role;
-    char *my_host;
-    int   my_host_name_len;
-
-    // Target arrays for MPI_Allgather of roles and host names.
-    int  *world_roles;
-    char *world_hosts;
-
-    // WORLD DISCOVER: ----------
-    //   (includes ANALYTICS ranks)
-    my_host     = (char *) calloc(MPI_MAX_PROCESSOR_NAME, sizeof(char));
-    world_hosts = (char *) calloc(world_size * (MPI_MAX_PROCESSOR_NAME), sizeof(char));
-    world_roles =  (int *) calloc(world_size, sizeof(int));
-    my_role = SOSA.sos_context->role;
-    MPI_Get_processor_name(my_host, &my_host_name_len);
-    MPI_Allgather((void *) &my_role, 1, MPI_INT, world_roles, 1, MPI_INT, MPI_COMM_WORLD);
-    MPI_Allgather((void *) my_host, MPI_MAX_PROCESSOR_NAME, MPI_CHAR,
-                  (void *) world_hosts, MPI_MAX_PROCESSOR_NAME, MPI_CHAR, MPI_COMM_WORLD);
-
-    SOSA.world_rank  = world_rank;
-    SOSA.world_size  = world_size;
-    SOSA.world_roles = world_roles;
-    SOSA.world_hosts = world_hosts;
-
-    // SPLIT: -------------------
-    //   (ANALYTICS ranks peel off into their own communicator)
-
-    SOSA.analytics_color = unique_color;
-    MPI_Comm_split(MPI_COMM_WORLD, SOSA.analytics_color, world_rank, &SOSA.comm);
-    MPI_Comm_size(SOSA.comm, &SOSA.sos_context->config.comm_size);
-    MPI_Comm_rank(SOSA.comm, &SOSA.sos_context->config.comm_rank);
-
-    SOS_SET_CONTEXT(SOSA.sos_context, "SOSA_init");
-
-    dlog(0, "Bringing analytics module online...\n");
-    dlog(0, "    ... SOSA.analytics_color     == %d\n", SOSA.analytics_color);
-    int i;
-
-    // Count the number of database roles  (The 'i' index == MPI rank)
-    SOSA.db_role_count = 0;
-    for (i = 0; i < world_size; i++) {
-        if (world_roles[i] == SOS_ROLE_AGGREGATOR) {
-            SOSA.db_role_count++;
-        }
-    }
-
-    dlog(0, "    ... SOSA.db_role_count       == %d\n", SOSA.db_role_count);
-
-    // Construct a list of sosd database role MPI ranks:
-    if (SOSA.db_role_count < 1) {
-        fprintf(stderr, "SOSA ERROR: No database roles were discovered!\n");
-        exit(EXIT_FAILURE);
-    } else {
-        int found_db_index = 0;
-        SOSA.db_role_ranks = (int *) calloc(SOSA.db_role_count, sizeof(int));
-        for (i = 0; i < world_size; i++) {
-            if (world_roles[i] == SOS_ROLE_AGGREGATOR) {
-                SOSA.db_role_ranks[found_db_index++] = i;
-                dlog(0, "    ... SOSA.db_role_ranks[%3d]  == %d\n", (found_db_index - 1), i);
-            }
-        }
-    }
-
-    // See if we're aligned with a database rank:
-    SOSA.db_target_rank             = -1;
-    SOS->config.locale = -1;
-    for (i = 0; i < world_size; i++) {
-        if (world_roles[i] == SOS_ROLE_AGGREGATOR) {
-            if (strncmp(my_host, (world_hosts + (i * MPI_MAX_PROCESSOR_NAME)), MPI_MAX_PROCESSOR_NAME) == 0) {
-                // We're on the same node as this database...
-                SOSA.db_target_rank = i;
-                break;
-            }
-        }
-    }
-
-    dlog(0, "    ... SOSA.db_target_rank      == %d (MPI_COMM_WORLD)\n", SOSA.db_target_rank);
-
-    if (SOSA.db_target_rank == -1) {
-        SOS->config.locale = SOS_LOCALE_INDEPENDENT;
-        // Give this rank a database to talk to for GUID-request purposes...
-        SOSA.db_target_rank = (SOS->config.comm_rank % SOSA.db_role_count);
-        dlog(0, "    ... SOSA.sos_context->config.locale == SOS_LOCALE_INDEPENDENT\n");
-    } else {
-        SOS->config.locale = SOS_LOCALE_DAEMON_DBMS;
-        dlog(0, "    ... SOSA.sos_context->config.locale == SOS_LOCALE_DAEMON_DBMS\n");
-    }
-
-    // ANALYTICS discover: ------
-    SOSA.analytics_locales = (int *) calloc(SOS->config.comm_size, sizeof(int));
-    MPI_Allgather((void *) &SOS->config.locale, 1, MPI_INT,
-                  (void *) SOSA.analytics_locales, 1, MPI_INT, SOSA.comm);
-
-
-
-    // Pick up some GUIDs from our target db:
-    SOS_uid_init(SOS, &SOS->uid.my_guid_pool, -1, -1);
-    SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
-    SOSA_guid_request(SOS->uid.my_guid_pool);
-
-    dlog(0, "   ... SOSA.sos_context->uid.my_guid_pool == %" SOS_GUID_FMT " -> %" SOS_GUID_FMT "\n",
-         SOS->uid.my_guid_pool->next,
-         SOS->uid.my_guid_pool->last);
-
-    dlog(0, "   ... done.\n");
-    return SOSA.sos_context;
-}
- *
- *
- */
-
-
-/**
- * Get 32-bit Murmur3 hash.
- *
- * @param data      source data
- * @param nbytes    size of data
- *
- * @return 32-bit unsigned hash value.
- *
- * @code
- *  uint32_t hashval = qhashmurmur3_32((void*)"hello", 5);
- * @endcode
- *
- * @code
- *  MurmurHash3 was created by Austin Appleby  in 2008. The cannonical
- *  implementations are in C++ and placed in the public.
- *
- *    https://sites.google.com/site/murmurhash/
- *
- *  Seungyoung Kim has ported it's cannonical implementation to C language
- *  in 2012 and published it as a part of qLibc component.
- * @endcode
- *
- *
-
-uint32_t qhashmurmur3_32(const void *data, size_t nbytes)
-{
-    if (data == NULL || nbytes == 0) return 0;
-
-    const uint32_t c1 = 0xcc9e2d51;
-    const uint32_t c2 = 0x1b873593;
-
-    const int nblocks = nbytes / 4;
-    const uint32_t *blocks = (const uint32_t *)(data);
-    const uint8_t *tail = (const uint8_t *)data + (nblocks * 4);
-
-    uint32_t h = 0;
-
-    int i;
-    uint32_t k;
-    for (i = 0; i < nblocks; i++) {
-        k = blocks[i];
-
-        k *= c1;
-        k = (k << 15) | (k >> (32 - 15));
-        k *= c2;
-
-        h ^= k;
-        h = (h << 13) | (h >> (32 - 13));
-        h = (h * 5) + 0xe6546b64;
-    }
-
-    k = 0;
-    switch (nbytes & 3) {
-        case 3:
-            k ^= tail[2] << 16;
-        case 2:
-            k ^= tail[1] << 8;
-        case 1:
-            k ^= tail[0];
-            k *= c1;
-            k = (k << 13) | (k >> (32 - 15));
-            k *= c2;
-            h ^= k;
-    };
-
-    h ^= nbytes;
-
-    h ^= h >> 16;
-    h *= 0x85ebca6b;
-    h ^= h >> 13;
-    h *= 0xc2b2ae35;
-    h ^= h >> 16;
-
-    return h;
-}
-
- *
- *
- */

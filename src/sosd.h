@@ -54,6 +54,8 @@
 typedef struct {
     SOS_msg_type        type;
     SOS_pub            *pub;
+    char               *query;
+    SOS_guid            reply_to;
 } SOSD_db_task;
 
 
@@ -101,8 +103,11 @@ typedef struct {
 
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 typedef struct {
+    bool                active;
     char                name[256];
+    CManager            cm;
     char               *contact_string;
+    attr_list           contact_list;
     EVsource            src;
     EVstone             out_stone;
     EVstone             rmt_stone;
@@ -111,18 +116,16 @@ typedef struct {
 
 
 typedef struct {
-    CManager            cm;
     char               *instance_name;
     char               *instance_role;
     char               *meetup_path;
     int                 is_master;
     int                 node_count;
     SOSD_evpath_node  **node;
-    char               *string_list;
+    char               *contact_string;
     attr_list           contact_list;
-    EVstone             stone;
-    EVstone             remote_stone;
-    EVsource            source;
+    SOSD_evpath_node    send;
+    SOSD_evpath_node    recv;
 } SOSD_evpath;
 #endif
 
@@ -217,9 +220,8 @@ extern "C" {
     void  SOSD_setup_socket(void);
 
     void  SOSD_sync_context_init(SOS_runtime *sos_context,
-                                 SOSD_sync_context *sync_context,
-                                 size_t elem_size,
-                                 void* (*thread_func)(void *thread_param));
+            SOSD_sync_context *sync_context, size_t elem_size,
+            void* (*thread_func)(void *thread_param));
 
     void* SOSD_THREAD_local_sync(void *args);
     void* SOSD_THREAD_cloud_send(void *args);
@@ -238,16 +240,20 @@ extern "C" {
     void  SOSD_handle_shutdown(SOS_buffer *buffer);
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
-    void  SOSD_handle_unknown(SOS_buffer *buffer);
-    void  SOSD_handle_sosa_query(SOS_buffer *buffer);
+    void  SOSD_handle_query(SOS_buffer *buffer);
+    void  SOSD_handle_triggerpull(SOS_buffer *buffer);
     void  SOSD_handle_kmean_data(SOS_buffer *buffer);
+    void  SOSD_handle_unknown(SOS_buffer *buffer);
 
-    void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
+    void  SOSD_claim_guid_block( SOS_uid *uid, int size,
+            SOS_guid *pool_from, SOS_guid *pool_to );
+
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
     void  SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer );
 
     /* Private functions... see: sos.c */
-    extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
+    extern void SOS_uid_init( SOS_runtime *sos_context,
+            SOS_uid **uid, SOS_guid from, SOS_guid to);
 
 
 #ifdef __cplusplus

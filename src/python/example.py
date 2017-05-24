@@ -21,12 +21,12 @@ def demonstrateSOS():
     print "Initializing SOS..."
     SOS.init()
 
-#    print "Packing, announcing, publishing..."
-#    SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
-#    SOS.announce()
-#    SOS.publish()
-
     if (len(sys.argv) > 1):
+        print "Packing, announcing, publishing..."
+        SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
+        SOS.announce()
+        SOS.publish()
+
         count = int(0)
         count_max = int(sys.argv[1])
 
@@ -44,19 +44,21 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    print "Running a query..."
-    sql_string = "select * from tblvals;"
-    print "SQL: " + sql_string
+    sql_string = "SELECT * FROM tblVals WHERE rowid = max(rowid);"
+    print "Sending this query to the SOS daemon: "
+    print "    " + sql_string
     results, col_names = SOS.query(sql_string)
-    #pp.pprint(col_names)
-    #pp.pprint(results)
-
+    print "Results:"
+    print "    Output rows....: " + str(len(results))
+    print "    Output values..: " + str(results)
+    print "    Column count...: " + str(len(col_names)) 
+    print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
+    pp.pprint(col_names)
+    print ""
     print "Finalizing..."
     SOS.finalize();
-    print ""
     print "   ...DONE!"
-    print ""
-
+    print 
 
 if __name__ == "__main__":
     demonstrateSOS()

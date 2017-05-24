@@ -1,35 +1,27 @@
 cmake_minimum_required (VERSION 2.8)
 
-option(ENABLE_ADIOS_EXAMPLES
-       "Build the examples that require the presence of ADIOS?"
+option(ENABLE_ADIOS_EXAMPLES "Build the examples that require the presence of ADIOS?"
        OFF)
 
-option(ENABLE_TAU_WRAPPER
-       "Compile the codes with tau_cc.sh?"
+option(ENABLE_TAU_WRAPPER "Compile the codes with tau_cc.sh?"
        OFF)
 
-option(SOS_SILENCE_DEBUG
-       "Disable DEBUG messages?"
+option(SOS_SILENCE_DEBUG "Disable DEBUG messages?"
        OFF)
 
-option(SOSD_DAEMON_LOGGING
-       "Should the sosd daemon produce a log file?"
+option(SOSD_DAEMON_LOGGING "Should the sosd daemon produce a log file?"
        ON)
 
-option(SOSD_DAEMON_DETACH
-       "Have the daemon fork, detach, and get its own session?  (DEPRECATED)"
+option(SOSD_DAEMON_DETACH "Have the daemon fork, detach, and get its own session?  (DEPRECATED)"
        OFF)
 
-option(SOSD_CLOUD_SYNC
-       "Activate cloud_sync operations for the daemon?"
+option(SOSD_CLOUD_SYNC "Activate cloud_sync operations for the daemon?"
        ON)
 
-option(SOSD_CLOUD_SYNC_WITH_MPI
-       "Use MPI discover and synchronize data between daemons?"
+option(SOSD_CLOUD_SYNC_WITH_MPI "Use MPI discover and synchronize data between daemons?"
        OFF)
 
-option(SOSD_CLOUD_SYNC_WITH_EVPATH
-       "Use EVPATH synchronize data between daemons?"
+option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?"
        ON)
 
 ###########
@@ -51,11 +43,15 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 set(PROJECT_NAME sos_flow)
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
+include(GetGitRevisionDescription)
+get_git_head_revision(GIT_REFSPEC GIT_SHA1)
+add_definitions("-DGIT_SHA1=${GIT_SHA1}")
+
 project(${PROJECT_NAME} C)
-set(CMAKE_C_FLAGS "-std=gnu99")
-set(CMAKE_C_FLAGS_RELEASE "-O3 -g")
-set(CMAKE_C_FLAGS_DEBUG "-O0 -g -fsanitize=thread")
-set(CMAKE_C_FLAGS_RELWITHDEBINFO "-g -Og")
+set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
+# set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")
+set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
+set(CMAKE_C_FLAGS_RELWITHDEBINFO "${CMAKE_C_FLAGS_RELWITHDEBINFO} -DNDEBUG")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")
@@ -68,9 +64,6 @@ if(ENABLE_TAU_WRAPPER)
 endif()
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
-
-add_definitions("-DSOS_BUILDER=$ENV{USER}")
-add_definitions("-DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME}")
 
 find_package(PkgConfig REQUIRED)
 find_package("Sqlite3" REQUIRED)
