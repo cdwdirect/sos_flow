@@ -360,7 +360,7 @@ void SOSD_db_transaction_commit() {
 
 
 
-void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
+void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
     // Technique 1: Open a new connection to the database, read-only...
@@ -371,10 +371,14 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
     // sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
     
     // Technique 2: Lock the database and query it: 
-    pthread_mutex_lock(SOSD.db.lock);
+    //pthread_mutex_lock(SOSD.db.lock);
+
     sqlite3 *sosa_conn = database;
 
     SOS_msg_header   header;
+
+    // ALL OF THIS IS BORKED FOR NOW
+    //  --- the way this is handled is changing.
 
     dlog(4, "Extracting the message...\n");
 

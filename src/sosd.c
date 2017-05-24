@@ -113,7 +113,6 @@ int main(int argc, char *argv[])  {
     my_rank = -1;
     SOSD.net.listen_backlog = 10;
 
-
     // Grab the port from the environment variable SOS_CMD_PORT
     SOSD.net.server_port = getenv("SOS_CMD_PORT");
     if ((SOSD.net.server_port == NULL) || (strlen(SOSD.net.server_port)) < 2) {
@@ -281,9 +280,9 @@ int main(int argc, char *argv[])  {
     }
     #else
     #endif
-   SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *),
+    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *),
         SOSD_THREAD_local_sync);
-
+  
 
     dlog(0, "Entering listening loops...\n");
 
@@ -677,7 +676,7 @@ void* SOSD_THREAD_db_sync(void *args) {
 
             case SOS_MSG_TYPE_QUERY:
                 dlog(6, "Sending QUERY to the database...\n");
-                
+                SOSD_db_handle_sosa_query(task);     
 
             default:
                 dlog(0, "WARNING: Invalid task->type value at"

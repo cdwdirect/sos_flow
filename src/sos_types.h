@@ -400,8 +400,10 @@ typedef struct {
 
 
 typedef struct {
+    void               *sos_context;
     char               *server_host;
     char               *server_port;
+    int                 server_socket_fd; 
     struct addrinfo    *server_addr;
     struct addrinfo    *result_list;
     struct addrinfo     server_hint;
@@ -413,6 +415,7 @@ typedef struct {
 } SOS_socket_out;
 
 typedef struct {
+    void               *sos_context;
     int                 server_socket_fd;
     int                 client_socket_fd;
     int                 port_number;
