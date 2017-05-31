@@ -275,7 +275,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
         for (row = 0; row < results->row_count; row++) {
             fprintf(fptr, "\t{\n"); //row:begin
 
-            fprintf(fptr, "\t\t\"row_id\": \"%d\"\n", row);
+            fprintf(fptr, "\t\t\"result_row\": \"%d\"\n", row);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\t\t\"%s\": \"%s\"", results->col_names[col], results->data[row][col]);
                 if (col < (results->col_count - 1)) {
@@ -304,7 +304,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
     default://OUTPUT_CSV:
         // Display header (optional)
         if (options & SOSA_OUTPUT_W_HEADER) {
-            fprintf(fptr, "\"time_stamp\",\"row_id\",");
+            fprintf(fptr, "\"time_stamp\",\"result_row\",");
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);
                 if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }

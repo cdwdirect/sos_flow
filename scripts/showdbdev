@@ -1,0 +1,46 @@
+#!/bin/bash
+if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
+then 
+    SQL="SELECT"
+    SQL="$SQL guid,"
+    SQL="$SQL AVG(diff) AS mean,"
+    SQL="$SQL printf(\"%f\", (AVG(diff*diff) - AVG(diff)*AVG(diff))) AS variance"
+    #SQL="$SQL SQRT(AVG(diff*diff) - AVG(diff)*AVG(diff)) AS stddev"
+    SQL="$SQL FROM ("
+    SQL="$SQL       SELECT"
+    SQL="$SQL           (tblVals.guid) AS guid,"
+    SQL="$SQL           (time_recv - time_send) AS diff"
+    SQL="$SQL       FROM tblVals"
+    #SQL="$SQL       GROUP BY guid"
+    SQL="$SQL ) AS diffs"
+    SQL="$SQL GROUP BY guid;"
+
+    
+#     SQL="SELECT"
+#     SQL="$SQL COUNT(guid) AS entry_count,"
+#     SQL="$SQL MIN(time_recv - time_send) AS min_latency,"
+#     SQL="$SQL AVG(time_recv - time_send) AS avg_latency," 
+#     SQL="$SQL MAX(time_recv - time_send) AS max_latency "
+#     SQL="$SQL FROM tblVals;"
+     #
+     echo "SQL:"
+     echo "----------"
+     echo "$SQL"
+     echo "----------"
+     echo "Running query..."
+     for db in $SOS_WORK/sosd.*.db ; do
+        #
+        echo ""
+        echo "[${db}]:count|min|avg|max(latency) == "
+        sqlite3 -separator " , " $db "$SQL"
+        echo ""
+        # 
+    done
+else
+    echo ""
+    echo "There are no database files to display in \$SOS_WORK ..."
+    echo ""
+    echo -n "    "
+    env | grep -F SOS_WORK
+    echo ""
+fi
