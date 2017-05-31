@@ -520,6 +520,91 @@ void SOSD_listen_loop() {
 /* -------------------------------------------------- */
 
 
+void* SOSD_THREAD_feedback_sync(void *args) {
+    SOSD_sync_context *my = (SOSD_sync_context *) args;
+    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_local_sync");
+    struct timeval   now;
+    struct timespec  wait;
+    SOS_msg_header   header;
+    SOS_buffer      *buffer;
+    int              offset;
+    int              count;
+
+    pthread_mutex_lock(my->lock);
+
+    gettimeofday(&now, NULL);
+    wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+    wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
+    while (SOS->status == SOS_STATUS_RUNNING) {
+        pthread_cond_timedwait(my->cond, my->lock, &wait);
+        
+        SOS_feedback_handle feedback;
+
+        SOSD_countof(thread_feedback_wakeup++);
+
+        count = pipe_pop_eager(my->queue->outlet, (void *) &buffer, 1);
+        if (count == 0) {
+            dlog(6, "Nothing remains in the queue, and the intake"
+            " is closed.  Leaving thread.\n");
+            break;
+        } else {
+            pthread_mutex_lock(my->queue->sync_lock);
+            my->queue->elem_count -= count;
+            pthread_mutex_unlock(my->queue->sync_lock);
+        }
+
+        if (buffer == NULL) {
+            dlog(6, "   ... *buffer == NULL!\n");
+            gettimeofday(&now, NULL);
+            wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+            wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
+            continue;
+        }
+
+        int offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "iigg",
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.pub_guid);
+        
+        switch(header.msg_type) {
+        case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer); break;
+        case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer); break;
+        case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (buffer); break;
+        case SOS_MSG_TYPE_KMEAN_DATA: SOSD_handle_kmean_data (buffer); break;
+        default:
+            dlog(0, "ERROR: An invalid message type (%d) was"
+                    " placed in the local_sync queue!\n", header.msg_type);
+            dlog(0, "ERROR: Destroying it.\n");
+            SOS_buffer_destroy(buffer);
+            gettimeofday(&now, NULL);
+            wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+            wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
+            continue;
+        }
+
+        if (SOS->role == SOS_ROLE_LISTENER) {
+            pthread_mutex_lock(SOSD.sync.cloud_send.queue->sync_lock);
+            pipe_push(SOSD.sync.cloud_send.queue->intake, (void *) &buffer, 1);
+            SOSD.sync.cloud_send.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.cloud_send.queue->sync_lock);
+        } else if (SOS->role == SOS_ROLE_AGGREGATOR) {
+            //DB role's can go ahead and release the buffer.
+            SOS_buffer_destroy(buffer);
+        }
+
+        gettimeofday(&now, NULL);
+        wait.tv_sec  = SOSD_LOCAL_SYNC_WAIT_SEC  + (now.tv_sec);
+        wait.tv_nsec = SOSD_LOCAL_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
+    }
+
+    pthread_mutex_unlock(my->lock);
+    pthread_exit(NULL);
+}
+
+
+
 void* SOSD_THREAD_local_sync(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
     SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_local_sync");
@@ -661,12 +746,12 @@ void* SOSD_THREAD_db_sync(void *args) {
             switch(task->type) {
             case SOS_MSG_TYPE_ANNOUNCE:
                 dlog(6, "Sending ANNOUNCE to the database...\n");
-                SOSD_db_insert_pub(task->pub);
+                SOSD_db_insert_pub((SOS_pub *) task->ref);
                 break;
 
             case SOS_MSG_TYPE_PUBLISH:
                 dlog(6, "Sending PUBLISH to the database...\n");
-                SOSD_db_insert_data(task->pub);
+                SOSD_db_insert_data((SOS_pub *) task->ref);
                 break;
 
             case SOS_MSG_TYPE_VAL_SNAPS:
@@ -705,9 +790,8 @@ void* SOSD_THREAD_db_sync(void *args) {
 void* SOSD_THREAD_cloud_recv(void *args) {
     #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
         SOSD_cloud_listen_loop();
-    #else
-        return NULL;
     #endif
+    return NULL;
 }
 
 
@@ -1031,43 +1115,40 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
-    offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.pub_guid);
 
-    SOS_buffer *result = NULL;
-    SOS_buffer_init_sized_locking(SOS, &result, SOS_DEFAULT_BUFFER_MAX, false);
+    SOSD_db_query_handle *query_handle = NULL;
+    query_handle = (SOSD_db_query_handle *) calloc(1, sizeof(SOSD_db_query_handle));
 
-    SOSD_db_handle_sosa_query(buffer, result);
+    query_handle->state      = SOS_QUERY_STATE_INCOMING;
+    query_handle->msg_from   = header.msg_from;
+    query_handle->query_sql  = NULL;
+    query_handle->reply_host = NULL;
+    query_handle->reply_port = -1;
+    query_handle->reply_msg  = NULL;
 
+    SOS_buffer_unpack_safestr(buffer, &offset, "s", &query_handle->reply_host);
+    SOS_buffer_unpack(buffer, &offset, "i", &query_handle->reply_port);
+    SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->query_sql);
 
-    //SPLIT
-    // Here we need to build a DB task and submit it into the queue.
-    // The handler function will need to build a reply message and drop
-    //   it into the Local Sync queue.
-
-    /*
-    task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
-    task->type = SOS_MSG_TYPE_ANNOUNCE;
+    SOSD_db_task task = NULL;
+    task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
+    task->ref = (void *) query_handle;
+    task->type = SOS_MSG_TYPE_QUERY;
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
-    SOS_buffer_destroy(reply);
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    */
 
-
-    // The "send" below will not be happening right now.
-    // This is a "future" essentially, and this should eventually become
-    // some kind of a thread pool, but we don't need to do that now.
-
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOS_PACK_ACK(reply);
     rc = send(SOSD.net.client_socket_fd, (void *) result->data,
             result->len, 0);
-
     dlog(5, "replying with result->len == %d bytes, rc == %d\n", result->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1075,7 +1156,6 @@ void SOSD_handle_query(SOS_buffer *buffer) {
         SOSD_countof(socket_bytes_sent += rc);
     }
     
-    SOS_buffer_destroy(result);
     return;
 }
 
@@ -1142,7 +1222,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
 
     dlog(5, "Queue these val snaps up for the database...\n");
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
+    task->ref = (void *) pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
 
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
@@ -1367,7 +1447,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     pub->announced = SOSD_PUB_ANN_DIRTY;
 
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
+    task->ref = (void *) pub;
     task->type = SOS_MSG_TYPE_ANNOUNCE;
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
@@ -1425,7 +1505,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     SOSD_apply_publish(pub, buffer);
 
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
+    task->ref = (void *) pub;
     task->type = SOS_MSG_TYPE_PUBLISH;
     pthread_mutex_lock(pub->lock);
     if (pub->sync_pending == 0) {
