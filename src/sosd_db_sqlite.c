@@ -85,7 +85,6 @@ char *sql_create_table_data = ""                                        \
 
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
-    " row_id "          " INTEGER PRIMARY KEY, "                        \
     " guid "            " UNSIGNED BIG INT, "                           \
     " val "             " STRING, "                                     \
     " frame "           " INTEGER, "                                    \

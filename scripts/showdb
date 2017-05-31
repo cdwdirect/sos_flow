@@ -2,7 +2,7 @@
 if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
 then 
      SQL="SELECT"
-     SQL="$SQL MAX(rowid) AS entry_count,"
+     SQL="$SQL COUNT(guid) AS entry_count,"
      SQL="$SQL MIN(time_recv - time_send) AS min_latency,"
      SQL="$SQL AVG(time_recv - time_send) AS avg_latency," 
      SQL="$SQL MAX(time_recv - time_send) AS max_latency "
@@ -14,7 +14,7 @@ then
      echo "----------"
      for db in $SOS_WORK/sosd.*.db ; do
         #
-        echo -n "[${db}]:max(rowid)|min|avg|max(latency) == "
+        echo -n "[${db}]:count|min|avg|max(latency) == "
         sqlite3 -separator " | " $db "$SQL"
         # 
     done
