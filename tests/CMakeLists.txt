@@ -15,6 +15,11 @@ if(DEFINED EVPATH_FOUND)
     link_libraries(${EVPATH_LIBRARIES})
 endif()
 
+if(DEFINED LIBTCMALLOC_FOUND)
+    link_directories(${LIBTCMALLOC_LIBRARY_DIRS})
+    link_libraries(${LIBTCMALLOC_LIBRARIES})
+endif()
+
 if(SOS_SILENCE_DEBUG)
   add_definitions("-DSOS_DEBUG=0")
 endif()

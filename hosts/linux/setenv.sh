@@ -23,6 +23,7 @@ export TAU_ARCH=x86_64
 export TAU_CONFIG=-mpi-pthread
 export TAU_ROOT=$HOME/src/tau2
 export ADIOS_ROOT=/usr/local/packages/adios/git-gcc-4.9
+export GPERFTOOLS_ROOT=/usr/local/packages/gperftools/2.5
 if [ `hostname` = "ln1" ] || [ `hostname` = "ktau" ] ; then
   export CHAOS=$HOME/src/chaos/linux-gcc
   module use /projects/tau/packages/Modules/modulefiles
@@ -34,7 +35,8 @@ fi
 export cmake_extras_examples="-DADIOS_ROOT=${ADIOS_ROOT} -DSOS_ROOT=${BASEDIR}/${BUILDDIR}"
 
 export PKG_CONFIG_PATH=${CHAOS}/lib/pkgconfig:${PKG_CONFIG_PATH}
-export LD_LIBRARY_PATH=${CHAOS}/lib:${ADIOS_ROOT}/lib64:${LD_LIBRARY_PATH}
+export PKG_CONFIG_PATH=${GPERFTOOLS_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}
+export LD_LIBRARY_PATH=${CHAOS}/lib:${GPERFTOOLS_ROOT}/lib:${ADIOS_ROOT}/lib64:${LD_LIBRARY_PATH}
 export PATH=${CHAOS}/bin:${ADIOS_ROOT}/bin:${PATH}
 
 if [ `hostname` != "ln1" ] ; then

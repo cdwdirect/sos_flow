@@ -19,6 +19,7 @@
 
 
 #include "sos.h"
+#include "sos_error.h"
 
 
 #ifdef SOS_DEBUG
@@ -26,6 +27,9 @@
 #endif
 #define SOS_DEBUG 1
 
+void fork_exec_sosd(void);
+void fork_exec_sosd_shutdown(void);
+void send_shutdown_message(SOS_runtime *runtime);
 
 #include "sos_debug.h"
 
@@ -96,9 +100,32 @@ int main(int argc, char *argv[]) {
     char     var_string[100] = {0};
     int      var_int;
     double   var_double;
+    int      send_shutdown = 0;
     
     my_sos = NULL;
     SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    if(my_sos == NULL) {
+        printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
+        fork_exec_sosd();
+        send_shutdown = 1;
+    }
+    int repeat = 10;
+    while(my_sos == NULL) {
+        sleep(2);
+        my_sos = NULL;
+        //printf("init() trying to connect...\n");
+        SOS_init(&argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
+        if (my_sos != NULL) {
+            printf("Connected to SOS daemon. Continuing...\n");
+            break;
+        } else if (--repeat < 0) {
+            printf("Unable to connect to SOS daemon. Failing...\n");
+            exit(1);
+        }
+    }
+
+    SOS_register_signal_handler(my_sos);
+
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
@@ -182,6 +209,10 @@ int main(int argc, char *argv[]) {
         //SOS_publish(pub);
     }
 
+    if (send_shutdown) {
+        fork_exec_sosd_shutdown();
+    	//send_shutdown_message(my_sos);
+    }
 
     SOS_publish(pub);
 

@@ -29,6 +29,12 @@ if(DEFINED EVPATH_FOUND)
     link_libraries(${FABRIC_LIBRARIES})
 endif()
 
+if(DEFINED LIBTCMALLOC_FOUND)
+    #include_directories(${EVPATH_INCLUDE_DIRS})
+    link_directories(${LIBTCMALLOC_LIBRARY_DIRS})
+    link_libraries(${LIBTCMALLOC_LIBRARIES})
+endif()
+
 if(SOS_SILENCE_DEBUG)
   add_definitions("-DSOS_DEBUG=0")
 endif()
@@ -276,13 +282,13 @@ endif()
 
 #TARGET ---> demo_app
 #            (demonstration / example)
-add_executable("demo_app" "demo_app.c")
-target_link_libraries("demo_app" "sos" "${MPI_C_LIBRARIES}")
-if(MPI_C_COMPILE_FLAGS)
- 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+add_executable("demo_app" "sosd_spawn.cpp" "sos_error.c" "demo_app.c")
+target_link_libraries("demo_app" "sos" "${MPI_CXX_LIBRARIES}")
+if(MPI_CXX_COMPILE_FLAGS)
+ 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
-if(MPI_C_LINK_FLAGS)
-	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
+if(MPI_CXX_LINK_FLAGS)
+	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
 #TARGET ---> demo_sweep
