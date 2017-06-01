@@ -201,12 +201,16 @@ void SOSD_db_init_database() {
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
+    if (SOS_file_exists(SOSD.db.file)) {
+        fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
+                SOSD.db.file);
+    }
+
     /*
      *   "unix-none"     =no locking (NOP's)
      *   "unix-excl"     =single-access only
      *   "unix-dotfile"  =uses a file as the lock.
      */
-
     retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
