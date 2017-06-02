@@ -76,14 +76,14 @@ int main(int argc, char *argv[]) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
     header.msg_from = SOS->my_guid;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     offset = 0;
     SOS_buffer_pack(buffer, &offset, "iigg",
                               header.msg_size,
                               header.msg_type,
                               header.msg_from,
-                              header.pub_guid);
+                              header.ref_guid);
 
     SOS_buffer_pack(buffer, &offset, "s", message);
 

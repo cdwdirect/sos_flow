@@ -69,12 +69,12 @@
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
     FEEDBACK_TYPE(SOS_FEEDBACK___MAX)
 
-#define FOREACH_FEEDBACK_STATE(FEEDBACK_STATE)        \
-    FEEDBACK_STATE(SOS_FEEDBACK_STATE_INCOMING)       \
-    FEEDBACK_STATE(SOS_FEEDBACK_STATE_PENDING)        \
-    FEEDBACK_STATE(SOS_FEEDBACK_STATE_PROCESSED)      \
-    FEEDBACK_STATE(SOS_FEEDBACK_STATE_REPLIED)        \
-    FEEDBACK_STATE(SOS_FEEDBACK_STATE___MAX)
+#define FOREACH_QUERY_STATE(QUERY_STATE)        \
+    QUERY_STATE(SOS_QUERY_STATE_INCOMING)       \
+    QUERY_STATE(SOS_QUERY_STATE_PENDING)        \
+    QUERY_STATE(SOS_QUERY_STATE_PROCESSED)      \
+    QUERY_STATE(SOS_QUERY_STATE_REPLIED)        \
+    QUERY_STATE(SOS_QUERY_STATE___MAX)
 
 #define FOREACH_PRI(PRI)                        \
     PRI(SOS_PRI_DEFAULT)                        \
@@ -206,7 +206,7 @@ typedef enum { FOREACH_STATUS(GENERATE_ENUM)        } SOS_status;
 typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)      } SOS_msg_type;
 typedef enum { FOREACH_RECEIVES(GENERATE_ENUM)      } SOS_receives;
 typedef enum { FOREACH_FEEDBACK_TYPE(GENERATE_ENUM) } SOS_feedback_type;
-typedef enum { FOREACH_FEEDBACK_STATE(GENERATE_ENUM)} SOS_query_state;
+typedef enum { FOREACH_QUERY_STATE(GENERATE_ENUM)   } SOS_query_state;
 typedef enum { FOREACH_PRI(GENERATE_ENUM)           } SOS_pri;
 typedef enum { FOREACH_GEOMETRY(GENERATE_ENUM)      } SOS_geometry;
 typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)      } SOS_val_type;
@@ -230,7 +230,7 @@ static const char *SOS_STATUS_string[] =         { FOREACH_STATUS(GENERATE_STRIN
 static const char *SOS_MSG_TYPE_string[] =       { FOREACH_MSG_TYPE(GENERATE_STRING)     };
 static const char *SOS_RECEIVES_string[] =       { FOREACH_RECEIVES(GENERATE_STRING)     };
 static const char *SOS_FEEDBACK_TYPE_string[] =  { FOREACH_FEEDBACK_TYPE(GENERATE_STRING)};
-static const char *SOS_FEEDBACK_STATE_string[] = { FOREACH_FEEDBACK_STATE(GENERATE_STRING)};
+static const char *SOS_QUERY_STATE_string[] =    { FOREACH_QUERY_STATE(GENERATE_STRING)  };
 static const char *SOS_PRI_string[] =            { FOREACH_PRI(GENERATE_STRING)          };
 static const char *SOS_GEOMETRY_string[] =       { FOREACH_GEOMETRY(GENERATE_STRING)     };
 static const char *SOS_VAL_TYPE_string[] =       { FOREACH_VAL_TYPE(GENERATE_STRING)     };
@@ -384,7 +384,6 @@ typedef struct {
     SOS_guid            client_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
     void               *target;
-    SOS_feedback        target_type;
     int                 daemon_trigger_count;
     int                 client_receipt_count;
 } SOS_sensitivity;
@@ -394,7 +393,6 @@ typedef struct {
     SOS_guid            guid;
     SOS_guid            source_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
-    SOS_feedback        feedback;
     void               *data;
     int                 data_len;
     int                 apply_count; /* -1 == constant */
@@ -446,7 +444,7 @@ typedef struct {
     int                 msg_size;
     SOS_msg_type        msg_type;
     SOS_guid            msg_from;
-    SOS_guid            pub_guid;
+    SOS_guid            ref_guid;
 } SOS_msg_header;
 
 typedef struct {

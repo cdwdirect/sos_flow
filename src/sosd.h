@@ -51,7 +51,6 @@
 #define SOSD_DEFAULT_CENTROID_COUNT  12
 
 
-
 typedef struct {
     SOS_msg_type        type;
     void               *ref;
@@ -59,13 +58,19 @@ typedef struct {
 
 typedef struct {
     SOS_feedback_type   type;
-    SOS_feedback_state  state;
+    void               *ref;
+} SOSD_feedback_task;
+
+
+typedef struct {
+    SOS_query_state     state;
     char               *query_sql;
     SOS_guid            reply_to_guid;
     char               *reply_host;
     int                 reply_port;
     SOS_buffer         *reply_msg;
-} SOSD_feedback_task_handle;
+} SOSD_query_handle;
+
 
 typedef struct {
     pthread_mutex_t    *lock_stats;   
@@ -113,8 +118,6 @@ typedef struct {
     EVstone             out_stone;
     EVstone             rmt_stone;
 } SOSD_evpath_node;
-
-
 
 typedef struct {
     char               *instance_name;
@@ -287,7 +290,7 @@ extern "C" {
         header.msg_size = -1;                            \
         header.msg_type = SOS_MSG_TYPE_ACK;              \
         header.msg_from = 0;                             \
-        header.pub_guid = 0;                             \
+        header.ref_guid = 0;                             \
         offset = 0;                                      \
         SOS_buffer_pack(__buffer, &offset, "iigg",       \
                                       header.msg_size,   \

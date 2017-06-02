@@ -32,7 +32,8 @@ SOS_pub         *g_pub = NULL;
 
 // Definition for stub function, as the 'simple' interface does
 // not yet support receiving feedback from the SOS daemon.
-void* SSOS_feedback_handler(SOS_feedback feedback, SOS_buffer *msg);
+void* SSOS_feedback_handler(int payload_type,
+        int payload_size, void *payload_data);
 
 void SSOS_exec_query(char *sql, SSOS_query_results *results) {
     SOS_SET_CONTEXT(g_sos, "SSOS_exec_query");
@@ -124,7 +125,11 @@ void SSOS_finalize(void) {
     return;
 }
 
-void* SSOS_feedback_handler(SOS_feedback feedback, SOS_buffer *msg) {
+void* SSOS_feedback_handler(
+        int   payload_type,
+        int   payload_size,
+        void *payload_data);
+{
     fprintf(stderr, "SSOS (PID:%d) -- Feedback handler called,"
         " should not be.\n", getpid());
     return NULL;

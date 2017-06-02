@@ -72,7 +72,7 @@ extern "C" {
 #endif
 
     typedef void (*SOS_feedback_handler_f)
-        (SOS_feedback feedback, SOS_buffer *msg); 
+        (int length, void *data); 
  
     // ---------- primary functions --------------------
 
@@ -154,16 +154,16 @@ extern "C" {
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
             int *offset_after_header);
 
-    int SOS_msg_recv(int source_fd, SOS_buffer *into_buffer);
-
-    int SOS_target_init(SOS_runtime *sos_context, SOS_socket_out *target);
+    int SOS_target_init(SOS_runtime *sos_context, SOS_socket_out **target,
+            char *host, int port);
 
     int SOS_target_connect(SOS_socket_out *target);
 
-    void SOS_target_send_msg(SOS_socket_out *target,
-            SOS_buffer *msg, SOS_buffer *reply);
+    int SOS_target_send_msg(SOS_socket_out *target, SOS_buffer *msg);
 
-    void SOS_target_disconnect(SOS_socket_out *tgt_conn);
+    int SOS_target_recv_msg(SOS_socket_out *target, SOS_buffer *reply);
+
+    int SOS_target_disconnect(SOS_socket_out *tgt_conn);
 
     int SOS_target_destroy(SOS_socket_out *target);
 

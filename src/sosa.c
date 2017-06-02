@@ -39,7 +39,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_QUERY;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     dlog(7, "   ... creating msg.\n");
 
@@ -48,7 +48,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
                     header.msg_size,
                     header.msg_type,
                     header.msg_from,
-                    header.pub_guid);
+                    header.ref_guid);
 
     SOS_buffer_pack(msg, &offset, "s", query);
 
@@ -128,13 +128,13 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_QUERY;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
     int offset = 0;
     SOS_buffer_pack(buffer, &offset, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
-        header.pub_guid);
+        header.ref_guid);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
@@ -190,7 +190,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
+        &header.ref_guid);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
@@ -350,14 +350,14 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     int offset = 0;
     SOS_buffer_pack(msg, &offset, "iigg",
                     header.msg_size,
                     header.msg_type,
                     header.msg_from,
-                    header.pub_guid);
+                    header.ref_guid);
 
     header.msg_size = offset;
     offset = 0;
