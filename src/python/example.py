@@ -44,10 +44,15 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    sql_string = "SELECT * FROM tblVals WHERE rowid = max(rowid);"
+    print "Delaying for listener thread to spin up..."
+    time.sleep(2)
+
+    sql_string = "SELECT MAX(guid) FROM tblVals;"
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
     results, col_names = SOS.query(sql_string)
+    print "Delaying 2 seconds..."
+    time.sleep(2)
     print "Results:"
     print "    Output rows....: " + str(len(results))
     print "    Output values..: " + str(results)

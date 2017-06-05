@@ -50,6 +50,8 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
                     header.msg_from,
                     header.ref_guid);
 
+    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
+    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
     SOS_buffer_pack(msg, &offset, "s", query);
 
     header.msg_size = offset;

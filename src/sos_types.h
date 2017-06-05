@@ -405,7 +405,12 @@ typedef struct {
     SOS_action          action;
 } SOS_trigger;
 
-
+// NOTE: Function signature for feedback handlers
+typedef void (*SOS_feedback_handler_f)
+    (int   payload_type,
+     int   payload_size,
+     void *payload_data); 
+ 
 typedef struct {
     void               *sos_context;
     char               *server_host;
@@ -459,6 +464,7 @@ typedef struct {
     SOS_layer           layer;
     SOS_locale          locale;
     SOS_receives        receives;
+    SOS_feedback_handler_f feedback_handler;
     int                 receives_port;
     bool                offline_test_mode;
     bool                runtime_utility;

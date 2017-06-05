@@ -71,9 +71,7 @@
 extern "C" {
 #endif
 
-    typedef void (*SOS_feedback_handler_f)
-        (int length, void *data); 
- 
+
     // ---------- primary functions --------------------
 
     void SOS_init(int *argc, char ***argv,

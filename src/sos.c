@@ -169,6 +169,9 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
     NEW_SOS->status = SOS_STATUS_INIT;
     NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
     NEW_SOS->config.receives = receives;
+    NEW_SOS->config.feedback_handler = handler;
+    NEW_SOS->config.receives_port = -1;
+    NEW_SOS->config.process_id = (int) getpid();
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
 
@@ -187,7 +190,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS->config.argv = *argv;
     }
 
-    SOS->config.process_id = (int) getpid();
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
@@ -211,6 +213,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         dlog(4, "SOS->status = SOS_STATUS_RUNNING\n");
         return;
     }
+
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         // NOTE: This is only used for clients.  Daemons handle their own.
@@ -989,10 +992,13 @@ SOS_THREAD_receives_direct(void *args)
     int i;
     int yes;
     int opts;
+    int offset;
+    SOS_msg_header header;
 
     yes = 1;
 
     insock.server_port = 0;    // NOTE: 0 = Request an OS-assigned open port.
+    insock.server_socket_fd = -1;
 
     memset(&insock.server_hint, '\0', sizeof(struct addrinfo));
     insock.server_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
@@ -1048,9 +1054,10 @@ SOS_THREAD_receives_direct(void *args)
         break;
     }
 
-    if ( insock.server_socket_fd < 0 ) {
-        dlog(0, "ERROR: Client could not socket/setsockopt/bind to anything"
-            " to receive feedback. (%d:%s)\n", errno, strerror(errno));
+    if ( insock.server_socket_fd <= 0 ) {
+        fprintf(stderr, "ERROR: Client could not socket/setsockopt/"
+                "bind to anything to receive feedback. (%d:%s)\n",
+                errno, strerror(errno));
          
     } else {
         dlog(0, "  ... got a socket, and bound to it!\n");
@@ -1068,7 +1075,7 @@ SOS_THREAD_receives_direct(void *args)
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(insock.server_socket_fd, F_SETFL, opts);
     if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
-        " server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n",
+        " server_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
         strerror(errno));
     }
 
@@ -1076,6 +1083,8 @@ SOS_THREAD_receives_direct(void *args)
     listen( insock.server_socket_fd, insock.listen_backlog );
     dlog(0, "Listening on socket.\n");
 
+    //Part 2: Notify the listener what port we are monitoring.
+    // NOTE: Our hostname is in SOS->config.node_id 
     if (insock.server_addr->ai_addr->sa_family == AF_INET) {
         SOS->config.receives_port =
             (int) (((struct sockaddr_in*)insock.server_addr->ai_addr)->sin_port);
@@ -1084,15 +1093,106 @@ SOS_THREAD_receives_direct(void *args)
         (int) (((struct sockaddr_in6*)insock.server_addr->ai_addr)->sin6_port);
     }
 
-    //Part 2: Notify the listener what port we are monitoring.
-
-
     //Part 3: Listening loop for feedback messages.
+    SOS_buffer *buffer = NULL;
+    SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_MAX, false);
+    
     while (SOS->status == SOS_STATUS_RUNNING) {
-        //...
-        usleep(500000);
-    }
+    
+        dlog(5, "Listening for a message on port %d...\n",
+                SOS->config.receives_port);
+        insock.peer_addr_len = sizeof(SOSD.net.peer_addr);
+        insock.client_socket_fd = accept(SOSD.net.server_socket_fd,
+                (struct sockaddr *) &insock.peer_addr,
+                &insock.peer_addr_len);
+        i = getnameinfo((struct sockaddr *) &insock.peer_addr,
+                insock.peer_addr_len, SOSD.net.client_host,
+                NI_MAXHOST, insock.client_port, NI_MAXSERV,
+                NI_NUMERICSERV);
+        if (i != 0) {
+            dlog(0, "Error calling getnameinfo() on client connection."
+                    "  (%s)\n", strerror(errno));
+            break;
+        }
 
+        buffer->len = recv(insock.client_socket_fd, (void *) buffer->data,
+                buffer->max, 0);
+        dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
+
+        if (buffer->len < 0) {
+            dlog(1, "  ... recv() call returned an errror.  (%s)\n",
+                    strerror(errno));
+        }
+
+        memset(&header, '\0', sizeof(SOS_msg_header));
+        if (buffer->len >= sizeof(SOS_msg_header)) {
+            int offset = 0;
+            SOS_buffer_unpack(buffer, &offset, "iigg",
+                              &header.msg_size,
+                              &header.msg_type,
+                              &header.msg_from,
+                              &header.ref_guid);
+        } else {
+            dlog(0, "  ... Received short (useless) message.\n");
+            continue;
+        }
+
+        /* Check the size of the message. We may not have gotten it all. */
+        while (header.msg_size > buffer->len) {
+            int old = buffer->len;
+            while (header.msg_size > buffer->max) {
+                SOS_buffer_grow(buffer, 1 + (header.msg_size - buffer->max),
+                        SOS_WHOAMI);
+            }
+            int rest = recv(insock.client_socket_fd,
+                    (void *) (buffer->data + old), header.msg_size - old, 0);
+            if (rest < 0) {
+                dlog(1, "  ... recv() call returned an errror."
+                        "  (%s)\n", strerror(errno));
+            } else {
+                dlog(6, "  ... recv() returned %d more bytes.\n", rest);
+            }
+            buffer->len += rest;
+        }
+
+        dlog(5, "Received connection.\n");
+        dlog(5, "  ... msg_size == %d         (buffer->len == %d)\n",
+                header.msg_size, buffer->len);
+        dlog(5, "  ... msg_type == %s\n", SOS_ENUM_STR(header.msg_type,
+                SOS_MSG_TYPE));
+
+        if ((header.msg_size != buffer->len)
+            || (header.msg_size > buffer->max)) {
+            dlog(0, "ERROR:  BUFFER not correctly sized!"
+                    "  header.msg_size == %d, buffer->len == %d / %d\n",
+                     header.msg_size, buffer->len, buffer->max);
+        }
+
+        dlog(5, "  ... msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+        dlog(5, "  ....ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
+
+        //TODO: Here we pull apart the feedback message and handle it.
+        int            payload_type = -1;
+        int            payload_size = -1;
+        unsigned char *payload_data = NULL;
+
+        SOS_buffer_unpack(buffer, &offset, "iib",
+                &payload_type,
+                &payload_size,
+                &payload_data);
+        
+        if (SOS->config.feedback_handler != NULL) {
+            SOS->config.feedback_handler(payload_type, payload_size, payload_data);
+        } else {
+            fprintf(stderr, "WARNING: Feedback received but no handler"
+                    " has been set. Doing nothing.\n");
+        }
+        close(insock.client_socket_fd);
+
+    } // while
+
+    SOS_buffer_destroy(buffer);
+    dlog(0, "Feedback listener closing down.\n");
     return NULL;
 }
 

@@ -201,6 +201,11 @@ void SOSD_db_init_database() {
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
+    if (SOS_file_exists(SOSD.db.file)) {
+        fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
+                SOSD.db.file);
+    }
+
     /*
      *   "unix-none"     =no locking (NOP's)
      *   "unix-excl"     =single-access only
@@ -364,6 +369,21 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
 
     SOSD_query_handle *query = (SOSD_query_handle *) task->ref;
     char *sosa_query = query->query_sql;
+
+    dlog(6, "Processing query task...\n");
+    dlog(6, "   ...reply_host: \"%s\"\n",
+            query->reply_host);
+    dlog(6, "   ...reply_port: \"%d\"\n",
+            query->reply_port);
+    dlog(6, "   ...query_sql: \"%s\"\n",
+            query->query_sql);
+
+
+    if (sosa_query == NULL) {
+        dlog(0, "WARNING: Empty (NULL) query submitted."
+                " Doing nothing and returning.\n");
+        return;
+    }
 
     dlog(7, "Query extracted: %s\n", sosa_query);
 

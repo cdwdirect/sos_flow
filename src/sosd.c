@@ -748,14 +748,14 @@ void* SOSD_THREAD_db_sync(void *args) {
 
             case SOS_MSG_TYPE_QUERY:
                 dlog(6, "Sending QUERY to the database...\n");
-                SOSD_db_handle_sosa_query((SOSD_db_task *) task->ref);
+                SOSD_db_handle_sosa_query((SOSD_db_task *) task);
+                break;
 
             default:
                 dlog(0, "WARNING: Invalid task->type value at"
                         " task_list[%d].   (%d)\n",
                      task_index, task->type);
             }
-            //TODO: Does this work OK with queries?
             free(task);
         }
 
@@ -1120,10 +1120,19 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     query_handle->reply_port     = -1;
     query_handle->reply_msg      = NULL;
 
+    dlog(6, "   ...extracting query...\n");
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->reply_host);
     SOS_buffer_unpack(buffer, &offset, "i", &query_handle->reply_port);
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->query_sql);
 
+    dlog(6, "      ...received reply_host: \"%s\"\n",
+            query_handle->reply_host);
+    dlog(6, "      ...received reply_port: \"%d\"\n",
+            query_handle->reply_port);
+    dlog(6, "      ...received query_sql: \"%s\"\n",
+            query_handle->query_sql);
+
+    dlog(6, "   ...placing query in db queue.\n");
     SOSD_db_task *task = NULL;
     task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
     task->ref = (void *) query_handle;
@@ -1133,6 +1142,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     SOSD.sync.db.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
 
+    dlog(6, "   ...sending ACK to client.\n");
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
@@ -1144,7 +1154,8 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     } else {
         SOSD_countof(socket_bytes_sent += rc);
     }
-    
+    SOS_buffer_destroy(reply);
+    dlog(6, "Done.\n");
     return;
 }
 
