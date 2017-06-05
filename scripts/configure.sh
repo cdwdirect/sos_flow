@@ -34,9 +34,10 @@ BASEDIR=$SCRIPTPATH/..
 echo "Building SOS $BUILDDIR from source in $BASEDIR"
 
 # Parse the arguments
-args=$(getopt -l "searchpath:" -o "cdht" -- "$@")
+args=$(getopt -l "searchpath:" -o "cdhtr" -- "$@")
 clean=0
 debug=0
+release=0
 tau=0
 mpi=0
 
@@ -56,6 +57,10 @@ while [ $# -ge 1 ]; do
             debug=1
             echo "doing debug configure"
             ;;
+        -r)
+            release=1
+            echo "doing release configure"
+            ;;
         -t)
             tau=1
             echo "doing TAU configure"
@@ -68,6 +73,7 @@ while [ $# -ge 1 ]; do
             echo "$0 [-c]"
             echo "-c : Clean"
             echo "-d : Debug"
+            echo "-r : Release"
             echo "-t : Use TAU"
             echo "-m : Use MPI"
             kill -INT $$
@@ -107,13 +113,16 @@ buildtype=RelWithDebInfo
 if [ ${debug} -eq 1 ] ; then
     buildtype=Debug
 fi
+if [ ${release} -eq 1 ] ; then
+    buildtype=Release
+fi
 
 tauopts=""
 if [ ${tau} -eq 1 ] ; then
     tauopts="-DUSE_TAU=TRUE -DTAU_ROOT=$TAU_ROOT -DTAU_ARCH=$TAU_ARCH -DTAU_CONFIG=$TAU_CONFIG"
 fi
 
-evpathopts="-DEVPATH_ROOT=$CHAOS -DSOSD_CLOUD_SYNC_WITH_EVPATH=TRUE -DSOSD_CLOUD_SYNC_WITH_MPI=FALSE"
+evpathopts="-DSOSD_CLOUD_SYNC_WITH_EVPATH=TRUE -DSOSD_CLOUD_SYNC_WITH_MPI=FALSE"
 if [ ${mpi} -eq 1 ] ; then
     evpathopts="-DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX"
 fi
