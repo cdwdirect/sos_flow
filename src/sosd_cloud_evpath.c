@@ -132,6 +132,16 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
         &header.pub_guid);
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
+
+    if (header.msg_from >= SOS->config.comm_size) {
+        fprintf(stderr, "ERROR: You are attempting to register a rank"
+                "(%" SOS_GUID_FMT ") outside the size (%d) that you"
+                " specified to the daemon at launch.",
+                header.msg_from,
+                SOS->config.comm_size);
+        fflush(stderr);
+    }
+
     SOSD_evpath_node *node = evp->node[header.msg_from];
 
     node->contact_string = NULL;
@@ -345,7 +355,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         exit(EXIT_FAILURE);
     }
     if ((SOS->config.comm_rank < 0)
-        || (SOS->config.comm_rank > expected_node_count)) {
+        || (SOS->config.comm_rank >= expected_node_count)) {
         fprintf(stderr, "ERROR: SOS rank %d is outside the bounds of"
                 " ranks expected (%d).\n",
                 SOS->config.comm_rank,
