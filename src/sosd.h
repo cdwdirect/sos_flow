@@ -46,7 +46,7 @@
 #define SOSD_LOCAL_SYNC_WAIT_NSEC    0
 #define SOSD_CLOUD_SYNC_WAIT_NSEC    3000
 #define SOSD_DB_SYNC_WAIT_NSEC       5000
-#define SOSD_FEEDBACK_WAIT_NSEC      0
+#define SOSD_FEEDBACK_SYNC_WAIT_NSEC 0
 
 #define SOSD_DEFAULT_CENTROID_COUNT  12
 
@@ -296,7 +296,7 @@ extern "C" {
                                       header.msg_size,   \
                                       header.msg_type,   \
                                       header.msg_from,   \
-                                      header.pub_guid);  \
+                                      header.ref_guid);  \
         header.msg_size = offset;                        \
         offset = 0;                                      \
         SOS_buffer_pack(__buffer, &offset, "i",          \

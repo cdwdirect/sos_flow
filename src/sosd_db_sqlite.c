@@ -271,7 +271,7 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("TARGET",        SOS_TARGET_string,        SOS_TARGET___MAX        );
     SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
     SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );
-    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_string,      SOS_FEEDBACK___MAX      );
+    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_string, SOS_FEEDBACK_TYPE___MAX      );
     SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
     SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
     SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
@@ -362,19 +362,19 @@ void SOSD_db_transaction_commit() {
 void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    SOSD_db_query_handle *sosa_query = (SOSD_db_query_handle *) task->ref;
-    char *sosa_query = sosa_query->query_sql;
+    SOSD_query_handle *query = (SOSD_query_handle *) task->ref;
+    char *sosa_query = query->query_sql;
 
     dlog(7, "Query extracted: %s\n", sosa_query);
 
     int rc = 0;
     sqlite3_stmt *sosa_statement = NULL;
-    rc = sqlite3_prepare_v2(sosa_conn, sosa_query,
+    rc = sqlite3_prepare_v2(database, sosa_query,
             strlen(sosa_query) + 1, &sosa_statement, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
                 SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
-                header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
+                query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
         pthread_mutex_unlock(SOSD.db.lock);
         return;
     } 
@@ -413,10 +413,10 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
 
     sqlite3_finalize(sosa_statement);
 
-    SOS_buffer_init_sized_locking(SOS, sosa_query->reply_msg,
+    SOS_buffer_init_sized_locking(SOS, &query->reply_msg,
             SOS_DEFAULT_BUFFER_MAX, false);
 
-    SOSA_results_to_buffer(sosa_query->reply_msg, results);
+    SOSA_results_to_buffer(query->reply_msg, results);
     SOSA_results_destroy(results);
     pthread_mutex_unlock(SOSD.db.lock);
 

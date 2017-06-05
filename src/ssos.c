@@ -128,7 +128,7 @@ void SSOS_finalize(void) {
 void* SSOS_feedback_handler(
         int   payload_type,
         int   payload_size,
-        void *payload_data);
+        void *payload_data)
 {
     fprintf(stderr, "SSOS (PID:%d) -- Feedback handler called,"
         " should not be.\n", getpid());

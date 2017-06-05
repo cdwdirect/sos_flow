@@ -538,7 +538,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
         
-        SOS_feedback_task   *task;
+        SOSD_feedback_task   *task;
 
         SOSD_countof(thread_feedback_wakeup++);
 
@@ -556,12 +556,11 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             pthread_mutex_unlock(my->queue->sync_lock);
         }
 
+        SOSD_query_handle *query;
+
         switch(task->type) {
-
         case SOS_FEEDBACK_TYPE_QUERY: 
-            SOS_query_handle *query;
-            query = (SOS_query_handle *) task->ref;
-
+            query = (SOSD_query_handle *) task->ref;
             SOS_socket_out *target = NULL;
             SOS_target_init(SOS, &target, query->reply_host, query->reply_port);
             //send it
@@ -583,7 +582,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         gettimeofday(&now, NULL);
         wait.tv_sec = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
-        SOSD_DB_SYNC_WAIT_SEC.tv_nsec = SOSD_FEEDBACK_SYNC_WAIT_NSEC
+        wait.tv_nsec = SOSD_FEEDBACK_SYNC_WAIT_NSEC
                 + (1000 * now.tv_usec);
     }
 
@@ -749,13 +748,14 @@ void* SOSD_THREAD_db_sync(void *args) {
 
             case SOS_MSG_TYPE_QUERY:
                 dlog(6, "Sending QUERY to the database...\n");
-                SOSD_db_handle_sosa_query(task);     
+                SOSD_db_handle_sosa_query((SOSD_db_task *) task->ref);
 
             default:
                 dlog(0, "WARNING: Invalid task->type value at"
                         " task_list[%d].   (%d)\n",
                      task_index, task->type);
             }
+            //TODO: Does this work OK with queries?
             free(task);
         }
 
@@ -1051,7 +1051,7 @@ void SOSD_handle_triggerpull(SOS_buffer *msg) {
 void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_kmean_data");
     // For parsing the buffer:
-    char            .ref_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char            pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_pub         *pub;
     SOS_msg_header   header;
     int              offset;
@@ -1069,10 +1069,10 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
                       &header.msg_from,
                       &header.ref_guid);
 
-    snprintf.ref_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,.ref_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
         dlog(0, "ERROR: No pub exists for header.ref_guid"
@@ -1109,21 +1109,22 @@ void SOSD_handle_query(SOS_buffer *buffer) {
             &header.msg_from,
             &header.ref_guid);
 
-    SOSD_db_query_handle *query_handle = NULL;
-    query_handle = (SOSD_db_query_handle *) calloc(1, sizeof(SOSD_db_query_handle));
+    SOSD_query_handle *query_handle = NULL;
+    query_handle = (SOSD_query_handle *)
+            calloc(1, sizeof(SOSD_query_handle));
 
-    query_handle->state      = SOS_QUERY_STATE_INCOMING;
-    query_handle->msg_from   = header.msg_from;
-    query_handle->query_sql  = NULL;
-    query_handle->reply_host = NULL;
-    query_handle->reply_port = -1;
-    query_handle->reply_msg  = NULL;
+    query_handle->state          = SOS_QUERY_STATE_INCOMING;
+    query_handle->reply_to_guid  = header.msg_from;
+    query_handle->query_sql      = NULL;
+    query_handle->reply_host     = NULL;
+    query_handle->reply_port     = -1;
+    query_handle->reply_msg      = NULL;
 
-    SOS_buffer_unpack_safestr(buffer, &offset, "s", &query_handle->reply_host);
+    SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->reply_host);
     SOS_buffer_unpack(buffer, &offset, "i", &query_handle->reply_port);
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->query_sql);
 
-    SOSD_db_task task = NULL;
+    SOSD_db_task *task = NULL;
     task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
     task->ref = (void *) query_handle;
     task->type = SOS_MSG_TYPE_QUERY;
@@ -1134,10 +1135,10 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
-    SOS_PACK_ACK(reply);
-    rc = send(SOSD.net.client_socket_fd, (void *) result->data,
-            result->len, 0);
-    dlog(5, "replying with result->len == %d bytes, rc == %d\n", result->len, rc);
+    SOSD_PACK_ACK(reply);
+    rc = send(SOSD.net.client_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1179,7 +1180,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     SOSD_db_task  *task;
     SOS_msg_header header;
     SOS_pub       *pub;
-    char          .ref_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char          pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int            offset;
     int            rc;
 
@@ -1191,10 +1192,10 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
                       &header.msg_type,
                       &header.msg_from,
                       &header.ref_guid);
-    snprintf.ref_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,.ref_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
         dlog(0, "ERROR: No pub exists for header.ref_guid"
@@ -1400,7 +1401,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     SOS_buffer     *reply;
     SOS_pub        *pub;
     
-    char           .ref_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char           pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int             offset;
     int             i;
 
@@ -1414,17 +1415,17 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
         &header.msg_type,
         &header.msg_from,
         &header.ref_guid);
-    snprintf.ref_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,.ref_guid_str);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
-        SOS_pub_create(SOS, &pub,.ref_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
-        strncpy(pub->guid_str,.ref_guid_str, SOS_DEFAULT_STRING_LEN);
+        strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;
-        SOSD.pub_table->put(SOSD.pub_table,.ref_guid_str, pub);
+        SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
     } else {
         dlog(5, "     ... FOUND IT!\n");
     }
@@ -1455,7 +1456,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     SOS_msg_header  header;
     SOS_buffer     *reply;
     SOS_pub        *pub;
-    char           .ref_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char           pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int             offset;
     int             i;
 
@@ -1469,22 +1470,22 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
                       &header.msg_type,
                       &header.msg_from,
                       &header.ref_guid);
-    snprintf.ref_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,.ref_guid_str);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     /* Check the table for this pub ... */
-    dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n",.ref_guid_str);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,.ref_guid_str);
+    dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n",pub_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
         /* If it's not in the table, add it. */
     dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT ") NOT FOUND! (WEIRD!)\n", header.ref_guid);
     dlog(0, "ERROR: .... ADDING previously unknown pub to the table... (this is bogus, man)\n");
-        SOS_pub_create(SOS, &pub,.ref_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
-        strncpy(pub->guid_str,.ref_guid_str, SOS_DEFAULT_STRING_LEN);
+        strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;
-        SOSD.pub_table->put(SOSD.pub_table,.ref_guid_str, pub);
+        SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
     } else {
         dlog(5, "     ... FOUND it!\n");
     }
@@ -1629,7 +1630,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",
-            SOS_FEEDBACK_CUSTOM,
+            SOS_FEEDBACK_TYPE_MSG,
             function_name);
 
         /* Go back and set the message length to the actual length. */
