@@ -164,6 +164,8 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         break;
     }
 
+    NEW_SOS->net.sos_context = NEW_SOS;
+
     NEW_SOS->status = SOS_STATUS_INIT;
     NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
     NEW_SOS->config.receives = receives;
@@ -640,6 +642,11 @@ SOS_target_recv_msg(
     SOS_msg_header header;
     int offset = 0;
 
+    if (SOS->status == SOS_STATUS_SHUTDOWN) {
+        dlog(0, "Ignoring receive call because SOS is shutting down.\n");
+        return -1;
+    }
+
     int server_socket_fd = target->server_socket_fd;
 
     if (reply == NULL) {
@@ -652,8 +659,7 @@ SOS_target_recv_msg(
     reply->len = recv(server_socket_fd, reply->data, 
             reply->max, 0);
     if (reply->len < 0) {
-        fprintf(stderr, "SOS: recv() call for reply from"
-                " daemon returned an error:\n\t\"%s\"\n",
+        fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
                 strerror(errno));
     }
 
@@ -756,15 +762,17 @@ SOS_target_destroy(SOS_socket_out *target) {
 
 int
 SOS_target_connect(SOS_socket_out *target) {
-    SOS_SET_CONTEXT(target->sos_context, "SOS_connect_to_target_daemon");
+    SOS_SET_CONTEXT(target->sos_context, "SOS_target_connect");
 
     int retval = 0;
     int new_fd = 0;
 
+    dlog(8, "Obtaining target send_lock...\n");
     pthread_mutex_lock(target->send_lock);
 
+    dlog(8, "Attempting to open server socket...\n");
+    dlog(8, "   ...gathering address info.\n");
     target->server_socket_fd = -1;
-
     retval = getaddrinfo(target->server_host, target->server_port,
         &target->server_hint, &target->result_list);
     if (retval < 0) {
@@ -774,6 +782,7 @@ SOS_target_connect(SOS_socket_out *target) {
         return -1;
     }
     
+    dlog(8, "   ...iterating possible connection techniques.\n");
     // Iterate the possible connections and register with the SOS daemon:
     for (target->server_addr = target->result_list ;
         target->server_addr != NULL ;
@@ -788,6 +797,7 @@ SOS_target_connect(SOS_socket_out *target) {
         close(new_fd);
     }
     
+    dlog(8, "   ...freeing unused results.\n");
     freeaddrinfo( target->result_list );
     
     if (new_fd == 0) {
@@ -798,13 +808,24 @@ SOS_target_connect(SOS_socket_out *target) {
     }
 
     target->server_socket_fd = new_fd;
+    dlog(8, "   ...successfully connected!"
+            "  target->server_socket_fd == %d\n", target->server_socket_fd);
 
     return 0;
 }
 
 
 int SOS_target_disconnect(SOS_socket_out *target) {
-    close(target->server_socket_fd); 
+    SOS_SET_CONTEXT(target->sos_context, "SOS_target_disconnect");
+    
+    dlog(8, "Closing target file descriptor... (%d)\n",
+            target->server_socket_fd);
+    close(target->server_socket_fd);
+    
+    dlog(8, "Releasing target send_lock...\n");
+    pthread_mutex_unlock(target->send_lock);
+    
+    dlog(8, "Done.\n");
     return 0;
 }
 
@@ -813,10 +834,9 @@ SOS_target_send_msg(
         SOS_socket_out *target,
         SOS_buffer *msg)
 {
-    SOS_SET_CONTEXT(msg->sos_context, "SOS_target_send");
+    SOS_SET_CONTEXT(msg->sos_context, "SOS_target_send_msg");
 
     SOS_msg_header header;
-    int            server_socket_fd = -1;
     int            offset      = 0;
     int            inset       = 0;
     int            retval      = 0;
@@ -835,17 +855,6 @@ SOS_target_send_msg(
 
     dlog(6, "Processing a send.\n");
 
-    int rc = SOS_target_connect(target);
-
-    if (rc != 0) {
-        dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
-                target->server_host,
-                target->server_port,
-                rc);
-        dlog(0, "ERROR: Ignoring transmission request and returning.\n");
-        return -1;
-    }
-
     int more_to_send      = 1;
     int failed_send_count = 0;
     int total_bytes_sent  = 0;
@@ -853,12 +862,13 @@ SOS_target_send_msg(
 
     SOS_TIME(time_start);
     while (more_to_send) {
-        if (failed_send_count > 8) {
+        if (failed_send_count >= 8) {
             dlog(0, "ERROR: Unable to contact target after 8 attempts.\n");
+            more_to_send = 0;
             pthread_mutex_unlock(target->send_lock);
             return -1;
         }
-        retval = send(server_socket_fd, (msg->data + total_bytes_sent),
+        retval = send(target->server_socket_fd, (msg->data + total_bytes_sent),
                 msg->len, 0);
         if (retval < 0) {
             failed_send_count++;
@@ -879,9 +889,6 @@ SOS_target_send_msg(
     dlog(6, "Send complete...\n");
    // Done!
 
-    SOS_target_disconnect(target);
-    pthread_mutex_unlock(target->send_lock);
-
     return total_bytes_sent;
 }
 
@@ -889,9 +896,35 @@ SOS_target_send_msg(
 void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
     SOS_SET_CONTEXT(message->sos_context, "SOS_send_to_daemon");
 
-    // A wrapper that sends to the in situ daemon.
-    SOS_target_send_msg(&SOS->net, message);
+    if (&SOS->net == NULL) {
+        fprintf(stderr, "&SOS->net == NULL\n");
+    } else {
+        fprintf(stderr, "&SOS->net == %p\n", &SOS->net);
+    }
+
+    int rc = 0;
+    
+    SOS_target_connect(&SOS->net);
+
+    if (rc != 0) {
+        dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
+                SOS->net.server_host,
+                SOS->net.server_port,
+                rc);
+        dlog(0, "ERROR: Ignoring transmission request and returning.\n");
+        return;
+    }
+
+    rc = SOS_target_send_msg(&SOS->net, message);
+    if (rc < 0) {
+        fprintf(stderr, "ERROR: Unable to send message to the SOS daemon.\n");
+        fflush(stderr);
+        return;
+    }
+
     SOS_target_recv_msg(&SOS->net, reply);
+
+    SOS_target_disconnect(&SOS->net);
 
     return;
 }
