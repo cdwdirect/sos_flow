@@ -138,6 +138,7 @@ if(SOSD_CLOUD_SYNC)
       "sosd.c"
       "sosd_cloud_mpi.c"
       "sosd_db_sqlite.c"
+      "sosd_system.cpp"
       "sos_error.c"
       "sos_qhashtbl.c"
       "sos_buffer.c"
@@ -154,7 +155,7 @@ if(SOSD_CLOUD_SYNC)
       "sosa"
       "${MPI_C_LIBRARIES}"
       "${SQLITE3_LIBRARY}"
-	  "${DYNAMICLIB}")
+	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does not support the '-lrt' compiler option.
     else()
@@ -177,6 +178,7 @@ if(SOSD_CLOUD_SYNC)
       "sosd.c"
       "sosd_cloud_evpath.c"
       "sosd_db_sqlite.c"
+      "sosd_system.cpp"
       "sos_error.c"
       "sos_qhashtbl.c"
       "sos_buffer.c"
@@ -194,7 +196,7 @@ if(SOSD_CLOUD_SYNC)
       "ffs"
       "atl"
       "${SQLITE3_LIBRARY}"
-	  "${DYNAMICLIB}")
+	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
     else()

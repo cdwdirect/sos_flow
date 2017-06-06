@@ -281,8 +281,14 @@ int main(int argc, char *argv[])  {
     }
     #else
     #endif
-   SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *),
+    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *),
         SOSD_THREAD_local_sync);
+    // do system monitoring, if requested.
+    char *system_flag = getenv("SOS_READ_SYSTEM_STATUS");
+    if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
+        SOSD_sync_context_init(SOS, &SOSD.sync.system_monitor, 0,
+             SOSD_THREAD_system_monitor);
+    }
 
 
     dlog(0, "Entering listening loops...\n");
@@ -520,6 +526,42 @@ void SOSD_listen_loop() {
 
 /* -------------------------------------------------- */
 
+void* SOSD_THREAD_system_monitor(void *args) {
+    SOSD_sync_context *my = (SOSD_sync_context *) args;
+    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_system_monitor");
+    struct timeval   now;
+    struct timespec  wait;
+    int rc;
+
+    SOSD_setup_system_data();
+    while (SOS->status == SOS_STATUS_RUNNING) {
+        pthread_mutex_lock(my->lock);
+        gettimeofday(&now, NULL);
+        wait.tv_sec  = 1  + (now.tv_sec);
+        wait.tv_nsec = (1000 * now.tv_usec);
+        rc = pthread_cond_timedwait(my->cond, my->lock, &wait);
+        pthread_mutex_unlock(my->lock);
+        /* if we timed out, measure the system health. */
+        switch (rc) {
+            case 0:
+                /* we were interrupted by the main thread. exit. */
+                printf("Interrupted. Exiting...\n");
+                break;
+            case ETIMEDOUT:
+                /* parse the system health */
+                printf("Reading system health...\n");
+                SOSD_read_system_data();
+                continue;
+            case EINVAL:
+            case EPERM:
+            default:
+                /* some other error. exit. */
+                printf("Some other error. Exiting...\n");
+                break;
+        }
+    }
+    pthread_exit(NULL);
+}
 
 void* SOSD_THREAD_local_sync(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
@@ -1983,7 +2025,9 @@ void SOSD_init() {
     SOS_SET_CONTEXT(sos_context, "SOSD_sync_context_init");
 
     sync_context->sos_context = sos_context;
-    SOS_pipe_init(SOS, &sync_context->queue, elem_size);
+    if (elem_size > 0) {
+        SOS_pipe_init(SOS, &sync_context->queue, elem_size);
+    }
     sync_context->handler = (pthread_t *) malloc(sizeof(pthread_t));
     sync_context->lock    = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     sync_context->cond    = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
@@ -1994,7 +2038,6 @@ void SOSD_init() {
 
     return;
 }
-
 
 void SOSD_claim_guid_block(SOS_uid *id, int size, SOS_guid *pool_from, SOS_guid *pool_to) {
     SOS_SET_CONTEXT(id->sos_context, "SOSD_claim_guid_block");

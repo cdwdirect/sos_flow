@@ -40,6 +40,7 @@
 #define SOSD_LOCAL_SYNC_WAIT_SEC     0
 #define SOSD_CLOUD_SYNC_WAIT_SEC     0
 #define SOSD_DB_SYNC_WAIT_SEC        0
+#define SOSD_SYSTEM_MONITOR_WAIT_SEC 1
 
 /* 0.05 seconds: 50000000, default for cloud/db=5000 */
 #define SOSD_LOCAL_SYNC_WAIT_NSEC    0
@@ -179,6 +180,7 @@ typedef struct {
     SOSD_sync_context    cloud_send;
     SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
+    SOSD_sync_context    system_monitor;
     qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
 
@@ -227,6 +229,7 @@ extern "C" {
     void* SOSD_THREAD_cloud_send(void *args);
     void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
+    void* SOSD_THREAD_system_monitor(void *args);
 
     void  SOSD_listen_loop(void);
     void  SOSD_send_to_self(SOS_buffer *msg, SOS_buffer *reply);
@@ -254,6 +257,11 @@ extern "C" {
     /* Private functions... see: sos.c */
     extern void SOS_uid_init( SOS_runtime *sos_context,
             SOS_uid **uid, SOS_guid from, SOS_guid to);
+
+    /* functions for monitoring system health */
+    void SOSD_setup_system_data(void);
+    void SOSD_read_system_data(void);
+
 
 
 #ifdef __cplusplus
