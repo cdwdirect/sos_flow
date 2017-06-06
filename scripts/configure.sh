@@ -34,12 +34,13 @@ BASEDIR=$SCRIPTPATH/..
 echo "Building SOS $BUILDDIR from source in $BASEDIR"
 
 # Parse the arguments
-args=$(getopt -l "searchpath:" -o "cdhtr" -- "$@")
+args=$(getopt -l "searchpath:" -o "cdhtrs" -- "$@")
 clean=0
 debug=0
 release=0
 tau=0
 mpi=0
+sanitize=0
 
 eval set -- "${args}"
 
@@ -68,6 +69,10 @@ while [ $# -ge 1 ]; do
         -m)
             mpi=1
             echo "doing MPI configure (no EVPath)"
+            ;;
+        -s)
+            sanitize=1
+            echo "doing address sanitizer"
             ;;
         -h)
             echo "$0 [-c]"
@@ -127,12 +132,17 @@ if [ ${mpi} -eq 1 ] ; then
     evpathopts="-DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX"
 fi
 
+if [ ${sanitize} -eq 1 ] ; then
+    sanitizeopts="-DSOS_SANITIZE_ADDRESS=ON"
+fi
+
 cmd="cmake \
      -DCMAKE_BUILD_TYPE=${buildtype} \
      -DCMAKE_INSTALL_PREFIX=. \
      -DCMAKE_C_COMPILER=$CC \
      -DCMAKE_CXX_COMPILER=$CXX \
      ${evpathopts} \
+     ${sanitizeopts} \
      -DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX \
      $cmake_extras \
      $BASEDIR"
