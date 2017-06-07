@@ -2068,6 +2068,7 @@ void SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer ) {
 
     dlog(6, "Calling SOS_announce_from_buffer()...\n");
     SOS_announce_from_buffer(buffer, pub);
+    SOSD_add_pid_to_track(pub);
 
     return;
 }

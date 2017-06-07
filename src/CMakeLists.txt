@@ -215,6 +215,7 @@ else()
     "sosd.c"
     "sosd_cloud_stubs.c"
     "sosd_db_sqlite.c"
+    "sosd_system.cpp"
     "sos_error.c"
     "sos_qhashtbl.c"
     "sos_buffer.c"
@@ -229,7 +230,7 @@ else()
     "sos_pipe"
     "sosa"
     "${SQLITE3_LIBRARY}"
-	"${DYNAMICLIB}")
+	"${DYNAMICLIB}" stdc++)
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.
   else()

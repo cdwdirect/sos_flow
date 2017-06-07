@@ -1,27 +1,26 @@
+#include "sos.h"
+#include "sosd.h"
 #include "sosd_system.h"
 #include <sys/stat.h>
 #include <string.h>
+#include <sstream>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <unistd.h>
+#include <set>
 
 using namespace std;
 
 static ProcData *oldData = nullptr;
 static ProcData *newData = nullptr;
 static ProcData *periodData = nullptr;
-
-void make_the_buffer(void) {
-    /* construct a buffer for putting the data into the queues
-       and/or sending upstream to the aggregator */
-}
+static SOS_pub *pub = nullptr;
+static std::set<SOS_pub*> pubs;
+static std::set<int> pids;
 
 void sample_value (const char * name, double value) {
-    printf("%s: %f\n", name, value); fflush(stdout);
+    SOS_pack(pub, name, SOS_VAL_TYPE_DOUBLE, &value);
     /* pack the name, value into the buffer */
-}
-
-void flush_the_buffer(void) {
-    /* put the buffer on the local DB queue
-       and/or send it upstream to the aggregator */
-    /* do whatever other cleanup is necessary */
 }
 
 inline bool file_exists (const std::string& name) {
@@ -29,9 +28,11 @@ inline bool file_exists (const std::string& name) {
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
-bool parse_proc_self_status(void) {
-  if (!file_exists("/proc/self/status")) { return false; }
-  FILE *f = fopen("/proc/self/status", "r");
+bool parse_proc_self_status(SOS_pub *pid_pub) {
+  std::stringstream buf;
+  buf << "/proc/" << pid_pub->process_id << "/status";
+  if (!file_exists(buf.str().c_str())) { return false; }
+  FILE *f = fopen(buf.str().c_str(), "r");
   const std::string prefix("Vm");
   if (f) {
     char line[4096] = {0};
@@ -58,8 +59,10 @@ bool parse_proc_self_status(void) {
             char * value = strtok(NULL, ":");
             if (value == NULL) continue;
             double d1 = strtod (value, NULL);
-            string mname("status:" + string(name));
-            sample_value(mname.c_str(), d1);
+            stringstream mname;
+            //mname << pid << ":status:" << string(name);
+            mname << "status:" << string(name);
+            SOS_pack(pid_pub, mname.str().c_str(), SOS_VAL_TYPE_DOUBLE, &d1);
         }
     }
     fclose(f);
@@ -229,13 +232,241 @@ void ProcData::sample_values(void) {
 #endif
 }
 
+#define STRINGIFY2(X) #X
+#define STRINGIFY(X) STRINGIFY2(X)
+
+#define dlog(x,...)
+
 /* Get initial readings */
 extern "C" void SOSD_setup_system_data(void) {
   oldData = parse_proc_stat();
 }
 
+void setup_system_monitor_pub(void) {
+    //SOS_SET_CONTEXT(SOSD.sos_context, __func__);
+  SOS_runtime * SOS = SOSD.sos_context;
+
+  /* set up the networking */
+    SOS_msg_header header;
+    int i, n, retval, server_socket_fd;
+    SOS_guid guid_pool_from;
+    SOS_guid guid_pool_to;
+
+        dlog(4, "  ... setting up socket communications with the daemon.\n" );
+
+        SOS_buffer_init(SOS, &SOS->net.recv_part);
+
+        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+        if (retval != 0) {
+            fprintf(stderr, " ... ERROR (%d) creating SOS->net.send_lock!"
+                "  (%s)\n", retval, strerror(errno));
+            return;
+        }
+        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
+        SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
+        SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
+        SOS->net.server_port   = getenv("SOS_CMD_PORT");
+        if ((SOS->net.server_port == NULL) || (strlen(SOS->net.server_port)) < 2) {
+            fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+                    SOS_DEFAULT_SERVER_PORT);
+            fflush(stderr);
+            SOS->net.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
+            snprintf(SOS->net.server_port, SOS_DEFAULT_STRING_LEN, "%d",
+                    SOS_DEFAULT_SERVER_PORT);
+        }
+
+        SOS->net.server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6
+        SOS->net.server_hint.ai_protocol  = 0;                // Any protocol
+        SOS->net.server_hint.ai_socktype  = SOCK_STREAM;      // SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW
+        SOS->net.server_hint.ai_flags     = AI_NUMERICSERV | SOS->net.server_hint.ai_flags;
+
+        retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port,
+             &SOS->net.server_hint, &SOS->net.result_list );
+        if (retval < 0) {
+            fprintf(stderr, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
+                SOS->net.server_host, SOS->net.server_port );
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            return;
+        }
+
+        for (SOS->net.server_addr = SOS->net.result_list ;
+            SOS->net.server_addr != NULL ;
+            SOS->net.server_addr = SOS->net.server_addr->ai_next)
+        {
+            // Iterate the possible connections and register with the SOS daemon:
+            server_socket_fd = socket(SOS->net.server_addr->ai_family,
+                SOS->net.server_addr->ai_socktype, SOS->net.server_addr->ai_protocol);
+            if (server_socket_fd == -1) { continue; }
+            if (connect(server_socket_fd, SOS->net.server_addr->ai_addr,
+                    SOS->net.server_addr->ai_addrlen) != -1 ) break;  // Success!
+            close( server_socket_fd );
+        }
+
+        freeaddrinfo( SOS->net.result_list );
+        
+        if (server_socket_fd == 0) {
+            fprintf(stderr, "ERROR!  Could not connect to"
+                    " sosd.  (%s:%s)\n",
+                    SOS->net.server_host, SOS->net.server_port);
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            return;
+        }
+
+        dlog(4, "  ... registering this instance with SOS->   (%s:%s)\n",
+            SOS->net.server_host, SOS->net.server_port);
+
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_REGISTER;
+        header.msg_from = 0;
+        header.pub_guid = 0;
+
+        SOS_buffer *buffer;
+        SOS_buffer_init_sized_locking(SOS, &buffer, 1024, false);
+        
+        int offset = 0;
+        SOS_buffer_pack(buffer, &offset, "iigg", 
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.pub_guid);
+
+        //Send client version information:
+        SOS_buffer_pack(buffer, &offset, "ii",
+            SOS_VERSION_MAJOR,
+            SOS_VERSION_MINOR);
+
+        header.msg_size = offset;
+        offset = 0;
+        SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+
+        pthread_mutex_lock(SOS->net.send_lock);
+
+        dlog(4, "Built a registration message:\n");
+        dlog(4, "  ... buffer->data == %ld\n", (long) buffer->data);
+        dlog(4, "  ... buffer->len  == %d\n", buffer->len);
+        dlog(4, "Calling send...\n");
+
+        retval = send( server_socket_fd, buffer->data, buffer->len, 0);
+
+        if (retval < 0) {
+            fprintf(stderr, "ERROR!  Could not write to server socket!  (%s:%s)\n",
+                SOS->net.server_host, SOS->net.server_port);
+            pthread_mutex_destroy(SOS->net.send_lock);
+            free(SOS->net.send_lock);
+            return;
+        } else {
+            dlog(4, "Registration message sent.   (retval == %d)\n", retval);
+        }
+
+        SOS_buffer_wipe(buffer);
+
+        dlog(4, "  ... listening for the server to reply...\n");
+        buffer->len = recv(server_socket_fd, (void *) buffer->data, buffer->max, 0);
+        dlog(4, "  ... server responded with %d bytes.\n", retval);
+
+        close( server_socket_fd );
+        pthread_mutex_unlock(SOS->net.send_lock);
+
+        offset = 0;
+        SOS_buffer_unpack(buffer, &offset, "iigg",
+                &header.msg_size,
+                &header.msg_type,
+                &header.msg_from,
+                &header.pub_guid);
+                
+        SOS_buffer_unpack(buffer, &offset, "gg",
+                &guid_pool_from,
+                &guid_pool_to);
+
+        int server_version_major = -1;
+        int server_version_minor = -1;
+
+        SOS_buffer_unpack(buffer, &offset, "ii",
+                &server_version_major,
+                &server_version_minor);
+
+        if ((server_version_major != SOS_VERSION_MAJOR)
+            || (server_version_minor != SOS_VERSION_MINOR)) {
+            fprintf(stderr, "CRITICAL WARNING: SOS client library (%d.%d) and"
+                    " daemon (%d.%d) versions differ!\n",
+                    SOS_VERSION_MAJOR,
+                    SOS_VERSION_MINOR,
+                    server_version_major,
+                    server_version_minor);
+             fprintf(stderr, "                  ** CLIENT ** Attempting to"
+                    " proceed anyway...\n");
+            fflush(stderr);
+        }
+
+ 
+
+        dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
+            SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
+        dlog(4, "  ... configuring uid sets.\n");
+
+        SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
+        SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
+            guid_pool_from, guid_pool_to);
+
+        SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
+        dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
+
+        SOS_buffer_destroy(buffer);
+
+  /* make our pub */
+  char * pub_title = strdup("system monitor");
+  SOS_pub_create(SOSD.sos_context, &pub, pub_title, SOS_NATURE_CREATE_OUTPUT);
+  std::stringstream version;
+  version << STRINGIFY(SOS_VERSION_MAJOR) << "." << STRINGIFY(SOS_VERSION_MINOR);
+  strcpy (pub->prog_ver, version.str().c_str());
+  pub->meta.channel     = 1;
+  pub->meta.nature      = SOS_NATURE_EXEC_WORK;
+  pub->meta.layer       = SOS_LAYER_APP;
+  pub->meta.pri_hint    = SOS_PRI_DEFAULT;
+  pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
+  pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
+
+  /* do some other setup, because we aren't a regular client */
+  SOS_pipe_init(SOSD.sos_context, &(pub->snap_queue), sizeof(SOS_val_snap *));
+  pids.insert(0);
+}
+
+extern "C" void SOSD_add_pid_to_track(SOS_pub *pid_pub) {
+  auto it = pids.find(pid_pub->process_id);
+  if (it != pids.end()) { return; }
+  if (pid_pub == pub) { return; }
+  /* make our pub */
+  SOS_pub * my_pub;
+  std::stringstream pub_title;
+  pub_title << "process monitor: " << pid_pub->title;
+  SOS_pub_create(SOSD.sos_context, &my_pub, const_cast<char*>(pub_title.str().c_str()), SOS_NATURE_CREATE_OUTPUT);
+  std::stringstream version;
+  version << STRINGIFY(SOS_VERSION_MAJOR) << "." << STRINGIFY(SOS_VERSION_MINOR);
+  strcpy (my_pub->prog_ver, version.str().c_str());
+  my_pub->meta.channel     = 1;
+  my_pub->meta.nature      = SOS_NATURE_EXEC_WORK;
+  my_pub->meta.layer       = SOS_LAYER_APP;
+  my_pub->meta.pri_hint    = SOS_PRI_DEFAULT;
+  my_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
+  my_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
+  my_pub->process_id = pid_pub->process_id;
+  strcpy(my_pub->prog_name, pid_pub->prog_name);
+
+  /* do some other setup, because we aren't a regular client */
+  SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
+  pubs.insert(my_pub);
+  pids.insert(pid_pub->process_id);
+}
+
 extern "C" void SOSD_read_system_data(void) {
-  make_the_buffer();
+  static bool got_pub = false;
+  if (!got_pub) {
+    setup_system_monitor_pub();
+    got_pub = true;
+  }
   newData = parse_proc_stat();
   if (newData != nullptr && oldData != nullptr) {
     periodData = newData->diff(*oldData);
@@ -244,9 +475,12 @@ extern "C" void SOSD_read_system_data(void) {
     delete(periodData);
     oldData = newData;
   }
-  /* this is less useful, unless we grab the status of each pid? */
-  //parse_proc_self_status();
   parse_proc_meminfo();
-  flush_the_buffer();
+  SOS_publish(pub);
+  /* this is less useful, unless we grab the status of each pid? */
+  for (auto pid_pub : pubs) {
+    parse_proc_self_status(pid_pub);
+    SOS_publish(pid_pub);
+  }
 }
 

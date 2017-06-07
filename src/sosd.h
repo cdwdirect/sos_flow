@@ -261,6 +261,7 @@ extern "C" {
     /* functions for monitoring system health */
     void SOSD_setup_system_data(void);
     void SOSD_read_system_data(void);
+    void SOSD_add_pid_to_track(SOS_pub* pub_pid);
 
 
 
