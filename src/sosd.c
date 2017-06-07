@@ -288,6 +288,9 @@ int main(int argc, char *argv[])  {
     if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
         SOSD_sync_context_init(SOS, &SOSD.sync.system_monitor, 0,
              SOSD_THREAD_system_monitor);
+        SOSD.system_monitoring = 1;
+    } else {
+        SOSD.system_monitoring = 0;
     }
 
 

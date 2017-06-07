@@ -192,6 +192,7 @@ typedef struct {
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
+    int                 system_monitoring;
 } SOSD_global;
 
 /* ----------

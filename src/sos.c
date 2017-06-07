@@ -1083,6 +1083,7 @@ void SOS_uid_destroy( SOS_uid *id ) {
 SOS_guid SOS_uid_next( SOS_uid *id ) {
     SOS_SET_CONTEXT(id->sos_context, "SOS_uid_next");
     long next_serial;
+    if (id == NULL) { return -1; }
 
     dlog(7, "LOCK id->lock\n");
     pthread_mutex_lock( id->lock );
