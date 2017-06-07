@@ -171,6 +171,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
     NEW_SOS->config.receives = receives;
     NEW_SOS->config.feedback_handler = handler;
     NEW_SOS->config.receives_port = -1;
+    NEW_SOS->config.receives_ready = -1;
     NEW_SOS->config.process_id = (int) getpid();
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
@@ -461,6 +462,13 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
     *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
+
+    dlog(2, "  ... waiting for the feedback receiver thread to come online...\n");
+    if (SOS->config.receives == SOS_RECEIVES_DIRECT_MESSAGES) {
+        while(SOS->config.receives_ready != 1) {
+            usleep(10000);
+        }
+    }
 
     dlog(1, "  ... done with SOS_init().\n");
     dlog(4, "SOS->status = SOS_STATUS_RUNNING\n");
@@ -981,9 +989,13 @@ void SOS_finalize(SOS_runtime *sos_context) {
 void*
 SOS_THREAD_receives_direct(void *args)
 {
-    SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
-    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_direct");
+    SOS_SET_CONTEXT((SOS_runtime *) args, "SOS_THREAD_receives_direct");
 
+    SOS->config.receives_ready = -1;
+    while (SOS->status == SOS_STATUS_INIT) {
+        usleep(10000);
+    }
+    
     //Get a socket to receive direct feedback messages and begin
     //listening to it.
 
@@ -997,8 +1009,9 @@ SOS_THREAD_receives_direct(void *args)
 
     yes = 1;
 
-    insock.server_port = 0;    // NOTE: 0 = Request an OS-assigned open port.
+    insock.server_port = "0";    // NOTE: 0 = Request an OS-assigned open port.
     insock.server_socket_fd = -1;
+    insock.listen_backlog = 10;
 
     memset(&insock.server_hint, '\0', sizeof(struct addrinfo));
     insock.server_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
@@ -1008,13 +1021,12 @@ SOS_THREAD_receives_direct(void *args)
     insock.server_hint.ai_canonname  = NULL;
     insock.server_hint.ai_addr       = NULL;
     insock.server_hint.ai_next       = NULL;
-
-    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
+        i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
         &insock.result);
 
     if (i != 0) {
         fprintf(stderr, "ERROR: Feedback broken, client-side getaddrinfo()"
-            " failed. (%s)\n", strerror(errno));
+            " failed. (%s)\n", gai_strerror(errno));
         fflush(stderr);
         return NULL;
     }
@@ -1043,6 +1055,9 @@ SOS_THREAD_receives_direct(void *args)
                 strerror(errno));
             continue;
         }
+        
+        insock.server_addr->sin_port = 0;
+        insock.server_addr->sin6_port = 0;
 
         if ( bind( insock.server_socket_fd, insock.server_addr->ai_addr,
                 insock.server_addr->ai_addrlen ) == -1 ) {
@@ -1096,7 +1111,7 @@ SOS_THREAD_receives_direct(void *args)
     //Part 3: Listening loop for feedback messages.
     SOS_buffer *buffer = NULL;
     SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_MAX, false);
-    
+   
     while (SOS->status == SOS_STATUS_RUNNING) {
     
         dlog(5, "Listening for a message on port %d...\n",

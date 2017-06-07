@@ -466,6 +466,7 @@ typedef struct {
     SOS_receives        receives;
     SOS_feedback_handler_f feedback_handler;
     int                 receives_port;
+    int                 receives_ready;
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;

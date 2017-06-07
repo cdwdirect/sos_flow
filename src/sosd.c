@@ -1849,7 +1849,7 @@ void SOSD_setup_socket() {
     SOSD.net.server_hint.ai_next       = NULL;
 
     i = getaddrinfo(NULL, SOSD.net.server_port, &SOSD.net.server_hint, &SOSD.net.result);
-    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", strerror(errno)); exit(EXIT_FAILURE); }
+    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", gai_strerror(errno)); exit(EXIT_FAILURE); }
 
     for ( SOSD.net.server_addr = SOSD.net.result ; SOSD.net.server_addr != NULL ; SOSD.net.server_addr = SOSD.net.server_addr->ai_next ) {
         dlog(1, "Trying an address...\n");
