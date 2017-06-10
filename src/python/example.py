@@ -56,6 +56,10 @@ def demonstrateSOS():
     pp.pprint(col_names)
     print ""
     print "Finalizing..."
+    
+    print "(Sleeping 5 seconds)"
+    time.sleep(5)
+    
     SOS.finalize();
     print "   ...DONE!"
     print 

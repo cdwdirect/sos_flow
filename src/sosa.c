@@ -19,15 +19,10 @@
 #include "sos_types.h"
 #include "sos_debug.h"
 
-void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *results) {
+void SOSA_exec_query(SOS_runtime *sos_context, char *query) {
     SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
 
-    if (results == NULL) {
-        fprintf(stderr, "ERROR: Attempted to exec a query w/NULL results object!\n");
-        return;
-    }
-
-    dlog(7, "Running query (%25s) ...\n", query);
+    dlog(7, "Submitting query (%25s) ...\n", query);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
@@ -58,11 +53,11 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     offset = 0;
     SOS_buffer_pack(msg, &offset, "i", header.msg_size);
 
-    dlog(7, "   ... sending to aggregator.\n");
+    dlog(7, "   ... sending to daemon.\n");
     SOSA_send_to_target_db(msg, reply);
 
-    dlog(7, "   ... extracting response into result set.\n");
-    SOSA_results_from_buffer(results, reply);
+    //dlog(7, "   ... extracting response into result set.\n");
+    //SOSA_results_from_buffer(results, reply);
 
     SOS_buffer_destroy(msg);
     SOS_buffer_destroy(reply);

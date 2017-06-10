@@ -12,6 +12,8 @@
 
 #include <mpi.h>
 
+#define WAIT_FOR_FEEDBACK      1
+
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
 
@@ -19,6 +21,7 @@
 
 
 #include "sos.h"
+#include "sosa.h"
 
 
 /*
@@ -30,10 +33,42 @@
 
 #include "sos_debug.h"
 
+int g_done;
+SOS_runtime *my_sos;
+
+void
+DEMO_feedback_handler(
+        int payload_type,
+        int payload_size,
+        void *payload_data)
+{
+    printf("\ndemo_app: Feedback received!  type==%d, size==%d\n",
+            payload_type, payload_size); 
+
+    SOSA_results *results = NULL;    
+    SOSA_results_init(my_sos, &results);
+    SOSA_results_from_buffer(results, payload_data);
+
+    SOSA_results_output_to(stdout, results,
+            "Query Results", SOSA_OUTPUT_W_HEADER);  
+
+
+#ifdef WAIT_FOR_FEEDBACK
+    g_done = 1;
+#endif
+
+    return;
+}
+
+
+
+
+
 int main(int argc, char *argv[]) {
     printf("demo_app : Starting...\n");
 
-    SOS_runtime *my_sos;
+
+    g_done = 0;
 
     int i;
     int elem;
@@ -99,7 +134,9 @@ int main(int argc, char *argv[]) {
     double   var_double;
     
     my_sos = NULL;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
+            SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
+
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
@@ -185,6 +222,19 @@ int main(int argc, char *argv[]) {
 
 
     SOS_publish(pub);
+
+#ifdef WAIT_FOR_FEEDBACK
+    printf("Submitting query...\n");
+    SOSA_exec_query(my_sos, "SELECT * FROM tblPubs;");
+
+    printf("Waiting for feedback...\n");
+    while(!g_done) {
+        usleep(100000);
+        //printf(".");
+        fflush(stdout);
+    }
+    printf("\n");
+#endif
 
     SOS_finalize(my_sos);
     MPI_Finalize(); 

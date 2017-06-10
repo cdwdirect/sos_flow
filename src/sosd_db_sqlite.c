@@ -438,7 +438,15 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
 
     SOSA_results_to_buffer(query->reply_msg, results);
     SOSA_results_destroy(results);
-    pthread_mutex_unlock(SOSD.db.lock);
+
+    // Enqueue the results to send back to the client...
+    SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
+    feedback->type = SOS_FEEDBACK_TYPE_QUERY;
+    feedback->ref = query;
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
     return;
 }

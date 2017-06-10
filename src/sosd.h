@@ -183,6 +183,7 @@ typedef struct {
     SOSD_sync_context    cloud_send;
     SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
+    SOSD_sync_context    feedback;
     qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
 
@@ -231,6 +232,7 @@ extern "C" {
     void* SOSD_THREAD_cloud_send(void *args);
     void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
+    void* SOSD_THREAD_feedback_sync(void *args);
 
     void  SOSD_listen_loop(void);
     void  SOSD_send_to_self(SOS_buffer *msg, SOS_buffer *reply);

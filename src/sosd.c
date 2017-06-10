@@ -111,7 +111,7 @@ int main(int argc, char *argv[])  {
 
     my_role = SOS_ROLE_UNASSIGNED;
     my_rank = -1;
-    SOSD.net.listen_backlog = 10;
+    SOSD.net.listen_backlog = 20;
 
     // Grab the port from the environment variable SOS_CMD_PORT
     SOSD.net.server_port = getenv("SOS_CMD_PORT");
@@ -135,7 +135,7 @@ int main(int argc, char *argv[])  {
         fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE);
         exit(EXIT_FAILURE);
     }
-    SOSD.net.listen_backlog = -1;
+    //SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
         if (      (strcmp(argv[elem], "--listeners"       ) == 0)
@@ -270,8 +270,10 @@ int main(int argc, char *argv[])  {
     SOSD_db_init_database();
 
     dlog(0, "Initializing the sync framework...\n");
-    SOSD_sync_context_init(SOS, &SOSD.sync.db, sizeof(SOSD_db_task *),
-            SOSD_THREAD_db_sync);
+
+    SOSD_sync_context_init(SOS, &SOSD.sync.db,
+            sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
+    
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud_send,
@@ -280,9 +282,13 @@ int main(int argc, char *argv[])  {
     }
     #else
     #endif
-    SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *),
-        SOSD_THREAD_local_sync);
-  
+
+    SOSD_sync_context_init(SOS, &SOSD.sync.local,
+            sizeof(SOS_buffer *), SOSD_THREAD_local_sync);
+ 
+    SOSD_sync_context_init(SOS, &SOSD.sync.feedback,
+            sizeof(SOSD_feedback_task *), SOSD_THREAD_feedback_sync);
+
 
     dlog(0, "Entering listening loops...\n");
 
@@ -336,10 +342,8 @@ int main(int argc, char *argv[])  {
     dlog(0, "  ... done.\n");
     dlog(0, "Closing the database.\n");
     SOSD_db_close_database();
-    if (SOS->role == SOS_ROLE_LISTENER) {
-        dlog(0, "Closing the socket.\n");
-        shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
-    }
+    dlog(0, "Closing the socket.\n");
+    shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     #if (SOSD_CLOUD_SYNC > 0)
     dlog(0, "Detaching from the cloud of sosd daemons.\n");
     SOSD_cloud_finalize();
@@ -529,6 +533,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
     SOS_buffer      *buffer;
     int              offset;
     int              count;
+    int              rc;
 
     pthread_mutex_lock(my->lock);
 
@@ -562,8 +567,25 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         case SOS_FEEDBACK_TYPE_QUERY: 
             query = (SOSD_query_handle *) task->ref;
             SOS_socket_out *target = NULL;
-            SOS_target_init(SOS, &target, query->reply_host, query->reply_port);
-            //send it
+            rc = SOS_target_init(SOS, &target,
+                    query->reply_host, query->reply_port);
+
+            rc = SOS_target_connect(target);
+            if (rc != 0) {
+                dlog(0, "Unable to connect to"
+                        " client at %s:%d\n",
+                        query->reply_host,
+                        query->reply_port);
+            }
+
+            rc = SOS_target_send_msg(target, query->reply_msg);
+            if (rc < 0) {
+                dlog(0, "SOSD: Unable to send message to client.\n");
+            }
+
+            rc = SOS_target_disconnect(target);
+            rc = SOS_target_destroy(target);
+            
             break;
 
         case SOS_FEEDBACK_TYPE_MSG:

@@ -277,7 +277,7 @@ endif()
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "demo_app.c")
-target_link_libraries("demo_app" "sos" "${MPI_C_LIBRARIES}")
+target_link_libraries("demo_app" "sos" "sosa" "${MPI_C_LIBRARIES}")
 if(MPI_C_COMPILE_FLAGS)
  	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
