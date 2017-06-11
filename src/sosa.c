@@ -301,7 +301,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
     default://OUTPUT_CSV:
         // Display header (optional)
         if (options & SOSA_OUTPUT_W_HEADER) {
-            fprintf(fptr, "\"time_stamp\",\"result_row\",");
+            fprintf(fptr, "\"result_row\",");
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);
                 if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
@@ -311,7 +311,6 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
         // Display data
         for (row = 0; row < results->row_count; row++) {
-            fprintf(fptr, "\"%lf\",", time_now);
             fprintf(fptr, "\"%d\",",  row);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->data[row][col]);

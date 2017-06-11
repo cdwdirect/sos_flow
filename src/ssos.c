@@ -17,8 +17,10 @@
 #include "ssos.h"
 
 int              g_sos_is_online = 0;
+int              g_results_are_ready = 0;
 SOS_runtime     *g_sos = NULL;
 SOS_pub         *g_pub = NULL;
+
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
 {                                                           \
@@ -39,6 +41,22 @@ void SSOS_exec_query(char *sql) {
     // Initialize the results
     // SOSA_results_init(g_sos, (SOSA_results **) &results);
     // Run the query with the traditional SOSA API.
+    if (g_results_are_ready) {
+        }
+
+    // ...so there is a strategy here.
+    // we want to make sure Python gets to own the memory
+    // so that probably means doing something clever
+    //
+    // the g_results_are_ready variable will help us
+    // do a kind of blocking-wait for the results so
+    // we don't have to manage a python callback
+    //
+    // it also means we get one query at a time
+    // but that is probablty ok
+    //
+
+
     SOSA_exec_query(g_sos, sql);
 
     return;
@@ -46,6 +64,7 @@ void SSOS_exec_query(char *sql) {
 
 void SSOS_init(void) {
     g_sos_is_online = 0;
+    g_results_are_ready = 0;
     int attempt = 0;
 
     g_sos = NULL;

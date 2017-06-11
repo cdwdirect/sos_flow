@@ -385,9 +385,14 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
         return;
     }
 
-    dlog(7, "Query extracted: %s\n", sosa_query);
-
     int rc = 0;
+    char *err = NULL;
+    
+    dlog(6, "Flushing the database.  (BEFORE query)\n");
+    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+
+
     sqlite3_stmt *sosa_statement = NULL;
     rc = sqlite3_prepare_v2(database, sosa_query,
             strlen(sosa_query) + 1, &sosa_statement, NULL);
@@ -432,6 +437,10 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     }//while:rows
 
     sqlite3_finalize(sosa_statement);
+
+    dlog(6, "Flushing the database.  (AFTER query)\n");
+    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
 
     SOS_buffer_init_sized_locking(SOS, &query->reply_msg,
             SOS_DEFAULT_BUFFER_MAX, false);
