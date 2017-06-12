@@ -24,10 +24,10 @@ export TAU_CONFIG=-mpi-pthread
 export TAU_ROOT=$HOME/src/tau2
 export ADIOS_ROOT=/usr/local/packages/adios/git-gcc-4.9
 export GPERFTOOLS_ROOT=/usr/local/packages/gperftools/2.5
-if [ `hostname` = "ln1" ] || [ `hostname` = "ktau" ] ; then
+if [ `hostname` == "ln1" ] || [ `hostname` == "ktau" ] ; then
   export CHAOS=$HOME/src/chaos/linux-gcc
-  module use /projects/tau/packages/Modules/modulefiles
-  module load python/2.7.13
+#  module use /projects/tau/packages/Modules/modulefiles
+#  module load python/2.7.13
 else
   export CHAOS=/usr/local/packages/adios/chaos
 fi
@@ -39,9 +39,9 @@ export PKG_CONFIG_PATH=${GPERFTOOLS_ROOT}/lib/pkgconfig:${PKG_CONFIG_PATH}
 export LD_LIBRARY_PATH=${CHAOS}/lib:${GPERFTOOLS_ROOT}/lib:${ADIOS_ROOT}/lib64:${LD_LIBRARY_PATH}
 export PATH=${CHAOS}/bin:${ADIOS_ROOT}/bin:${PATH}
 
-if [ `hostname` != "ln1" ] ; then
-  module load cmake autoconf automake sqlite mpi-tor/openmpi-1.8_gcc-4.9 gcc/4.9 python
-fi
+#if [ `hostname` != "ln1" ] ; then
+#  module load cmake autoconf automake sqlite mpi-tor/openmpi-1.8_gcc-4.9 gcc/4.9 python
+#fi
 
 
 if [ "x$PYTHONPATH" == "x" ] ; then
