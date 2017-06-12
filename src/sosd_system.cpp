@@ -8,8 +8,12 @@
 #include <netdb.h>
 #include <unistd.h>
 #include <set>
+#include <iostream>
 
 using namespace std;
+
+#pragma GCC diagnostic ignored "-Wwrite-strings"
+
 
 static ProcData *oldData = nullptr;
 static ProcData *newData = nullptr;
@@ -321,7 +325,7 @@ void setup_system_monitor_pub(void) {
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = 0;
-        header.pub_guid = 0;
+        header.ref_guid = 0;
 
         SOS_buffer *buffer;
         SOS_buffer_init_sized_locking(SOS, &buffer, 1024, false);
@@ -331,7 +335,7 @@ void setup_system_monitor_pub(void) {
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid);
+            header.ref_guid);
 
         //Send client version information:
         SOS_buffer_pack(buffer, &offset, "ii",
@@ -375,7 +379,7 @@ void setup_system_monitor_pub(void) {
                 &header.msg_size,
                 &header.msg_type,
                 &header.msg_from,
-                &header.pub_guid);
+                &header.ref_guid);
                 
         SOS_buffer_unpack(buffer, &offset, "gg",
                 &guid_pool_from,
@@ -484,3 +488,4 @@ extern "C" void SOSD_read_system_data(void) {
   }
 }
 
+#pragma GCC diagnostic pop

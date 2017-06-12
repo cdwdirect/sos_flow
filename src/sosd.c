@@ -1169,6 +1169,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
+    offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
             &header.msg_size,
             &header.msg_type,
@@ -2109,6 +2110,8 @@ void SOSD_init() {
         dlog(1, "DATA NOTE:  GUID values are unique only to this node.\n");
         SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
     #endif
+    // Set up the GUID pool for daemon-internal pub handles.
+    SOSD.sos_context->uid.my_guid_pool = SOSD.guid;
     dlog(1, "  ... (%" SOS_GUID_FMT " ---> %" SOS_GUID_FMT ")\n", SOSD.guid->next, SOSD.guid->last);
 
     /* [hashtable]

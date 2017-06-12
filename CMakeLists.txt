@@ -6,13 +6,7 @@ option(ENABLE_ADIOS_EXAMPLES "Build the examples that require the presence of AD
 option(ENABLE_TAU_WRAPPER "Compile the codes with tau_cc.sh?"
        OFF)
 
-option(SOS_SILENCE_DEBUG "Disable DEBUG messages?"
-       OFF)
-
-option(SOSD_DAEMON_LOGGING "Should the sosd daemon produce a log file?"
-       ON)
-
-option(SOSD_DAEMON_DETACH "Have the daemon fork, detach, and get its own session?  (DEPRECATED)"
+option(SOSD_DAEMON_DETACH "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
        OFF)
 
 option(SOSD_CLOUD_SYNC "Activate cloud_sync operations for the daemon?"
@@ -59,6 +53,8 @@ if(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
 endif(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")
