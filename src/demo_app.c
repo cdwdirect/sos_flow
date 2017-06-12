@@ -123,6 +123,11 @@ int main(int argc, char *argv[]) {
         } else if ( strcmp(argv[elem], "--sql"  ) == 0) {
             WAIT_FOR_FEEDBACK = 1;
             SQL_QUERY = getenv(argv[next_elem]);
+            if ((SQL_QUERY == NULL) || (strlen(SQL_QUERY) < 3)) {
+                printf("Please set a valid SQL query in the environment"
+                        " variable '%s' and retry.\n", argv[next_elem]);
+                exit(0);
+            }
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
         }
