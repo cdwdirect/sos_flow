@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     SOS_runtime    *my_SOS;
     int             offset;
 
-    /* Process command line arguments: format for options is:   --argv[i] <argv[j]>    */
+    // Process command line arguments
     int i, j;
     for (i = 2; i < argc; ) {
         if ((j = i + 1) == argc) {
@@ -71,14 +71,14 @@ int main(int argc, char *argv[]) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
     header.msg_from = SOS->my_guid;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     offset = 0;
     SOS_buffer_pack(buffer, &offset, "iigg",
                               header.msg_size,
                               header.msg_type,
                               header.msg_from,
-                              header.pub_guid);
+                              header.ref_guid);
 
     header.msg_size = offset;
     offset = 0;
@@ -86,7 +86,9 @@ int main(int argc, char *argv[]) {
 
     dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    SOS_send_to_daemon(buffer, buffer);
+    SOS_target_connect(&SOS->net);
+    SOS_target_send_msg(&SOS->net, buffer);
+    SOS_target_disconnect(&SOS->net);
 
     SOS_buffer_destroy(buffer);
     dlog(0, "Done.\n");

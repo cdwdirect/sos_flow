@@ -19,15 +19,10 @@
 #include "sos_types.h"
 #include "sos_debug.h"
 
-void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *results) {
+void SOSA_exec_query(SOS_runtime *sos_context, char *query) {
     SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
 
-    if (results == NULL) {
-        fprintf(stderr, "ERROR: Attempted to exec a query w/NULL results object!\n");
-        return;
-    }
-
-    dlog(7, "Running query (%25s) ...\n", query);
+    dlog(7, "Submitting query (%25s) ...\n", query);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
@@ -39,7 +34,7 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_QUERY;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     dlog(7, "   ... creating msg.\n");
 
@@ -48,19 +43,21 @@ void SOSA_exec_query(SOS_runtime *sos_context, char *query, SOSA_results *result
                     header.msg_size,
                     header.msg_type,
                     header.msg_from,
-                    header.pub_guid);
+                    header.ref_guid);
 
+    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
+    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
     SOS_buffer_pack(msg, &offset, "s", query);
 
     header.msg_size = offset;
     offset = 0;
     SOS_buffer_pack(msg, &offset, "i", header.msg_size);
 
-    dlog(7, "   ... sending to aggregator.\n");
+    dlog(7, "   ... sending to daemon.\n");
     SOSA_send_to_target_db(msg, reply);
 
-    dlog(7, "   ... extracting response into result set.\n");
-    SOSA_results_from_buffer(results, reply);
+    //dlog(7, "   ... extracting response into result set.\n");
+    //SOSA_results_from_buffer(results, reply);
 
     SOS_buffer_destroy(msg);
     SOS_buffer_destroy(reply);
@@ -128,13 +125,13 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_QUERY;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
     int offset = 0;
     SOS_buffer_pack(buffer, &offset, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
-        header.pub_guid);
+        header.ref_guid);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
@@ -190,7 +187,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
+        &header.ref_guid);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
@@ -304,7 +301,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
     default://OUTPUT_CSV:
         // Display header (optional)
         if (options & SOSA_OUTPUT_W_HEADER) {
-            fprintf(fptr, "\"time_stamp\",\"result_row\",");
+            fprintf(fptr, "\"result_row\",");
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);
                 if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
@@ -314,7 +311,6 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
         // Display data
         for (row = 0; row < results->row_count; row++) {
-            fprintf(fptr, "\"%lf\",", time_now);
             fprintf(fptr, "\"%d\",",  row);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->data[row][col]);
@@ -350,14 +346,14 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     int offset = 0;
     SOS_buffer_pack(msg, &offset, "iigg",
                     header.msg_size,
                     header.msg_type,
                     header.msg_from,
-                    header.pub_guid);
+                    header.ref_guid);
 
     header.msg_size = offset;
     offset = 0;

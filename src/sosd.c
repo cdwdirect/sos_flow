@@ -111,8 +111,7 @@ int main(int argc, char *argv[])  {
 
     my_role = SOS_ROLE_UNASSIGNED;
     my_rank = -1;
-    SOSD.net.listen_backlog = 10;
-
+    SOSD.net.listen_backlog = 20;
 
     // Grab the port from the environment variable SOS_CMD_PORT
     SOSD.net.server_port = getenv("SOS_CMD_PORT");
@@ -136,7 +135,7 @@ int main(int argc, char *argv[])  {
         fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE);
         exit(EXIT_FAILURE);
     }
-    SOSD.net.listen_backlog = -1;
+    //SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
         if (      (strcmp(argv[elem], "--listeners"       ) == 0)
@@ -271,8 +270,10 @@ int main(int argc, char *argv[])  {
     SOSD_db_init_database();
 
     dlog(0, "Initializing the sync framework...\n");
-    SOSD_sync_context_init(SOS, &SOSD.sync.db, sizeof(SOSD_db_task *),
-            SOSD_THREAD_db_sync);
+
+    SOSD_sync_context_init(SOS, &SOSD.sync.db,
+            sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
+    
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud_send,
@@ -292,6 +293,9 @@ int main(int argc, char *argv[])  {
     } else {
         SOSD.system_monitoring = 0;
     }
+
+    SOSD_sync_context_init(SOS, &SOSD.sync.feedback,
+            sizeof(SOSD_feedback_task *), SOSD_THREAD_feedback_sync);
 
 
     dlog(0, "Entering listening loops...\n");
@@ -346,10 +350,8 @@ int main(int argc, char *argv[])  {
     dlog(0, "  ... done.\n");
     dlog(0, "Closing the database.\n");
     SOSD_db_close_database();
-    if (SOS->role == SOS_ROLE_LISTENER) {
-        dlog(0, "Closing the socket.\n");
-        shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
-    }
+    dlog(0, "Closing the socket.\n");
+    shutdown(SOSD.net.server_socket_fd, SHUT_RDWR);
     #if (SOSD_CLOUD_SYNC > 0)
     dlog(0, "Detaching from the cloud of sosd daemons.\n");
     SOSD_cloud_finalize();
@@ -435,7 +437,7 @@ void SOSD_listen_loop() {
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
-                              &header.pub_guid);
+                              &header.ref_guid);
         } else {
             dlog(0, "  ... Received short (useless) message.\n");
             continue;
@@ -473,7 +475,7 @@ void SOSD_listen_loop() {
         }
 
         dlog(5, "  ... msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
-        dlog(5, "  ... pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
+        dlog(5, "  ....ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
 
         SOSD_countof(socket_messages++);
         SOSD_countof(socket_bytes_recv += header.msg_size);
@@ -566,6 +568,96 @@ void* SOSD_THREAD_system_monitor(void *args) {
     pthread_exit(NULL);
 }
 
+void* SOSD_THREAD_feedback_sync(void *args) {
+    SOSD_sync_context *my = (SOSD_sync_context *) args;
+    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_local_sync");
+    struct timeval   now;
+    struct timespec  wait;
+    SOS_msg_header   header;
+    SOS_buffer      *buffer;
+    int              offset;
+    int              count;
+    int              rc;
+
+    pthread_mutex_lock(my->lock);
+
+    gettimeofday(&now, NULL);
+    wait.tv_sec  = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
+    wait.tv_nsec = SOSD_FEEDBACK_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
+    while (SOS->status == SOS_STATUS_RUNNING) {
+        pthread_cond_timedwait(my->cond, my->lock, &wait);
+        
+        SOSD_feedback_task   *task;
+
+        SOSD_countof(thread_feedback_wakeup++);
+
+        // Grab the next feedback task...
+        // This will block until a task is available or until the
+        // pipe is closed.
+        count = pipe_pop_eager(my->queue->outlet, (void *) &task, 1);
+        if (count == 0) {
+            dlog(6, "Nothing remains in the queue, and the intake"
+            " is closed.  Leaving thread.\n");
+            break;
+        } else {
+            pthread_mutex_lock(my->queue->sync_lock);
+            my->queue->elem_count -= count;
+            pthread_mutex_unlock(my->queue->sync_lock);
+        }
+
+        SOSD_query_handle *query;
+
+        switch(task->type) {
+        case SOS_FEEDBACK_TYPE_QUERY: 
+            query = (SOSD_query_handle *) task->ref;
+            SOS_socket_out *target = NULL;
+            rc = SOS_target_init(SOS, &target,
+                    query->reply_host, query->reply_port);
+
+            rc = SOS_target_connect(target);
+            if (rc != 0) {
+                dlog(0, "Unable to connect to"
+                        " client at %s:%d\n",
+                        query->reply_host,
+                        query->reply_port);
+            }
+
+            rc = SOS_target_send_msg(target, query->reply_msg);
+            if (rc < 0) {
+                dlog(0, "SOSD: Unable to send message to client.\n");
+            }
+
+            rc = SOS_target_disconnect(target);
+            rc = SOS_target_destroy(target);
+            
+            break;
+
+        case SOS_FEEDBACK_TYPE_MSG:
+            // TODO: Iterate through the various applications
+            // and send this message to each of them.
+            // This could probably be handled efficiently with
+            // some kind of bcast, but keep it simple for now.
+            break;
+
+        default:
+            dlog(0, "WARNING: Incorrect feedback type specified.  (%d)\n",
+                    task->type);
+
+        }
+
+
+        gettimeofday(&now, NULL);
+        wait.tv_sec = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
+        wait.tv_nsec = SOSD_FEEDBACK_SYNC_WAIT_NSEC
+                + (1000 * now.tv_usec);
+    }
+
+    pthread_mutex_unlock(my->lock);
+    pthread_exit(NULL);
+}
+
+
+
 void* SOSD_THREAD_local_sync(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
     SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_local_sync");
@@ -611,7 +703,7 @@ void* SOSD_THREAD_local_sync(void *args) {
             &header.msg_size,
             &header.msg_type,
             &header.msg_from,
-            &header.pub_guid);
+            &header.ref_guid);
         
         switch(header.msg_type) {
         case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer); break;
@@ -707,12 +799,12 @@ void* SOSD_THREAD_db_sync(void *args) {
             switch(task->type) {
             case SOS_MSG_TYPE_ANNOUNCE:
                 dlog(6, "Sending ANNOUNCE to the database...\n");
-                SOSD_db_insert_pub(task->pub);
+                SOSD_db_insert_pub((SOS_pub *) task->ref);
                 break;
 
             case SOS_MSG_TYPE_PUBLISH:
                 dlog(6, "Sending PUBLISH to the database...\n");
-                SOSD_db_insert_data(task->pub);
+                SOSD_db_insert_data((SOS_pub *) task->ref);
                 break;
 
             case SOS_MSG_TYPE_VAL_SNAPS:
@@ -722,7 +814,8 @@ void* SOSD_THREAD_db_sync(void *args) {
 
             case SOS_MSG_TYPE_QUERY:
                 dlog(6, "Sending QUERY to the database...\n");
-                
+                SOSD_db_handle_sosa_query((SOSD_db_task *) task);
+                break;
 
             default:
                 dlog(0, "WARNING: Invalid task->type value at"
@@ -751,9 +844,8 @@ void* SOSD_THREAD_db_sync(void *args) {
 void* SOSD_THREAD_cloud_recv(void *args) {
     #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
         SOSD_cloud_listen_loop();
-    #else
-        return NULL;
     #endif
+    return NULL;
 }
 
 
@@ -827,7 +919,7 @@ void* SOSD_THREAD_cloud_send(void *args) {
                 &header.msg_size,
                 &header.msg_type,
                 &header.msg_from,
-                &header.pub_guid);
+                &header.ref_guid);
 
             while ((header.msg_size + offset) > buffer->max) {
                 dlog(1, "(header.msg_size == %d   +   offset == %d)"
@@ -1025,7 +1117,7 @@ void SOSD_handle_triggerpull(SOS_buffer *msg) {
 void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_kmean_data");
     // For parsing the buffer:
-    char             pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char            pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     SOS_pub         *pub;
     SOS_msg_header   header;
     int              offset;
@@ -1041,16 +1133,16 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);
+                      &header.ref_guid);
 
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
-            header.pub_guid);
+            header.ref_guid);
 
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
-        dlog(0, "ERROR: No pub exists for header.pub_guid"
-                " == %" SOS_GUID_FMT "\n", header.pub_guid); 
+        dlog(0, "ERROR: No pub exists for header.ref_guid"
+                " == %" SOS_GUID_FMT "\n", header.ref_guid); 
         dlog(0, "ERROR: Destroying message and returning.\n");
         SOS_buffer_destroy(buffer);
         return;
@@ -1077,51 +1169,59 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
-    offset = 0;
     SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.ref_guid);
 
-    SOS_buffer *result = NULL;
-    SOS_buffer_init_sized_locking(SOS, &result, SOS_DEFAULT_BUFFER_MAX, false);
+    SOSD_query_handle *query_handle = NULL;
+    query_handle = (SOSD_query_handle *)
+            calloc(1, sizeof(SOSD_query_handle));
 
-    SOSD_db_handle_sosa_query(buffer, result);
+    query_handle->state          = SOS_QUERY_STATE_INCOMING;
+    query_handle->reply_to_guid  = header.msg_from;
+    query_handle->query_sql      = NULL;
+    query_handle->reply_host     = NULL;
+    query_handle->reply_port     = -1;
+    query_handle->reply_msg      = NULL;
 
+    dlog(6, "   ...extracting query...\n");
+    SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->reply_host);
+    SOS_buffer_unpack(buffer, &offset, "i", &query_handle->reply_port);
+    SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->query_sql);
 
-    //SPLIT
-    // Here we need to build a DB task and submit it into the queue.
-    // The handler function will need to build a reply message and drop
-    //   it into the Local Sync queue.
+    dlog(6, "      ...received reply_host: \"%s\"\n",
+            query_handle->reply_host);
+    dlog(6, "      ...received reply_port: \"%d\"\n",
+            query_handle->reply_port);
+    dlog(6, "      ...received query_sql: \"%s\"\n",
+            query_handle->query_sql);
 
-    /*
-    task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
-    task->type = SOS_MSG_TYPE_ANNOUNCE;
+    dlog(6, "   ...placing query in db queue.\n");
+    SOSD_db_task *task = NULL;
+    task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
+    task->ref = (void *) query_handle;
+    task->type = SOS_MSG_TYPE_QUERY;
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
     SOSD.sync.db.queue->elem_count++;
-    SOS_buffer_destroy(reply);
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    */
 
-
-    // The "send" below will not be happening right now.
-    // This is a "future" essentially, and this should eventually become
-    // some kind of a thread pool, but we don't need to do that now.
-
-    rc = send(SOSD.net.client_socket_fd, (void *) result->data,
-            result->len, 0);
-
-    dlog(5, "replying with result->len == %d bytes, rc == %d\n", result->len, rc);
+    dlog(6, "   ...sending ACK to client.\n");
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+    rc = send(SOSD.net.client_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
         SOSD_countof(socket_bytes_sent += rc);
     }
-    
-    SOS_buffer_destroy(result);
+    SOS_buffer_destroy(reply);
+    dlog(6, "Done.\n");
     return;
 }
 
@@ -1139,7 +1239,7 @@ void SOSD_handle_echo(SOS_buffer *buffer) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
+        &header.ref_guid);
 
     rc = send(SOSD.net.client_socket_fd, (void *) buffer->data, buffer->len, 0);
     if (rc == -1) {
@@ -1157,7 +1257,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     SOSD_db_task  *task;
     SOS_msg_header header;
     SOS_pub       *pub;
-    char           pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char          pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int            offset;
     int            rc;
 
@@ -1168,15 +1268,15 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);
+                      &header.ref_guid);
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
-            header.pub_guid);
+            header.ref_guid);
 
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
-        dlog(0, "ERROR: No pub exists for header.pub_guid"
-                " == %" SOS_GUID_FMT "\n", header.pub_guid); 
+        dlog(0, "ERROR: No pub exists for header.ref_guid"
+                " == %" SOS_GUID_FMT "\n", header.ref_guid); 
         dlog(0, "ERROR: Destroying message and returning.\n");
         SOS_buffer_destroy(buffer);
         return;
@@ -1188,7 +1288,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
 
     dlog(5, "Queue these val snaps up for the database...\n");
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
+    task->ref = (void *) pub;
     task->type = SOS_MSG_TYPE_VAL_SNAPS;
 
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
@@ -1213,7 +1313,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid);
+            header.ref_guid);
         // Enqueue it to be handled:
         pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
         pipe_push(SOSD.sync.local.queue->intake, (void *)&copy, 1);
@@ -1245,7 +1345,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);
+                      &header.ref_guid);
 
     //Check version of the client against the server's:
     int client_version_major = -1;
@@ -1278,7 +1378,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = SOS->config.comm_rank;
-        header.pub_guid = 0;
+        header.ref_guid = 0;
 
         offset = 0;
 
@@ -1286,7 +1386,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
                 header.msg_type,
                 header.msg_size,
                 header.msg_from,
-                header.pub_guid);
+                header.ref_guid);
 
         //Pack in the GUID's
         SOS_buffer_pack(reply, &offset, "gg",
@@ -1341,14 +1441,14 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     offset = 0;
     SOS_buffer_pack(reply, &offset, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid);
+            header.ref_guid);
 
     SOS_buffer_pack(reply, &offset, "gg",
             block_from,
@@ -1378,7 +1478,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     SOS_buffer     *reply;
     SOS_pub        *pub;
     
-    char            pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char           pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int             offset;
     int             i;
 
@@ -1391,18 +1491,18 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.pub_guid);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+        &header.ref_guid);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
-        SOS_pub_create(SOS, &pub, pub_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
-        strncpy(pub->guid_str, pub_guid_str, SOS_DEFAULT_STRING_LEN);
-        pub->guid = header.pub_guid;
-        SOSD.pub_table->put(SOSD.pub_table, pub_guid_str, pub);
+        strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
+        pub->guid = header.ref_guid;
+        SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
     } else {
         dlog(5, "     ... FOUND IT!\n");
     }
@@ -1413,7 +1513,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     pub->announced = SOSD_PUB_ANN_DIRTY;
 
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
+    task->ref = (void *) pub;
     task->type = SOS_MSG_TYPE_ANNOUNCE;
     pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
     pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
@@ -1433,7 +1533,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     SOS_msg_header  header;
     SOS_buffer     *reply;
     SOS_pub        *pub;
-    char            pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
+    char           pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int             offset;
     int             i;
 
@@ -1446,23 +1546,23 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.pub_guid);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+                      &header.ref_guid);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     /* Check the table for this pub ... */
-    dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n", pub_guid_str);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
+    dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n",pub_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
         /* If it's not in the table, add it. */
-    dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT ") NOT FOUND! (WEIRD!)\n", header.pub_guid);
+    dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT ") NOT FOUND! (WEIRD!)\n", header.ref_guid);
     dlog(0, "ERROR: .... ADDING previously unknown pub to the table... (this is bogus, man)\n");
-        SOS_pub_create(SOS, &pub, pub_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
-        strncpy(pub->guid_str, pub_guid_str, SOS_DEFAULT_STRING_LEN);
-        pub->guid = header.pub_guid;
-        SOSD.pub_table->put(SOSD.pub_table, pub_guid_str, pub);
+        strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
+        pub->guid = header.ref_guid;
+        SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
     } else {
         dlog(5, "     ... FOUND it!\n");
     }
@@ -1471,7 +1571,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     SOSD_apply_publish(pub, buffer);
 
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->pub = pub;
+    task->ref = (void *) pub;
     task->type = SOS_MSG_TYPE_PUBLISH;
     pthread_mutex_lock(pub->lock);
     if (pub->sync_pending == 0) {
@@ -1500,7 +1600,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid);
+            header.ref_guid);
         // Enqueue it to be handled:
         pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
         pipe_push(SOSD.sync.local.queue->intake, (void *) &copy, 1);
@@ -1531,7 +1631,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
                              &header.msg_size,
                              &header.msg_type,
                              &header.msg_from,
-                             &header.pub_guid);
+                             &header.ref_guid);
 
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_PACK_ACK(reply);
@@ -1586,7 +1686,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
+        &header.ref_guid);
 
     if (SOS->role == SOS_ROLE_LISTENER) {
         /* Build a reply: */
@@ -1594,20 +1694,20 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_FEEDBACK;
         header.msg_from = 0;
-        header.pub_guid = 0;
+        header.ref_guid = 0;
 
         offset = 0;
         SOS_buffer_pack(reply, &offset, "iigg",
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid);
+            header.ref_guid);
 
         /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",
-            SOS_FEEDBACK_CUSTOM,
+            SOS_FEEDBACK_TYPE_MSG,
             function_name);
 
         /* Go back and set the message length to the actual length. */
@@ -1646,7 +1746,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_PROBE;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = -1;
+    header.ref_guid = -1;
 
     dlog(5, "Assembling probe data structure...\n");
 
@@ -1655,7 +1755,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
                     header.msg_size,
                     header.msg_type,
                     header.msg_from,
-                    header.pub_guid);
+                    header.ref_guid);
 
     /* Don't need to lock for probing because it doesn't matter if we're a little off. */
     uint64_t queue_depth_local     = SOSD.sync.local.queue->elem_count;
@@ -1769,12 +1869,12 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
+        &header.ref_guid);
 
     dlog(1, "header.msg_size == %d\n", header.msg_size);
     dlog(1, "header.msg_type == %d\n", header.msg_type);
     dlog(1, "header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
-    dlog(1, "header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
+    dlog(1, "header.ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
 
     if (SOS->role == SOS_ROLE_AGGREGATOR) {
         SOS_buffer_destroy(reply);
@@ -1815,7 +1915,7 @@ void SOSD_setup_socket() {
     SOSD.net.server_hint.ai_next       = NULL;
 
     i = getaddrinfo(NULL, SOSD.net.server_port, &SOSD.net.server_hint, &SOSD.net.result);
-    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", strerror(errno)); exit(EXIT_FAILURE); }
+    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", gai_strerror(errno)); exit(EXIT_FAILURE); }
 
     for ( SOSD.net.server_addr = SOSD.net.result ; SOSD.net.server_addr != NULL ; SOSD.net.server_addr = SOSD.net.server_addr->ai_next ) {
         dlog(1, "Trying an address...\n");

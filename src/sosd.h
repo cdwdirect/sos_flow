@@ -41,38 +41,44 @@
 #define SOSD_CLOUD_SYNC_WAIT_SEC     0
 #define SOSD_DB_SYNC_WAIT_SEC        0
 #define SOSD_SYSTEM_MONITOR_WAIT_SEC 1
+#define SOSD_FEEDBACK_SYNC_WAIT_SEC  0
 
 /* 0.05 seconds: 50000000, default for cloud/db=5000 */
 #define SOSD_LOCAL_SYNC_WAIT_NSEC    0
 #define SOSD_CLOUD_SYNC_WAIT_NSEC    3000
 #define SOSD_DB_SYNC_WAIT_NSEC       5000
-
+#define SOSD_FEEDBACK_SYNC_WAIT_NSEC 0
 
 #define SOSD_DEFAULT_CENTROID_COUNT  12
 
 
-
 typedef struct {
     SOS_msg_type        type;
-    SOS_pub            *pub;
-    char               *query;
-    SOS_guid            reply_to;
+    void               *ref;
 } SOSD_db_task;
 
+typedef struct {
+    SOS_feedback_type   type;
+    void               *ref;
+} SOSD_feedback_task;
 
-/*
- *  NOTE: Some stats will be looked up directly from their memory
- *        location, such as the current depth of the DB commit queue.
- *
- *        Also, the sync_lock is only used if SOS_DEBUG is > 0.
- *
- *        Use:   SOSD_countof(buffer_bytes_on_heap -= 1024)
- */
+
+typedef struct {
+    SOS_query_state     state;
+    char               *query_sql;
+    SOS_guid            reply_to_guid;
+    char               *reply_host;
+    int                 reply_port;
+    SOS_buffer         *reply_msg;
+} SOSD_query_handle;
+
+
 typedef struct {
     pthread_mutex_t    *lock_stats;   
     uint64_t            thread_local_wakeup;   
     uint64_t            thread_cloud_wakeup;   
-    uint64_t            thread_db_wakeup;      
+    uint64_t            thread_db_wakeup;
+    uint64_t            thread_feedback_wakeup;
     uint64_t            feedback_checkin_messages;   
     uint64_t            socket_messages;       
     uint64_t            socket_bytes_recv;         
@@ -113,8 +119,6 @@ typedef struct {
     EVstone             out_stone;
     EVstone             rmt_stone;
 } SOSD_evpath_node;
-
-
 
 typedef struct {
     char               *instance_name;
@@ -181,6 +185,7 @@ typedef struct {
     SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
     SOSD_sync_context    system_monitor;
+    SOSD_sync_context    feedback;
     qhashtbl_t          *km2d_table;
 } SOSD_sync_set;
 
@@ -231,6 +236,7 @@ extern "C" {
     void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
     void* SOSD_THREAD_system_monitor(void *args);
+    void* SOSD_THREAD_feedback_sync(void *args);
 
     void  SOSD_listen_loop(void);
     void  SOSD_send_to_self(SOS_buffer *msg, SOS_buffer *reply);
@@ -296,13 +302,13 @@ extern "C" {
         header.msg_size = -1;                            \
         header.msg_type = SOS_MSG_TYPE_ACK;              \
         header.msg_from = 0;                             \
-        header.pub_guid = 0;                             \
+        header.ref_guid = 0;                             \
         offset = 0;                                      \
         SOS_buffer_pack(__buffer, &offset, "iigg",       \
                                       header.msg_size,   \
                                       header.msg_type,   \
                                       header.msg_from,   \
-                                      header.pub_guid);  \
+                                      header.ref_guid);  \
         header.msg_size = offset;                        \
         offset = 0;                                      \
         SOS_buffer_pack(__buffer, &offset, "i",          \

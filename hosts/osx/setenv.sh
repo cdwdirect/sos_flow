@@ -23,12 +23,4 @@ export MPICXX=mpicxx
 
 export SOS_ENV_SET=1
 
-echo "Reconfiguring the build scripts..."
-cd $SOS_ROOT
-$SOS_ROOT/scripts/configure.sh -c
-cd $SOS_BUILD_DIR
-make clean
-echo "-- Compile SOSflow with the following command:"
-echo ""
-echo "        make -j install"
-echo ""
+

@@ -185,14 +185,14 @@ void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_PROBE;
     header.msg_from = my_sos->my_guid;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     int offset = 0;
     SOS_buffer_pack(request, &offset, "iigg",
                     header.msg_size,
                     header.msg_type,
                     header.msg_from,
-                    header.pub_guid);
+                    header.ref_guid);
     header.msg_size = offset;
     offset = 0;
 
@@ -217,7 +217,7 @@ void SWEEP_wait_for_empty_queue(SOS_runtime *my_sos) {
                           &header.msg_size,
                           &header.msg_type,
                           &header.msg_from,
-                          &header.pub_guid);
+                          &header.ref_guid);
 
         uint64_t queue_depth_local       = 0;
         uint64_t queue_depth_cloud       = 0;

@@ -17,8 +17,10 @@
 #include "ssos.h"
 
 int              g_sos_is_online = 0;
+int              g_results_are_ready = 0;
 SOS_runtime     *g_sos = NULL;
 SOS_pub         *g_pub = NULL;
+
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
 {                                                           \
@@ -30,30 +32,49 @@ SOS_pub         *g_pub = NULL;
     };                                                      \
 };
 
-// Definition for stub function, as the 'simple' interface does
-// not yet support receiving feedback from the SOS daemon.
-void* SSOS_feedback_handler(SOS_feedback feedback, SOS_buffer *msg);
+void SSOS_feedback_handler(int payload_type,
+        int payload_size, void *payload_data);
 
-void SSOS_exec_query(char *sql, SSOS_query_results *results) {
+void SSOS_exec_query(char *sql) {
     SOS_SET_CONTEXT(g_sos, "SSOS_exec_query");
 
     // Initialize the results
-    SOSA_results_init(g_sos, (SOSA_results **) &results);
+    // SOSA_results_init(g_sos, (SOSA_results **) &results);
     // Run the query with the traditional SOSA API.
-    SOSA_exec_query(g_sos, sql, (SOSA_results *) results);
-    
+    if (g_results_are_ready) {
+        }
+
+    // ...so there is a strategy here.
+    // we want to make sure Python gets to own the memory
+    // so that probably means doing something clever
+    //
+    // the g_results_are_ready variable will help us
+    // do a kind of blocking-wait for the results so
+    // we don't have to manage a python callback
+    //
+    // it also means we get one query at a time
+    // but that is probablty ok
+    //
+
+
+    SOSA_exec_query(g_sos, sql);
+
     return;
 }
 
 void SSOS_init(void) {
     g_sos_is_online = 0;
+    g_results_are_ready = 0;
     int attempt = 0;
 
     g_sos = NULL;
     while (g_sos == NULL) {
+
         SOS_init(NULL, NULL,
-            &g_sos, SOS_ROLE_CLIENT,
-            SOS_RECEIVES_NO_FEEDBACK, NULL);
+            &g_sos,
+            SOS_ROLE_CLIENT,
+            SOS_RECEIVES_DIRECT_MESSAGES,
+            SSOS_feedback_handler);
 
         if (g_sos == NULL) {
             attempt += 1;
@@ -124,8 +145,13 @@ void SSOS_finalize(void) {
     return;
 }
 
-void* SSOS_feedback_handler(SOS_feedback feedback, SOS_buffer *msg) {
-    fprintf(stderr, "SSOS (PID:%d) -- Feedback handler called,"
-        " should not be.\n", getpid());
-    return NULL;
+void SSOS_feedback_handler(
+        int   payload_type,
+        int   payload_size,
+        void *payload_data)
+{
+    printf("SSOS: Message received!  type==%d, size==%d\n",
+            payload_type, payload_size);
+    
+    return;
 }
