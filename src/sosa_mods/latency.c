@@ -84,7 +84,7 @@ int main(int argc, char *argv[]) {
     //}
 
     SOSA_results_wipe(results);
-    SOSA_exec_query(SOS, query, results);
+    SOSA_exec_query(SOS, query);
     SOSA_results_output_to(stdout, results, "latency", SOSA_OUTPUT_DEFAULT);
 
     //fclose(fptr);

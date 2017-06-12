@@ -275,7 +275,7 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("TARGET",        SOS_TARGET_string,        SOS_TARGET___MAX        );
     SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
     SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );
-    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_string,      SOS_FEEDBACK___MAX      );
+    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_string, SOS_FEEDBACK_TYPE___MAX      );
     SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
     SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
     SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
@@ -363,44 +363,42 @@ void SOSD_db_transaction_commit() {
 
 
 
-void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
+void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    // Technique 1: Open a new connection to the database, read-only...
-    // sqlite3 *sosa_conn;
-    // int flags; 
-    // flags = SQLITE_OPEN_READONLY
-     //    | SQLITE_OPEN_FULLMUTEX;
-    // sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
-    
-    // Technique 2: Lock the database and query it: 
-    pthread_mutex_lock(SOSD.db.lock);
-    sqlite3 *sosa_conn = database;
+    SOSD_query_handle *query = (SOSD_query_handle *) task->ref;
+    char *sosa_query = query->query_sql;
 
-    SOS_msg_header   header;
+    dlog(6, "Processing query task...\n");
+    dlog(6, "   ...reply_host: \"%s\"\n",
+            query->reply_host);
+    dlog(6, "   ...reply_port: \"%d\"\n",
+            query->reply_port);
+    dlog(6, "   ...query_sql: \"%s\"\n",
+            query->query_sql);
 
-    dlog(4, "Extracting the message...\n");
 
-    int offset = 0;
-    SOS_buffer_unpack(msg, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
-
-    char *sosa_query = NULL;
-    SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
-
-    dlog(7, "Query extracted: %s\n", sosa_query);
+    if (sosa_query == NULL) {
+        dlog(0, "WARNING: Empty (NULL) query submitted."
+                " Doing nothing and returning.\n");
+        return;
+    }
 
     int rc = 0;
+    char *err = NULL;
+    
+    dlog(6, "Flushing the database.  (BEFORE query)\n");
+    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+
+
     sqlite3_stmt *sosa_statement = NULL;
-    rc = sqlite3_prepare_v2(sosa_conn, sosa_query,
+    rc = sqlite3_prepare_v2(database, sosa_query,
             strlen(sosa_query) + 1, &sosa_statement, NULL);
     if (rc != SQLITE_OK) {
         fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
                 SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
-                header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
+                query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
         pthread_mutex_unlock(SOSD.db.lock);
         return;
     } 
@@ -418,7 +416,8 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     SOSA_results_grow_to(results, col_incoming, results->row_max);
     for (col = 0; col < col_incoming; col++) {
-        dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col, sqlite3_column_name(sosa_statement, col));
+        dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col,
+                sqlite3_column_name(sosa_statement, col));
         SOSA_results_put_name(results, col, sqlite3_column_name(sosa_statement, col));
     }
 
@@ -438,9 +437,24 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
 
     sqlite3_finalize(sosa_statement);
 
-    SOSA_results_to_buffer(response, results);
+    dlog(6, "Flushing the database.  (AFTER query)\n");
+    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+
+    SOS_buffer_init_sized_locking(SOS, &query->reply_msg,
+            SOS_DEFAULT_BUFFER_MAX, false);
+
+    SOSA_results_to_buffer(query->reply_msg, results);
     SOSA_results_destroy(results);
-    pthread_mutex_unlock(SOSD.db.lock);
+
+    // Enqueue the results to send back to the client...
+    SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
+    feedback->type = SOS_FEEDBACK_TYPE_QUERY;
+    feedback->ref = query;
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
     return;
 }

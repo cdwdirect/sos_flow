@@ -12,20 +12,37 @@
 
 #include <mpi.h>
 
+#define USAGE "USAGE:\n"        \
+    "\t./demo_app"              \
+    " -i <iteration_size>"      \
+    " -m <max_send_count>"      \
+    " -p <pub_elem_count>"      \
+    " [-d <iter_delay_usec>]\n" \
+    "\n"                        \
+    "\t\t       - OR -\n"       \
+    "\n"                        \
+    "\t./demo_app"              \
+    " --sql SOS_SQL_QUERY"      \
+    "    (environment variable)"\
+    "\n"
+
+
 #define DEFAULT_MAX_SEND_COUNT 2400
 #define DEFAULT_ITERATION_SIZE 25
 
-#define USAGE "./demo_app -i <iteration_size> -m <max_send_count> -p <pub_elem_count> [-d <iter_delay_usec>]"
 
 
 #include "sos.h"
 #include "sos_error.h"
+#include "sosa.h"
 
 
+/*
 #ifdef SOS_DEBUG
 #undef SOS_DEBUG
 #endif
 #define SOS_DEBUG 1
+*/
 
 void fork_exec_sosd(void);
 void fork_exec_sosd_shutdown(void);
@@ -33,10 +50,35 @@ void send_shutdown_message(SOS_runtime *runtime);
 
 #include "sos_debug.h"
 
-int main(int argc, char *argv[]) {
-    printf("demo_app : Starting...\n");
+int g_done;
+SOS_runtime *my_sos;
 
-    SOS_runtime *my_sos;
+void
+DEMO_feedback_handler(
+        int payload_type,
+        int payload_size,
+        void *payload_data)
+{
+    SOSA_results *results = NULL;    
+    SOSA_results_init(my_sos, &results);
+    SOSA_results_from_buffer(results, payload_data);
+
+    SOSA_results_output_to(stdout, results,
+            "Query Results", SOSA_OUTPUT_W_HEADER);  
+
+    g_done = 1;
+
+    return;
+}
+
+
+
+
+
+int main(int argc, char *argv[]) {
+
+
+    g_done = 0;
 
     int i;
     int elem;
@@ -51,6 +93,8 @@ int main(int argc, char *argv[]) {
     int    ITERATION_SIZE;
     int    PUB_ELEM_COUNT;
     int    DELAY_ENABLED;
+    int    WAIT_FOR_FEEDBACK;
+    char  *SQL_QUERY;
     double DELAY_IN_USEC;
 
     MPI_Init(&argc, &argv);
@@ -58,13 +102,13 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
 
     /* Process command-line arguments */
-    if ( argc < 5 ) { fprintf(stderr, "%s\n", USAGE); exit(1); }
 
     MAX_SEND_COUNT  = -1;
     ITERATION_SIZE  = -1;
     PUB_ELEM_COUNT  = -1;
     DELAY_ENABLED   = 0;
     DELAY_IN_USEC   = 0;
+    WAIT_FOR_FEEDBACK = 0;
 
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
@@ -81,18 +125,31 @@ int main(int argc, char *argv[]) {
         } else if ( strcmp(argv[elem], "-d"  ) == 0) {
             DELAY_IN_USEC = strtod(argv[next_elem], NULL);
             DELAY_ENABLED = 1;
+        } else if ( strcmp(argv[elem], "--sql"  ) == 0) {
+            WAIT_FOR_FEEDBACK = 1;
+            SQL_QUERY = getenv(argv[next_elem]);
+            if ((SQL_QUERY == NULL) || (strlen(SQL_QUERY) < 3)) {
+                printf("Please set a valid SQL query in the environment"
+                        " variable '%s' and retry.\n", argv[next_elem]);
+                exit(0);
+            }
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
         }
         elem = next_elem + 1;
     }
 
-    if ( (MAX_SEND_COUNT < 1)
-         || (ITERATION_SIZE < 1)
-         || (PUB_ELEM_COUNT < 1)
-         || (DELAY_IN_USEC  < 0) )
-        { fprintf(stderr, "%s\n", USAGE); exit(1); }
+    if (WAIT_FOR_FEEDBACK) {
+        //No worries... don't need to do injection.
+    } else {
+        if ( (MAX_SEND_COUNT < 1)
+             || (ITERATION_SIZE < 1)
+             || (PUB_ELEM_COUNT < 1)
+             || (DELAY_IN_USEC  < 0) )
+             { fprintf(stderr, "%s\n", USAGE); exit(1); }
+    }
 
+    printf("demo_app : Starting...\n");
 
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
@@ -103,7 +160,8 @@ int main(int argc, char *argv[]) {
     int      send_shutdown = 0;
     
     my_sos = NULL;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
+                SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
     if(my_sos == NULL) {
         printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
         fork_exec_sosd();
@@ -114,7 +172,9 @@ int main(int argc, char *argv[]) {
         sleep(2);
         my_sos = NULL;
         //printf("init() trying to connect...\n");
-        SOS_init(&argc, &argv, &my_sos, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
+        SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
+                SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
+
         if (my_sos != NULL) {
             printf("Connected to SOS daemon. Continuing...\n");
             break;
@@ -125,10 +185,20 @@ int main(int argc, char *argv[]) {
     }
 
     SOS_register_signal_handler(my_sos);
-
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
+
+    if (WAIT_FOR_FEEDBACK) {
+        printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
+        SOSA_exec_query(my_sos, SQL_QUERY);
+
+        printf("demo_app : Waiting for feedback.\n");
+        while(!g_done) {
+            usleep(100000);
+        }
+    
+    } else {
 
     if (rank == 0) dlog(0, "Creating a pub...\n");
 
@@ -144,32 +214,8 @@ int main(int argc, char *argv[]) {
     pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
-
-    //if (rank == 0) dlog(0, "Packing a couple values...\n");
-    //var_int = 1234567890;
-    //snprintf(var_string, 100, "Hello, world!");
-    //SOS_pack(pub, "example_int", SOS_VAL_TYPE_INT,    &var_int         );
-    //SOS_pack(pub, "example_str", SOS_VAL_TYPE_STRING, var_string      );
-
     var_double = 0.0;
 
-/*    int pos = -1;
-    for (i = 0; i < PUB_ELEM_COUNT; i++) {
-        snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
-
-
-        pos = SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-
-
-        dlog(0, "   pub->data[%d]->guid == %" SOS_GUID_FMT "\n", pos, pub->data[pos]->guid);
-        var_double += 0.0000001;
-    }
-*/
-
-    if (rank == 0) dlog(0, "Re-packing --> Publishing %d values for %d times per iteration:\n",
-           PUB_ELEM_COUNT,
-           ITERATION_SIZE);
-           
     SOS_TIME( time_start );
     int mils = 0;
     int ones = 0;
@@ -177,12 +223,14 @@ int main(int argc, char *argv[]) {
         ones += 1;
         if ((ones%ITERATION_SIZE) == 0) {
             SOS_TIME( time_now );
-            if (rank == 0) dlog(0, "     ... [ %d calls to SOS_publish(%d vals) ][ %lf seconds @ %lf / value ][ total: %d values ]\n",
-                   ITERATION_SIZE,
+            if (rank == 0) dlog(0, "  ... [ SOS_publish(%d vals) x %d ]"
+                    "[ %lf seconds @ %lf / value ][ total: %d values ]\n",
                    PUB_ELEM_COUNT,
+                   ITERATION_SIZE,
                    (time_now - time_start),
                    ((time_now - time_start) / (double) (PUB_ELEM_COUNT * ITERATION_SIZE)),
                    (ones * PUB_ELEM_COUNT));
+
             if (DELAY_ENABLED) {
                 usleep(DELAY_IN_USEC);
             }
@@ -202,11 +250,7 @@ int main(int argc, char *argv[]) {
             if (rank == 0) { dlog(0, "Announcing\n"); }
             SOS_announce(pub);
         }
-         //if (ones % 2) {
-            /* Publish every other iteration to force local snap-queue use. */
-            SOS_publish(pub);
-        //}
-        //SOS_publish(pub);
+        SOS_publish(pub);
     }
 
     if (send_shutdown) {
@@ -215,6 +259,8 @@ int main(int argc, char *argv[]) {
     }
 
     SOS_publish(pub);
+
+    }
 
     SOS_finalize(my_sos);
     MPI_Finalize(); 

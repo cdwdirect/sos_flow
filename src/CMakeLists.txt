@@ -35,14 +35,6 @@ if(DEFINED LIBTCMALLOC_FOUND)
     link_libraries(${LIBTCMALLOC_LIBRARIES})
 endif()
 
-if(SOS_SILENCE_DEBUG)
-  add_definitions("-DSOS_DEBUG=0")
-endif()
-
-if(SOSD_DAEMON_LOGGING)
-  add_definitions("-DSOSD_DAEMON_LOGGING=1")
-endif()
-
 if(SOSD_DAEMON_DETACH)
   message(STATUS ">>> DAEMON_DETACH:")
   message(STATUS ">>> DAEMON_DETACH:  Daemon is set to DETACH and run in the background...")
@@ -286,7 +278,7 @@ endif()
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "sosd_spawn.cpp" "sos_error.c" "demo_app.c")
-target_link_libraries("demo_app" "sos" "${MPI_CXX_LIBRARIES}")
+target_link_libraries("demo_app" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
 if(MPI_CXX_COMPILE_FLAGS)
  	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
