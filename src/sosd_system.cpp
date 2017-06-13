@@ -269,15 +269,13 @@ void setup_system_monitor_pub(void) {
         }
         SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-        SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
-        SOS->net.server_port   = getenv("SOS_CMD_PORT");
-        if ((SOS->net.server_port == NULL) || (strlen(SOS->net.server_port)) < 2) {
-            fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+        strncpy(SOS->net.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+        strncpy(SOS->net.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
+        if (strlen(SOS->net.server_port) < 2) {
+            fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                     SOS_DEFAULT_SERVER_PORT);
             fflush(stderr);
-            SOS->net.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-            snprintf(SOS->net.server_port, SOS_DEFAULT_STRING_LEN, "%d",
-                    SOS_DEFAULT_SERVER_PORT);
+            strncpy(SOS->net.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
         }
 
         SOS->net.server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6

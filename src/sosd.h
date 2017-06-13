@@ -69,6 +69,7 @@ typedef struct {
     SOS_guid            client_guid;
     char               *client_host;
     int                 client_port;
+    void               *next_entry;
 } SOSD_sensitivity_entry;
 
 //typedef struct {
@@ -198,7 +199,7 @@ typedef struct {
     SOSD_sync_context    system_monitor;
     SOSD_sync_context    feedback;
     qhashtbl_t          *km2d_table;
-
+    SOSD_sensitivity_entry  *sense_list_head;
 } SOSD_sync_set;
 
 
@@ -280,7 +281,8 @@ extern "C" {
     extern void SOS_uid_init( SOS_runtime *sos_context,
             SOS_uid **uid, SOS_guid from, SOS_guid to);
 
-    /* functions for monitoring system health */
+    
+    /* Functions for monitoring system health */
     void SOSD_setup_system_data(void);
     void SOSD_read_system_data(void);
     void SOSD_add_pid_to_track(SOS_pub* pub_pid);

@@ -414,8 +414,8 @@ typedef void (*SOS_feedback_handler_f)
  
 typedef struct {
     void               *sos_context;
-    char               *server_host;
-    char               *server_port;
+    char                server_host[NI_MAXHOST];
+    char                server_port[NI_MAXSERV];
     int                 server_socket_fd; 
     struct addrinfo    *server_addr;
     struct addrinfo    *result_list;
@@ -437,8 +437,8 @@ typedef struct {
     int                 client_len;
     struct addrinfo     server_hint;
     struct addrinfo    *server_addr;
-    char               *client_host;
-    char               *client_port;
+    char                client_host[NI_MAXHOST];
+    char                client_port[NI_MAXSERV];
     struct addrinfo    *result;
     struct sockaddr_storage   peer_addr;
     socklen_t           peer_addr_len;

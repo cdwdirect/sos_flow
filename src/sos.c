@@ -269,18 +269,16 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         }
         SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
         SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-        SOS->net.server_host   = SOS_DEFAULT_SERVER_HOST;
-        SOS->net.server_port   = getenv("SOS_CMD_PORT");
+        strncpy(SOS->net.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+        strncpy(SOS->net.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
         if ((SOS->net.server_port == NULL)
                 || (strlen(SOS->net.server_port)) < 2)
         {
             fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set."
-                    " Using default: %d\n",
+                    " Using default: %s\n",
                     SOS_DEFAULT_SERVER_PORT);
             fflush(stderr);
-            SOS->net.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-            snprintf(SOS->net.server_port, SOS_DEFAULT_STRING_LEN, "%d",
-                    SOS_DEFAULT_SERVER_PORT);
+            strncpy(SOS->net.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
         }
 
         SOS->net.server_hint.ai_family   = AF_UNSPEC;   // Allow IPv4 or IPv6
@@ -765,15 +763,14 @@ SOS_target_init(
     pthread_mutex_lock(tgt->send_lock);
 
     if (target_host != NULL) {
-        tgt->server_host = strdup(target_host);
+        strncpy(tgt->server_host, target_host, NI_MAXHOST);
     } else {
         dlog(0, "WARNING: No host specified during a SOS_target_init."
                 "  Defaulting to 'localhost'.\n");
-        tgt->server_host = strdup("localhost");
+        strncpy(tgt->server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     }
 
-    tgt->server_port = calloc(64, sizeof(char));
-    snprintf(tgt->server_port, 64, "%d", target_port);
+    snprintf(tgt->server_port, NI_MAXSERV, "%d", target_port);
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;

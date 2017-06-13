@@ -116,12 +116,10 @@ int main(int argc, char *argv[])  {
     // Grab the port from the environment variable SOS_CMD_PORT
     SOSD.net.server_port = getenv("SOS_CMD_PORT");
     if ((SOSD.net.server_port == NULL) || (strlen(SOSD.net.server_port)) < 2) {
-        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
-        SOSD.net.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-        snprintf(SOSD.net.server_port, SOS_DEFAULT_STRING_LEN, "%d",
-                SOS_DEFAULT_SERVER_PORT);
+        strncpy(SOSD.net.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
     }
 
     SOSD.net.port_number = atoi(SOSD.net.server_port);
@@ -986,15 +984,13 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     SOS_socket_out out;
     out.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
     out.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-    out.server_host   = SOS_DEFAULT_SERVER_HOST;
-    out.server_port   = getenv("SOS_CMD_PORT");
-    if ((out.server_port == NULL) || (strlen(out.server_port)) < 2) {
-        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %d\n",
+    strncpy(out.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+    strncpy(out.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
+    if (strlen(out.server_port) < 2) {
+        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
-        out.server_port = (char *) malloc(SOS_DEFAULT_STRING_LEN);
-        snprintf(out.server_port, SOS_DEFAULT_STRING_LEN, "%d",
-                SOS_DEFAULT_SERVER_PORT);
+        strncpy(out.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
     }
 
     out.server_hint.ai_family    = AF_UNSPEC;   // Allow IPv4 or IPv6
@@ -1117,7 +1113,20 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOS_buffer_unpack_safestr(msg, &offset, &sense->client_host);
     SOS_buffer_unpack(msg, &offset, "i", &sense->client_port);
 
-    
+    //TODO: Check to see if this is a duplicate.
+    SOSD_sensitivity_entry *entry = SOSD.sync.sense_list_head;
+    while (entry != NULL) {
+        if ((entry->client_guid == header.msg_from)
+         && (strcmp(sense->sense_handle, entry->sense_handle) == 0))
+        {
+            // This entry is effectively a duplicate... update the port
+            // at least, then do nothing.
+            entry->client_port = sense->client_port;
+            entry = NULL; 
+        } else {
+            entry = entry->next_entry;
+        }
+    }
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 256, false);

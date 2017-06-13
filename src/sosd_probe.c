@@ -73,7 +73,7 @@ int main(int argc, char *argv[]) {
     SOS_runtime *my_sos;
     SOS_init( &argc, &argv, &my_sos, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (GLOBAL_forced_sos_port_on > 0) {
-        my_sos->net.server_port = GLOBAL_forced_sos_port;
+        strncpy(my_sos->net.server_port, GLOBAL_forced_sos_port, NI_MAXSERV);
     }
     srandom(my_sos->my_guid);
 
