@@ -16,10 +16,11 @@
 #include "sos_types.h"
 #include "ssos.h"
 
-int              g_sos_is_online = 0;
-int              g_results_are_ready = 0;
-SOS_runtime     *g_sos = NULL;
-SOS_pub         *g_pub = NULL;
+int                 g_sos_is_online = 0;
+int                 g_results_are_ready = 0;
+SSOS_query_results *g_results = NULL;
+SOS_runtime        *g_sos = NULL;
+SOS_pub            *g_pub = NULL;
 
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
@@ -35,30 +36,51 @@ SOS_pub         *g_pub = NULL;
 void SSOS_feedback_handler(int payload_type,
         int payload_size, void *payload_data);
 
-void SSOS_exec_query(char *sql) {
+void SSOS_exec_query(char *sql, SSOS_query_results *results) {
     SOS_SET_CONTEXT(g_sos, "SSOS_exec_query");
 
+    fflush (stdout);
+
     // Initialize the results
-    // SOSA_results_init(g_sos, (SOSA_results **) &results);
-    // Run the query with the traditional SOSA API.
-    if (g_results_are_ready) {
-        }
-
-    // ...so there is a strategy here.
-    // we want to make sure Python gets to own the memory
-    // so that probably means doing something clever
-    //
-    // the g_results_are_ready variable will help us
-    // do a kind of blocking-wait for the results so
-    // we don't have to manage a python callback
-    //
-    // it also means we get one query at a time
-    // but that is probablty ok
-    //
-
-
+    SOSA_results_init(g_sos, (SOSA_results **) &results);
+    g_results = results;
+    g_results_are_ready = 0;
+    
+    fflush (stdout);
     SOSA_exec_query(g_sos, sql);
 
+    while (g_results_are_ready == 0) {
+        usleep(10000);
+    }
+
+    fflush(stdout);
+
+    return;
+}
+
+void SSOS_results_destroy(SSOS_query_results *results) {
+    SOS_SET_CONTEXT(g_sos, "SSOS_results_destroy");
+
+    int row = 0;
+    int col = 0;
+    for (row = 0; row < results->row_count; row++) {
+        for (col = 0; col < results->col_count; col++) {
+            free(results->data[row][col]);
+        }
+    }
+
+    for (row = 0; row < results->row_max; row++) {
+        free(results->data[row]);
+    }
+
+    free(results->data);
+
+    for (col = 0; col < results->col_max; col++) {
+        if (results->col_names[col] != NULL) {
+            free(results->col_names[col]);
+        }
+    }
+    free(results->col_names);
     return;
 }
 
@@ -152,6 +174,8 @@ void SSOS_feedback_handler(
 {
     printf("SSOS: Message received!  type==%d, size==%d\n",
             payload_type, payload_size);
-    
+    SOSA_results_from_buffer((SOSA_results *)g_results, payload_data);
+    g_results_are_ready = 1;
+ 
     return;
 }

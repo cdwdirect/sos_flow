@@ -66,7 +66,8 @@ extern "C" {
     void SSOS_publish(void);
     void SSOS_finalize(void);
 
-    void SSOS_exec_query(char *sql);
+    void SSOS_exec_query(char *sql, SSOS_query_results *results);
+    void SSOS_results_destroy(SSOS_query_results *results);
 
 #ifdef __cplusplus
 }

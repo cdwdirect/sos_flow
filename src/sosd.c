@@ -514,6 +514,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_CHECK_IN:    SOSD_handle_check_in    (buffer); break;
         case SOS_MSG_TYPE_PROBE:       SOSD_handle_probe       (buffer); break;
         case SOS_MSG_TYPE_QUERY:       SOSD_handle_query       (buffer); break;
+        case SOS_MSG_TYPE_SENSITIVITY: SOSD_handle_sensitivity (buffer); break;
         case SOS_MSG_TYPE_TRIGGERPULL: SOSD_handle_triggerpull (buffer); break;
         default:                       SOSD_handle_unknown     (buffer); break;
         }
@@ -1087,7 +1088,50 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
 
 
 
-void SOSD_handle_triggerpull(SOS_buffer *msg) {
+
+void
+SOSD_handle_sensitivity(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_sensitivity");
+
+    dlog(5, "Registering a client sensitivity.\n");
+    
+    SOS_msg_header header;
+    int offset = 0;
+
+    SOS_buffer_unpack(msg, &offset, "iigg",
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.ref_guid);
+
+    SOSD_sensitivity_entry *sense =
+        calloc(1, sizeof(SOSD_sensitivity_entry));
+
+    sense->guid = SOS_uid_next(SOSD.guid);
+    sense->sense_handle = NULL;
+    sense->client_guid = header.msg_from;
+    sense->client_host = NULL;
+    sense->client_port = -1;
+    
+    SOS_buffer_unpack_safestr(msg, &offset, &sense->sense_handle);
+    SOS_buffer_unpack_safestr(msg, &offset, &sense->client_host);
+    SOS_buffer_unpack(msg, &offset, "i", &sense->client_port);
+
+    
+
+
+
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized_locking(SOS, &reply, 256, false);
+    SOSD_PACK_ACK(reply);
+    SOS_buffer_destroy(reply);
+    dlog(5, "Done.\n");
+    return;
+}
+
+
+void
+SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
 
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");

@@ -562,6 +562,40 @@ void
 SOS_sense_register(SOS_runtime *sos_context, char *handle)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
+    
+    SOS_msg_header header;
+    SOS_buffer *msg = NULL;
+    SOS_buffer *reply = NULL;
+    int offset = 0;
+
+    SOS_buffer_init_sized_locking(SOS, &msg, 1024, false);
+    SOS_buffer_init_sized_locking(SOS, &msg, 64, false);
+
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_SENSITIVITY;
+    header.msg_from = SOS->my_guid;
+    header.ref_guid = 0;
+
+    offset = 0;
+    SOS_buffer_pack(msg, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.ref_guid);
+
+    SOS_buffer_pack(msg, &offset, "ssi",
+            handle,
+            SOS->config.node_id,
+            SOS->config.receives_port);
+
+    header.msg_size = offset;
+    offset = 0;
+
+    SOS_buffer_pack(msg, &offset, "i",
+            header.msg_size);
+
+    SOS_send_to_daemon(msg, reply);
+
     return;
 }
 

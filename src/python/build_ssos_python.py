@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # file "ssos_build.py"
 
 from cffi import FFI
@@ -38,6 +39,7 @@ ffibuilder.cdef("""
     void SSOS_finalize(void);
 
     void SSOS_exec_query(char *sql, SSOS_query_results *results);
+    void SSOS_results_destroy(SSOS_query_results *results);
 
     #define SSOS_TYPE_INT     1
     #define SSOS_TYPE_LONG    2
