@@ -45,7 +45,7 @@ file(GLOB sosa_mod_src_file_list
 foreach(src_file_name ${sosa_mod_src_file_list})
   string(REGEX REPLACE "\\.[^.]*$" "" bin_file_name ${src_file_name})
   add_executable("sosa_${bin_file_name}" "../sosa.c" "${src_file_name}")
-  target_link_libraries("sosa_${bin_file_name}" "sos" "m" "sosa" "${MPI_LIBRARIES}")
+  target_link_libraries("sosa_${bin_file_name}" "sos" "m" "sosa" "${MPI_LIBRARIES}" stdc++)
   if(MPI_COMPILE_FLAGS)
     set_target_properties("sosa_${bin_file_name}" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
   endif()
