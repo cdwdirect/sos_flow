@@ -1119,8 +1119,6 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
 
     
 
-
-
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 256, false);
     SOSD_PACK_ACK(reply);

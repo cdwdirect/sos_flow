@@ -46,7 +46,7 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    sql_string = "SELECT * FROM tblPubs;"
+    sql_string = "SELECT * FROM tblVals LIMIT 4000;"
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
     results, col_names = SOS.query(sql_string)
