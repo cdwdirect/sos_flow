@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+# file "example.py"
 #
 #   USAGE:   python ./example.py [loop_count]
 #
@@ -44,7 +46,7 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    sql_string = "SELECT MAX(guid) FROM tblVals;"
+    sql_string = "SELECT * FROM tblPubs;"
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
     results, col_names = SOS.query(sql_string)
@@ -56,10 +58,7 @@ def demonstrateSOS():
     pp.pprint(col_names)
     print ""
     print "Finalizing..."
-    
-    print "(Sleeping 5 seconds)"
-    time.sleep(5)
-    
+   
     SOS.finalize();
     print "   ...DONE!"
     print 

@@ -66,6 +66,8 @@ DEMO_feedback_handler(
     SOSA_results_output_to(stdout, results,
             "Query Results", SOSA_OUTPUT_W_HEADER);  
 
+    SOSA_results_destroy(results);
+    
     g_done = 1;
 
     return;

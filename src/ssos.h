@@ -33,6 +33,13 @@
 #define SSOS_TYPE_DOUBLE    3
 #define SSOS_TYPE_STRING    4
 
+// These option keys can be used to set values inside of
+// the various objects SOS uses to track application and
+// publication metadata.  They are used as the first parameter
+// of the SSOS_set_option(int key, char *value) function:
+#define SSOS_OPT_PROG_VERSION   1
+#define SSOS_OPT_COMM_RANK      2 
+
 // Reconnect tries during failed SOS_init() call.
 #define SSOS_ATTEMPT_MAX    10
 
@@ -43,7 +50,6 @@
 #define SSOS_ATTEMPT_DELAY  500000
 
 // --------------------
-
 
 typedef struct {
     void        *sos_context;
@@ -59,15 +65,20 @@ typedef struct {
 extern "C" {
 #endif
 
-    void SSOS_init(void);
-    void SSOS_is_online(int *addr_of_int_flag);
+    void SSOS_init(char *prog_name);
+    void SSOS_is_online(int *addr_of_YN_int_flag);
+    void SSOS_set_option(int option_key, char *option_value);
+
     void SSOS_pack(char *name, int pack_type, void *addr_of_value);
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
 
-    void SSOS_exec_query(char *sql);
-
+    void SSOS_query_exec_blocking(char *sql, SSOS_query_results *results);
+    void SSOS_query_exec(char *sql, SSOS_query_results *results);
+    void SSOS_is_query_done(int *addr_of_YN_int_flag);
+    void SSOS_results_destroy(SSOS_query_results *results);
+ 
 #ifdef __cplusplus
 }
 #endif

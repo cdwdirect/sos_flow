@@ -64,6 +64,17 @@ typedef struct {
 
 
 typedef struct {
+    SOS_guid            guid;
+    char               *sense_handle;
+    SOS_guid            client_guid;
+    char               *client_host;
+    int                 client_port;
+} SOSD_sensitivity_entry;
+
+//typedef struct {
+//    SOSD //SLICE
+
+typedef struct {
     SOS_query_state     state;
     char               *query_sql;
     SOS_guid            reply_to_guid;
@@ -187,7 +198,10 @@ typedef struct {
     SOSD_sync_context    system_monitor;
     SOSD_sync_context    feedback;
     qhashtbl_t          *km2d_table;
+
 } SOSD_sync_set;
+
+
 
 typedef struct {
     SOS_runtime        *sos_context;
@@ -251,6 +265,7 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
+    void  SOSD_handle_sensitivity(SOS_buffer *buffer);
     void  SOSD_handle_triggerpull(SOS_buffer *buffer);
     void  SOSD_handle_kmean_data(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
