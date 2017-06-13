@@ -1,3 +1,4 @@
+# file "ssos.py"
 #
 #   SSOS API for Python
 #
@@ -13,7 +14,8 @@ class SSOS:
     STRING = lib.SSOS_TYPE_STRING
 
     def init(self):
-        lib.SSOS_init()
+        prog_name = ffi.new("char[]", sys.argv[0])
+        lib.SSOS_init(prog_name)
         is_online_flag = ffi.new("int*")
         is_online_flag[0] = 0
         lib.SSOS_is_online(is_online_flag)
@@ -27,7 +29,13 @@ class SSOS:
         is_online_flag[0] = 0
         lib.SSOS_is_online(is_online_flag)
         return bool(is_online_flag[0])
- 
+
+    def is_query_done(self):
+        is_query_done_flag = ffi.new("int*")
+        is_query_done_flag[0] = 0
+        lib.SSOS_is_query_done(is_query_done_flag)
+        return bool(is_query_done_flag[0])
+
     def pack(self, pyentry_name, entry_type, pyentry_value):
         entry_name = ffi.new("char[]", pyentry_name)
         if (entry_type == self.INT):
@@ -47,7 +55,7 @@ class SSOS:
     def query(self, sql):
         res_sql = ffi.new("char[]", sql)
         res_obj = ffi.new("SSOS_query_results*")
-        lib.SSOS_exec_query(res_sql, res_obj)
+        lib.SSOS_query_exec_blocking(res_sql, res_obj)
         
         results = [] 
         for row in range(res_obj.row_count):
@@ -75,4 +83,4 @@ class SSOS:
         lib.SSOS_finalize()
 
 if (__name__ == "__main__"):
-    print "This a library intended for use in other Python scripts."
+    print "This a library wrapper intended for use in other Python scripts."

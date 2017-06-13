@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# file "ssos_build.py"
+# file "build_ssos_python.py"
 
 from cffi import FFI
 ffibuilder = FFI()
@@ -30,22 +30,49 @@ ffibuilder.cdef("""
         uint32_t     row_count;
         char      ***data;
     } SSOS_query_results;
+
+
+    // --------------------
+
+    // These are the types supported by SSOS for use as the
+    // second parameter of SSOS_pack(name, type, value):
     
-    void SSOS_init(void);
-    void SSOS_is_online(int *addr_of_int32_flag);
+    #define SSOS_TYPE_INT     1
+    #define SSOS_TYPE_LONG    2
+    #define SSOS_TYPE_DOUBLE  3
+    #define SSOS_TYPE_STRING  4
+
+
+    // These option keys can be used to set values inside of
+    // the various objects SOS uses to track application and
+    // publication metadata.  They are used as the first parameter
+    // of SSOS_set_option(key, value):
+
+    #define SSOS_OPT_PROG_VERSION   1
+    #define SSOS_OPT_COMM_RANK      2 
+
+    
+    // The following SSOS API functions will be available for
+    // use within Python scripts. They are neatly wrapped up for
+    // ease of use by the ssos.py script, but can be called
+    // directly if desired:
+    
+    void SSOS_init(char *prog_name);
+    void SSOS_is_online(int *addr_of_YN_int_flag);
+    void SSOS_set_option(int option_key, char *option_value);
+
     void SSOS_pack(char *name, int pack_type, void *addr_of_value);
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
 
-    void SSOS_exec_query(char *sql, SSOS_query_results *results);
+    void SSOS_query_exec_blocking(char *sql, SSOS_query_results *results);
+    void SSOS_query_exec(char *sql, SSOS_query_results *results);
+    void SSOS_is_query_done(int *addr_of_YN_int_flag);
     void SSOS_results_destroy(SSOS_query_results *results);
 
-    #define SSOS_TYPE_INT     1
-    #define SSOS_TYPE_LONG    2
-    #define SSOS_TYPE_DOUBLE  3
-    #define SSOS_TYPE_STRING  4
     
+    // --------------------
 """)
 
 #
