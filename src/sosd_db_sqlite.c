@@ -377,69 +377,76 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     dlog(6, "   ...query_sql: \"%s\"\n",
             query->query_sql);
 
+    bool OK_to_execute = true;
+
+    dlog(4, "Building result set...\n");
+    SOSA_results *results = NULL;
+    SOSA_results_init(SOS, &results);
+    SOSA_results_grow_to(results, 1, 1);
+    SOSA_results_put_name(results, 0, "[NULL]");
+    SOSA_results_put(results, 0, 0, "[NULL]");
+
+    sqlite3_stmt *sosa_statement = NULL;
+    int rc = 0;
+    char *err = NULL;
 
     if (sosa_query == NULL) {
         dlog(0, "WARNING: Empty (NULL) query submitted."
                 " Doing nothing and returning.\n");
-        return;
-    }
-
-    int rc = 0;
-    char *err = NULL;
+        OK_to_execute = false; 
+    } else {
     
-    dlog(6, "Flushing the database.  (BEFORE query)\n");
-    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
-    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+        dlog(6, "Flushing the database.  (BEFORE query)\n");
+        rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
 
-
-    sqlite3_stmt *sosa_statement = NULL;
-    rc = sqlite3_prepare_v2(database, sosa_query,
-            strlen(sosa_query) + 1, &sosa_statement, NULL);
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
-                SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
-                query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
-        pthread_mutex_unlock(SOSD.db.lock);
-        return;
-    } 
-
-    dlog(4, "Building result set...\n");
-
-    SOSA_results *results = NULL;
-    SOSA_results_init(SOS, &results);
-
-    int col = 0;
-    int col_incoming = sqlite3_column_count( sosa_statement );
-
-    dlog(7, "   ... col_incoming == %d\n", col_incoming);
-    results->col_count = col_incoming;
-
-    SOSA_results_grow_to(results, col_incoming, results->row_max);
-    for (col = 0; col < col_incoming; col++) {
-        dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col,
-                sqlite3_column_name(sosa_statement, col));
-        SOSA_results_put_name(results, col, sqlite3_column_name(sosa_statement, col));
+        rc = sqlite3_prepare_v2(database, sosa_query,
+                strlen(sosa_query) + 1, &sosa_statement, NULL);
+        if (rc != SQLITE_OK) {
+            fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
+                    SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
+                    query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
+            OK_to_execute = false;
+        }
     }
 
-    int row_incoming = 0;
-    const char *val  = NULL;
+    if (OK_to_execute) {
+        int col = 0;
+        int col_incoming = sqlite3_column_count( sosa_statement );
 
-    while( sqlite3_step( sosa_statement ) == SQLITE_ROW ) {
-        dlog(7, "   ... results->data[%d][ | | | ... | ]\n", row_incoming);
-        SOSA_results_grow_to(results, col_incoming, row_incoming);
+        dlog(7, "   ... col_incoming == %d\n", col_incoming);
+        results->col_count = col_incoming;
+
+        SOSA_results_grow_to(results, col_incoming, results->row_max);
         for (col = 0; col < col_incoming; col++) {
-            val = (const char *) sqlite3_column_text(sosa_statement, col);
-            SOSA_results_put(results, col, row_incoming, val);
-        }//for:col
-        row_incoming++;
-        results->row_count = row_incoming;
-    }//while:rows
+            dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col,
+                    sqlite3_column_name(sosa_statement, col));
+            SOSA_results_put_name(results, col, sqlite3_column_name(sosa_statement, col));
+        }
 
-    sqlite3_finalize(sosa_statement);
+        int row_incoming = 0;
+        const char *val  = NULL;
 
-    dlog(6, "Flushing the database.  (AFTER query)\n");
-    rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
-    rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+        while( sqlite3_step( sosa_statement ) == SQLITE_ROW ) {
+            dlog(7, "   ... results->data[%d][ | | | ... | ]\n", row_incoming);
+            SOSA_results_grow_to(results, col_incoming, row_incoming);
+            for (col = 0; col < col_incoming; col++) {
+                val = (const char *) sqlite3_column_text(sosa_statement, col);
+                SOSA_results_put(results, col, row_incoming, val);
+            }//for:col
+            row_incoming++;
+            results->row_count = row_incoming;
+        }//while:rows
+
+        sqlite3_finalize(sosa_statement);
+
+        dlog(6, "Flushing the database.  (AFTER query)\n");
+        rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+    } //OK_to_execute
+
+    // Even if we didn't execute the query, we need to send back the empty
+    // results in case there is a client that is blocking waiting on them.
 
     SOS_buffer_init_sized_locking(SOS, &query->reply_msg,
             SOS_DEFAULT_BUFFER_MAX, false);
