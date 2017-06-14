@@ -260,6 +260,7 @@ extern "C" {
     void  SOSD_send_to_self(SOS_buffer *msg, SOS_buffer *reply);
 
     void  SOSD_handle_register(SOS_buffer *buffer);
+    void  SOSD_handle_unregister(SOS_buffer *buffer);
     void  SOSD_handle_guid_block(SOS_buffer *buffer);
     void  SOSD_handle_announce(SOS_buffer *buffer);
     void  SOSD_handle_publish(SOS_buffer *buffer);
@@ -270,6 +271,7 @@ extern "C" {
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
     void  SOSD_handle_sensitivity(SOS_buffer *buffer);
+    void  SOSD_handle_desensitize(SOS_buffer *buffer);
     void  SOSD_handle_triggerpull(SOS_buffer *buffer);
     void  SOSD_handle_kmean_data(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);

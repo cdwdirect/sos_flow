@@ -81,7 +81,10 @@ void SSOS_set_option(int option_key, char *option_value) {
 }
 
 
-void SSOS_query_exec(char *sql, SSOS_query_results *results) {
+void
+SSOS_query_exec(char *sql, SSOS_query_results *results,
+       char *target_host, int target_port)
+{
     SSOS_CONFIRM_ONLINE("SSOS_query_exec");
     SOS_SET_CONTEXT(g_sos, "SSOS_query_exec");
 
@@ -89,20 +92,27 @@ void SSOS_query_exec(char *sql, SSOS_query_results *results) {
     g_results = results;
     g_results_are_ready = 0;
     
-    fflush (stdout);
-    SOSA_exec_query(g_sos, sql);
+    SOSA_exec_query(g_sos, sql, target_host, target_port);
 
     fflush(stdout);
 
     return;
 }
 
+void SSOS_is_query_done(int *addr_of_YN_int_flag) {
+    *addr_of_YN_int_flag = g_results_are_ready;
+    return;
+}
 
-void SSOS_query_exec_blocking(char *sql, SSOS_query_results *results) {
+
+
+void
+SSOS_query_exec_blocking(char *sql, SSOS_query_results *results,
+       char *target_host, int target_port) {
     SSOS_CONFIRM_ONLINE("SSOS_query_exec_blocking");
     SOS_SET_CONTEXT(g_sos, "SSOS_query_exec_blocking");
-    SSOS_query_exec(sql, results);
-    while (g_results_are_ready == 0) {
+    SSOS_query_exec(sql, results, target_host, target_port);
+    while (g_results_are_ready != 1) {
         usleep(10000);
     }
     return;
@@ -157,12 +167,6 @@ void SSOS_feedback_handler(
     SOSA_results_from_buffer((SOSA_results *)g_results, payload_data);
     g_results_are_ready = 1;
  
-    return;
-}
-
-
-void SSOS_is_query_done(int *addr_of_YN_int_flag) {
-    *addr_of_YN_int_flag = g_results_are_ready;
     return;
 }
 

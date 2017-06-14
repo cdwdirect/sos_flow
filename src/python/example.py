@@ -14,6 +14,7 @@
 
 import sys
 import time
+import os
 import pprint as pp
 from ssos import SSOS
 
@@ -46,10 +47,11 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    sql_string = "SELECT * FROM tblVals LIMIT 4000;"
+    sql_string = "SELECT * FROM tblVals LIMIT 1;"
+    
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
-    results, col_names = SOS.query(sql_string)
+    results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
     print "Results:"
     print "    Output rows....: " + str(len(results))
     print "    Output values..: " + str(results)

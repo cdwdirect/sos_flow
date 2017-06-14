@@ -74,8 +74,10 @@ extern "C" {
     void SSOS_publish(void);
     void SSOS_finalize(void);
 
-    void SSOS_query_exec_blocking(char *sql, SSOS_query_results *results);
-    void SSOS_query_exec(char *sql, SSOS_query_results *results);
+    void SSOS_query_exec_blocking(char *sql, SSOS_query_results *results,
+            char *target_host, int target_port);
+    void SSOS_query_exec(char *sql, SSOS_query_results *results,
+            char *target_host, int target_port);
     void SSOS_is_query_done(int *addr_of_YN_int_flag);
     void SSOS_results_destroy(SSOS_query_results *results);
 
