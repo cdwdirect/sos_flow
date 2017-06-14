@@ -1179,7 +1179,7 @@ SOS_THREAD_receives_direct(void *args)
     //Part 3: Listening loop for feedback messages.
     SOS_buffer *buffer = NULL;
     SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_MAX, false);
-   
+
     while (SOS->status == SOS_STATUS_RUNNING) {
     
         insock.peer_addr_len = sizeof(struct sockaddr_storage);
@@ -1204,6 +1204,7 @@ SOS_THREAD_receives_direct(void *args)
             break;
         }
 
+        offset = 0;
         buffer->len = recv(insock.client_socket_fd, (void *) buffer->data,
                 buffer->max, 0);
         dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
@@ -1215,7 +1216,6 @@ SOS_THREAD_receives_direct(void *args)
 
         memset(&header, '\0', sizeof(SOS_msg_header));
         if (buffer->len >= sizeof(SOS_msg_header)) {
-            int offset = 0;
             SOS_buffer_unpack(buffer, &offset, "iigg",
                               &header.msg_size,
                               &header.msg_type,
@@ -1260,19 +1260,51 @@ SOS_THREAD_receives_direct(void *args)
         dlog(5, "  ... msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
         dlog(5, "  ....ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
 
-        int            payload_type = header.msg_type;
-        int            payload_size = header.msg_size;
-        
-        if (SOS->config.feedback_handler != NULL) {
-            
-            SOS->config.feedback_handler(
-                    payload_type,
-                    payload_size,
-                    (void *)buffer);
+        if (header.msg_type == SOS_FEEDBACK_TYPE_QUERY) {
+            if (SOS->config.feedback_handler != NULL) {
+                SOS->config.feedback_handler(
+                        header.msg_type,
+                        header.msg_size,
+                        (void *)buffer);
+            } else {
+                fprintf(stderr, "WARNING: Feedback received but no handler"
+                        " has been set. Doing nothing.\n");
+            }
+        } else if (header.msg_type == SOS_FEEDBACK_TYPE_PAYLOAD) {
 
-        } else {
-            fprintf(stderr, "WARNING: Feedback received but no handler"
-                    " has been set. Doing nothing.\n");
+            int            payload_type = header.msg_type;
+            int            payload_size = -1;
+            void          *payload_data = NULL;
+
+            SOS_buffer_unpack(buffer, &offset, "i", &payload_size);
+            payload_data = calloc(payload_size, sizeof(unsigned char));
+            memcpy(payload_data, buffer->data + offset, payload_size);
+            offset += payload_size;
+
+            fprintf(stderr, "Message from the server ...\n");
+            fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
+            fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
+            fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
+                    header.msg_from);
+            fprintf(stderr, "   header.ref_guid == %" SOS_GUID_FMT "\n",
+                    header.ref_guid);
+            fprintf(stderr, "\n");
+            fprintf(stderr, "   payload_type == %d\n", payload_type);
+            fprintf(stderr, "   payload_size == %d\n", payload_size);
+            fprintf(stderr, "   payload_data == \"%s\"\n", (char *) payload_data);
+            fprintf(stderr, "   ...\n");
+            fprintf(stderr, "\n");
+            fflush(stderr);
+
+            if (SOS->config.feedback_handler != NULL) {
+                SOS->config.feedback_handler(
+                        payload_type,
+                        payload_size,
+                        payload_data);
+            } else {
+                fprintf(stderr, "WARNING: Feedback received but no handler"
+                        " has been set. Doing nothing.\n");
+            }
         }
         close(insock.client_socket_fd);
         insock.client_socket_fd = -1;

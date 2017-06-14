@@ -62,20 +62,11 @@ typedef struct {
     void               *ref;
 } SOSD_feedback_task;
 
-
 typedef struct {
-    SOS_guid            guid;
-    char               *sense_handle;
-    SOS_guid            client_guid;
-    char               *client_host;
-    int                 client_port;
-    void               *next_entry;
-} SOSD_sensitivity_entry;
-
-typedef struct {
-    int payload_size;
-    void *payload_data;
-} SOSD_payload_handle;
+    char *handle;
+    int   size;
+    void *data;
+} SOSD_feedback_payload;
 
 typedef struct {
     SOS_query_state     state;
@@ -86,6 +77,15 @@ typedef struct {
     SOS_buffer         *reply_msg;
 } SOSD_query_handle;
 
+typedef struct {
+    SOS_guid            guid;
+    char               *sense_handle;
+    SOS_guid            client_guid;
+    char               *client_host;
+    int                 client_port;
+    SOS_socket_out     *target;
+    void               *next_entry;
+} SOSD_sensitivity_entry;
 
 typedef struct {
     pthread_mutex_t    *lock_stats;   
@@ -201,6 +201,7 @@ typedef struct {
     SOSD_sync_context    system_monitor;
     SOSD_sync_context    feedback;
     qhashtbl_t          *km2d_table;
+    pthread_mutex_t         *sense_list_lock;
     SOSD_sensitivity_entry  *sense_list_head;
 } SOSD_sync_set;
 

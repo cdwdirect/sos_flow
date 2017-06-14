@@ -221,11 +221,15 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         &header.msg_type,
         &header.msg_from,
         &header.ref_guid);
-    
-     if (SOS->role == SOS_ROLE_AGGREGATOR) {
 
-        // AGGREGATOR
+    int offset_after_header = offset;
+
+    if ((SOS->role == SOS_ROLE_AGGREGATOR)
+     && (SOS->config.comm_size > 1)) {
         
+        // We are an Aggregator and we have Listener[s] to
+        // notify...
+
         SOSD_evpath *evp = &SOSD.daemon.evpath;
         buffer_rec rec;
 
@@ -241,13 +245,9 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         header.msg_from = SOS->config.comm_rank;
         header.ref_guid = 0;
 
-        int tmpoffset = 0;
-
         offset = 0;
         SOS_buffer_pack(wrapped_msg, &offset, "i",
             msg_count);
-
-        tmpoffset = offset;
 
         SOS_buffer_pack(wrapped_msg, &offset, "iigg",
             header.msg_size,
@@ -255,9 +255,12 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
             header.msg_from,
             header.ref_guid);
 
-        SOS_buffer_pack_bytes(wrapped_msg, &offset, msg->len, msg->data);
+        SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
+        memcpy(wrapped_msg->data + offset, msg->data + offset_after_header, msg->len - offset_after_header);
+        wrapped_msg->len += (msg->len - offset_after_header);
+        offset += (msg->len - offset_after_header);
 
-        header.msg_size = offset - tmpoffset;
+        header.msg_size = offset;
         offset = 0;
         SOS_buffer_pack(wrapped_msg, &offset, "ii",
             msg_count,
@@ -272,36 +275,53 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
                 EVsubmit(evp->node[id]->src, &rec, NULL);
             }
         }
-
-    } else if (SOS->role == SOS_ROLE_LISTENER) {
-
-        // LISTENER
-
-        char *handle = NULL;
-        char *message = NULL;
-        int message_len = -1;
-        
-        SOS_buffer_unpack_safestr(msg, &offset, &handle);
-        SOS_buffer_unpack(msg, &offset, "i", &message_len);
-        SOS_buffer_unpack_safestr(msg, &offset, &message);
-
-        fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
-                " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
-                SOS->config.comm_rank,
-                header.msg_from,
-                header.msg_size);
-        fflush(stderr);
-
-        SOSD_feedback_task *task;
-        task = calloc(1, sizeof(SOSD_feedback_task));
-        task->type = SOS_FEEDBACK_TYPE_PAYLOAD;
-        SOSD_payload_handle *msg = calloc(1, sizeof(SOSD_payload_handle));
-        
-
-
-        //SLICE: task->ref->
+        offset = offset_after_header;
     }
 
+    // Both Aggregators and Listeners should drop the feedback into
+    // their queues in case they have local processes that have
+    // registered sensitivity...
+    
+    char *handle = NULL;
+    char *message = NULL;
+    int message_len = -1;
+
+    SOS_buffer_unpack_safestr(msg, &offset, &handle);
+    SOS_buffer_unpack(msg, &offset, "i", &message_len);
+    SOS_buffer_unpack_safestr(msg, &offset, &message);
+
+    fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
+            " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
+            SOS->config.comm_rank,
+            header.msg_from,
+            header.msg_size);
+    fflush(stderr);
+
+    SOSD_feedback_task *task;
+    task = calloc(1, sizeof(SOSD_feedback_task));
+    task->type = SOS_FEEDBACK_TYPE_PAYLOAD;
+    SOSD_feedback_payload *payload = calloc(1, sizeof(SOSD_feedback_payload));
+
+    payload->handle = handle;
+    payload->size = message_len;
+    payload->data = (void *) message;
+
+    fprintf(stderr, "sosd(%d) enquing the following task->ref:\n"
+            "   payload->handle == %s\n"
+            "   payload->size   == %d\n"
+            "   payload->data   == \"%s\"\n",
+            SOSD.sos_context->config.comm_rank,
+            payload->handle,
+            payload->size,
+            (char*) payload->data);
+    fflush(stderr);
+
+
+    task->ref = (void *) payload;    
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &task, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
     return;
 }

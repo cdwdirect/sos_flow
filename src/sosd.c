@@ -295,6 +295,8 @@ int main(int argc, char *argv[])  {
     SOSD_sync_context_init(SOS, &SOSD.sync.feedback,
             sizeof(SOSD_feedback_task *), SOSD_THREAD_feedback_sync);
 
+    SOSD.sync.sense_list_lock = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOSD.sync.sense_list_lock, NULL);
 
     dlog(0, "Entering listening loops...\n");
 
@@ -347,17 +349,19 @@ int main(int argc, char *argv[])  {
     }
 
     //Clean up the sensitivity lists:
+    pthread_mutex_lock(SOSD.sync.sense_list_lock);
     SOSD_sensitivity_entry *entry = SOSD.sync.sense_list_head;
     SOSD_sensitivity_entry *next_entry;
     while (entry != NULL) {
         next_entry = entry->next_entry;
         free(entry->sense_handle);
         free(entry->client_host);
+        SOS_target_destroy(entry->target);
         free(entry);
         entry = next_entry;
     }
-
-
+    pthread_mutex_destroy(SOSD.sync.sense_list_lock);
+    free(SOSD.sync.sense_list_lock);
 
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
@@ -599,6 +603,8 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
     pthread_mutex_lock(my->lock);
 
+    SOSD_feedback_payload *payload = NULL;
+
     gettimeofday(&now, NULL);
     wait.tv_sec  = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
     wait.tv_nsec = SOSD_FEEDBACK_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
@@ -651,10 +657,82 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             break;
 
         case SOS_FEEDBACK_TYPE_PAYLOAD:
-            // TODO: Iterate through the various applications
-            // and send this message to each of them.
-            // This could probably be handled efficiently with
-            // some kind of bcast, but keep it simple for now.
+            // For non-query payloads we need to assemble a message in the
+            // standard format that contains as content the type/size/buffer
+            // payload to be extracted inside the client and sent into the
+            // callback function.
+            
+            payload = (SOSD_feedback_payload *) task->ref;
+            
+            header.msg_size = -1;
+            header.msg_type = SOS_FEEDBACK_TYPE_PAYLOAD;
+            header.msg_from = SOS->config.comm_rank;
+            header.ref_guid = 0;
+
+            SOS_buffer *delivery = NULL;
+            SOS_buffer_init_sized_locking(SOS, &delivery, 1024, false);
+
+            offset = 0;
+            SOS_buffer_pack(delivery, &offset, "iigg",
+                    header.msg_size,
+                    header.msg_type,
+                    header.msg_from,
+                    header.ref_guid);
+
+            int after_header = offset;
+
+            //SOS_buffer_pack(delivery, &offset, "i", payload->size);
+            //SOS_buffer_grow(delivery, 1 + offset + payload->size, SOS_WHOAMI);
+            //memcpy((void *) delivery->data + offset, (void *) payload->data,
+            //        payload->size);
+            //offset += payload->size;
+            //delivery->len = offset;
+
+            // This does the same thing as the commented-out code above.
+            SOS_buffer_pack_bytes(delivery, &offset, payload->size, payload->data);
+
+            
+
+            header.msg_size = offset;
+            offset = 0;
+            SOS_buffer_pack(delivery, &offset, "i",
+                    header.msg_size);
+
+            pthread_mutex_lock(SOSD.sync.sense_list_lock);
+            SOSD_sensitivity_entry *sense = SOSD.sync.sense_list_head;
+            while(sense != NULL) {
+                if (strcmp(payload->handle, sense->sense_handle) == 0) {
+                    SOS_target_connect(sense->target);
+
+            fprintf(stderr, "Message for the client at %s:%d  ...\n",
+                    sense->client_host, sense->client_port);
+            fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
+            fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
+            fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
+                    header.msg_from);
+            fprintf(stderr, "   header.ref_guid == %" SOS_GUID_FMT "\n",
+                    header.ref_guid);
+            fprintf(stderr, "\n");
+            fprintf(stderr, "   offset_after_header == %d\n", after_header);
+            fprintf(stderr, "\n");
+            fprintf(stderr, "   delivery->len == %d\n", delivery->len);
+            fprintf(stderr, "   delivery->max == %d\n", delivery->max);
+            fprintf(stderr, "   delivery->data[offset_after_header"
+                    " + 4] == \"%s\"\n", (char *)(delivery->data + after_header + 4));
+            fprintf(stderr, "\n");
+            fprintf(stderr, "   payload->size == %d\n", payload->size);
+            fprintf(stderr, "   payload->data == %s\n", (char *) payload->data);
+            fprintf(stderr, "   ...\n");
+            fprintf(stderr, "\n");
+            fflush(stderr);
+
+                    SOS_target_send_msg(sense->target, delivery);
+                    SOS_target_disconnect(sense->target);
+                }
+                sense = sense->next_entry;
+            }
+
+            pthread_mutex_unlock(SOSD.sync.sense_list_lock);
             break;
 
         default:
@@ -1133,14 +1211,14 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
 
     bool OK_to_add = true;
 
+    pthread_mutex_lock(SOSD.sync.sense_list_lock);
+
     SOSD_sensitivity_entry *entry = SOSD.sync.sense_list_head;
     while (entry != NULL) {
         if ((entry->client_guid == header.msg_from)
          && (strcmp(sense->sense_handle, entry->sense_handle) == 0))
         {
-            // This entry is effectively a duplicate... update the port
-            // at least, then do nothing.
-            entry->client_port = sense->client_port;
+            // This entry is effectively a duplicate... do nothing.
             entry = NULL;
             OK_to_add = false;
         } else {
@@ -1151,12 +1229,17 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     if (OK_to_add) {
         sense->guid = SOS_uid_next(SOSD.guid);
         sense->next_entry = SOSD.sync.sense_list_head;
+        sense->target = NULL;
+        SOS_target_init(SOS, &sense->target, sense->client_host, sense->client_port);
         SOSD.sync.sense_list_head = sense;
     } else {
         free(sense->sense_handle);
         free(sense->client_host);
         free(sense);
     }
+
+    pthread_mutex_unlock(SOSD.sync.sense_list_lock);
+
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 256, false);

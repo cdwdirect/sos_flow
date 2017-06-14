@@ -566,6 +566,7 @@ SOS_buffer_pack_bytes(SOS_buffer *buffer, int *offset, int byte_count, void *sou
     }
 
     dlog(8, "  ... packing bytes @ %d: ----- (%d bytes + 4)\n", packed_bytes, byte_count);
+
     SOS_buffer_packi32(buf, byte_count);
     buf += 4;
     packed_bytes += 4;
@@ -576,6 +577,9 @@ SOS_buffer_pack_bytes(SOS_buffer *buffer, int *offset, int byte_count, void *sou
     dlog(8, "   ... done\n");
 
     *offset += packed_bytes;
+
+    buffer->len  = (buffer->len > *offset) ? buffer->len : *offset;
+
     return packed_bytes;
 
 }
