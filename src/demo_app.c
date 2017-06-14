@@ -203,7 +203,7 @@ int main(int argc, char *argv[]) {
 
     if (WAIT_FOR_FEEDBACK) {
         printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
-        SOSA_exec_query(my_sos, SQL_QUERY);
+        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(getenv("SOS_CMD_PORT")));
 
         printf("demo_app : Waiting for feedback.\n");
         while(!g_done) {

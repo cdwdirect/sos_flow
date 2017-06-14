@@ -40,6 +40,7 @@
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
     MSG_TYPE(SOS_MSG_TYPE_NULLMSG)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
+    MSG_TYPE(SOS_MSG_TYPE_UNREGISTER)           \
     MSG_TYPE(SOS_MSG_TYPE_GUID_BLOCK)           \
     MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \
     MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
@@ -52,6 +53,7 @@
     MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
     MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
+    MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
     MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
     MSG_TYPE(SOS_MSG_TYPE___MAX)

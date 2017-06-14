@@ -52,10 +52,12 @@ class SSOS:
             return
         lib.SSOS_pack(entry_name, entry_type, entry_addr)
 
-    def query(self, sql):
+    def query(self, sql, host, port):
         res_sql = ffi.new("char[]", sql)
         res_obj = ffi.new("SSOS_query_results*")
-        lib.SSOS_query_exec_blocking(res_sql, res_obj)
+        res_host = ffi.new("char[]", host)
+        res_port = ffi.new("int*", int(port))
+        lib.SSOS_query_exec_blocking(res_sql, res_obj, res_host, res_port[0])
         
         results = [] 
         for row in range(res_obj.row_count):

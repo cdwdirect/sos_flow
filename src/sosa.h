@@ -38,7 +38,8 @@ extern "C" {
 #endif
 
     void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
-    void SOSA_exec_query(SOS_runtime *sos_context, char *sql_string);
+    void SOSA_exec_query(SOS_runtime *sos_context, char *sql_string,
+            char *target_host, int target_port);
     void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr);
     void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max);
     void SOSA_results_put_name(SOSA_results *results, int col, const char *name);
@@ -49,7 +50,7 @@ extern "C" {
     void SOSA_results_wipe(SOSA_results *results_object);
     void SOSA_results_destroy(SOSA_results *results_object);
 
-    void SOSA_send_to_target_db(SOS_buffer *message, SOS_buffer *reply);
+    void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply);
 
 
 

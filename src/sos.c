@@ -921,7 +921,7 @@ SOS_target_send_msg(
                     " (%s)\n", strerror(errno));
             dlog(0, "ERROR:    ...retrying %d more times after"
                     " a brief delay.\n", (8 - failed_send_count));
-            usleep(100000);
+            usleep(10000);
             continue;
         } else {
             total_bytes_sent += retval;

@@ -502,7 +502,8 @@ void SOSD_listen_loop() {
         SOSD_countof(socket_bytes_recv += header.msg_size);
 
         switch (header.msg_type) {
-        case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register   (buffer); break; 
+        case SOS_MSG_TYPE_REGISTER:   SOSD_handle_register   (buffer); break;
+        case SOS_MSG_TYPE_UNREGISTER: SOSD_handle_unregister (buffer); break;
         case SOS_MSG_TYPE_GUID_BLOCK: SOSD_handle_guid_block (buffer); break;
 
         case SOS_MSG_TYPE_ANNOUNCE:
@@ -536,6 +537,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_PROBE:       SOSD_handle_probe       (buffer); break;
         case SOS_MSG_TYPE_QUERY:       SOSD_handle_query       (buffer); break;
         case SOS_MSG_TYPE_SENSITIVITY: SOSD_handle_sensitivity (buffer); break;
+        case SOS_MSG_TYPE_DESENSITIZE: SOSD_handle_desensitize (buffer); break;
         case SOS_MSG_TYPE_TRIGGERPULL: SOSD_handle_triggerpull (buffer); break;
         default:                       SOSD_handle_unknown     (buffer); break;
         }
@@ -700,9 +702,29 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
             pthread_mutex_lock(SOSD.sync.sense_list_lock);
             SOSD_sensitivity_entry *sense = SOSD.sync.sense_list_head;
+            SOSD_sensitivity_entry *prev_sense = NULL;
             while(sense != NULL) {
                 if (strcmp(payload->handle, sense->sense_handle) == 0) {
-                    SOS_target_connect(sense->target);
+                    rc = SOS_target_connect(sense->target);
+                    if (rc < 0) {
+                        // Remove this target.
+                        fprintf(stderr, "Removing missing target --> %s:%d\n",
+                                sense->client_host,
+                                sense->client_port);
+                        fflush(stderr);
+                        if (sense == SOSD.sync.sense_list_head) {
+                            SOSD.sync.sense_list_head = sense->next_entry;
+                        } else {
+                            prev_sense->next_entry = sense->next_entry;
+                        }
+                        free(sense->client_host);
+                        free(sense->sense_handle);
+                        SOS_target_destroy(sense->target);
+                        free(sense);
+                        sense = prev_sense->next_entry;
+                        continue;
+                    }
+
             /*
              *  Uncomment in case of emergency:
              *
@@ -732,6 +754,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
                 }
+                prev_sense = sense;
                 sense = sense->next_entry;
             }
 
@@ -1183,6 +1206,62 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
 }
 
 
+void
+SOSD_handle_desensitize(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_");
+    
+    SOS_msg_header header;
+    int rc;
+    
+    // 1. Remove the specific sensitivity GUID+handle combo
+    
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
+    SOSD_PACK_ACK(reply);
+    rc = send(SOSD.net.client_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    dlog(5, "Replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply);
+    dlog(5, "Done.\n");
+    return;
+}
+
+
+void
+SOSD_handle_unregister(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_");
+    
+    SOS_msg_header header;
+    int rc;
+    
+    // -- This message is sent when a client calls SOS_finalize();
+    // TODO: Verify that all process-related tasks are concluded here
+    // 1. Stop collecting PID information
+    // 2. Inject a timestamp in the database
+    // 3. Destroy all pubs that belong to this GUID
+    // 4. Remove all sensitivities for this GUID
+    
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
+    SOSD_PACK_ACK(reply);
+    rc = send(SOSD.net.client_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    dlog(5, "Replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply);
+    dlog(5, "Done.\n");
+    return;
+}
+
 
 
 void
@@ -1595,6 +1674,9 @@ void SOSD_handle_register(SOS_buffer *buffer) {
     }
 
     SOS_buffer_destroy(reply);
+
+    //TODO: Inject a timestamp in the database for this client.
+    //(Pub handle has it?)
 
     return;
 }
