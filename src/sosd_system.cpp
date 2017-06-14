@@ -14,6 +14,7 @@ using namespace std;
 
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
+#define SOS_HAVE_POWERCAP_POWER
 
 static ProcData *oldData = nullptr;
 static ProcData *newData = nullptr;
@@ -31,6 +32,45 @@ inline bool file_exists (const std::string& name) {
   struct stat buffer;   
   return (stat (name.c_str(), &buffer) == 0); 
 }
+
+#if defined(SOS_HAVE_POWERCAP_POWER)
+/*
+ * This isn't really the right way to do this. What should be done
+ * is:
+ * 1) read /sys/class/powercap/intel-rapl/intel-rapl:0/name to get the counter name (once)
+ * 2) read /sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj to get the value
+ * 3) for i in /sys/class/powercap/intel-rapl/intel-rapl:0/intel-rapl:*:*
+ *    do 1), 2) above for each
+ *
+ * This was a quick hack to get basic support for KNL.
+ */
+inline long long read_package0 (void) {
+  long long tmplong;
+  FILE *fff;
+  fff=fopen("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj","r");
+  if (fff==NULL) {
+    std::cerr << "Error opening package0!" << std::endl;
+  } else {
+    fscanf(fff,"%lld",&tmplong);
+    fclose(fff);
+  }
+  return tmplong/1000000;
+}
+
+inline long long  read_dram (void) {
+  //std::cout << "Reading dram" << std::endl;
+  long long  tmplong;
+  FILE *fff;
+  fff=fopen("/sys/class/powercap/intel-rapl/intel-rapl:0/intel-rapl:0:0/energy_uj","r");
+  if (fff==NULL) {
+    std::cerr << "Error opening dram!" << std::endl;
+  } else {
+    fscanf(fff,"%lld",&tmplong);
+    fclose(fff);
+  }
+  return tmplong/1000000;
+}
+#endif
 
 bool parse_proc_self_status(SOS_pub *pid_pub) {
   std::stringstream buf;
@@ -152,14 +192,14 @@ ProcData* parse_proc_stat(void) {
     }
   }
   fclose (pFile);
-#if defined(APEX_HAVE_CRAY_POWER)
+#if defined(SOS_HAVE_CRAY_POWER)
   procData->power = read_power();
   procData->power_cap = read_power_cap();
   procData->energy = read_energy();
   procData->freshness = read_freshness();
   procData->generation = read_generation();
 #endif
-#if defined(APEX_HAVE_POWERCAP_POWER)
+#if defined(SOS_HAVE_POWERCAP_POWER)
   procData->package0 = read_package0();
   procData->dram = read_dram();
 #endif
@@ -194,14 +234,14 @@ ProcData* ProcData::diff(ProcData const& rhs) {
   d->processes = processes - rhs.processes;
   d->procs_running = procs_running - rhs.procs_running;
   d->procs_blocked = procs_blocked - rhs.procs_blocked;
-#if defined(APEX_HAVE_CRAY_POWER)
+#if defined(SOS_HAVE_CRAY_POWER)
   d->power = power;
   d->power_cap = power_cap;
   d->energy = energy - rhs.energy;
   d->freshness = freshness;
   d->generation = generation;
 #endif
-#if defined(APEX_HAVE_POWERCAP_POWER)
+#if defined(SOS_HAVE_POWERCAP_POWER)
   d->package0 = package0 - rhs.package0;
   d->dram = dram - rhs.dram;
 #endif
@@ -223,14 +263,14 @@ void ProcData::sample_values(void) {
   sample_value("CPU soft IRQ %", ((double)(cpu_stat->softirq)) / total);
   sample_value("CPU Steal %",    ((double)(cpu_stat->steal))   / total);
   sample_value("CPU Guest %",    ((double)(cpu_stat->guest))   / total);
-#if defined(APEX_HAVE_CRAY_POWER)
+#if defined(SOS_HAVE_CRAY_POWER)
   sample_value("Power", power);
   sample_value("Power Cap", power_cap);
   sample_value("Energy", energy);
   sample_value("Freshness", freshness);
   sample_value("Generation", generation);
 #endif
-#if defined(APEX_HAVE_POWERCAP_POWER)
+#if defined(SOS_HAVE_POWERCAP_POWER)
   sample_value("Package-0 Energy", package0);
   sample_value("DRAM Energy", dram);
 #endif
