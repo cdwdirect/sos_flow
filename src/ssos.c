@@ -126,7 +126,7 @@ void SSOS_feedback_handler(
         void *payload_data)
 {
     SOS_SET_CONTEXT(g_sos, "SSOS_feedback_handler");
-    if (payload_type != SOS_MSG_TYPE_QUERY) {
+    if (payload_type != SOS_FEEDBACK_TYPE_QUERY) {
         fprintf(stderr, "SSOS (PID:%d) --\n"
                 "\tFeedback was received by the SSOS library that\n"
                 "\twas marked (%d) as non-query results. Only SQL\n"

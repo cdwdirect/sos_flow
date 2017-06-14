@@ -123,7 +123,7 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
 
     SOS_msg_header header;
     header.msg_size = -1;
-    header.msg_type = SOS_MSG_TYPE_QUERY;
+    header.msg_type = SOS_FEEDBACK_TYPE_QUERY;
     header.msg_from = SOS->config.comm_rank;
     header.ref_guid = 0;
     int offset = 0;

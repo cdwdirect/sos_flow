@@ -1260,7 +1260,9 @@ SOS_THREAD_receives_direct(void *args)
         dlog(5, "  ... msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
         dlog(5, "  ....ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
 
+
         if (header.msg_type == SOS_FEEDBACK_TYPE_QUERY) {
+
             if (SOS->config.feedback_handler != NULL) {
                 SOS->config.feedback_handler(
                         header.msg_type,
@@ -1270,6 +1272,8 @@ SOS_THREAD_receives_direct(void *args)
                 fprintf(stderr, "WARNING: Feedback received but no handler"
                         " has been set. Doing nothing.\n");
             }
+            //...
+
         } else if (header.msg_type == SOS_FEEDBACK_TYPE_PAYLOAD) {
 
             int            payload_type = header.msg_type;

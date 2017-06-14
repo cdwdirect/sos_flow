@@ -592,7 +592,7 @@ void* SOSD_THREAD_system_monitor(void *args) {
 
 void* SOSD_THREAD_feedback_sync(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
-    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_local_sync");
+    SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_feedback_sync");
     struct timeval   now;
     struct timespec  wait;
     SOS_msg_header   header;
