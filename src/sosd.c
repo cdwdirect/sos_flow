@@ -720,6 +720,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                         free(sense->client_host);
                         free(sense->sense_handle);
                         SOS_target_destroy(sense->target);
+                        sense = NULL;
                         free(sense);
                         sense = prev_sense->next_entry;
                         continue;
