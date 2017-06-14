@@ -209,7 +209,8 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 
 
 // NOTE: Trigger pulls do not flow out beyond the scope of where
-//       they are pulled (at this time).  They go "down" only.
+//       they are pulled (at this time).  They go "downstream"
+//       towards the applications only.
 void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
 
@@ -276,10 +277,13 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
 
         // LISTENER
 
-        unsigned char *data = calloc(sizeof(unsigned char),
-                header.msg_size + 1);
-
-        SOS_buffer_unpack(msg, &offset, "b", &data);
+        char *handle = NULL;
+        char *message = NULL;
+        int message_len = -1;
+        
+        SOS_buffer_unpack_safestr(msg, &offset, &handle);
+        SOS_buffer_unpack(msg, &offset, "i", &message_len);
+        SOS_buffer_unpack_safestr(msg, &offset, &message);
 
         fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
                 " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
@@ -288,6 +292,14 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
                 header.msg_size);
         fflush(stderr);
 
+        SOSD_feedback_task *task;
+        task = calloc(1, sizeof(SOSD_feedback_task));
+        task->type = SOS_FEEDBACK_TYPE_PAYLOAD;
+        SOSD_payload_handle *msg = calloc(1, sizeof(SOSD_payload_handle));
+        
+
+
+        //SLICE: task->ref->
     }
 
 

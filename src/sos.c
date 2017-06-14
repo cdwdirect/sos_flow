@@ -795,8 +795,6 @@ SOS_target_destroy(SOS_socket_out *target) {
     pthread_mutex_destroy(target->send_lock);
 
     free(target->send_lock);
-    free(target->server_host);
-    free(target->server_port);
     free(target);
 
     return 0;

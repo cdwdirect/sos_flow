@@ -60,14 +60,24 @@ DEMO_feedback_handler(
         void *payload_data)
 {
     SOSA_results *results = NULL;    
-    SOSA_results_init(my_sos, &results);
-    SOSA_results_from_buffer(results, payload_data);
-
-    SOSA_results_output_to(stdout, results,
-            "Query Results", SOSA_OUTPUT_W_HEADER);  
-
-    SOSA_results_destroy(results);
     
+    switch (payload_type) { 
+
+    case SOS_FEEDBACK_TYPE_QUERY:
+        SOSA_results_init(my_sos, &results);
+        SOSA_results_from_buffer(results, payload_data);
+        SOSA_results_output_to(stdout, results,
+                "Query Results", SOSA_OUTPUT_W_HEADER);  
+        SOSA_results_destroy(results);
+        break;
+
+    case SOS_FEEDBACK_TYPE_PAYLOAD:
+        printf("demo_app : Received %d-byte payload --> \"%s\"\n",
+                payload_size,
+                (unsigned char *) payload_data);
+        fflush(stdout);
+        break;
+    }
     g_done = 1;
 
     return;
@@ -202,65 +212,68 @@ int main(int argc, char *argv[]) {
     
     } else {
 
-    if (rank == 0) dlog(0, "Creating a pub...\n");
+        dlog(0, "Registering sensitivity...\n");
+        SOS_sense_register(my_sos, "example_sense");
 
-    SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
-    if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
+        if (rank == 0) dlog(0, "Creating a pub...\n");
 
-    if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
-    strcpy (pub->prog_ver, str_prog_ver);
-    pub->meta.channel     = 1;
-    pub->meta.nature      = SOS_NATURE_EXEC_WORK;
-    pub->meta.layer       = SOS_LAYER_APP;
-    pub->meta.pri_hint    = SOS_PRI_DEFAULT;
-    pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
-    pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
+        SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
+        if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
-    var_double = 0.0;
+        if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
+        strcpy (pub->prog_ver, str_prog_ver);
+        pub->meta.channel     = 1;
+        pub->meta.nature      = SOS_NATURE_EXEC_WORK;
+        pub->meta.layer       = SOS_LAYER_APP;
+        pub->meta.pri_hint    = SOS_PRI_DEFAULT;
+        pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
+        pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
-    SOS_TIME( time_start );
-    int mils = 0;
-    int ones = 0;
-    while ((ones * PUB_ELEM_COUNT) < MAX_SEND_COUNT) {
-        ones += 1;
-        if ((ones%ITERATION_SIZE) == 0) {
-            SOS_TIME( time_now );
-            if (rank == 0) dlog(0, "  ... [ SOS_publish(%d vals) x %d ]"
-                    "[ %lf seconds @ %lf / value ][ total: %d values ]\n",
-                   PUB_ELEM_COUNT,
-                   ITERATION_SIZE,
-                   (time_now - time_start),
-                   ((time_now - time_start) / (double) (PUB_ELEM_COUNT * ITERATION_SIZE)),
-                   (ones * PUB_ELEM_COUNT));
+        var_double = 0.0;
 
-            if (DELAY_ENABLED) {
-                usleep(DELAY_IN_USEC);
+        SOS_TIME( time_start );
+        int mils = 0;
+        int ones = 0;
+        while ((ones * PUB_ELEM_COUNT) < MAX_SEND_COUNT) {
+            ones += 1;
+            if ((ones%ITERATION_SIZE) == 0) {
+                SOS_TIME( time_now );
+                if (rank == 0) dlog(0, "  ... [ SOS_publish(%d vals) x %d ]"
+                        "[ %lf seconds @ %lf / value ][ total: %d values ]\n",
+                        PUB_ELEM_COUNT,
+                        ITERATION_SIZE,
+                        (time_now - time_start),
+                        ((time_now - time_start) / (double) (PUB_ELEM_COUNT * ITERATION_SIZE)),
+                        (ones * PUB_ELEM_COUNT));
+
+                if (DELAY_ENABLED) {
+                    usleep(DELAY_IN_USEC);
+                }
+                SOS_TIME( time_start);
             }
-            SOS_TIME( time_start);
-        }
-        if (((ones * PUB_ELEM_COUNT)%1000000) == 0) {
-            if (rank == 0) dlog(0, "     ... 1,000,000 value milestone ---------\n");
+            if (((ones * PUB_ELEM_COUNT)%1000000) == 0) {
+                if (rank == 0) dlog(0, "     ... 1,000,000 value milestone ---------\n");
+            }
+
+            for (i = 0; i < PUB_ELEM_COUNT; i++) {
+                snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
+                SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+                var_double += 0.000001;
+            }
+
+            if (ones == 1) {
+                if (rank == 0) { dlog(0, "Announcing\n"); }
+                SOS_announce(pub);
+            }
+            SOS_publish(pub);
         }
 
-        for (i = 0; i < PUB_ELEM_COUNT; i++) {
-            snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
-            SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-            var_double += 0.000001;
+        if (send_shutdown) {
+            fork_exec_sosd_shutdown();
+            //send_shutdown_message(my_sos);
         }
 
-        if (ones == 1) {
-            if (rank == 0) { dlog(0, "Announcing\n"); }
-            SOS_announce(pub);
-        }
         SOS_publish(pub);
-    }
-
-    if (send_shutdown) {
-        fork_exec_sosd_shutdown();
-    	//send_shutdown_message(my_sos);
-    }
-
-    SOS_publish(pub);
 
     }
 

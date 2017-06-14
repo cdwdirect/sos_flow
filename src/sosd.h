@@ -72,8 +72,10 @@ typedef struct {
     void               *next_entry;
 } SOSD_sensitivity_entry;
 
-//typedef struct {
-//    SOSD //SLICE
+typedef struct {
+    int payload_size;
+    void *payload_data;
+} SOSD_payload_handle;
 
 typedef struct {
     SOS_query_state     state;

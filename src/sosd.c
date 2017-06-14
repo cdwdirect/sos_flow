@@ -322,7 +322,9 @@ int main(int argc, char *argv[])  {
     //
     //
 
+    
     dlog(0, "Closing the sync queues:\n");
+    
     if (SOSD.sync.local.queue != NULL) {
         dlog(0, "  .. SOSD.sync.local.queue\n");
         pipe_producer_free(SOSD.sync.local.queue->intake);
@@ -339,6 +341,23 @@ int main(int argc, char *argv[])  {
         dlog(0, "  .. SOSD.sync.db.queue\n");
         pipe_producer_free(SOSD.sync.db.queue->intake);
     }
+    if (SOSD.sync.feedback.queue != NULL) {
+        dlog(0, "  .. SOSD.sync.feedback.queue\n");
+        pipe_producer_free(SOSD.sync.feedback.queue->intake);
+    }
+
+    //Clean up the sensitivity lists:
+    SOSD_sensitivity_entry *entry = SOSD.sync.sense_list_head;
+    SOSD_sensitivity_entry *next_entry;
+    while (entry != NULL) {
+        next_entry = entry->next_entry;
+        free(entry->sense_handle);
+        free(entry->client_host);
+        free(entry);
+        entry = next_entry;
+    }
+
+
 
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
@@ -631,7 +650,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             
             break;
 
-        case SOS_FEEDBACK_TYPE_MSG:
+        case SOS_FEEDBACK_TYPE_PAYLOAD:
             // TODO: Iterate through the various applications
             // and send this message to each of them.
             // This could probably be handled efficiently with
@@ -1103,7 +1122,6 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOSD_sensitivity_entry *sense =
         calloc(1, sizeof(SOSD_sensitivity_entry));
 
-    sense->guid = SOS_uid_next(SOSD.guid);
     sense->sense_handle = NULL;
     sense->client_guid = header.msg_from;
     sense->client_host = NULL;
@@ -1113,7 +1131,8 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOS_buffer_unpack_safestr(msg, &offset, &sense->client_host);
     SOS_buffer_unpack(msg, &offset, "i", &sense->client_port);
 
-    //TODO: Check to see if this is a duplicate.
+    bool OK_to_add = true;
+
     SOSD_sensitivity_entry *entry = SOSD.sync.sense_list_head;
     while (entry != NULL) {
         if ((entry->client_guid == header.msg_from)
@@ -1122,15 +1141,35 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
             // This entry is effectively a duplicate... update the port
             // at least, then do nothing.
             entry->client_port = sense->client_port;
-            entry = NULL; 
+            entry = NULL;
+            OK_to_add = false;
         } else {
             entry = entry->next_entry;
         }
     }
 
+    if (OK_to_add) {
+        sense->guid = SOS_uid_next(SOSD.guid);
+        sense->next_entry = SOSD.sync.sense_list_head;
+        SOSD.sync.sense_list_head = sense;
+    } else {
+        free(sense->sense_handle);
+        free(sense->client_host);
+        free(sense);
+    }
+
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 256, false);
     SOSD_PACK_ACK(reply);
+    int rc = 0;
+    rc = send(SOSD.net.client_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
     SOS_buffer_destroy(reply);
     dlog(5, "Done.\n");
     return;
@@ -1759,7 +1798,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",
-            SOS_FEEDBACK_TYPE_MSG,
+            SOS_FEEDBACK_TYPE_PAYLOAD,
             function_name);
 
         /* Go back and set the message length to the actual length. */
