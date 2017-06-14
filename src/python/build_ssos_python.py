@@ -71,6 +71,9 @@ ffibuilder.cdef("""
     void SSOS_is_query_done(int *addr_of_YN_int_flag);
     void SSOS_results_destroy(SSOS_query_results *results);
 
+    void SSOS_sense_trigger(char *sense_handle,
+            int payload_size, void *payload_data); 
+
     
     // --------------------
 """)

@@ -38,6 +38,22 @@ void SSOS_feedback_handler(int payload_type,
         int payload_size, void *payload_data);
 
 
+void
+SSOS_sense_trigger(
+        char  *sense_handle,
+        int    payload_size,
+        void  *payload_data)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_sense_trigger");
+    SOS_SET_CONTEXT(g_sos, "SSOS_sense_trigger");
+
+    SOS_sense_trigger(g_sos, sense_handle,
+            payload_data, payload_size);
+    
+    return;
+}
+
+
 void SSOS_set_option(int option_key, char *option_value) {
     SSOS_CONFIRM_ONLINE("SSOS_set_option");
     SOS_SET_CONTEXT(g_sos, "SSOS_set_option");

@@ -599,7 +599,7 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
 
 void
 SOS_sense_trigger(SOS_runtime *sos_context,
-    char *handle, void *data, int data_length)
+    char *handle, char *data, int data_length)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_trigger");
 
@@ -623,20 +623,19 @@ SOS_sense_trigger(SOS_runtime *sos_context,
         header.msg_from,
         header.ref_guid);
 
-    char *packsignature = calloc(1024, sizeof(char));
-    snprintf(packsignature, 1024, "%db", data_length);
-
-    dlog(2, "Packing data with signature: \"%s\"\n",
-        packsignature);
-
-    SOS_buffer_pack(msg, &offset, packsignature,
-        data);
+    SOS_buffer_pack(msg, &offset, "sis",
+            handle,
+            data_length,
+            data);
 
     header.msg_size = offset;
     offset = 0;
     SOS_buffer_pack(msg, &offset, "i", header.msg_size);
 
     SOS_send_to_daemon(msg, reply);
+
+    SOS_buffer_destroy(msg);
+    SOS_buffer_destroy(reply);
 
     return;
 }
@@ -1285,6 +1284,9 @@ SOS_THREAD_receives_direct(void *args)
             memcpy(payload_data, buffer->data + offset, payload_size);
             offset += payload_size;
 
+            /*
+             * Uncomment in case of emergency:
+             *
             fprintf(stderr, "Message from the server ...\n");
             fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
             fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
@@ -1299,6 +1301,8 @@ SOS_THREAD_receives_direct(void *args)
             fprintf(stderr, "   ...\n");
             fprintf(stderr, "\n");
             fflush(stderr);
+             *
+             */
 
             if (SOS->config.feedback_handler != NULL) {
                 SOS->config.feedback_handler(
