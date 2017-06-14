@@ -1679,13 +1679,9 @@ SOS_pub_create_sized(SOS_runtime *sos_context,
 
     dlog(6, "  ... zero-ing out the strings.\n");
 
-    // Set some defaults for the SOS_ROLE_CLIENT's 
-    if (SOS->role == SOS_ROLE_CLIENT) {
-        dlog(6, "  ... setting defaults specific to SOS_ROLE_CLIENT.\n");
-        strncpy(new_pub->node_id, SOS->config.node_id, SOS_DEFAULT_STRING_LEN);
-        new_pub->process_id = SOS->config.process_id;
-        strncpy(new_pub->prog_name, SOS->config.argv[0], SOS_DEFAULT_STRING_LEN);
-    }
+    strncpy(new_pub->node_id, SOS->config.node_id, SOS_DEFAULT_STRING_LEN);
+    new_pub->process_id = SOS->config.process_id;
+    strncpy(new_pub->prog_name, SOS->config.argv[0], SOS_DEFAULT_STRING_LEN);
 
     dlog(6, "  ... allocating space for data elements.\n");
     new_pub->data                = malloc(sizeof(SOS_data *) * new_size);

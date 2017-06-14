@@ -561,12 +561,18 @@ void* SOSD_THREAD_system_monitor(void *args) {
     struct timeval   now;
     struct timespec  wait;
     int rc;
+    int period_seconds = 1;
+
+    char *system_flag = getenv("SOS_READ_SYSTEM_STATUS");
+    if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
+        period_seconds = atoi(system_flag);
+    }
 
     SOSD_setup_system_data();
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_mutex_lock(my->lock);
         gettimeofday(&now, NULL);
-        wait.tv_sec  = 1  + (now.tv_sec);
+        wait.tv_sec  = period_seconds + (now.tv_sec);
         wait.tv_nsec = (1000 * now.tv_usec);
         rc = pthread_cond_timedwait(my->cond, my->lock, &wait);
         pthread_mutex_unlock(my->lock);
@@ -574,18 +580,18 @@ void* SOSD_THREAD_system_monitor(void *args) {
         switch (rc) {
             case 0:
                 /* we were interrupted by the main thread. exit. */
-                printf("Interrupted. Exiting...\n");
+                printf("Interrupted. Thread exiting...\n");
                 break;
             case ETIMEDOUT:
                 /* parse the system health */
-                printf("Reading system health...\n");
+                //printf("Reading system health...\n");
                 SOSD_read_system_data();
                 continue;
             case EINVAL:
             case EPERM:
             default:
                 /* some other error. exit. */
-                printf("Some other error. Exiting...\n");
+                printf("Some other error. Thread exiting...\n");
                 break;
         }
     }
