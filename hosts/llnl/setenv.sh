@@ -6,6 +6,8 @@ echo $SCRIPTPATH
 BASEDIR="$(cd "$SCRIPTPATH/../.."; pwd)"
 echo $BASEDIR
 
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/g/g17/wood67/local/lib
+
 export SOS_HOST_KNOWN_AS="\"LLNL (Common)\""
 
 # For tracking the environment that SOS is built in:

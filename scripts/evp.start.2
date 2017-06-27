@@ -1,4 +1,24 @@
 #!/bin/bash
+if [ "x$SOS_ENV_SET" == "x" ] ; then
+	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
+    kill -INT $$
+fi
+if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
+then
+    read -p "SOSD runtime/database files exist, clear them before launching? [Y/n]: " -i Y -e reply
+    if [ "$reply" == "Y" ]
+    then
+        echo ""
+        echo "NOTICE: Clearing a prior instance's databases, keys, locks, and logs..."
+        $SOS_ROOT/scripts/evp.cleanall
+        echo ""
+    else
+        echo ""
+        echo "WARNING: Starting SOSD with database files already present."
+        echo "         This is not recommended."
+        echo ""
+    fi
+fi
 export ASAN_OPTIONS="abort_on_error=0"
 echo "Starting AGGREGATOR..."
 env SOS_CMD_PORT=20690 ./bin/sosd -l 1 -a 1 -w `pwd` -k 0 -r aggregator &

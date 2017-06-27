@@ -2460,7 +2460,7 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
 
 void SOSD_display_logo(void) {
 
-    int choice = 0;
+    int choice = 3;
 
     //srand(getpid());
     //choice = rand() % 2;
@@ -2503,6 +2503,20 @@ void SOSD_display_logo(void) {
         printf(".____ \\_  / / /.___ \\__  /_ ._  /_  __ \\_ | /| / /    .:|   Observation\n");
         printf("____/ // /_/ /.___/ /_  __/ _  / / /_/ /_ |/ |/ /     .:|   System for Scientific\n");
         printf("/____/ \\____/ /____/ /_/    /_/  \\____/____/|__/      .:|   Workflows\n");
+        break;
+
+    case 3:
+        printf("             _/_/_/    _/_/      _/_/_/\n");
+        printf("          _/        _/    _/  _/       \n");
+        printf("           _/_/    _/    _/    _/_/    \n");
+        printf("              _/  _/    _/        _/   \n");
+        printf("       _/_/_/      _/_/    _/_/_/      \n");
+        printf("\n");
+        printf("    ||[]||[]}))))}]|[]|||| Scalable\n");
+        printf("    |||||[][{(((({[]|[]||| Observation\n");               
+        printf("    |[][]|[]}))))}][]|||[] System\n");
+        printf("    []|||[][{(((({[]|[]||| for Scientific\n");  
+        printf("    ||[]||[]}))))}][]||[]| Workflows\n");      
         break;
 
     }

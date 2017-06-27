@@ -35,6 +35,7 @@ endif()
 set(CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 set(PROJECT_NAME sos_flow)
+
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
 include(GetGitRevisionDescription)
@@ -43,6 +44,8 @@ add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 
 project(${PROJECT_NAME} C CXX)
 set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
+set(CMAKE_PREFIX_PATH /g/g17/wood67/local/include $CMAKE_PREFIX_PATH)
+set(CMAKE_LIBRARY_PATH /g/g17/wood67/local/lib $CMAKE_LIBRARY_PATH)
 if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -66,11 +69,13 @@ if(ENABLE_TAU_WRAPPER)
   link_directories(/usr/local/tau-2.24.1/x86_64/lib)
 endif()
 
+include_directories(/g/g17/wood67/local/include)
+
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package(PkgConfig REQUIRED)
 find_package("Sqlite3" REQUIRED)
-pkg_search_module(LIBTCMALLOC libtcmalloc)
+# pkg_search_module(LIBTCMALLOC libtcmalloc)
 
 #  Always include the MPI stuff, some components reference it
 #  and not including it will cause the project not to build.
@@ -79,7 +84,7 @@ pkg_search_module(LIBTCMALLOC libtcmalloc)
 #  will not conduct any of its business using MPI.
 message(STATUS ">>> MPI:")
 message(STATUS ">>> MPI:  Locating package...")
-find_package("MPI" REQUIRED)
+find_package("MPI" REQUIRED QUIET)
 #pkg_search_module(PYTHON REQUIRED python)
 message(STATUS ">>> MPI:  Found!")
 message(STATUS ">>> MPI:")
@@ -92,7 +97,7 @@ if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:")
   message(STATUS ">>> EVPATH:  Locating package...")
   #find_package("evpath" REQUIRED)
-  pkg_search_module(EVPATH REQUIRED libenet)
+  #pkg_search_module(EVPATH REQUIRED libenet)
   #pkg_search_module(FABRIC REQUIRED libfabric)
   message(STATUS ">>> EVPATH:  Found!")
   message(STATUS ">>> EVPATH:  Using EVPath for communication...")
