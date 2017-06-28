@@ -1,6 +1,6 @@
-#!/usr/bin/env python
 # file "build_ssos_python.py"
 
+import os
 from cffi import FFI
 ffibuilder = FFI()
 
@@ -15,8 +15,8 @@ ffibuilder.set_source(
        "../ssos.c"
     ],
     libraries=["ssos", "sos", "sosa"],
-    library_dirs=["../../build-linux/lib"],
-    include_dirs=[".."],
+    library_dirs=[os.environ.get("SOS_BUILD_DIR") + "/lib"],
+    include_dirs=[os.environ.get("SOS_BUILD_DIR") + "/include", ".."],
     extra_compile_args=["-Wno-unused-variable"])
 
 ffibuilder.cdef("""    

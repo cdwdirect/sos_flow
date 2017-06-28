@@ -403,9 +403,11 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
         rc = sqlite3_prepare_v2(database, sosa_query,
                 strlen(sosa_query) + 1, &sosa_statement, NULL);
         if (rc != SQLITE_OK) {
+            //fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
+            //        SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
+            //        query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
             fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
-                    SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
-                    query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
+                    SOS_GUID_FMT "\n", query->reply_to_guid);
             OK_to_execute = false;
         }
     }

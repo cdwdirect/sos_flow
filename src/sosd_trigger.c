@@ -51,13 +51,14 @@ int main(int argc, char *argv[]) {
             handle = argv[j];
         } else if (      strcmp(argv[i], "-p"        ) == 0) {
             payload_data = getenv(argv[j]);
-            payload_size = strlen(payload_data);
-            if (payload_size < 1) {
-                fprintf(stderr, "WARNING: Sending empty payload to clients.  Set a"
+            if ((payload_data == NULL) ||
+            ((payload_size = strlen(payload_data)) < 1)) {
+                fprintf(stderr, "WARNING: Will not send empty payload to clients.  Set a"
                         " value to send in the %s environment variable.\n",
                         argv[j]);
                 fflush(stderr);
                 payload_data = calloc(1, sizeof(char));
+                payload_size = 1;
             }
         }
         else    {
