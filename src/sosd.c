@@ -2460,7 +2460,7 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
 
 void SOSD_display_logo(void) {
 
-    int choice = 3;
+    int choice = 0;
 
     //srand(getpid());
     //choice = rand() % 2;
