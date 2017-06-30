@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # file "build_ssos_python.py"
 
 import os

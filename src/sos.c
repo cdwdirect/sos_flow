@@ -677,7 +677,7 @@ SOS_msg_unzip(
 
 int
 SOS_target_recv_msg(
-        SOS_socket_out *target,
+        SOS_socket *target,
         SOS_buffer *reply)
 {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_recv_msg");
@@ -748,14 +748,14 @@ SOS_target_recv_msg(
 int
 SOS_target_init(
         SOS_runtime       *sos_context,
-        SOS_socket_out  **target,
+        SOS_socket  **target,
         char              *target_host,
         int                target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_target_init");
 
-    *target = calloc(1, sizeof(SOS_socket_out));
-    SOS_socket_out *tgt = *target;
+    *target = calloc(1, sizeof(SOS_socket));
+    SOS_socket *tgt = *target;
     tgt->sos_context = sos_context;
 
     tgt->send_lock = (pthread_mutex_t *) calloc(1, sizeof(pthread_mutex_t));
@@ -787,7 +787,7 @@ SOS_target_init(
 }
 
 int
-SOS_target_destroy(SOS_socket_out *target) {
+SOS_target_destroy(SOS_socket *target) {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_destroy");
 
     pthread_mutex_lock(target->send_lock);
@@ -800,7 +800,7 @@ SOS_target_destroy(SOS_socket_out *target) {
 }
 
 int
-SOS_target_connect(SOS_socket_out *target) {
+SOS_target_connect(SOS_socket *target) {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_connect");
 
     int retval = 0;
@@ -859,7 +859,7 @@ SOS_target_connect(SOS_socket_out *target) {
 }
 
 
-int SOS_target_disconnect(SOS_socket_out *target) {
+int SOS_target_disconnect(SOS_socket *target) {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_disconnect");
     
     dlog(8, "Closing target file descriptor... (%d)\n",
@@ -876,7 +876,7 @@ int SOS_target_disconnect(SOS_socket_out *target) {
 
 int
 SOS_target_send_msg(
-        SOS_socket_out *target,
+        SOS_socket *target,
         SOS_buffer *msg)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_target_send_msg");
@@ -983,7 +983,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
         if (SOS->config.receives != SOS_RECEIVES_NO_FEEDBACK) {
             dlog(1, "  ... Joining threads...\n");
             dlog(1, "      ... sending empty message to unblock feedback listener\n");
-            SOS_socket_out *target = NULL;
+            SOS_socket *target = NULL;
             SOS_target_init(SOS, &target, "localhost", SOS->config.receives_port);
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;
@@ -1057,7 +1057,7 @@ SOS_THREAD_receives_direct(void *args)
     //Get a socket to receive direct feedback messages and begin
     //listening to it.
 
-    SOS_socket_in insock;
+    SOS_socket insock;
 
     int i;
     int yes;
@@ -1067,7 +1067,7 @@ SOS_THREAD_receives_direct(void *args)
 
     yes = 1;
 
-    insock.server_port = "0";    // NOTE: 0 = Request an OS-assigned open port.
+    insock.server_port[0] = '0';    // NOTE: 0 = Request an OS-assigned open port.
     insock.server_socket_fd = -1;
     insock.listen_backlog = 10;
 
@@ -1080,7 +1080,7 @@ SOS_THREAD_receives_direct(void *args)
     insock.server_hint.ai_addr       = NULL;
     insock.server_hint.ai_next       = NULL;
         i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
-        &insock.result);
+        &insock.result_list);
 
     if (i != 0) {
         fprintf(stderr, "ERROR: Feedback broken, client-side getaddrinfo()"
@@ -1089,7 +1089,7 @@ SOS_THREAD_receives_direct(void *args)
         return NULL;
     }
 
-    for (insock.server_addr = insock.result ;
+    for (insock.server_addr = insock.result_list ;
         insock.server_addr != NULL ; 
         insock.server_addr = insock.server_addr->ai_next )
     {
@@ -1136,7 +1136,7 @@ SOS_THREAD_receives_direct(void *args)
         dlog(0, "  ... got a socket, and bound to it!\n");
     }
 
-    freeaddrinfo(insock.result);
+    freeaddrinfo(insock.result_list);
 
      // Enforce that this is a BLOCKING socket:
     opts = fcntl(insock.server_socket_fd, F_GETFL);

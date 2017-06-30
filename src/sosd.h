@@ -13,6 +13,10 @@
 #include "evpath.h"
 #endif
 
+#ifdef USE_MUNGE
+#include "munge.h"
+#endif
+
 #include "sos.h"
 #include "sos_types.h"
 
@@ -83,7 +87,7 @@ typedef struct {
     SOS_guid            client_guid;
     char               *client_host;
     int                 client_port;
-    SOS_socket_out     *target;
+    SOS_socket         *target;
     void               *next_entry;
 } SOSD_sensitivity_entry;
 
@@ -211,7 +215,7 @@ typedef struct {
     SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
-    SOS_socket_in       net;
+    SOS_socket          net;
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;

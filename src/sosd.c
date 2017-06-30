@@ -114,7 +114,7 @@ int main(int argc, char *argv[])  {
     SOSD.net.listen_backlog = 20;
 
     // Grab the port from the environment variable SOS_CMD_PORT
-    SOSD.net.server_port = getenv("SOS_CMD_PORT");
+    strncpy(SOSD.net.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
     if ((SOSD.net.server_port == NULL) || (strlen(SOSD.net.server_port)) < 2) {
         fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
@@ -642,7 +642,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         switch(task->type) {
         case SOS_FEEDBACK_TYPE_QUERY: 
             query = (SOSD_query_handle *) task->ref;
-            SOS_socket_out *target = NULL;
+            SOS_socket *target = NULL;
             rc = SOS_target_init(SOS, &target,
                     query->reply_host, query->reply_port);
 
@@ -1111,7 +1111,7 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
 
     dlog(1, "Processing a self-send...\n");
 
-    SOS_socket_out out;
+    SOS_socket out;
     out.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
     out.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
     strncpy(out.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
@@ -2180,10 +2180,10 @@ void SOSD_setup_socket() {
     SOSD.net.server_hint.ai_addr       = NULL;
     SOSD.net.server_hint.ai_next       = NULL;
 
-    i = getaddrinfo(NULL, SOSD.net.server_port, &SOSD.net.server_hint, &SOSD.net.result);
+    i = getaddrinfo(NULL, SOSD.net.server_port, &SOSD.net.server_hint, &SOSD.net.result_list);
     if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", gai_strerror(errno)); exit(EXIT_FAILURE); }
 
-    for ( SOSD.net.server_addr = SOSD.net.result ; SOSD.net.server_addr != NULL ; SOSD.net.server_addr = SOSD.net.server_addr->ai_next ) {
+    for ( SOSD.net.server_addr = SOSD.net.result_list ; SOSD.net.server_addr != NULL ; SOSD.net.server_addr = SOSD.net.server_addr->ai_next ) {
         dlog(1, "Trying an address...\n");
 
         SOSD.net.server_socket_fd = socket(SOSD.net.server_addr->ai_family, SOSD.net.server_addr->ai_socktype, SOSD.net.server_addr->ai_protocol );
@@ -2216,7 +2216,7 @@ void SOSD_setup_socket() {
         dlog(0, "  ... got a socket, and bound to it!\n");
     }
 
-    freeaddrinfo(SOSD.net.result);
+    freeaddrinfo(SOSD.net.result_list);
 
     /*
      *   Enforce that this is a BLOCKING socket:

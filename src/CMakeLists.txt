@@ -83,6 +83,10 @@ if(CMAKE_THREAD_LIBS_INIT)
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+if(SECURE_WITH_MUNGE)
+    target_link_libraries("sos" "munge")
+endif()
+
 #TARGET ---> ssos
 #            (library)
 add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
@@ -235,8 +239,9 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosd" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-
-
+if(SECURE_WITH_MUNGE)
+  target_link_libraries("sosd" "munge")
+endif()
 
 #TARGET ---> sosd_stop
 #            (shut down the daemon)

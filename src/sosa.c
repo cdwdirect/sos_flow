@@ -57,7 +57,7 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     SOS_buffer_pack(msg, &offset, "i", header.msg_size);
 
     dlog(7, "   ... sending to daemon.\n");
-    SOS_socket_out *target = NULL;
+    SOS_socket *target = NULL;
     SOS_target_init(SOS, &target, target_host, target_port);
     SOS_target_connect(target);
     SOS_target_send_msg(target, msg);
