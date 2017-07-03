@@ -63,7 +63,13 @@ else()
    set(lulesh_openmp_flags "")
 endif()
 
-
+if(DEFINED EVPATH_FOUND)
+    include_directories(${EVPATH_INCLUDE_DIRS})
+    link_directories(${EVPATH_LIBRARY_DIRS})
+    link_libraries(${EVPATH_LIBRARIES})
+    link_directories(${FABRIC_LIBRARY_DIRS})
+    link_libraries(${FABRIC_LIBRARIES})
+endif()
 
 if(MPI_FOUND)
     add_executable(lulesh_par ${LULESH_SOURCES})

@@ -2712,7 +2712,7 @@ int main(int argc, char *argv[])
    SOS_init(&argc, &argv, &g_sos, SOS_ROLE_CLIENT,
            SOS_RECEIVES_DIRECT_MESSAGES, SOS_feedback);
 
-   SOS_pub_create(g_sos, &g_pub, "lulesh", SOS_NATURE_CREATE_OUTPUT); 
+   SOS_pub_create(g_sos, &g_pub, const_cast<char*>("lulesh"), SOS_NATURE_CREATE_OUTPUT); 
    
    MPI_Comm_size(MPI_COMM_WORLD, &numRanks) ;
    MPI_Comm_rank(MPI_COMM_WORLD, &myRank) ;

@@ -83,26 +83,29 @@ find_package("Sqlite3" REQUIRED)
 #  Despite the fact that we are including it, if you specify
 #  EVPath as the communications framework, the SOS daemon
 #  will not conduct any of its business using MPI.
-message(STATUS ">>> MPI:")
 message(STATUS ">>> MPI:  Locating package...")
 find_package("MPI" REQUIRED QUIET)
-#pkg_search_module(PYTHON REQUIRED python)
+if(MPI_FOUND)
 message(STATUS ">>> MPI:  Found!")
-message(STATUS ">>> MPI:")
+endif(MPI_FOUND)
+
+message(STATUS ">>> PYTHON:  Locating package...")
+pkg_search_module(PYTHON REQUIRED python QUIET)
+if(PYTHON_FOUND)
+message(STATUS ">>> PYTHON:  Found!")
+endif(PYTHON_FOUND)
 
 if(SOSD_CLOUD_SYNC_WITH_MPI)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif()
 
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
-  message(STATUS ">>> EVPATH:")
   message(STATUS ">>> EVPATH:  Locating package...")
   #find_package("evpath" REQUIRED)
-  #pkg_search_module(EVPATH REQUIRED libenet)
+  pkg_search_module(EVPATH REQUIRED libenet QUIET)
   #pkg_search_module(FABRIC REQUIRED libfabric)
   message(STATUS ">>> EVPATH:  Found!")
   message(STATUS ">>> EVPATH:  Using EVPath for communication...")
-  message(STATUS ">>> EVPATH:")
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
