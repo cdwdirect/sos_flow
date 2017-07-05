@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 11 
+#define SOS_VERSION_MINOR 98 
 
 // ...
 
@@ -38,6 +38,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#ifdef USE_MUNGE
+#include <munge.h>
+#endif
 
 /* SOS Configuration Switches... */
 
@@ -147,10 +150,10 @@ extern "C" {
 
     // Communication wrapper functions:
 
-    int SOS_msg_zip(SOS_buffer *msg, int msg_length, int at_offset);
+    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, int at_offset);
 
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
-            int *offset_after_header);
+            int starting_offset, int *offset_after_header);
 
     int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
             char *host, int port);
@@ -165,8 +168,8 @@ extern "C" {
 
     int SOS_target_destroy(SOS_socket *target);
 
-    //Soon deprecated...
     void SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
+
 
 
 #ifdef __cplusplus

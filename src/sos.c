@@ -29,6 +29,10 @@
 #include <netdb.h>
 #include <fcntl.h>
 
+#ifdef USE_MUNGE
+#include <munge.h>
+#endif
+
 #include "sos.h"
 #include "sos_types.h"
 #include "sos_debug.h"
@@ -191,6 +195,29 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS->config.argv = *argv;
     }
 
+#ifdef USE_MUNGE
+    //Optionally grab a Munge credential:
+    munge_ctx_t munge_ctx;
+    munge_err_t munge_err;
+    if (!(munge_ctx = munge_ctx_create ())) {
+        fprintf (stderr, "ERROR: Unable to create MUNGE context\n");
+        exit (1);
+    }
+    char munge_socket[] = "/var/run/munge/moab.socket.2";
+    munge_err = munge_ctx_set (munge_ctx, MUNGE_OPT_SOCKET, &munge_socket);
+    if (munge_err != EMUNGE_SUCCESS) {
+        fprintf (stderr, "ERROR: %s\n", munge_ctx_strerror (munge_ctx));
+        exit (1);
+    }
+    SOS->my_cred = NULL;
+    dlog(0, "Obtaining MUNGE credential...\n");
+    munge_err = munge_encode(&SOS->my_cred, munge_ctx, NULL, 0);
+    if (munge_err != EMUNGE_SUCCESS) {
+        fprintf (stderr, "ERROR: %s\n", munge_ctx_strerror (munge_ctx));
+        exit (1);
+    }
+    dlog(4, "   credential == \"%s\"\n", SOS->my_cred);
+#endif
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
@@ -652,10 +679,22 @@ SOS_sense_trigger(SOS_runtime *sos_context,
 int
 SOS_msg_zip(
         SOS_buffer *msg,
-        int msg_length,
+        SOS_msg_header header,
         int at_offset)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_message_zip");
+
+    int offset = at_offset;
+    
+    SOS_buffer_pack(msg, &offset, "iigg",
+            header.msg_size,
+            header.msg_type,
+            header.msg_from,
+            header.ref_guid);
+
+#ifdef USE_MUNGE
+    SOS_buffer_pack(msg, &offset, "s", SOS->my_cred);
+#endif
 
     return 0;
 }
@@ -668,12 +707,31 @@ int
 SOS_msg_unzip(
         SOS_buffer *msg,
         SOS_msg_header *header,
+        int starting_offset,
         int *offset_after_header)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_message_unzip");
 
+    int offset = starting_offset;
+    SOS_buffer_unpack(msg, &offset, "iigg",
+            header->msg_size,
+            header->msg_type,
+            header->msg_from,
+            header->ref_guid);
+
+#ifdef USE_MUNGE
+    header->ref_cred = NULL;
+    SOS_buffer_unpack_safestr(msg, &offset, &header->ref_cred);
+#endif
+
+    *offset_after_header = offset;
     return 0;
 }
+
+
+
+
+
 
 int
 SOS_target_recv_msg(
@@ -682,7 +740,6 @@ SOS_target_recv_msg(
 {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_recv_msg");
     SOS_msg_header header;
-    int offset = 0;
 
     if (SOS->status == SOS_STATUS_SHUTDOWN) {
         dlog(0, "Ignoring receive call because SOS is shutting down.\n");
@@ -697,7 +754,8 @@ SOS_target_recv_msg(
         SOS_buffer_init_sized_locking(SOS, &reply,
                 SOS_DEFAULT_BUFFER_MAX, false); 
     }
-
+    
+    int offset = 0;
     reply->len = recv(server_socket_fd, reply->data, 
             reply->max, 0);
     if (reply->len < 0) {
@@ -1225,7 +1283,7 @@ SOS_THREAD_receives_direct(void *args)
             continue;
         }
 
-        /* Check the size of the message. We may not have gotten it all. */
+        // Check the size of the message. We may not have gotten it all.
         while (header.msg_size > buffer->len) {
             int old = buffer->len;
             while (header.msg_size > buffer->max) {
