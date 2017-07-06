@@ -168,7 +168,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         break;
     }
 
-    NEW_SOS->net.sos_context = NEW_SOS;
 
     NEW_SOS->status = SOS_STATUS_INIT;
     NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
@@ -283,101 +282,46 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         //
         dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
-        SOS_buffer_init(SOS, &SOS->net.recv_part);
-
-        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
-        if (retval != 0) {
-            fprintf(stderr, " ... ERROR (%d) creating SOS->net.send_lock!"
-                "  (%s)\n", retval, strerror(errno));
-            free(*sos_runtime);
-            *sos_runtime = NULL;
-            return;
-        }
-        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
-        SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-        strncpy(SOS->net.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
-        strncpy(SOS->net.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
-        if ((SOS->net.server_port == NULL)
-                || (strlen(SOS->net.server_port)) < 2)
+        char *sos_port_str = getenv("SOS_CMD_PORT");
+        if ((sos_port_str == NULL)
+                || (strlen(sos_port_str)) < 2)
         {
             fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set."
                     " Using default: %s\n",
                     SOS_DEFAULT_SERVER_PORT);
             fflush(stderr);
-            strncpy(SOS->net.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
+            strncpy(sos_port_str, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
         }
+        int sos_port = atoi(sos_port_str);
 
-        SOS->net.server_hint.ai_family   = AF_UNSPEC;   // Allow IPv4 or IPv6
-        SOS->net.server_hint.ai_protocol = 0;           // Any protocol
-        SOS->net.server_hint.ai_socktype = SOCK_STREAM; // _STREAM/_DGRAM/_RAW
-        SOS->net.server_hint.ai_flags 
-            = AI_NUMERICSERV | SOS->net.server_hint.ai_flags;
-
-        retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port,
-             &SOS->net.server_hint, &SOS->net.result_list );
-        if (retval < 0) {
-            fprintf(stderr, "ERROR!  Could not locate the SOS daemon."
-                    " (%s:%s)\n",
-                    SOS->net.server_host,
-                    SOS->net.server_port);
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
-            free(*sos_runtime);
-            *sos_runtime = NULL;
-            return;
-        }
-
-        for (SOS->net.server_addr = SOS->net.result_list ;
-            SOS->net.server_addr != NULL ;
-            SOS->net.server_addr = SOS->net.server_addr->ai_next)
-        {
-            // Iterate the possible connections and register with the SOS daemon:
-            server_socket_fd = socket(SOS->net.server_addr->ai_family,
-                    SOS->net.server_addr->ai_socktype,
-                    SOS->net.server_addr->ai_protocol);
-            if (server_socket_fd == -1) { continue; }
-            if (connect(server_socket_fd,
-                        SOS->net.server_addr->ai_addr,
-                        SOS->net.server_addr->ai_addrlen) != -1)
-            {
-                    // Success!
-                    break;
-            }
-            close(server_socket_fd);
-            server_socket_fd = -1;
-        } //for (iterate connections)
-
-        freeaddrinfo( SOS->net.result_list );
+        SOS->net = NULL;
+        SOS_target_init(SOS, &SOS->net, SOS_DEFAULT_SERVER_HOST, sos_port); 
+        SOS_target_connect(SOS->net);
         
-        if (server_socket_fd == 0) {
+        if (SOS->net->server_socket_fd == 0) {
             fprintf(stderr, "ERROR!  Could not connect to"
                     " sosd.  (%s:%s)\n",
-                    SOS->net.server_host, SOS->net.server_port);
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
+                    SOS->net->server_host, SOS->net->server_port);
+            pthread_mutex_destroy(SOS->net->send_lock);
+            free(SOS->net->send_lock);
             free(*sos_runtime);
             *sos_runtime = NULL;
             return;
         }
 
         dlog(4, "  ... registering this instance with SOS->   (%s:%s)\n",
-            SOS->net.server_host, SOS->net.server_port);
+            SOS->net->server_host, SOS->net->server_port);
+
+        SOS_buffer *buffer = NULL;
+        SOS_buffer_init_sized(SOS, &buffer, 1024);
 
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = 0;
         header.ref_guid = 0;
 
-        SOS_buffer *buffer;
-        SOS_buffer_init_sized_locking(SOS, &buffer, 1024, false);
-        
         int offset = 0;
-        SOS_buffer_pack(buffer, &offset, "iigg", 
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+        SOS_msg_zip(buffer, header, 0, &offset); 
 
         //Send client version information:
         SOS_buffer_pack(buffer, &offset, "ii",
@@ -386,23 +330,15 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
         header.msg_size = offset;
         offset = 0;
-        SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+        SOS_msg_zip(buffer, header, 0, &offset);
 
-        pthread_mutex_lock(SOS->net.send_lock);
-
-        dlog(4, "Built a registration message:\n");
-        dlog(4, "  ... buffer->data == %ld\n", (long) buffer->data);
-        dlog(4, "  ... buffer->len  == %d\n", buffer->len);
-        dlog(4, "Calling send...\n");
-
-        retval = send( server_socket_fd, buffer->data, buffer->len, 0);
+        retval = SOS_target_send_msg(SOS->net, buffer);
 
         if (retval < 0) {
             fprintf(stderr, "ERROR!  Could not write to server socket!"
                     "  (%s:%s)\n",
-                    SOS->net.server_host, SOS->net.server_port);
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
+                    SOS->net->server_host, SOS->net->server_port);
+            SOS_target_destroy(SOS->net);
             free(*sos_runtime);
             *sos_runtime = NULL;
             return;
@@ -410,24 +346,16 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             dlog(4, "Registration message sent.   (retval == %d)\n", retval);
         }
 
-        SOS_buffer_wipe(buffer);
-
         dlog(4, "  ... listening for the server to reply...\n");
-        buffer->len = recv(server_socket_fd, (void *) buffer->data,
-                buffer->max, 0);
+        SOS_buffer_wipe(buffer);
+        SOS_target_recv_msg(SOS->net, buffer);
         dlog(4, "  ... server responded with %d bytes.\n", retval);
 
-        close( server_socket_fd );
-        server_socket_fd = -1;
-        pthread_mutex_unlock(SOS->net.send_lock);
-
+        SOS_target_disconnect(SOS->net);
+        
         offset = 0;
-        SOS_buffer_unpack(buffer, &offset, "iigg",
-                &header.msg_size,
-                &header.msg_type,
-                &header.msg_from,
-                &header.ref_guid);
-                
+        SOS_msg_unzip(buffer, &header, 0, &offset);
+
         SOS_buffer_unpack(buffer, &offset, "gg",
                 &guid_pool_from,
                 &guid_pool_to);
@@ -452,8 +380,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             fflush(stderr);
         }
 
- 
-
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(4, "  ... configuring uid sets.\n");
@@ -477,10 +403,27 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
          // For more, see sosd.c and sosd_cloud_?????.c, the
          // SOSD_init(...) and SOSD_cloud_init(...) functions
          // in particular.
+
+
+        char *sos_port_str = getenv("SOS_CMD_PORT");
+        if ((sos_port_str == NULL)
+                || (strlen(sos_port_str)) < 2)
+        {
+            fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set."
+                    " Using default: %s\n",
+                    SOS_DEFAULT_SERVER_PORT);
+            fflush(stderr);
+            strncpy(sos_port_str, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
+        }
+        int sos_port = atoi(sos_port_str);
+
+        SOS->net = NULL;
+        SOS_target_init(SOS, &SOS->net, SOS_DEFAULT_SERVER_HOST, sos_port); 
+  
     }
 
     *sos_runtime = SOS;
-    SOS->status = SOS_STATUS_RUNNING;
+    SOS->status = SOS_STATUS_RUNNING;  // <-- set this before receiver thread.
 
     dlog(2, "  ... waiting for the feedback receiver thread to come online...\n");
     if (SOS->role == SOS_ROLE_CLIENT) {
@@ -490,7 +433,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             SOS_receiver_init(SOS);
         }
     }
-
     if (SOS->config.receives == SOS_RECEIVES_DIRECT_MESSAGES) {
         while(SOS->config.receives_ready != 1) {
             usleep(10000);
@@ -593,8 +535,8 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
     SOS_buffer *reply = NULL;
     int offset = 0;
 
-    SOS_buffer_init_sized_locking(SOS, &msg, 1024, false);
-    SOS_buffer_init_sized_locking(SOS, &msg, 64, false);
+    SOS_buffer_init_sized(SOS, &msg, 1024);
+    SOS_buffer_init_sized(SOS, &msg, 64);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SENSITIVITY;
@@ -602,12 +544,8 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
     header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(msg, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
-
+    SOS_msg_zip(msg, header, 0, &offset);
+    
     SOS_buffer_pack(msg, &offset, "ssi",
             handle,
             SOS->config.node_id,
@@ -635,8 +573,8 @@ SOS_sense_trigger(SOS_runtime *sos_context,
     SOS_buffer *msg;
     SOS_buffer *reply;
 
-    SOS_buffer_init_sized_locking(SOS, &msg, SOS_DEFAULT_BUFFER_MAX, false);
-    SOS_buffer_init_sized_locking(SOS, &reply, 128, false);
+    SOS_buffer_init_sized(SOS, &msg, SOS_DEFAULT_BUFFER_MAX);
+    SOS_buffer_init_sized(SOS, &reply, 128);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
@@ -644,11 +582,7 @@ SOS_sense_trigger(SOS_runtime *sos_context,
     header.ref_guid = 0; 
 
     int offset = 0;
-    SOS_buffer_pack(msg, &offset, "iigg",
-        header.msg_size,
-        header.msg_type,
-        header.msg_from,
-        header.ref_guid);
+    SOS_msg_zip(msg, header, 0, &offset);
 
     SOS_buffer_pack(msg, &offset, "sis",
             handle,
@@ -657,7 +591,7 @@ SOS_sense_trigger(SOS_runtime *sos_context,
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(msg, &offset, "i", header.msg_size);
+    SOS_msg_zip(msg, header, 0, &offset);
 
     SOS_send_to_daemon(msg, reply);
 
@@ -673,18 +607,25 @@ SOS_sense_trigger(SOS_runtime *sos_context,
 // NOTE: The at_offset lets this function seal messages that are
 // embedded inside of an existing buffer. For standalone messages,
 // it will be zero.
+// ...
 // Eventually this could be used to compress all but the header of
 // the message, but for now it simply goes back and sets the final
-// length in the correct part of the header.
+// length in the correct part of the header. Would need to add
+// a flag to SOS_buffer that tracks whether it is already compressed
+// so that messages can be re-zipped if there are changes to the
+// header data, such as the final length of the buffer growing.
+// The data would need to be decompressed and re-compressed? Something
+// to think about.  -CW
 int
 SOS_msg_zip(
         SOS_buffer *msg,
         SOS_msg_header header,
-        int at_offset)
+        int starting_offset,
+        int *offset_after_header)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_message_zip");
 
-    int offset = at_offset;
+    int offset = starting_offset;
     
     SOS_buffer_pack(msg, &offset, "iigg",
             header.msg_size,
@@ -694,15 +635,14 @@ SOS_msg_zip(
 
 #ifdef USE_MUNGE
     SOS_buffer_pack(msg, &offset, "s", SOS->my_cred);
+    msg->ref_cred = SOS->my_cred;
 #endif
+    *offset_after_header = offset;
 
     return 0;
 }
 
 
-// NOTE: This exists to allow us to de-compress, in the future.
-// For now it doesn't do anything but extract the header and
-// the offset that points to the beginning of the data segment.
 int
 SOS_msg_unzip(
         SOS_buffer *msg,
@@ -714,23 +654,29 @@ SOS_msg_unzip(
 
     int offset = starting_offset;
     SOS_buffer_unpack(msg, &offset, "iigg",
-            header->msg_size,
-            header->msg_type,
-            header->msg_from,
-            header->ref_guid);
+            &header->msg_size,
+            &header->msg_type,
+            &header->msg_from,
+            &header->ref_guid);
 
 #ifdef USE_MUNGE
-    header->ref_cred = NULL;
-    SOS_buffer_unpack_safestr(msg, &offset, &header->ref_cred);
+    if (msg->ref_cred != NULL) { free(msg->ref_cred); }
+    msg->ref_cred = NULL;
+    SOS_buffer_unpack_safestr(msg, &offset, &msg->ref_cred);
 #endif
-
     *offset_after_header = offset;
+
     return 0;
 }
 
 
 
-
+int
+SOS_target_accept_connection(SOS_socket *target)
+{
+    //TODO: Use this function call instead of the present listen loop guts.
+    return 0;
+}
 
 
 int
@@ -1001,27 +947,27 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
 
     int rc = 0;
     
-    SOS_target_connect(&SOS->net);
+    SOS_target_connect(SOS->net);
 
     if (rc != 0) {
         dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
-                SOS->net.server_host,
-                SOS->net.server_port,
+                SOS->net->server_host,
+                SOS->net->server_port,
                 rc);
         dlog(0, "ERROR: Ignoring transmission request and returning.\n");
         return;
     }
 
-    rc = SOS_target_send_msg(&SOS->net, message);
+    rc = SOS_target_send_msg(SOS->net, message);
     if (rc < 0) {
         fprintf(stderr, "ERROR: Unable to send message to the SOS daemon.\n");
         fflush(stderr);
         return;
     }
 
-    SOS_target_recv_msg(&SOS->net, reply);
+    SOS_target_recv_msg(SOS->net, reply);
 
-    SOS_target_disconnect(&SOS->net);
+    SOS_target_disconnect(SOS->net);
 
     return;
 }
@@ -1066,8 +1012,9 @@ void SOS_finalize(SOS_runtime *sos_context) {
             SOS_target_disconnect(target);
             SOS_target_destroy(target);
             SOS_buffer_destroy(msg);
-            /*
             dlog(1, "      ... joining feedback thread\n");
+            /*
+            //TODO: Don't orphan the feedback thread. 
             pthread_cond_signal(SOS->task.feedback_cond);
             pthread_cond_destroy(SOS->task.feedback_cond);
             pthread_join(*SOS->task.feedback, NULL);
@@ -1081,9 +1028,9 @@ void SOS_finalize(SOS_runtime *sos_context) {
         }
 
         dlog(1, "  ... Removing send lock...\n");
-        pthread_mutex_lock(SOS->net.send_lock);
-        pthread_mutex_destroy(SOS->net.send_lock);
-        free(SOS->net.send_lock);
+        pthread_mutex_lock(SOS->net->send_lock);
+        pthread_mutex_destroy(SOS->net->send_lock);
+        free(SOS->net->send_lock);
     
         dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
@@ -1091,7 +1038,9 @@ void SOS_finalize(SOS_runtime *sos_context) {
         
         if (SOS->config.offline_test_mode == false) {
             dlog(1, "  ... Clearing up networking...\b");
-            SOS_buffer_destroy(SOS->net.recv_part);
+            //TODO: Clean up networking objects.
+            //Below line existed before target_destroy() ... maybe remove?
+            //SOS_buffer_destroy(SOS->net->recv_part);
         }
     }    
 

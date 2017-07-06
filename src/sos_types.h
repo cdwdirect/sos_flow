@@ -436,9 +436,6 @@ typedef struct {
     SOS_msg_type        msg_type;
     SOS_guid            msg_from;
     SOS_guid            ref_guid;
-#ifdef USE_MUNGE
-    char               *ref_cred;
-#endif
 } SOS_msg_header;
 
 typedef struct {
@@ -488,7 +485,7 @@ typedef struct {
     SOS_status          status;
     SOS_unique_set      uid;
     SOS_task_set        task;
-    SOS_socket          net;
+    SOS_socket         *net;
     SOS_guid            my_guid;
 #ifdef USE_MUNGE
     char               *my_cred;

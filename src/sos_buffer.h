@@ -28,6 +28,9 @@ typedef struct {
     unsigned char       *data;
     int                  len;
     int                  max;
+#ifdef USE_MUNGE
+    char                *ref_cred;
+#endif
 } SOS_buffer;
 
 

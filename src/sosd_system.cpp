@@ -298,67 +298,67 @@ void setup_system_monitor_pub(void) {
 
         dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
-        SOS_buffer_init(SOS, &SOS->net.recv_part);
+        SOS_buffer_init(SOS, &SOS->net->recv_part);
 
-        SOS->net.send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-        retval = pthread_mutex_init(SOS->net.send_lock, NULL);
+        SOS->net->send_lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+        retval = pthread_mutex_init(SOS->net->send_lock, NULL);
         if (retval != 0) {
-            fprintf(stderr, " ... ERROR (%d) creating SOS->net.send_lock!"
+            fprintf(stderr, " ... ERROR (%d) creating SOS->net->send_lock!"
                 "  (%s)\n", retval, strerror(errno));
             return;
         }
-        SOS->net.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
-        SOS->net.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-        strncpy(SOS->net.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
-        strncpy(SOS->net.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
-        if (strlen(SOS->net.server_port) < 2) {
+        SOS->net->buffer_len    = SOS_DEFAULT_BUFFER_MAX;
+        SOS->net->timeout       = SOS_DEFAULT_MSG_TIMEOUT;
+        strncpy(SOS->net->server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+        strncpy(SOS->net->server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
+        if (strlen(SOS->net->server_port) < 2) {
             fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                     SOS_DEFAULT_SERVER_PORT);
             fflush(stderr);
-            strncpy(SOS->net.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
+            strncpy(SOS->net->server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
         }
 
-        SOS->net.server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6
-        SOS->net.server_hint.ai_protocol  = 0;                // Any protocol
-        SOS->net.server_hint.ai_socktype  = SOCK_STREAM;      // SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW
-        SOS->net.server_hint.ai_flags     = AI_NUMERICSERV | SOS->net.server_hint.ai_flags;
+        SOS->net->server_hint.ai_family    = AF_UNSPEC;        // Allow IPv4 or IPv6
+        SOS->net->server_hint.ai_protocol  = 0;                // Any protocol
+        SOS->net->server_hint.ai_socktype  = SOCK_STREAM;      // SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW
+        SOS->net->server_hint.ai_flags     = AI_NUMERICSERV | SOS->net->server_hint.ai_flags;
 
-        retval = getaddrinfo(SOS->net.server_host, SOS->net.server_port,
-             &SOS->net.server_hint, &SOS->net.result_list );
+        retval = getaddrinfo(SOS->net->server_host, SOS->net->server_port,
+             &SOS->net->server_hint, &SOS->net->result_list );
         if (retval < 0) {
             fprintf(stderr, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
-                SOS->net.server_host, SOS->net.server_port );
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
+                SOS->net->server_host, SOS->net->server_port );
+            pthread_mutex_destroy(SOS->net->send_lock);
+            free(SOS->net->send_lock);
             return;
         }
 
-        for (SOS->net.server_addr = SOS->net.result_list ;
-            SOS->net.server_addr != NULL ;
-            SOS->net.server_addr = SOS->net.server_addr->ai_next)
+        for (SOS->net->server_addr = SOS->net->result_list ;
+            SOS->net->server_addr != NULL ;
+            SOS->net->server_addr = SOS->net->server_addr->ai_next)
         {
             // Iterate the possible connections and register with the SOS daemon:
-            server_socket_fd = socket(SOS->net.server_addr->ai_family,
-                SOS->net.server_addr->ai_socktype, SOS->net.server_addr->ai_protocol);
+            server_socket_fd = socket(SOS->net->server_addr->ai_family,
+                SOS->net->server_addr->ai_socktype, SOS->net->server_addr->ai_protocol);
             if (server_socket_fd == -1) { continue; }
-            if (connect(server_socket_fd, SOS->net.server_addr->ai_addr,
-                    SOS->net.server_addr->ai_addrlen) != -1 ) break;  // Success!
+            if (connect(server_socket_fd, SOS->net->server_addr->ai_addr,
+                    SOS->net->server_addr->ai_addrlen) != -1 ) break;  // Success!
             close( server_socket_fd );
         }
 
-        freeaddrinfo( SOS->net.result_list );
+        freeaddrinfo( SOS->net->result_list );
         
         if (server_socket_fd == 0) {
             fprintf(stderr, "ERROR!  Could not connect to"
                     " sosd.  (%s:%s)\n",
-                    SOS->net.server_host, SOS->net.server_port);
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
+                    SOS->net->server_host, SOS->net->server_port);
+            pthread_mutex_destroy(SOS->net->send_lock);
+            free(SOS->net->send_lock);
             return;
         }
 
         dlog(4, "  ... registering this instance with SOS->   (%s:%s)\n",
-            SOS->net.server_host, SOS->net.server_port);
+            SOS->net->server_host, SOS->net->server_port);
 
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
@@ -384,7 +384,7 @@ void setup_system_monitor_pub(void) {
         offset = 0;
         SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
 
-        pthread_mutex_lock(SOS->net.send_lock);
+        pthread_mutex_lock(SOS->net->send_lock);
 
         dlog(4, "Built a registration message:\n");
         dlog(4, "  ... buffer->data == %ld\n", (long) buffer->data);
@@ -395,9 +395,9 @@ void setup_system_monitor_pub(void) {
 
         if (retval < 0) {
             fprintf(stderr, "ERROR!  Could not write to server socket!  (%s:%s)\n",
-                SOS->net.server_host, SOS->net.server_port);
-            pthread_mutex_destroy(SOS->net.send_lock);
-            free(SOS->net.send_lock);
+                SOS->net->server_host, SOS->net->server_port);
+            pthread_mutex_destroy(SOS->net->send_lock);
+            free(SOS->net->send_lock);
             return;
         } else {
             dlog(4, "Registration message sent.   (retval == %d)\n", retval);
@@ -410,7 +410,7 @@ void setup_system_monitor_pub(void) {
         dlog(4, "  ... server responded with %d bytes.\n", retval);
 
         close( server_socket_fd );
-        pthread_mutex_unlock(SOS->net.send_lock);
+        pthread_mutex_unlock(SOS->net->send_lock);
 
         offset = 0;
         SOS_buffer_unpack(buffer, &offset, "iigg",

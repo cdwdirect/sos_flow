@@ -86,9 +86,9 @@ int main(int argc, char *argv[]) {
 
     dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    SOS_target_connect(&SOS->net);
-    SOS_target_send_msg(&SOS->net, buffer);
-    SOS_target_disconnect(&SOS->net);
+    SOS_target_connect(SOS->net);
+    SOS_target_send_msg(SOS->net, buffer);
+    SOS_target_disconnect(SOS->net);
 
     SOS_buffer_destroy(buffer);
     dlog(0, "Done.\n");

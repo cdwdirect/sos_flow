@@ -150,13 +150,16 @@ extern "C" {
 
     // Communication wrapper functions:
 
-    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, int at_offset);
+    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header,
+            int starting_offset, int *offset_after_header);
 
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
             int starting_offset, int *offset_after_header);
 
     int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
             char *host, int port);
+
+    int SOS_target_accept_connection(SOS_socket *target);
 
     int SOS_target_connect(SOS_socket *target);
 

@@ -33,12 +33,12 @@
 
 
 void SOS_buffer_init(void *sos_context, SOS_buffer **buffer_obj) {
-    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_MAX, true);
+    SOS_buffer_init_sized_locking(sos_context, buffer_obj, SOS_DEFAULT_BUFFER_MAX, false);
     return;
 }
 
 void SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer_obj, int max_size) {
-    SOS_buffer_init_sized_locking(sos_context, buffer_obj, max_size, true);
+    SOS_buffer_init_sized_locking(sos_context, buffer_obj, max_size, false);
     return;
 }
 
@@ -77,10 +77,14 @@ void SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer_obj, i
         }
     }
 
-    #ifdef SOSD_DAEMON_SRC
+#ifdef USE_MUNGE
+    buffer->ref_cred = NULL;
+#endif
+
+#ifdef SOSD_DAEMON_SRC
     SOSD_countof(buffer_creates++);
     SOSD_countof(buffer_bytes_on_heap += buffer->max);
-    #endif
+#endif
 
     dlog(5, "   ...done.\n");
 
@@ -98,6 +102,11 @@ void SOS_buffer_clone(SOS_buffer **dest, SOS_buffer *src) {
     new = *dest;
     new->len = src->len;
     memcpy(new->data, src->data, src->len);
+#ifdef USE_MUNGE
+    if (src->ref_cred != NULL) {
+        new->ref_cred = strdup(src->ref_cred);
+    }
+#endif
     dlog(4, "done.   (dest->len == %d)\n", new->len);
     return;
 }
@@ -141,10 +150,10 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
         exit(EXIT_FAILURE);
     }
 
-    #ifdef SOSD_DAEMON_SRC
+#ifdef SOSD_DAEMON_SRC
     SOSD_countof(buffer_destroys++);
     SOSD_countof(buffer_bytes_on_heap -= buffer->max);
-    #endif
+#endif
 
     dlog(8, "Destroying buffer:\n");
     if (buffer->is_locking) {
@@ -155,6 +164,14 @@ void SOS_buffer_destroy(SOS_buffer *buffer) {
     }
     dlog(8, "   ... free'ing data\n");
     free(buffer->data);
+    
+#ifdef USE_MUNGE
+    if (buffer->ref_cred != NULL) {
+        free(buffer->ref_cred);
+        buffer->ref_cred = NULL;
+    }
+#endif
+    
     dlog(8, "   ... free'ing object\n")
     free(buffer);
     dlog(8, "   ... done.\n");
@@ -168,6 +185,14 @@ void SOS_buffer_wipe(SOS_buffer *buffer) {
     dlog(8, "Wiping out buffer:\n");
     memset(buffer->data, '\0', buffer->max);
     buffer->len = 0;
+
+#ifdef USE_MUNGE
+    if (buffer->ref_cred != NULL) {
+        free(buffer->ref_cred);
+        buffer->ref_cred = NULL;
+    }
+#endif
+    
     dlog(8, "   ... done.   (buffer->max == %d)\n", buffer->max);
     return;
 }
@@ -185,9 +210,9 @@ void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
         exit(EXIT_FAILURE);
     } else {
 
-        #ifdef SOSD_DAEMON_SRC
+#ifdef SOSD_DAEMON_SRC
         SOSD_countof(buffer_bytes_on_heap += grow_amount);
-        #endif
+#endif
         dlog(8, "   ... done.\n");
     }
     return;
@@ -210,9 +235,9 @@ void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
         exit(EXIT_FAILURE);
     } else {
         buffer->max = to_new_max;
-        #ifdef SOSD_DAEMON_SRC
+#ifdef SOSD_DAEMON_SRC
         SOSD_countof(buffer_bytes_on_heap -= (original_max - to_new_max));
-        #endif
+#endif
         dlog(5, "   ... done.\n");
     }
     return;
