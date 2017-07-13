@@ -52,8 +52,8 @@ endif()
 
 project(${PROJECT_NAME} C CXX)
 set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
-set(CMAKE_PREFIX_PATH /g/g17/wood67/local/include $CMAKE_PREFIX_PATH)
-set(CMAKE_LIBRARY_PATH /g/g17/wood67/local/lib $CMAKE_LIBRARY_PATH)
+set(CMAKE_PREFIX_PATH $ENV{HOME}/local/include $CMAKE_PREFIX_PATH)
+set(CMAKE_LIBRARY_PATH $ENV{HOME}/local/lib $CMAKE_LIBRARY_PATH)
 if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -77,7 +77,7 @@ if(ENABLE_TAU_WRAPPER)
   link_directories(/usr/local/tau-2.24.1/x86_64/lib)
 endif()
 
-include_directories(/g/g17/wood67/local/include)
+include_directories($ENV{HOME}/local/include)
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
