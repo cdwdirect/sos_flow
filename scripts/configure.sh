@@ -132,6 +132,8 @@ if [ ${mpi} -eq 1 ] ; then
     evpathopts="-DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX"
 fi
 
+mungeopts="-DUSE_MUNGE=TRUE"
+
 if [ ${sanitize} -eq 1 ] ; then
     sanitizeopts="-DSOS_SANITIZE_ADDRESS=ON"
 fi
@@ -143,6 +145,7 @@ cmd="cmake \
      -DCMAKE_CXX_COMPILER=$CXX \
      ${evpathopts} \
      ${sanitizeopts} \
+     ${mungeopts} \
      -DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX \
      $cmake_extras \
      $BASEDIR"

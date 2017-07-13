@@ -216,6 +216,8 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         exit (1);
     }
     dlog(4, "   credential == \"%s\"\n", SOS->my_cred);
+#else
+    dlog(0, "Munge is NOT being used.\n");
 #endif
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
@@ -332,7 +334,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         offset = 0;
         SOS_msg_zip(buffer, header, 0, &offset);
 
-        retval = SOS_target_send_msg(SOS->net, buffer);
+        retval = SOS_target_send_msg(SOS->net, SOS->net->server_socket_fd, buffer);
 
         if (retval < 0) {
             fprintf(stderr, "ERROR!  Could not write to server socket!"
@@ -348,7 +350,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
         dlog(4, "  ... listening for the server to reply...\n");
         SOS_buffer_wipe(buffer);
-        SOS_target_recv_msg(SOS->net, buffer);
+        SOS_target_recv_msg(SOS->net, SOS->net->server_socket_fd, buffer);
         dlog(4, "  ... server responded with %d bytes.\n", retval);
 
         SOS_target_disconnect(SOS->net);
@@ -674,7 +676,23 @@ SOS_msg_unzip(
 int
 SOS_target_accept_connection(SOS_socket *target)
 {
-    //TODO: Use this function call instead of the present listen loop guts.
+    SOS_SET_CONTEXT(target->sos_context, "SOS_target_accept_connection");
+    int i = 0;
+
+    dlog(5, "Listening for a message...\n");
+    target->peer_addr_len = sizeof(target->peer_addr);
+    target->client_socket_fd = accept(target->server_socket_fd,
+            (struct sockaddr *) &target->peer_addr,
+            &target->peer_addr_len);
+    i = getnameinfo((struct sockaddr *) &target->peer_addr,
+            target->peer_addr_len, target->client_host,
+            NI_MAXHOST, target->client_port, NI_MAXSERV,
+            NI_NUMERICSERV);
+    if (i != 0) {
+        dlog(0, "Error calling getnameinfo() on client connection."
+                "  (%s)\n", strerror(errno));
+    }
+
     return 0;
 }
 
@@ -682,6 +700,7 @@ SOS_target_accept_connection(SOS_socket *target)
 int
 SOS_target_recv_msg(
         SOS_socket *target,
+        int from_fd,
         SOS_buffer *reply)
 {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_recv_msg");
@@ -692,8 +711,6 @@ SOS_target_recv_msg(
         return -1;
     }
 
-    int server_socket_fd = target->server_socket_fd;
-
     if (reply == NULL) {
         dlog(0, "WARNING: Attempting to receive message into uninitialzied"
                 " buffer.  Attempting to init/proceed...\n");
@@ -702,7 +719,7 @@ SOS_target_recv_msg(
     }
     
     int offset = 0;
-    reply->len = recv(server_socket_fd, reply->data, 
+    reply->len = recv(from_fd, reply->data, 
             reply->max, 0);
     if (reply->len < 0) {
         fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
@@ -730,7 +747,7 @@ SOS_target_recv_msg(
             SOS_buffer_grow(reply, 1 + (header.msg_size - reply->max),
                     SOS_WHOAMI);
         }
-        int rest = recv(server_socket_fd, (void *) (reply->data + old),
+        int rest = recv(from_fd, (void *) (reply->data + old),
                 header.msg_size - old, 0);
         if (rest < 0) {
             fprintf(stderr, "SOS: recv() call for reply from"
@@ -752,7 +769,7 @@ SOS_target_recv_msg(
 int
 SOS_target_init(
         SOS_runtime       *sos_context,
-        SOS_socket  **target,
+        SOS_socket       **target,
         char              *target_host,
         int                target_port)
 {
@@ -881,6 +898,7 @@ int SOS_target_disconnect(SOS_socket *target) {
 int
 SOS_target_send_msg(
         SOS_socket *target,
+        int outgoing_fd,
         SOS_buffer *msg)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_target_send_msg");
@@ -958,14 +976,14 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
         return;
     }
 
-    rc = SOS_target_send_msg(SOS->net, message);
+    rc = SOS_target_send_msg(SOS->net, SOS->net->server_socket_fd, message);
     if (rc < 0) {
         fprintf(stderr, "ERROR: Unable to send message to the SOS daemon.\n");
         fflush(stderr);
         return;
     }
 
-    SOS_target_recv_msg(SOS->net, reply);
+    SOS_target_recv_msg(SOS->net, SOS->net->server_socket_fd, reply);
 
     SOS_target_disconnect(SOS->net);
 
@@ -1008,7 +1026,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             offset = 0;
             SOS_buffer_pack(msg, &offset, "i", header.msg_size);
 
-            SOS_target_send_msg(target, msg);
+            SOS_target_send_msg(target, target->server_socket_fd, msg);
             SOS_target_disconnect(target);
             SOS_target_destroy(target);
             SOS_buffer_destroy(msg);
