@@ -24,6 +24,7 @@ def queryAndPlot():
     frame,
     GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.time" THEN value END) AS time,
     GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.dtime" THEN value END) AS dtime,
+    GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.coords" THEN value END) AS coords,
     node_id
     FROM viewCombined
     GROUP BY

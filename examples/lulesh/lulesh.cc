@@ -2697,6 +2697,277 @@ SOS_pub *g_pub = NULL;
 
 /******************************************/
 
+
+
+void findMinMaxCornersForAllElements(
+        Domain& domain,
+        Real_t *foundMinX,
+        Real_t *foundMinY,
+        Real_t *foundMinZ,
+        Real_t *foundMaxX,
+        Real_t *foundMaxY,
+        Real_t *foundMaxZ)
+{
+   
+   Real_t minX, minY, minZ;
+   Real_t maxX, maxY, maxZ;
+   
+   Index_t numElem = domain.numElem();
+
+   printf("numElem = %d  ---> ", numElem);
+
+   for (Index_t i = 0 ; i < numElem ; ++i ) {
+      const Real_t ptiny = Real_t(1.e-36) ;
+      Real_t ax,ay,az ;
+      Real_t dxv,dyv,dzv ;
+
+      const Index_t *elemToNode = domain.nodelist(i);
+      Index_t n0 = elemToNode[0] ;
+      Index_t n1 = elemToNode[1] ;
+      Index_t n2 = elemToNode[2] ;
+      Index_t n3 = elemToNode[3] ;
+      Index_t n4 = elemToNode[4] ;
+      Index_t n5 = elemToNode[5] ;
+      Index_t n6 = elemToNode[6] ;
+      Index_t n7 = elemToNode[7] ;
+
+      Real_t x0 = domain.x(n0) ;
+      Real_t x1 = domain.x(n1) ;
+      Real_t x2 = domain.x(n2) ;
+      Real_t x3 = domain.x(n3) ;
+      Real_t x4 = domain.x(n4) ;
+      Real_t x5 = domain.x(n5) ;
+      Real_t x6 = domain.x(n6) ;
+      Real_t x7 = domain.x(n7) ;
+
+      Real_t y0 = domain.y(n0) ;
+      Real_t y1 = domain.y(n1) ;
+      Real_t y2 = domain.y(n2) ;
+      Real_t y3 = domain.y(n3) ;
+      Real_t y4 = domain.y(n4) ;
+      Real_t y5 = domain.y(n5) ;
+      Real_t y6 = domain.y(n6) ;
+      Real_t y7 = domain.y(n7) ;
+
+      Real_t z0 = domain.z(n0) ;
+      Real_t z1 = domain.z(n1) ;
+      Real_t z2 = domain.z(n2) ;
+      Real_t z3 = domain.z(n3) ;
+      Real_t z4 = domain.z(n4) ;
+      Real_t z5 = domain.z(n5) ;
+      Real_t z6 = domain.z(n6) ;
+      Real_t z7 = domain.z(n7) ;
+
+      if (x0 < minX) minX = x0;
+      if (x1 < minX) minX = x1;
+      if (x2 < minX) minX = x2;
+      if (x3 < minX) minX = x3;
+      if (x4 < minX) minX = x4;
+      if (x5 < minX) minX = x5;
+      if (x6 < minX) minX = x6;
+      if (x7 < minX) minX = x7;
+
+      if (y0 < minY) minY = y0;
+      if (y1 < minY) minY = y1;
+      if (y2 < minY) minY = y2;
+      if (y3 < minY) minY = y3;
+      if (y4 < minY) minY = y4;
+      if (y5 < minY) minY = y5;
+      if (y6 < minY) minY = y6;
+      if (y7 < minY) minY = y7;
+
+      if (z0 < minZ) minZ = z0;
+      if (z1 < minZ) minZ = z1;
+      if (z2 < minZ) minZ = z2;
+      if (z3 < minZ) minZ = z3;
+      if (z4 < minZ) minZ = z4;
+      if (z5 < minZ) minZ = z5;
+      if (z6 < minZ) minZ = z6;
+      if (z7 < minZ) minZ = z7;
+
+      if (x0 > maxX) maxX = x0;
+      if (x1 > maxX) maxX = x1;
+      if (x2 > maxX) maxX = x2;
+      if (x3 > maxX) maxX = x3;
+      if (x4 > maxX) maxX = x4;
+      if (x5 > maxX) maxX = x5;
+      if (x6 > maxX) maxX = x6;
+      if (x7 > maxX) maxX = x7;
+
+      if (y0 > maxY) maxY = y0;
+      if (y1 > maxY) maxY = y1;
+      if (y2 > maxY) maxY = y2;
+      if (y3 > maxY) maxY = y3;
+      if (y4 > maxY) maxY = y4;
+      if (y5 > maxY) maxY = y5;
+      if (y6 > maxY) maxY = y6;
+      if (y7 > maxY) maxY = y7;
+
+      if (z0 > maxZ) maxZ = z0;
+      if (z1 > maxZ) maxZ = z1;
+      if (z2 > maxZ) maxZ = z2;
+      if (z3 > maxZ) maxZ = z3;
+      if (z4 > maxZ) maxZ = z4;
+      if (z5 > maxZ) maxZ = z5;
+      if (z6 > maxZ) maxZ = z6;
+      if (z7 > maxZ) maxZ = z7;
+
+        foundMinX[i] = minX;
+        foundMinY[i] = minY;
+        foundMinZ[i] = minZ;
+
+        foundMaxX[i] = maxX;
+        foundMaxY[i] = maxY;
+        foundMaxZ[i] = maxZ;
+
+   }//for
+
+}
+
+
+
+
+
+
+
+void findMinMaxCorners(
+        Domain& domain,
+        Real_t *foundMinX,
+        Real_t *foundMinY,
+        Real_t *foundMinZ,
+        Real_t *foundMaxX,
+        Real_t *foundMaxY,
+        Real_t *foundMaxZ)
+{
+   
+   Real_t minX, minY, minZ;
+   Real_t maxX, maxY, maxZ;
+   
+   bool initialPass = true;
+
+   Index_t numElem = domain.numElem();
+
+   printf("numElem = %d  ---> ", numElem);
+
+   for (Index_t i = 0 ; i < numElem ; ++i ) {
+      const Real_t ptiny = Real_t(1.e-36) ;
+      Real_t ax,ay,az ;
+      Real_t dxv,dyv,dzv ;
+
+      const Index_t *elemToNode = domain.nodelist(i);
+      Index_t n0 = elemToNode[0] ;
+      Index_t n1 = elemToNode[1] ;
+      Index_t n2 = elemToNode[2] ;
+      Index_t n3 = elemToNode[3] ;
+      Index_t n4 = elemToNode[4] ;
+      Index_t n5 = elemToNode[5] ;
+      Index_t n6 = elemToNode[6] ;
+      Index_t n7 = elemToNode[7] ;
+
+      Real_t x0 = domain.x(n0) ;
+      Real_t x1 = domain.x(n1) ;
+      Real_t x2 = domain.x(n2) ;
+      Real_t x3 = domain.x(n3) ;
+      Real_t x4 = domain.x(n4) ;
+      Real_t x5 = domain.x(n5) ;
+      Real_t x6 = domain.x(n6) ;
+      Real_t x7 = domain.x(n7) ;
+
+      Real_t y0 = domain.y(n0) ;
+      Real_t y1 = domain.y(n1) ;
+      Real_t y2 = domain.y(n2) ;
+      Real_t y3 = domain.y(n3) ;
+      Real_t y4 = domain.y(n4) ;
+      Real_t y5 = domain.y(n5) ;
+      Real_t y6 = domain.y(n6) ;
+      Real_t y7 = domain.y(n7) ;
+
+      Real_t z0 = domain.z(n0) ;
+      Real_t z1 = domain.z(n1) ;
+      Real_t z2 = domain.z(n2) ;
+      Real_t z3 = domain.z(n3) ;
+      Real_t z4 = domain.z(n4) ;
+      Real_t z5 = domain.z(n5) ;
+      Real_t z6 = domain.z(n6) ;
+      Real_t z7 = domain.z(n7) ;
+
+      if (initialPass) {
+         minX = x0;
+         minY = y0;
+         minZ = z0;
+         maxX = x0;
+         maxY = y0;
+         maxZ = z0;
+         initialPass = false;
+      } else {
+         if (x0 < minX) minX = x0;
+         if (x1 < minX) minX = x1;
+         if (x2 < minX) minX = x2;
+         if (x3 < minX) minX = x3;
+         if (x4 < minX) minX = x4;
+         if (x5 < minX) minX = x5;
+         if (x6 < minX) minX = x6;
+         if (x7 < minX) minX = x7;
+         
+         if (y0 < minY) minY = y0;
+         if (y1 < minY) minY = y1;
+         if (y2 < minY) minY = y2;
+         if (y3 < minY) minY = y3;
+         if (y4 < minY) minY = y4;
+         if (y5 < minY) minY = y5;
+         if (y6 < minY) minY = y6;
+         if (y7 < minY) minY = y7;
+
+         if (z0 < minZ) minZ = z0;
+         if (z1 < minZ) minZ = z1;
+         if (z2 < minZ) minZ = z2;
+         if (z3 < minZ) minZ = z3;
+         if (z4 < minZ) minZ = z4;
+         if (z5 < minZ) minZ = z5;
+         if (z6 < minZ) minZ = z6;
+         if (z7 < minZ) minZ = z7;
+
+         if (x0 > maxX) maxX = x0;
+         if (x1 > maxX) maxX = x1;
+         if (x2 > maxX) maxX = x2;
+         if (x3 > maxX) maxX = x3;
+         if (x4 > maxX) maxX = x4;
+         if (x5 > maxX) maxX = x5;
+         if (x6 > maxX) maxX = x6;
+         if (x7 > maxX) maxX = x7;
+         
+         if (y0 > maxY) maxY = y0;
+         if (y1 > maxY) maxY = y1;
+         if (y2 > maxY) maxY = y2;
+         if (y3 > maxY) maxY = y3;
+         if (y4 > maxY) maxY = y4;
+         if (y5 > maxY) maxY = y5;
+         if (y6 > maxY) maxY = y6;
+         if (y7 > maxY) maxY = y7;
+
+         if (z0 > maxZ) maxZ = z0;
+         if (z1 > maxZ) maxZ = z1;
+         if (z2 > maxZ) maxZ = z2;
+         if (z3 > maxZ) maxZ = z3;
+         if (z4 > maxZ) maxZ = z4;
+         if (z5 > maxZ) maxZ = z5;
+         if (z6 > maxZ) maxZ = z6;
+         if (z7 > maxZ) maxZ = z7;
+      }
+   
+   }//for
+
+   *foundMinX = minX;
+   *foundMinY = minY;
+   *foundMinZ = minZ;
+
+   *foundMaxX = maxX;
+   *foundMaxY = maxY;
+   *foundMaxZ = maxZ;
+}
+
+
+
 int main(int argc, char *argv[])
 {
   Domain *locDom ;
@@ -2790,6 +3061,7 @@ int main(int argc, char *argv[])
     int    sos_cycle;
     double sos_time;
     double sos_dtime;
+    char dimensions[1024] = {0};
 
    while((locDom->time() < locDom->stoptime()) && (locDom->cycle() < opts.its)) {
 
@@ -2800,13 +3072,28 @@ int main(int argc, char *argv[])
       sos_time  = double(locDom->time());
       sos_dtime = double(locDom->deltatime());
 
-    // EXAMPLE query to get this stuff:
-    // select tblPubs.comm_rank, tblData.name, tblVals.val, tblVals.time_pack from tblVals LEFT JOIN tblData on tblVals.guid =
-    // tblData.guid LEFT JOIN tblPubs ON tblPubs.guid = tblVals.guid LIMIT 10;
+      Real_t minX;
+      Real_t minY;
+      Real_t minZ;
+      Real_t maxX;
+      Real_t maxY;
+      Real_t maxZ;
+
+      findMinMaxCorners(*locDom, &minX, &minY, &minZ, &maxX, &maxY, &maxZ);
+      printf("rank: %d   cycle: %d   min=%1.3f, %1.3f, %1.3f   max=%1.3f, %1.3f, %1.3f\n",
+              myRank, sos_cycle,
+              minX, minY, minZ,
+              maxX, maxY, maxZ);
+      fflush(stdout);
+
+      snprintf(dimensions, 1024, "%1.8f %1.8f %1.8f %1.8f %1.8f %1.8f",
+              minX, minY, minZ,
+              maxX, maxY, maxZ);
 
       SOS_pack(g_pub, "lulesh.cycle", SOS_VAL_TYPE_INT, &sos_cycle);
       SOS_pack(g_pub, "lulesh.time", SOS_VAL_TYPE_DOUBLE, &sos_time);
       SOS_pack(g_pub, "lulesh.dtime", SOS_VAL_TYPE_DOUBLE, &sos_dtime);
+      SOS_pack(g_pub, "lulesh.coords", SOS_VAL_TYPE_STRING, dimensions);
       SOS_publish(g_pub);
 
       if ((opts.showProg != 0) && (opts.quiet == 0) && (myRank == 0)) {

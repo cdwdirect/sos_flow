@@ -599,6 +599,24 @@ void VerifyAndWriteFinalOutput(Real_t elapsed_time,
 // lulesh-viz
 void DumpToVisit(Domain& domain, int numFiles, int myRank, int numRanks);
 
+// SOS-experiment functions
+void findMinMaxCornersForAllElements(
+        Domain& domain,
+        Real_t *foundMinX,
+        Real_t *foundMinY,
+        Real_t *foundMinZ,
+        Real_t *foundMaxX,
+        Real_t *foundMaxY,
+        Real_t *foundMaxZ);
+
+void findMinMaxCorners(Domain& domain,
+        Real_t *foundMinX,
+        Real_t *foundMinY,
+        Real_t *foundMinZ,
+        Real_t *foundMaxX,
+        Real_t *foundMaxY,
+        Real_t *foundMaxZ);
+
 // lulesh-comm
 void CommRecv(Domain& domain, Int_t msgType, Index_t xferFields,
               Index_t dx, Index_t dy, Index_t dz,
