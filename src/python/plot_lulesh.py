@@ -63,7 +63,7 @@ def queryAndPlot():
     plt.title('Lulesh Time per Iteration')
     plt.grid(True)
     plt.savefig("lulesh_time_per_iter.png")
-    #plt.show()
+    plt.show()
 
     SOS.finalize();
     print "   ...DONE!"
