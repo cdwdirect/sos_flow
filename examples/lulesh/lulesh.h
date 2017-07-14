@@ -600,22 +600,16 @@ void VerifyAndWriteFinalOutput(Real_t elapsed_time,
 void DumpToVisit(Domain& domain, int numFiles, int myRank, int numRanks);
 
 // SOS-experiment functions
-void findMinMaxCornersForAllElements(
-        Domain& domain,
-        Real_t *foundMinX,
-        Real_t *foundMinY,
-        Real_t *foundMinZ,
-        Real_t *foundMaxX,
-        Real_t *foundMaxY,
-        Real_t *foundMaxZ);
+int flatPointIndex(int x, int y, int z);
 
-void findMinMaxCorners(Domain& domain,
-        Real_t *foundMinX,
-        Real_t *foundMinY,
-        Real_t *foundMinZ,
-        Real_t *foundMaxX,
-        Real_t *foundMaxY,
-        Real_t *foundMaxZ);
+void findMinMaxIndexes(
+        Domain& domain,
+        int indexes[8]);
+
+void grabCoords(
+        Domain& domain,
+        int indexes[8]);
+
 
 // lulesh-comm
 void CommRecv(Domain& domain, Int_t msgType, Index_t xferFields,

@@ -186,6 +186,8 @@ void Release(T **ptr)
     }
 }
 
+// This is set to opts.nx after the command line parameters are set.
+int G_nx;
 
 
 /******************************************/
@@ -2697,227 +2699,62 @@ SOS_pub *g_pub = NULL;
 
 /******************************************/
 
+int flatPointIndex(int x, int y, int z) {
+    // G_nx == width OR height...
+    return ((y * (G_nx + 1)) + z) * (G_nx + 1) + x; 
+}
 
 void findMinMaxIndexes(Domain& domain,
-        int *indexes)
+        int *pos)
 {
-    Real_t minX, minY, minZ;
-    Real_t maxX, maxY, maxZ;
+    int one = G_nx;
+    int nil = 0;
 
-    int pt;
-
-    Index_t numElem = domain.numElem();
-
-    printf("numElem = %d  ---> ", numElem);
-
-    for (Index_t i = 0 ; i < numElem ; ++i ) {
-
-        const Index_t *elemToNode = domain.nodelist(i);
-        Index_t n0 = elemToNode[0] ;
-        Index_t n1 = elemToNode[1] ;
-        Index_t n2 = elemToNode[2] ;
-        Index_t n3 = elemToNode[3] ;
-        Index_t n4 = elemToNode[4] ;
-        Index_t n5 = elemToNode[5] ;
-        Index_t n6 = elemToNode[6] ;
-        Index_t n7 = elemToNode[7] ;
-
-        Real_t x0 = domain.x(n0) ;
-        Real_t x1 = domain.x(n1) ;
-        Real_t x2 = domain.x(n2) ;
-        Real_t x3 = domain.x(n3) ;
-        Real_t x4 = domain.x(n4) ;
-        Real_t x5 = domain.x(n5) ;
-        Real_t x6 = domain.x(n6) ;
-        Real_t x7 = domain.x(n7) ;
-
-        Real_t y0 = domain.y(n0) ;
-        Real_t y1 = domain.y(n1) ;
-        Real_t y2 = domain.y(n2) ;
-        Real_t y3 = domain.y(n3) ;
-        Real_t y4 = domain.y(n4) ;
-        Real_t y5 = domain.y(n5) ;
-        Real_t y6 = domain.y(n6) ;
-        Real_t y7 = domain.y(n7) ;
-
-        Real_t z0 = domain.z(n0) ;
-        Real_t z1 = domain.z(n1) ;
-        Real_t z2 = domain.z(n2) ;
-        Real_t z3 = domain.z(n3) ;
-        Real_t z4 = domain.z(n4) ;
-        Real_t z5 = domain.z(n5) ;
-        Real_t z6 = domain.z(n6) ;
-        Real_t z7 = domain.z(n7) ;
-
-        for (pt = 0; pt < 8; pt++) {
-            switch (pt) {
-                case 0:
-                    break;
-
-                case 1:
-                    break;
-
-                case 2:
-                    break;
-
-                case 3:
-                    break;
-
-                case 4:
-                    break;
-
-                case 5:
-                    break;
-
-                case 6:
-                    break;
-
-                case 7:
-                    break;
-            
-            }
-        }
-
-    }//for
+    pos[0] = flatPointIndex(nil, nil, nil);
+    pos[1] = flatPointIndex(one, nil, nil);
+    pos[2] = flatPointIndex(one, one, nil);
+    pos[3] = flatPointIndex(nil, one, nil); //z1z
+    pos[4] = flatPointIndex(nil, nil, one); //zz1
+    pos[5] = flatPointIndex(one, nil, one); //1z1
+    pos[6] = flatPointIndex(one, one, one); //111
+    pos[7] = flatPointIndex(nil, one, one); //z11
 
     return;
 }
-
-}
-
-
-void findMinMaxCoords(
+    
+void grabCoords(
         Domain& domain,
-        int    *indexes
-        Real_t *foundMaxX,
-        Real_t *foundMaxY,
-        Real_t *foundMaxZ)
+        int    indexes[])
 {
+    char dimensions[4096] = {0};
+    Real_t coords[3][8];
+    const int X = 0;
+    const int Y = 1;
+    const int Z = 2;
+    int i;
 
-    Real_t minX, minY, minZ;
-    Real_t maxX, maxY, maxZ;
+    for (i = 0; i < 8; i++) {
+        coords[X][i] = domain.x(indexes[i]);
+        coords[Y][i] = domain.y(indexes[i]);
+        coords[Z][i] = domain.z(indexes[i]);
+    }
 
-    bool initialPass = true;
+    snprintf(dimensions, 4096,
+                "%1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f "
+                "%1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f "
+                "%1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f",
+                coords[X][0], coords[Y][0], coords[Z][0],
+                coords[X][1], coords[Y][1], coords[Z][1],
+                coords[X][2], coords[Y][2], coords[Z][2],
+                coords[X][3], coords[Y][3], coords[Z][3],
+                coords[X][4], coords[Y][4], coords[Z][4],
+                coords[X][5], coords[Y][5], coords[Z][5],
+                coords[X][6], coords[Y][6], coords[Z][6],
+                coords[X][7], coords[Y][7], coords[Z][7]);
+    
+    SOS_pack(g_pub, "lulesh.coords", SOS_VAL_TYPE_STRING, dimensions);
 
-    Index_t numElem = domain.numElem();
-
-    printf("numElem = %d  ---> ", numElem);
-
-    for (Index_t i = 0 ; i < numElem ; ++i ) {
-        const Real_t ptiny = Real_t(1.e-36) ;
-        Real_t ax,ay,az ;
-        Real_t dxv,dyv,dzv ;
-
-        const Index_t *elemToNode = domain.nodelist(i);
-        Index_t n0 = elemToNode[0] ;
-        Index_t n1 = elemToNode[1] ;
-        Index_t n2 = elemToNode[2] ;
-        Index_t n3 = elemToNode[3] ;
-        Index_t n4 = elemToNode[4] ;
-        Index_t n5 = elemToNode[5] ;
-        Index_t n6 = elemToNode[6] ;
-        Index_t n7 = elemToNode[7] ;
-
-        Real_t x0 = domain.x(n0) ;
-        Real_t x1 = domain.x(n1) ;
-        Real_t x2 = domain.x(n2) ;
-        Real_t x3 = domain.x(n3) ;
-        Real_t x4 = domain.x(n4) ;
-        Real_t x5 = domain.x(n5) ;
-        Real_t x6 = domain.x(n6) ;
-        Real_t x7 = domain.x(n7) ;
-
-        Real_t y0 = domain.y(n0) ;
-        Real_t y1 = domain.y(n1) ;
-        Real_t y2 = domain.y(n2) ;
-        Real_t y3 = domain.y(n3) ;
-        Real_t y4 = domain.y(n4) ;
-        Real_t y5 = domain.y(n5) ;
-        Real_t y6 = domain.y(n6) ;
-        Real_t y7 = domain.y(n7) ;
-
-        Real_t z0 = domain.z(n0) ;
-        Real_t z1 = domain.z(n1) ;
-        Real_t z2 = domain.z(n2) ;
-        Real_t z3 = domain.z(n3) ;
-        Real_t z4 = domain.z(n4) ;
-        Real_t z5 = domain.z(n5) ;
-        Real_t z6 = domain.z(n6) ;
-        Real_t z7 = domain.z(n7) ;
-
-        if (initialPass) {
-            minX = x0;
-            minY = y0;
-            minZ = z0;
-            maxX = x0;
-            maxY = y0;
-            maxZ = z0;
-            initialPass = false;
-        } else {
-            if (x0 < minX) minX = x0;
-            if (x1 < minX) minX = x1;
-            if (x2 < minX) minX = x2;
-            if (x3 < minX) minX = x3;
-            if (x4 < minX) minX = x4;
-            if (x5 < minX) minX = x5;
-            if (x6 < minX) minX = x6;
-            if (x7 < minX) minX = x7;
-
-            if (y0 < minY) minY = y0;
-            if (y1 < minY) minY = y1;
-            if (y2 < minY) minY = y2;
-            if (y3 < minY) minY = y3;
-            if (y4 < minY) minY = y4;
-            if (y5 < minY) minY = y5;
-            if (y6 < minY) minY = y6;
-            if (y7 < minY) minY = y7;
-
-            if (z0 < minZ) minZ = z0;
-            if (z1 < minZ) minZ = z1;
-            if (z2 < minZ) minZ = z2;
-            if (z3 < minZ) minZ = z3;
-            if (z4 < minZ) minZ = z4;
-            if (z5 < minZ) minZ = z5;
-            if (z6 < minZ) minZ = z6;
-            if (z7 < minZ) minZ = z7;
-
-            if (x0 > maxX) maxX = x0;
-            if (x1 > maxX) maxX = x1;
-            if (x2 > maxX) maxX = x2;
-            if (x3 > maxX) maxX = x3;
-            if (x4 > maxX) maxX = x4;
-            if (x5 > maxX) maxX = x5;
-            if (x6 > maxX) maxX = x6;
-            if (x7 > maxX) maxX = x7;
-
-            if (y0 > maxY) maxY = y0;
-            if (y1 > maxY) maxY = y1;
-            if (y2 > maxY) maxY = y2;
-            if (y3 > maxY) maxY = y3;
-            if (y4 > maxY) maxY = y4;
-            if (y5 > maxY) maxY = y5;
-            if (y6 > maxY) maxY = y6;
-            if (y7 > maxY) maxY = y7;
-
-            if (z0 > maxZ) maxZ = z0;
-            if (z1 > maxZ) maxZ = z1;
-            if (z2 > maxZ) maxZ = z2;
-            if (z3 > maxZ) maxZ = z3;
-            if (z4 > maxZ) maxZ = z4;
-            if (z5 > maxZ) maxZ = z5;
-            if (z6 > maxZ) maxZ = z6;
-            if (z7 > maxZ) maxZ = z7;
-        }
-
-    }//for
-
-    *foundMinX = minX;
-    *foundMinY = minY;
-    *foundMinZ = minZ;
-
-    *foundMaxX = maxX;
-    *foundMaxY = maxY;
-    *foundMaxZ = maxZ;
+    return;
 }
 
 
@@ -2958,6 +2795,8 @@ int main(int argc, char *argv[])
     opts.cost = 1;
 
     ParseCommandLineOptions(argc, argv, myRank, &opts);
+
+    G_nx = opts.nx;
 
     if ((myRank == 0) && (opts.quiet == 0)) {
         printf("Running problem size %d^3 per domain until completion\n", opts.nx);
@@ -3015,7 +2854,8 @@ int main(int argc, char *argv[])
     int    sos_cycle;
     double sos_time;
     double sos_dtime;
-    char dimensions[1024] = {0};
+    int    indexes[8];
+    findMinMaxIndexes(*locDom, indexes);
 
     while((locDom->time() < locDom->stoptime()) && (locDom->cycle() < opts.its)) {
 
@@ -3026,32 +2866,16 @@ int main(int argc, char *argv[])
         sos_time  = double(locDom->time());
         sos_dtime = double(locDom->deltatime());
 
-        Real_t outerX[8];
-        Real_t outerY[8];
-        Real_t outerZ[8];
+        const int X = 0;
+        const int Y = 1;
+        const int Z = 2;
 
-        findMinMaxCoords(*locDom, &outerX, &outerY, &outerZ);
-        printf("rank: %d   cycle: %d   \n",
-                myRank, sos_cycle);
-        fflush(stdout);
-
-        snprintf(dimensions, 1024,
-                "%1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f "
-                "%1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f "
-                "%1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f %1.5f",
-                outerX[0], outerY[0], outerZ[0],
-                outerX[1], outerY[1], outerZ[1],
-                outerX[2], outerY[2], outerZ[2],
-                outerX[3], outerY[3], outerZ[3],
-                outerX[4], outerY[4], outerZ[4],
-                outerX[5], outerY[5], outerZ[5],
-                outerX[6], outerY[6], outerZ[6],
-                outerX[7], outerY[7], outerZ[7]);
 
         SOS_pack(g_pub, "lulesh.cycle", SOS_VAL_TYPE_INT, &sos_cycle);
         SOS_pack(g_pub, "lulesh.time", SOS_VAL_TYPE_DOUBLE, &sos_time);
         SOS_pack(g_pub, "lulesh.dtime", SOS_VAL_TYPE_DOUBLE, &sos_dtime);
-        SOS_pack(g_pub, "lulesh.coords", SOS_VAL_TYPE_STRING, dimensions);
+        grabCoords(*locDom, indexes); //This also SOS_pack()'s them.
+        
         SOS_publish(g_pub);
 
         if ((opts.showProg != 0) && (opts.quiet == 0) && (myRank == 0)) {

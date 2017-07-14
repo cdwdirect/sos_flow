@@ -24,8 +24,7 @@ def queryAndPlot():
     frame,
     GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.time" THEN value END) AS time,
     GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.dtime" THEN value END) AS dtime,
-    GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.coords" THEN value END) AS coords,
-    node_id
+    GROUP_CONCAT(CASE WHEN value_name LIKE "lulesh.coords" THEN value END) AS coords
     FROM viewCombined
     GROUP BY
     comm_rank, frame;
@@ -35,35 +34,40 @@ def queryAndPlot():
     print "    " + sql_string
     results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
     print "Results:"
- 
-    print str(col_names)
-    print str(results)
 
-    #res = np.zeros((len(results), len(col_names)))
-    #for idx_row, row in enumerate(results):
-    #    for idx_col, col in enumerate(row):
-    #        np.insert(res, idx_row, idx_col)
+    attr = dict()
+    attr['comm_rank']  =  [el[0] for el in results]
+    attr['cycle']      =  [el[1] for el in results]
+    attr['iter_time']  =  [el[2] for el in results]
+    attr['delta_time'] =  [el[3] for el in results]
+    res_coords         =  [el[4] for el in results]
     
-    # OR...
-    #res_time = np.array(results[2])
+    coords = list()
+    coords = [el.split() for el in res_coords]
+    rank_max = len(attr['comm_rank'])
 
-    res_rank =  [el[0] for el in results]
-    res_cycle = [el[1] for el in results]
-    res_time =  [el[2] for el in results]
+    print "Coordinates at position 0:"
+    print "p0.X=" + str(coords[0][0])
+    print "p0.Y=" + str(coords[0][1])
+    print "p0.Z=" + str(coords[0][2])
 
-    colorset = cm.rainbow
-    norm = Normalize(vmin=0, vmax=10)
+    print "Iteration time at position 0:"
+    print str(attr['iter_time'][0])
 
-    plt.ylim(0.0, 0.00001)
-    plt.xlim(-1.0, 20.0)
-    plt.scatter(res_cycle, res_time, c=norm(res_rank), cmap=colorset)
-
-    plt.xlabel('iteration')
-    plt.ylabel('time (s)')
-    plt.title('Lulesh Time per Iteration')
-    plt.grid(True)
-    plt.savefig("lulesh_time_per_iter.png")
-    plt.show()
+    ###
+    ### NOTE: Some matplot lib stuff...
+    ###
+    # colorset = cm.rainbow
+    # norm = Normalize(vmin=0, vmax=10)
+    # plt.ylim(0.0, 0.00001)
+    # plt.xlim(-1.0, 20.0)
+    # plt.scatter(res_cycle, res_time, c=norm(res_rank), cmap=colorset)
+    # plt.xlabel('iteration')
+    # plt.ylabel('time (s)')
+    # plt.title('Lulesh Time per Iteration')
+    # plt.grid(True)
+    # plt.savefig("lulesh_time_per_iter.png")
+    # plt.show()
 
     SOS.finalize();
     print "   ...DONE!"
