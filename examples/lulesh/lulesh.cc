@@ -2698,6 +2698,99 @@ SOS_runtime *g_sos = NULL;
 SOS_pub *g_pub = NULL;
 
 /******************************************/
+// SOS stuff:
+//
+
+/*
+ * read /proc data into the passed struct pstat
+ * returns 0 on success, -1 on error
+int get_usage(const pid_t pid, struct pstat* result) {
+    //convert  pid to string
+    char pid_s[20];
+    snprintf(pid_s, sizeof(pid_s), "%d", pid);
+    char stat_filepath[30] = "/proc/"; strncat(stat_filepath, pid_s,
+            sizeof(stat_filepath) - strlen(stat_filepath) -1);
+    strncat(stat_filepath, "/stat", sizeof(stat_filepath) -
+            strlen(stat_filepath) -1);
+
+    FILE *fpstat = fopen(stat_filepath, "r");
+    if (fpstat == NULL) {
+        perror("FOPEN ERROR ");
+        return -1;
+    }
+
+    FILE *fstat = fopen("/proc/stat", "r");
+    if (fstat == NULL) {
+        perror("FOPEN ERROR ");
+        fclose(fstat);
+        return -1;
+    }
+
+    //read values from /proc/pid/stat
+    bzero(result, sizeof(struct pstat));
+    long int rss;
+    if (fscanf(fpstat, "%*d %*s %*c %*d %*d %*d %*d %*d %*u %*u %*u %*u %*u %lu"
+                "%lu %ld %ld %*d %*d %*d %*d %*u %lu %ld",
+                &result->utime_ticks, &result->stime_ticks,
+                &result->cutime_ticks, &result->cstime_ticks, &result->vsize,
+                &rss) == EOF) {
+        fclose(fpstat);
+        return -1;
+    }
+    fclose(fpstat);
+    result->rss = rss * getpagesize();
+
+    //read+calc cpu total time from /proc/stat
+    long unsigned int cpu_time[10];
+    bzero(cpu_time, sizeof(cpu_time));
+    if (fscanf(fstat, "%*s %lu %lu %lu %lu %lu %lu %lu %lu %lu %lu",
+                &cpu_time[0], &cpu_time[1], &cpu_time[2], &cpu_time[3],
+                &cpu_time[4], &cpu_time[5], &cpu_time[6], &cpu_time[7],
+                &cpu_time[8], &cpu_time[9]) == EOF) {
+        fclose(fstat);
+        return -1;
+    }
+
+    fclose(fstat);
+
+    for(int i=0; i < 10;i++)
+        result->cpu_total_time += cpu_time[i];
+
+    return 0;
+}
+
+* calculates the elapsed CPU usage between 2 measuring points. in percent
+void calc_cpu_usage_pct(const struct pstat* cur_usage,
+                        const struct pstat* last_usage,
+                        double* ucpu_usage, double* scpu_usage)
+{
+    const long unsigned int total_time_diff = cur_usage->cpu_total_time -
+                                              last_usage->cpu_total_time;
+
+    *ucpu_usage = 100 * (((cur_usage->utime_ticks + cur_usage->cutime_ticks)
+                    - (last_usage->utime_ticks + last_usage->cutime_ticks))
+                    / (double) total_time_diff);
+
+    *scpu_usage = 100 * ((((cur_usage->stime_ticks + cur_usage->cstime_ticks)
+                    - (last_usage->stime_ticks + last_usage->cstime_ticks))) /
+                    (double) total_time_diff);
+}
+
+* calculates the elapsed CPU usage between 2 measuring points in ticks
+void calc_cpu_usage(const struct pstat* cur_usage,
+                    const struct pstat* last_usage,
+                    long unsigned int* ucpu_usage,
+                    long unsigned int* scpu_usage)
+{
+
+    *ucpu_usage = (cur_usage->utime_ticks + cur_usage->cutime_ticks) -
+                  (last_usage->utime_ticks + last_usage->cutime_ticks);
+
+    *scpu_usage = (cur_usage->stime_ticks + cur_usage->cstime_ticks) -
+                  (last_usage->stime_ticks + last_usage->cstime_ticks);
+}
+
+*/
 
 int flatPointIndex(int x, int y, int z) {
     // G_nx == width OR height...
@@ -2856,9 +2949,13 @@ int main(int argc, char *argv[])
     double sos_dtime;
     int    indexes[8];
     findMinMaxIndexes(*locDom, indexes);
+    //struct pstat cur_usage;
+    //struct pstat last_usage;
 
     while((locDom->time() < locDom->stoptime()) && (locDom->cycle() < opts.its)) {
 
+        //get_cpu(getpid(), &last_usage);
+        
         TimeIncrement(*locDom) ;
         LagrangeLeapFrog(*locDom) ;
 
@@ -2870,13 +2967,24 @@ int main(int argc, char *argv[])
         const int Y = 1;
         const int Z = 2;
 
+        //get_cpu(getpid(), &cur_usage);
+        //double sos_usage_userpct = 0.0;
+        //double sos_usage_syspct  = 0.0;
+        //calc_cpu_usage_pct(&cur_usage, last_usage,
+        //        &sos_usage_userpct,
+        //        &sos_usage_syspct);
+
+        double sos_scalar = 0.5;
 
         SOS_pack(g_pub, "lulesh.cycle", SOS_VAL_TYPE_INT, &sos_cycle);
         SOS_pack(g_pub, "lulesh.time", SOS_VAL_TYPE_DOUBLE, &sos_time);
         SOS_pack(g_pub, "lulesh.dtime", SOS_VAL_TYPE_DOUBLE, &sos_dtime);
         grabCoords(*locDom, indexes); //This also SOS_pack()'s them.
-        
+        SOS_pack(g_pub, "lulesh.scalar", SOS_VAL_TYPE_DOUBLE, &sos_scalar);
+
         SOS_publish(g_pub);
+
+        sleep(1);
 
         if ((opts.showProg != 0) && (opts.quiet == 0) && (myRank == 0)) {
             printf("cycle = %d, time = %e, dt=%e\n",
