@@ -58,14 +58,6 @@ def queryAndPlot():
     coords = list()
     coords = [el.split() for el in res_coords]
 
-    #print "Coordinates at position 0:"
-    #print "p0.X=" + str(coords[0][0])
-    #print "p0.Y=" + str(coords[0][1])
-    #print "p0.Z=" + str(coords[0][2])
-
-    #print "Iteration time at position 0:"
-    #print str(attr['iter_time'][0])
-
     ###
     ### NOTE: Some matplot lib stuff...
     ###
@@ -79,11 +71,13 @@ def queryAndPlot():
         xpt = [None]*8
         ypt = [None]*8
         zpt = [None]*8
+        cpt = [None]*8
         for i in range(8):
             xpt[i] = float(coords[rank][(i * 3)])
             ypt[i] = float(coords[rank][(i * 3) + 1])
             zpt[i] = float(coords[rank][(i * 3) + 2])
-        ax.scatter(xpt, ypt, zpt, s=200, c=range(8), cmap=colorset, marker='s')
+            cpt[i] = xpt[i] + ypt[i] + zpt[i]
+        ax.scatter(xpt, ypt, zpt, s=200, c=cpt, cmap=colorset, marker='s')
         ax.set_xlabel('X')
         ax.set_ylabel('Y')
         ax.set_zlabel('Z')
