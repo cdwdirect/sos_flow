@@ -315,7 +315,10 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             SOS->net->server_host, SOS->net->server_port);
 
         SOS_buffer *buffer = NULL;
+
         SOS_buffer_init_sized(SOS, &buffer, 1024);
+        
+        
 
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
@@ -389,6 +392,8 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
             guid_pool_from, guid_pool_to);
+
+        //slice
 
         SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
         dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -637,8 +642,14 @@ SOS_msg_zip(
             header.ref_guid);
 
 #ifdef USE_MUNGE
-    SOS_buffer_pack(msg, &offset, "s", SOS->my_cred);
-    msg->ref_cred = SOS->my_cred;
+    if (SOS->my_cred != NULL) {
+        SOS_buffer_pack(msg, &offset, "s", SOS->my_cred);
+        msg->ref_cred = strdup(SOS->my_cred);
+    } else {
+        fprintf(stderr, "CRITICAL WARNING: Attempting to zip a message for"
+                " which there is no munge credential!\n");
+        fflush(stderr);
+    }
 #endif
     
     *offset_after_header = offset;
@@ -673,7 +684,7 @@ SOS_msg_unzip(
             &header->ref_guid);
 
 #ifdef USE_MUNGE
-    //if (msg->ref_cred != NULL) { free(msg->ref_cred); }
+    if (msg->ref_cred != NULL) { free(msg->ref_cred); }
     msg->ref_cred = NULL;
     SOS_buffer_unpack_safestr(msg, &offset, &msg->ref_cred);
 #endif
@@ -775,6 +786,7 @@ SOS_target_recv_msg(
     if (reply->len < 0) {
         fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
                 strerror(errno));
+        return -1;
     }
 
     memset(&header, '\0', sizeof(SOS_msg_header));
@@ -800,7 +812,7 @@ SOS_target_recv_msg(
             fprintf(stderr, "SOS: recv() call for reply from"
                     " daemon returned an error:\n\t\"(%s)\"\n",
                     strerror(errno));
-            break;
+            return -1;
         } else {
             dlog(6, "  ... recv() returned %d more bytes.\n", rest);
         }
@@ -1012,7 +1024,7 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
 
     int rc = 0;
     
-    SOS_target_connect(SOS->net);
+    rc = SOS_target_connect(SOS->net);
 
     if (rc != 0) {
         dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
@@ -1279,8 +1291,11 @@ SOS_THREAD_receives_direct(void *args)
         dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
 
         if (buffer->len < 0) {
-            dlog(1, "  ... recv() call returned an errror.  (%s)\n",
+            dlog(1, "  ... recv() call returned an error.  (%s)\n",
                     strerror(errno));
+            close(insock.client_socket_fd);
+            insock.client_socket_fd = -1;
+            continue;
         }
 
         memset(&header, '\0', sizeof(SOS_msg_header));
@@ -1289,6 +1304,8 @@ SOS_THREAD_receives_direct(void *args)
             SOS_msg_unzip(buffer, &header, 0, &offset);
         } else {
             dlog(0, "  ... Received short (useless) message.\n");
+            close(insock.client_socket_fd);
+            insock.client_socket_fd = -1;
             continue;
         }
 
@@ -1302,8 +1319,11 @@ SOS_THREAD_receives_direct(void *args)
             int rest = recv(insock.client_socket_fd,
                     (void *) (buffer->data + old), header.msg_size - old, 0);
             if (rest < 0) {
-                dlog(1, "  ... recv() call returned an errror."
+                dlog(1, "  ... recv() call returned an error."
                         "  (%s)\n", strerror(errno));
+                close(insock.client_socket_fd);
+                insock.client_socket_fd = -1;
+                continue;
             } else {
                 dlog(6, "  ... recv() returned %d more bytes.\n", rest);
             }
@@ -1567,14 +1587,14 @@ SOS_uid_init(SOS_runtime *sos_context,
     SOS_SET_CONTEXT(sos_context, "SOS_uid_init");
     SOS_uid *id;
 
-    dlog(5, "  ... allocating uid sets\n");
+    dlog(3, "  ... allocating uid sets\n");
     id = *id_var = (SOS_uid *) malloc(sizeof(SOS_uid));
     id->next = (set_from > 0) ? set_from : 1;
     id->last = (set_to   < SOS_DEFAULT_UID_MAX) ? set_to : SOS_DEFAULT_UID_MAX;
-    dlog(5, "     ... default set for uid range"
+    dlog(3, "     ... default set for uid range"
             " (%" SOS_GUID_FMT " -> %" SOS_GUID_FMT ").\n",
             id->next, id->last);
-    dlog(5, "     ... initializing uid mutex.\n");
+    dlog(3, "     ... initializing uid mutex.\n");
     id->lock = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
     pthread_mutex_init(id->lock, NULL );
 

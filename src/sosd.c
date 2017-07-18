@@ -305,6 +305,7 @@ int main(int argc, char *argv[])  {
     // do system monitoring, if requested.
     char *system_flag = getenv("SOS_READ_SYSTEM_STATUS");
     if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
+        //setup_system_monitor_pub();
         SOSD_sync_context_init(SOS, &SOSD.sync.system_monitor, 0,
              SOSD_THREAD_system_monitor);
         SOSD.system_monitoring = 1;
@@ -435,10 +436,12 @@ void SOSD_listen_loop() {
     int            offset;
     int            i;
 
+    buffer = NULL;
+    rapid_reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &buffer,
             SOS_DEFAULT_BUFFER_MAX, false);
     SOS_buffer_init_sized_locking(SOS, &rapid_reply,
-            SOS_DEFAULT_REPLY_LEN, false);
+            SOS_DEFAULT_BUFFER_MAX, false);
     /* 
      *
      *
@@ -532,28 +535,30 @@ void SOSD_listen_loop() {
 
     dlog(0, "Entering main loop...\n");
     while (SOSD.daemon.running) {
-        offset = 0;
         SOS_buffer_wipe(buffer);
 
-        dlog(5, "Listening for a message...\n");
-        SOSD.net->peer_addr_len = sizeof(SOSD.net->peer_addr);
-        SOSD.net->client_socket_fd = accept(SOSD.net->server_socket_fd,
-                (struct sockaddr *) &SOSD.net->peer_addr,
-                &SOSD.net->peer_addr_len);
-        i = getnameinfo((struct sockaddr *) &SOSD.net->peer_addr,
-                SOSD.net->peer_addr_len, SOSD.net->client_host,
-                NI_MAXHOST, SOSD.net->client_port, NI_MAXSERV,
-                NI_NUMERICSERV);
-        if (i != 0) {
-            dlog(0, "Error calling getnameinfo() on client connection."
-                    "  (%s)\n", strerror(errno));
-            break;
-        }
+        //dlog(5, "Listening for a message...\n");
+        //SOSD.net->peer_addr_len = sizeof(SOSD.net->peer_addr);
+        //SOSD.net->client_socket_fd = accept(SOSD.net->server_socket_fd,
+        //        (struct sockaddr *) &SOSD.net->peer_addr,
+        //        &SOSD.net->peer_addr_len);
+        //i = getnameinfo((struct sockaddr *) &SOSD.net->peer_addr,
+        //        SOSD.net->peer_addr_len, SOSD.net->client_host,
+        //        NI_MAXHOST, SOSD.net->client_port, NI_MAXSERV,
+        //        NI_NUMERICSERV);
+        //if (i != 0) {
+        //    dlog(0, "Error calling getnameinfo() on client connection."
+        //            "  (%s)\n", strerror(errno));
+        //    break;
+        //}
 
-        //SOS_target_accept_connection(SOSD.net);
+        SOS_target_accept_connection(SOSD.net);
 
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
         SOS_target_recv_msg(SOSD.net, SOSD.net->client_socket_fd, buffer);
+
+        offset = 0;
+        SOS_msg_unzip(buffer, &header, 0, &offset);
 
         dlog(5, "Received connection.\n");
         dlog(5, "  ... msg_size == %d         (buffer->len == %d)\n",
@@ -1050,6 +1055,8 @@ void* SOSD_THREAD_cloud_send(void *args) {
     int              offset;
     int              msg_offset;
 
+    buffer = NULL;
+    reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &buffer,
             (10 * SOS_DEFAULT_BUFFER_MAX), false);
     SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
@@ -1642,7 +1649,8 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_REGISTER\n");
 
-    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_BUFFER_MAX);
 
 
     offset = 0;
@@ -1684,7 +1692,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
 
-        dlog(0, "REGISTER: Providing client with GUIDs _from=%" SOS_GUID_FMT ", _to=%" SOS_GUID_FMT "\n");
+        dlog(0, "REGISTER: Providing client with GUIDs _from=%" SOS_GUID_FMT ", _to=%" SOS_GUID_FMT "\n", guid_block_from, guid_block_to);
         //Pack in the GUID's
         SOS_buffer_pack(reply, &offset, "gg",
                 guid_block_from,
@@ -1733,6 +1741,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_GUID_BLOCK\n");
 
+    reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
@@ -1779,6 +1788,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_ANNOUNCE\n");
 
+    reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
@@ -1831,6 +1841,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_PUBLISH\n");
 
+    reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
@@ -1909,6 +1920,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
 
+    reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
@@ -1960,6 +1972,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
 
     SOSD_countof(feedback_checkin_messages++);
 
+    reply = NULL;
     SOS_buffer_init(SOS, &reply);
 
     offset = 0;
@@ -2014,6 +2027,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     SOS_buffer    *reply;
     int            i;
 
+    reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     SOS_msg_header header;
@@ -2132,6 +2146,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
 
     dlog(1, "header.msg_type = UNKNOWN\n");
 
+    reply = NULL;
     SOS_buffer_init(SOS, &reply);
 
     offset = 0;
