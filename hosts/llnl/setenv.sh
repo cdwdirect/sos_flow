@@ -6,7 +6,7 @@ echo $SCRIPTPATH
 BASEDIR="$(cd "$SCRIPTPATH/../.."; pwd)"
 echo $BASEDIR
 
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$USER/local/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/local/lib
 
 export SOS_HOST_KNOWN_AS="\"LLNL (Common)\""
 
