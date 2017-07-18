@@ -72,6 +72,13 @@ int main(int argc, char *argv[]) {
 
     SOS_runtime *my_sos;
     SOS_init( &argc, &argv, &my_sos, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
+
+    if (my_sos == NULL) {
+        fprintf(stderr, "ERROR: Unable to register successfully with SOS daemon.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+    
     if (GLOBAL_forced_sos_port_on > 0) {
         strncpy(my_sos->net->server_port, GLOBAL_forced_sos_port, NI_MAXSERV);
     }
@@ -131,13 +138,10 @@ int main(int argc, char *argv[]) {
     header.ref_guid = 0;
 
     int offset = 0;
-    SOS_buffer_pack(request, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
+    SOS_msg_zip(request, header, 0, &offset);
     header.msg_size = offset;
     offset = 0;
+    SOS_msg_zip(request, header, 0, &offset);
 
     SOS_buffer_pack(request, &offset, "i", header.msg_size);
 
@@ -161,12 +165,9 @@ int main(int argc, char *argv[]) {
 
 
         offset = 0;
-        SOS_buffer_unpack(reply, &offset, "iigg",
-                          &header.msg_size,
-                          &header.msg_type,
-                          &header.msg_from,
-                          &header.ref_guid);
-
+        SOS_msg_unzip(reply, &header, 0, &offset);
+        
+        
         uint64_t queue_depth_local       = 0;
         uint64_t queue_depth_cloud       = 0;
         uint64_t queue_depth_db_tasks    = 0;

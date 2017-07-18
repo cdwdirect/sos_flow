@@ -442,94 +442,7 @@ void SOSD_listen_loop() {
             SOS_DEFAULT_BUFFER_MAX, false);
     SOS_buffer_init_sized_locking(SOS, &rapid_reply,
             SOS_DEFAULT_BUFFER_MAX, false);
-    /* 
-     *
-     *
-     * All of this is handled by SOSD_setup_socket()....
-     *
-     *
-     *
-    // Listening on the socket...
-    //
-    int yes = 1;
-    int opts = 0;
-    i = getaddrinfo(NULL, SOSD.net->server_port, &SOSD.net->server_hint,
-            &SOSD.net->result_list);
-
-    if (i != 0) {
-        fprintf(stderr, "ERROR: Daemon socket broken, server-side getaddrinfo()"
-            " failed. (%s)\n", gai_strerror(errno));
-        fflush(stderr);
-        return;
-    }
-
-    for (SOSD.net->server_addr = SOSD.net->result_list ;
-        SOSD.net->server_addr != NULL ; 
-        SOSD.net->server_addr = SOSD.net->server_addr->ai_next )
-    {
-        dlog(1, "Trying an address...\n");
-
-        SOSD.net->server_socket_fd = socket(SOSD.net->server_addr->ai_family,
-            SOSD.net->server_addr->ai_socktype, SOSD.net->server_addr->ai_protocol);
-
-        if (SOSD.net->server_socket_fd < 1) {
-            fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
-                strerror(errno));
-            fflush(stderr);
-            continue;
-        }
-
-        // Allow this socket to be reused/rebound quickly.
-        if (setsockopt(SOSD.net->server_socket_fd, SOL_SOCKET, SO_REUSEADDR,
-            &yes, sizeof(int)) == -1)
-        {
-            dlog(0, "  ... could not set socket options.  (%s)\n",
-                strerror(errno));
-            continue;
-        }
-       
-        SOSD.net->server_addr->ai_addrlen = sizeof(struct sockaddr_in);
-
-        if ( bind( SOSD.net->server_socket_fd, SOSD.net->server_addr->ai_addr,
-                SOSD.net->server_addr->ai_addrlen ) == -1 ) {
-            dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
-            close( SOSD.net->server_socket_fd );
-            SOSD.net->server_socket_fd = -1;
-            continue;
-        } 
-        // If we get here, we're good to stop looking.
-        break;
-    }
-
-    if ( SOSD.net->server_socket_fd <= 0 ) {
-        fprintf(stderr, "ERROR: Client could not socket/setsockopt/"
-                "bind to anything to receive feedback. (%d:%s)\n",
-                errno, strerror(errno));
-         
-    } else {
-        dlog(0, "  ... got a socket, and bound to it!\n");
-    }
-
-    freeaddrinfo(SOSD.net->result_list);
-
-     // Enforce that this is a BLOCKING socket:
-    opts = fcntl(SOSD.net->server_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the"
-          " server_socket_fd to get its options.  Carrying on.  (%s)\n",
-          strerror(errno));
-    }
- 
-    opts = opts & !(O_NONBLOCK);
-    i    = fcntl(SOSD.net->server_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
-        " server_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
-        strerror(errno));
-    }
-
-    listen( SOSD.net->server_socket_fd, SOSD.net->listen_backlog );
-    */
-
-
+    
     dlog(5, "Assembling rapid_reply for val_snaps...\n");
     SOSD_PACK_ACK(rapid_reply);
 
@@ -555,7 +468,11 @@ void SOSD_listen_loop() {
         SOS_target_accept_connection(SOSD.net);
 
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
-        SOS_target_recv_msg(SOSD.net, SOSD.net->client_socket_fd, buffer);
+        i = SOS_target_recv_msg(SOSD.net, SOSD.net->client_socket_fd, buffer);
+        if (i < sizeof(SOS_msg_header)) {
+            SOS_target_disconnect(SOSD.net);
+            continue;
+        }
 
         offset = 0;
         SOS_msg_unzip(buffer, &header, 0, &offset);

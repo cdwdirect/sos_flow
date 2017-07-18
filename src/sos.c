@@ -315,7 +315,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             SOS->net->server_host, SOS->net->server_port);
 
         SOS_buffer *buffer = NULL;
-
         SOS_buffer_init_sized(SOS, &buffer, 1024);
         
         
@@ -542,8 +541,10 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
     SOS_buffer *reply = NULL;
     int offset = 0;
 
+    msg = NULL;
+    reply = NULL;
     SOS_buffer_init_sized(SOS, &msg, 1024);
-    SOS_buffer_init_sized(SOS, &msg, 64);
+    SOS_buffer_init_sized(SOS, &reply, 256);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SENSITIVITY;
@@ -578,8 +579,10 @@ SOS_sense_trigger(SOS_runtime *sos_context,
     SOS_buffer *msg;
     SOS_buffer *reply;
 
+    msg = NULL;
+    reply = NULL;
     SOS_buffer_init_sized(SOS, &msg, SOS_DEFAULT_BUFFER_MAX);
-    SOS_buffer_init_sized(SOS, &reply, 128);
+    SOS_buffer_init_sized(SOS, &reply, 256);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
@@ -1428,6 +1431,8 @@ void* SOS_THREAD_receives_timed(void *args) {
 
     if ( SOS->config.offline_test_mode == true ) { return NULL; }
 
+    check_in_buffer = NULL;
+    feedback_buffer = NULL;
     SOS_buffer_init(SOS, &check_in_buffer);
     SOS_buffer_init(SOS, &feedback_buffer);
 
@@ -1651,6 +1656,7 @@ SOS_uid_next( SOS_uid *id ) {
             SOS_buffer *buf;
             int offset;
 
+            buf = NULL;
             SOS_buffer_init_sized_locking(SOS, &buf,
                     sizeof(SOS_msg_header), false);
             
@@ -1669,6 +1675,8 @@ SOS_uid_next( SOS_uid *id ) {
             SOS_msg_zip(buf, header, 0, &offset);
 
             SOS_buffer *reply;
+            
+            reply = NULL;
             SOS_buffer_init_sized_locking(SOS, &reply,
                     SOS_DEFAULT_BUFFER_MAX, false);
 
@@ -2874,6 +2882,8 @@ SOS_announce( SOS_pub *pub ) {
     SOS_buffer *ann_buf;
     SOS_buffer *rep_buf;
 
+    ann_buf = NULL;
+    rep_buf = NULL;
     SOS_buffer_init(SOS, &ann_buf);
     SOS_buffer_init_sized(SOS, &rep_buf, SOS_DEFAULT_REPLY_LEN);
 
@@ -2903,6 +2913,9 @@ SOS_publish( SOS_pub *pub ) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_publish");
     SOS_buffer *pub_buf;
     SOS_buffer *rep_buf;
+    
+    pub_buf = NULL;
+    rep_buf = NULL;
     SOS_buffer_init(SOS, &pub_buf);
     SOS_buffer_init_sized(SOS, &rep_buf, SOS_DEFAULT_REPLY_LEN);
 

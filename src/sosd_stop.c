@@ -74,15 +74,11 @@ int main(int argc, char *argv[]) {
     header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                              header.msg_size,
-                              header.msg_type,
-                              header.msg_from,
-                              header.ref_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
@@ -164,15 +160,11 @@ int main(int argc, char *argv[]) {
     header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                              header.msg_size,
-                              header.msg_type,
-                              header.msg_from,
-                              header.ref_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 

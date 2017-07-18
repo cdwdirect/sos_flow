@@ -51,13 +51,8 @@ void SOSD_cloud_shutdown_notice(void) {
 
         offset = 0;
         SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
-        msg_inset = offset;
 
-        header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
-                                          header.msg_size,
-                                          header.msg_type,
-                                          header.msg_from,
-                                          header.ref_guid);
+        header.msg_size = SOS_msg_zip(shutdown_msg, header, offset, &offset);
         offset = 0;
         SOS_buffer_pack(shutdown_msg, &offset, "ii",
                         embedded_msg_count,

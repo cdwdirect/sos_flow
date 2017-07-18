@@ -42,19 +42,16 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     dlog(7, "   ... creating msg.\n");
 
     int offset = 0;
-    SOS_buffer_pack(msg, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
-
+    SOS_msg_zip(msg, header, 0, &offset);
+    
+    
     SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
     SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
     SOS_buffer_pack(msg, &offset, "s", query);
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(msg, &offset, "i", header.msg_size);
+    SOS_msg_zip(msg, header, 0, &offset);
 
     dlog(7, "   ... sending to daemon.\n");
     SOS_socket *target = NULL;
@@ -133,11 +130,7 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     header.msg_from = SOS->config.comm_rank;
     header.ref_guid = 0;
     int offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-        header.msg_size,
-        header.msg_type,
-        header.msg_from,
-        header.ref_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
@@ -160,8 +153,7 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
-
+    SOS_msg_zip(buffer, header, 0, &offset);
     dlog(7, "   ... done.\n");
 
     return;
@@ -189,11 +181,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     int offset = 0;
 
     // Strip out the header...
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
@@ -355,17 +343,12 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
     header.ref_guid = 0;
 
     int offset = 0;
-    SOS_buffer_pack(msg, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
+    SOS_msg_zip(msg, header, 0, &offset);
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(msg, &offset, "i",
-                    header.msg_size);
-
+    SOS_msg_zip(msg, header, 0, &offset);
+    
     SOSA_send_to_target_db(msg, reply);
 
     if (reply->len < (2 * sizeof(double))) {

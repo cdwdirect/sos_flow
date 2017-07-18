@@ -291,19 +291,6 @@ if(MPI_CXX_LINK_FLAGS)
 	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
-#TARGET ---> demo_sweep
-#            (demonstration / example)
-add_executable("demo_sweep" "demo_sweep.c")
-target_link_libraries("demo_sweep" "sos" "${MPI_C_LIBRARIES}")
-if(MPI_C_COMPILE_FLAGS)
-  set_target_properties("demo_sweep" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
-endif()
-if(MPI_C_LINK_FLAGS)
-  set_target_properties("demo_sweep" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
-endif()
-
-
-
 
 
 #TARGET ---> proc_app
