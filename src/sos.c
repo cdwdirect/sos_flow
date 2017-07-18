@@ -555,9 +555,7 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
 
     header.msg_size = offset;
     offset = 0;
-
-    SOS_buffer_pack(msg, &offset, "i",
-            header.msg_size);
+    SOS_msg_zip(msg, header, 0, &offset);
 
     SOS_send_to_daemon(msg, reply);
 
@@ -626,9 +624,12 @@ SOS_msg_zip(
         int *offset_after_header)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_message_zip");
+    
+    if (msg->is_locking) {
+        pthread_mutex_lock(msg->lock);
+    }
 
     int offset = starting_offset;
-    
     SOS_buffer_pack(msg, &offset, "iigg",
             header.msg_size,
             header.msg_type,
@@ -639,9 +640,15 @@ SOS_msg_zip(
     SOS_buffer_pack(msg, &offset, "s", SOS->my_cred);
     msg->ref_cred = SOS->my_cred;
 #endif
+    
     *offset_after_header = offset;
+    msg->is_zipped = true;
 
-    return 0;
+    if (msg->is_locking) {
+        pthread_mutex_unlock(msg->lock);
+    }
+
+    return offset;
 }
 
 
@@ -654,6 +661,10 @@ SOS_msg_unzip(
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_message_unzip");
 
+    if (msg->is_locking) {
+        pthread_mutex_unlock(msg->lock);
+    }
+
     int offset = starting_offset;
     SOS_buffer_unpack(msg, &offset, "iigg",
             &header->msg_size,
@@ -662,14 +673,52 @@ SOS_msg_unzip(
             &header->ref_guid);
 
 #ifdef USE_MUNGE
-    if (msg->ref_cred != NULL) { free(msg->ref_cred); }
+    //if (msg->ref_cred != NULL) { free(msg->ref_cred); }
     msg->ref_cred = NULL;
     SOS_buffer_unpack_safestr(msg, &offset, &msg->ref_cred);
 #endif
-    *offset_after_header = offset;
 
-    return 0;
+    *offset_after_header = offset;
+    msg->is_zipped = false;
+
+    if (msg->is_locking) {
+        pthread_mutex_unlock(msg->lock);
+    }
+
+    return offset;
 }
+
+
+int
+SOS_msg_seal(
+        SOS_buffer *msg,
+        SOS_msg_header header,
+        int starting_offset,
+        int *offset_after_header_size_field)
+{
+    SOS_SET_CONTEXT(msg->sos_context, "SOS_message_seal");
+    // A small utility function to set the header size field
+    // before sending over the wire, to be used when assembling
+    // custom message buffers (rarely).
+
+    if (msg->is_locking) {
+        pthread_mutex_lock(msg->lock);
+    }
+
+    // Note: We do not change the 'is_zipped' flag here, since
+    // we're merely adjusting the size field.
+
+    int offset = starting_offset;
+    SOS_buffer_pack(msg, &offset, "i", header.msg_size);
+    *offset_after_header_size_field = offset;
+
+    if (msg->is_locking) {
+        pthread_mutex_unlock(msg->lock);
+    }
+
+    return offset;
+}
+
 
 
 
@@ -681,9 +730,11 @@ SOS_target_accept_connection(SOS_socket *target)
 
     dlog(5, "Listening for a message...\n");
     target->peer_addr_len = sizeof(target->peer_addr);
+    dlog(6, "  ... accepting\n");
     target->client_socket_fd = accept(target->server_socket_fd,
             (struct sockaddr *) &target->peer_addr,
             &target->peer_addr_len);
+    dlog(6, "  ... getting name info\n");
     i = getnameinfo((struct sockaddr *) &target->peer_addr,
             target->peer_addr_len, target->client_host,
             NI_MAXHOST, target->client_port, NI_MAXSERV,
@@ -729,11 +780,7 @@ SOS_target_recv_msg(
     memset(&header, '\0', sizeof(SOS_msg_header));
     if (reply->len >= sizeof(SOS_msg_header)) {
         int offset = 0;
-        SOS_buffer_unpack(reply, &offset, "iigg",
-                &header.msg_size,
-                &header.msg_type,
-                &header.msg_from,
-                &header.ref_guid);
+        SOS_msg_unzip(reply, &header, 0, &offset);
     } else {
         fprintf(stderr, "SOS: Received malformed message:"
                 " (bytes: %d)\n", reply->len);
@@ -1017,14 +1064,11 @@ void SOS_finalize(SOS_runtime *sos_context) {
             header.msg_type = SOS_MSG_TYPE_FEEDBACK;
             header.msg_from = SOS->my_guid;
             header.ref_guid = -1;
-            SOS_buffer_pack(msg, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
+            SOS_msg_zip(msg, header, 0, &offset);            
+            
             header.msg_size = offset;
             offset = 0;
-            SOS_buffer_pack(msg, &offset, "i", header.msg_size);
+            SOS_msg_zip(msg, header, 0, &offset);
 
             SOS_target_send_msg(target, target->server_socket_fd, msg);
             SOS_target_disconnect(target);
@@ -1104,8 +1148,10 @@ SOS_THREAD_receives_direct(void *args)
     insock.server_hint.ai_canonname  = NULL;
     insock.server_hint.ai_addr       = NULL;
     insock.server_hint.ai_next       = NULL;
-        i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
-        &insock.result_list);
+
+    
+    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
+            &insock.result_list);
 
     if (i != 0) {
         fprintf(stderr, "ERROR: Feedback broken, client-side getaddrinfo()"
@@ -1228,7 +1274,6 @@ SOS_THREAD_receives_direct(void *args)
             break;
         }
 
-        offset = 0;
         buffer->len = recv(insock.client_socket_fd, (void *) buffer->data,
                 buffer->max, 0);
         dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
@@ -1240,11 +1285,8 @@ SOS_THREAD_receives_direct(void *args)
 
         memset(&header, '\0', sizeof(SOS_msg_header));
         if (buffer->len >= sizeof(SOS_msg_header)) {
-            SOS_buffer_unpack(buffer, &offset, "iigg",
-                              &header.msg_size,
-                              &header.msg_type,
-                              &header.msg_from,
-                              &header.ref_guid);
+            offset = 0;
+            SOS_msg_unzip(buffer, &header, 0, &offset);
         } else {
             dlog(0, "  ... Received short (useless) message.\n");
             continue;
@@ -1286,15 +1328,16 @@ SOS_THREAD_receives_direct(void *args)
 
 
         if (header.msg_type == SOS_FEEDBACK_TYPE_QUERY) {
-
+            dlog(5, "Returning query results to the feedback"
+                    " handler function.\n");
             if (SOS->config.feedback_handler != NULL) {
                 SOS->config.feedback_handler(
                         header.msg_type,
                         header.msg_size,
                         (void *)buffer);
             } else {
-                fprintf(stderr, "WARNING: Feedback received but no handler"
-                        " has been set. Doing nothing.\n");
+                fprintf(stderr, "WARNING: Feedback (QUERY RESULTS) received"
+                        " but no handler has been set. Doing nothing.\n");
             }
             //...
 
@@ -1309,34 +1352,34 @@ SOS_THREAD_receives_direct(void *args)
             memcpy(payload_data, buffer->data + offset, payload_size);
             offset += payload_size;
 
-            /*
-             * Uncomment in case of emergency:
-             *
-            fprintf(stderr, "Message from the server ...\n");
-            fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
-            fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
-            fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
-                    header.msg_from);
-            fprintf(stderr, "   header.ref_guid == %" SOS_GUID_FMT "\n",
-                    header.ref_guid);
-            fprintf(stderr, "\n");
-            fprintf(stderr, "   payload_type == %d\n", payload_type);
-            fprintf(stderr, "   payload_size == %d\n", payload_size);
-            fprintf(stderr, "   payload_data == \"%s\"\n", (char *) payload_data);
-            fprintf(stderr, "   ...\n");
-            fprintf(stderr, "\n");
-            fflush(stderr);
-             *
-             */
-
+            //
+            // NOTE: Uncomment in case of emergency... useful for debugging.  :)
+            // 
+            //fprintf(stderr, "Message from the server ...\n");
+            //fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
+            //fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
+            //fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
+            //        header.msg_from);
+            //fprintf(stderr, "   header.ref_guid == %" SOS_GUID_FMT "\n",
+            //        header.ref_guid);
+            //fprintf(stderr, "\n");
+            //fprintf(stderr, "   payload_type == %d\n", payload_type);
+            //fprintf(stderr, "   payload_size == %d\n", payload_size);
+            //fprintf(stderr, "   payload_data == \"%s\"\n", (char *) payload_data);
+            //fprintf(stderr, "   ...\n");
+            //fprintf(stderr, "\n");
+            //fflush(stderr);
+            //
+            
             if (SOS->config.feedback_handler != NULL) {
+                dlog(5, "Sending payload to the feedback handler.\n");
                 SOS->config.feedback_handler(
                         payload_type,
                         payload_size,
                         payload_data);
             } else {
-                fprintf(stderr, "WARNING: Feedback received but no handler"
-                        " has been set. Doing nothing.\n");
+                fprintf(stderr, "WARNING: Feedback (PAYLOAD) received but"
+                        " no handler has been set. Doing nothing.\n");
             }
         }
         close(insock.client_socket_fd);
@@ -1384,28 +1427,29 @@ void* SOS_THREAD_receives_timed(void *args) {
     pthread_mutex_lock(SOS->task.feedback_lock);
     error_count = 0;
 
+    fprintf(stderr, "CRITICAL WARNING: You have selected TIMED"
+            " feedback checkins. This feature is not presently"
+            " supported!\n"
+            "                 Please use DIRECT or NO feedback.\n");
+
     while (SOS->status != SOS_STATUS_SHUTDOWN) {
         // Build a checkin message.
         SOS_buffer_wipe(check_in_buffer);
         SOS_buffer_wipe(feedback_buffer);
 
+        dlog(4, "Building a check-in message.\n");
+        
         header.msg_size = -1;
         header.msg_from = SOS->my_guid;
         header.msg_type = SOS_MSG_TYPE_CHECK_IN;
         header.ref_guid = 0;
 
-        dlog(4, "Building a check-in message.\n");
-
         offset = 0;
-        SOS_buffer_pack(check_in_buffer, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+        SOS_msg_zip(check_in_buffer, header, 0, &offset);
 
         header.msg_size = offset;
         offset = 0;
-        SOS_buffer_pack(check_in_buffer, &offset, "i", header.msg_size);
+        SOS_msg_zip(check_in_buffer, header, 0, &offset);
 
         if (SOS->status != SOS_STATUS_RUNNING) break;
 
@@ -1418,11 +1462,7 @@ void* SOS_THREAD_receives_timed(void *args) {
 
         memset(&header, '\0', sizeof(SOS_msg_header));
         offset = 0;
-        SOS_buffer_unpack(feedback_buffer, &offset, "iigg",
-            &header.msg_size,
-            &header.msg_type,
-            &header.msg_from,
-            &header.ref_guid);
+        SOS_msg_unzip(feedback_buffer, &header, 0, &offset);
 
         if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
             dlog(0, "WARNING: sosd (daemon) responded to a CHECK_IN_MSG"
@@ -1495,12 +1535,15 @@ void SOS_process_feedback(SOS_buffer *buffer) {
     int msg = 0;
     for (msg = 0; msg < msg_count; msg++) {
 
-        SOS_buffer_unpack(buffer, &offset, "iigg",
-                &header.msg_size,
-                &header.msg_type,
-                &header.msg_from,
-                &header.ref_guid);
+        // HERE we would extract the message from the buffer...
+        // ...
+        //
+        // THEN we would unzip it
+        // ...
 
+        SOS_msg_unzip(buffer, &header, offset, &offset);
+        
+        
         //TODO: Process the feedback for all three kinds of handlers.
         //...Waiting on the message format to settle down first.
 
@@ -1599,15 +1642,11 @@ SOS_uid_next( SOS_uid *id ) {
             header.ref_guid = 0;
 
             offset = 0;
-            SOS_buffer_pack(buf, &offset, "iigg",
-                            header.msg_size,
-                            header.msg_type,
-                            header.msg_from,
-                            header.ref_guid);
+            SOS_msg_zip(buf, header, 0, &offset);
 
             header.msg_size = offset;
             offset = 0;
-            SOS_buffer_pack(buf, &offset, "i", header.msg_size);
+            SOS_msg_zip(buf, header, 0, &offset);
 
             SOS_buffer *reply;
             SOS_buffer_init_sized_locking(SOS, &reply,
@@ -1616,11 +1655,7 @@ SOS_uid_next( SOS_uid *id ) {
             SOS_send_to_daemon(buf, reply);
 
             offset = 0;
-            SOS_buffer_unpack(reply, &offset, "iigg",
-                    &header.msg_size,
-                    &header.msg_type,
-                    &header.msg_from,
-                    &header.ref_guid);
+            SOS_msg_unzip(reply, &header, 0, &offset);
 
             if (SOS->config.offline_test_mode == true) {
                 //Do nothing.
@@ -2187,11 +2222,7 @@ SOS_val_snap_queue_to_buffer(
     header.ref_guid = pub->guid;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     SOS_buffer_pack(buffer, &offset, "i", snap_count);
 
@@ -2259,7 +2290,8 @@ SOS_val_snap_queue_to_buffer(
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
+    
     dlog(6, "     ... done   (buf_len == %d)\n", header.msg_size);
 
     pthread_mutex_unlock(pub->lock);
@@ -2297,11 +2329,7 @@ SOS_val_snap_queue_from_buffer(
     dlog(6, "     ... processing header\n");
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-                      &header.msg_size,
-                      &header.msg_type,
-                      &header.msg_from,
-                      &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     dlog(6, "     ... header.msg_size == %d\n", header.msg_size);
     dlog(6, "     ... header.msg_type == %d\n", header.msg_type);
@@ -2419,12 +2447,8 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     header.ref_guid = pub->guid;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
-
+    SOS_msg_zip(buffer, header, 0, &offset);
+    
     pthread_mutex_lock(pub->lock);
 
     // Pub metadata.
@@ -2465,10 +2489,9 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 
     pthread_mutex_unlock(pub->lock);
 
-    // Re-pack the message size now that we know it.
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     return;
 }
@@ -2503,12 +2526,8 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     header.ref_guid = pub->guid;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
-
+    SOS_msg_zip(buffer, header, 0, &offset);
+    
     // Pack in the frame of these elements:
     SOS_buffer_pack(buffer, &offset, "l", this_frame);
 
@@ -2575,7 +2594,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     // Re-pack the message size now that we know what it is.
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     pthread_mutex_unlock(pub->lock);
 
@@ -2596,12 +2615,8 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "  ... unpacking the header.\n");
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-                      &header.msg_size,
-                      &header.msg_type,
-                      &header.msg_from,
-                      &header.ref_guid);
-
+    SOS_msg_unzip(buffer, &header, 0, &offset);
+    
     pub->guid = header.ref_guid;
     snprintf(pub->guid_str, SOS_DEFAULT_STRING_LEN,
             "%" SOS_GUID_FMT, pub->guid);
@@ -2760,11 +2775,7 @@ SOS_publish_from_buffer(
     dlog(7, "Unpacking the values from the buffer...\n");
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     dlog(7, "  ... header.msg_size = %d\n", header.msg_size);
     dlog(7, "  ... header.msg_type = %d\n", header.msg_type);

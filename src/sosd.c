@@ -116,6 +116,7 @@ int main(int argc, char *argv[])  {
     // up by initializing all this stuff manually before even SOS_init()
     SOS_socket *tgt = (SOS_socket *) calloc(1, sizeof(SOS_socket)); 
     SOSD.net = tgt;
+
     tgt->send_lock = (pthread_mutex_t *) calloc(1, sizeof(pthread_mutex_t));
     pthread_mutex_lock(tgt->send_lock);
 
@@ -278,7 +279,7 @@ int main(int argc, char *argv[])  {
     }
 
     dlog(0, "Calling register_signal_handler()...\n");
-    if (SOSD_DAEMON_LOG) SOS_register_signal_handler(SOSD.sos_context);
+    if (SOSD_DAEMON_LOG > -1) SOS_register_signal_handler(SOSD.sos_context);
 
     dlog(0, "Calling daemon_setup_socket()...\n");
     SOSD_setup_socket();
@@ -438,7 +439,95 @@ void SOSD_listen_loop() {
             SOS_DEFAULT_BUFFER_MAX, false);
     SOS_buffer_init_sized_locking(SOS, &rapid_reply,
             SOS_DEFAULT_REPLY_LEN, false);
+    /* 
+     *
+     *
+     * All of this is handled by SOSD_setup_socket()....
+     *
+     *
+     *
+    // Listening on the socket...
+    //
+    int yes = 1;
+    int opts = 0;
+    i = getaddrinfo(NULL, SOSD.net->server_port, &SOSD.net->server_hint,
+            &SOSD.net->result_list);
 
+    if (i != 0) {
+        fprintf(stderr, "ERROR: Daemon socket broken, server-side getaddrinfo()"
+            " failed. (%s)\n", gai_strerror(errno));
+        fflush(stderr);
+        return;
+    }
+
+    for (SOSD.net->server_addr = SOSD.net->result_list ;
+        SOSD.net->server_addr != NULL ; 
+        SOSD.net->server_addr = SOSD.net->server_addr->ai_next )
+    {
+        dlog(1, "Trying an address...\n");
+
+        SOSD.net->server_socket_fd = socket(SOSD.net->server_addr->ai_family,
+            SOSD.net->server_addr->ai_socktype, SOSD.net->server_addr->ai_protocol);
+
+        if (SOSD.net->server_socket_fd < 1) {
+            fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
+                strerror(errno));
+            fflush(stderr);
+            continue;
+        }
+
+        // Allow this socket to be reused/rebound quickly.
+        if (setsockopt(SOSD.net->server_socket_fd, SOL_SOCKET, SO_REUSEADDR,
+            &yes, sizeof(int)) == -1)
+        {
+            dlog(0, "  ... could not set socket options.  (%s)\n",
+                strerror(errno));
+            continue;
+        }
+       
+        SOSD.net->server_addr->ai_addrlen = sizeof(struct sockaddr_in);
+
+        if ( bind( SOSD.net->server_socket_fd, SOSD.net->server_addr->ai_addr,
+                SOSD.net->server_addr->ai_addrlen ) == -1 ) {
+            dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
+            close( SOSD.net->server_socket_fd );
+            SOSD.net->server_socket_fd = -1;
+            continue;
+        } 
+        // If we get here, we're good to stop looking.
+        break;
+    }
+
+    if ( SOSD.net->server_socket_fd <= 0 ) {
+        fprintf(stderr, "ERROR: Client could not socket/setsockopt/"
+                "bind to anything to receive feedback. (%d:%s)\n",
+                errno, strerror(errno));
+         
+    } else {
+        dlog(0, "  ... got a socket, and bound to it!\n");
+    }
+
+    freeaddrinfo(SOSD.net->result_list);
+
+     // Enforce that this is a BLOCKING socket:
+    opts = fcntl(SOSD.net->server_socket_fd, F_GETFL);
+    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the"
+          " server_socket_fd to get its options.  Carrying on.  (%s)\n",
+          strerror(errno));
+    }
+ 
+    opts = opts & !(O_NONBLOCK);
+    i    = fcntl(SOSD.net->server_socket_fd, F_SETFL, opts);
+    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
+        " server_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
+        strerror(errno));
+    }
+
+    listen( SOSD.net->server_socket_fd, SOSD.net->listen_backlog );
+    */
+
+
+    dlog(5, "Assembling rapid_reply for val_snaps...\n");
     SOSD_PACK_ACK(rapid_reply);
 
     dlog(0, "Entering main loop...\n");
@@ -446,22 +535,24 @@ void SOSD_listen_loop() {
         offset = 0;
         SOS_buffer_wipe(buffer);
 
-        //dlog(5, "Listening for a message...\n");
-        //SOSD.net->peer_addr_len = sizeof(SOSD.net->peer_addr);
-        //SOSD.net->client_socket_fd = accept(SOSD.net->server_socket_fd,
-        //        (struct sockaddr *) &SOSD.net->peer_addr,
-        //        &SOSD.net->peer_addr_len);
-        //i = getnameinfo((struct sockaddr *) &SOSD.net->peer_addr,
-        //        SOSD.net->peer_addr_len, SOSD.net->client_host,
-        //        NI_MAXHOST, SOSD.net->client_port, NI_MAXSERV,
-        //        NI_NUMERICSERV);
-        //if (i != 0) {
-        //    dlog(0, "Error calling getnameinfo() on client connection."
-        //            "  (%s)\n", strerror(errno));
-        //    break;
-        //}
+        dlog(5, "Listening for a message...\n");
+        SOSD.net->peer_addr_len = sizeof(SOSD.net->peer_addr);
+        SOSD.net->client_socket_fd = accept(SOSD.net->server_socket_fd,
+                (struct sockaddr *) &SOSD.net->peer_addr,
+                &SOSD.net->peer_addr_len);
+        i = getnameinfo((struct sockaddr *) &SOSD.net->peer_addr,
+                SOSD.net->peer_addr_len, SOSD.net->client_host,
+                NI_MAXHOST, SOSD.net->client_port, NI_MAXSERV,
+                NI_NUMERICSERV);
+        if (i != 0) {
+            dlog(0, "Error calling getnameinfo() on client connection."
+                    "  (%s)\n", strerror(errno));
+            break;
+        }
 
-        SOS_target_accept_connection(SOSD.net);
+        //SOS_target_accept_connection(SOSD.net);
+
+        dlog(5, "Accepted connection.  Attempting to receive message...\n");
         SOS_target_recv_msg(SOSD.net, SOSD.net->client_socket_fd, buffer);
 
         dlog(5, "Received connection.\n");
@@ -663,30 +754,15 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             SOS_buffer_init_sized_locking(SOS, &delivery, 1024, false);
 
             offset = 0;
-            SOS_buffer_pack(delivery, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
-
+            SOS_msg_zip(buffer, header, 0, &offset);
+            
             int after_header = offset;
 
-            //SOS_buffer_pack(delivery, &offset, "i", payload->size);
-            //SOS_buffer_grow(delivery, 1 + offset + payload->size, SOS_WHOAMI);
-            //memcpy((void *) delivery->data + offset, (void *) payload->data,
-            //        payload->size);
-            //offset += payload->size;
-            //delivery->len = offset;
-
-            // This does the same thing as the commented-out code above.
             SOS_buffer_pack_bytes(delivery, &offset, payload->size, payload->data);
-
-            
 
             header.msg_size = offset;
             offset = 0;
-            SOS_buffer_pack(delivery, &offset, "i",
-                    header.msg_size);
+            SOS_msg_zip(delivery, header, 0, &offset);
 
             pthread_mutex_lock(SOSD.sync.sense_list_lock);
             SOSD_sensitivity_entry *sense = SOSD.sync.sense_list_head;
@@ -811,12 +887,9 @@ void* SOSD_THREAD_local_sync(void *args) {
         }
 
         int offset = 0;
-        SOS_buffer_unpack(buffer, &offset, "iigg",
-            &header.msg_size,
-            &header.msg_type,
-            &header.msg_from,
-            &header.ref_guid);
-        
+        SOS_msg_unzip(buffer, &header, 0, &offset);
+
+
         switch(header.msg_type) {
         case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer); break;
         case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer); break;
@@ -1020,18 +1093,21 @@ void* SOSD_THREAD_cloud_send(void *args) {
         my->queue->elem_count -= count;
         pthread_mutex_unlock(my->queue->sync_lock);
 
+        // NOTE: This is an exception to other message packaging formats you see
+        //       in SOS, because all daemon<-->daemon messages contain a count
+        //       of internal messages as the first value, to be able to buffer
+        //       and shuttle groups of messages around rather than incurring
+        //       setup and teardown overhead for each relayed message.
         offset = 0;
         SOS_buffer_pack(buffer, &offset, "i", count);
+
+        // Embed all of the messages we've enqueued to send...
         for (msg_index = 0; msg_index < count; msg_index++) {
  
             msg_offset = 0;
             msg = msg_list[msg_index];
 
-            SOS_buffer_unpack(msg, &msg_offset, "iigg",
-                &header.msg_size,
-                &header.msg_type,
-                &header.msg_from,
-                &header.ref_guid);
+            SOS_msg_unzip(msg, &header, 0, &msg_offset);
 
             while ((header.msg_size + offset) > buffer->max) {
                 dlog(1, "(header.msg_size == %d   +   offset == %d)"
@@ -1314,7 +1390,7 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
     SOSD_PACK_ACK(reply);
     int rc = 0;
-    SOS_target_send_msg(SOSD.net, SOSD.net->client_connection_fd, reply);
+    SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1335,18 +1411,21 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     SOSD_evpath_handle_triggerpull(msg);
     #endif
-    dlog(5, "Cloud function returned, sending ACK reply.\n");
+
+    dlog(5, "Cloud function returned, sending ACK reply to client"
+            "that pulled the trigger.\n");
     SOS_buffer *reply;
     SOS_buffer_init_sized(SOS, &reply, 1024);
     SOSD_PACK_ACK(reply);
 
-    SOS_target_send_msg(SOSD.net, SOSD.net->client_connection_fd, reply);
-    
-    if (i == -1) {
+    int rc;
+    rc = SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
+
+    if (rc == -1) {
             dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
-        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
-        SOSD_countof(socket_bytes_sent += i);
+        dlog(5, "  ... send() returned the following bytecount: %d\n", rc);
+        SOSD_countof(socket_bytes_sent += rc);
     }
 
     SOS_buffer_destroy(reply);
@@ -1446,7 +1525,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, 1024);
     SOSD_PACK_ACK(reply);
-    SOS_target_send_msg(SOSD.net, SOSD.net->client_connection_fd, reply);
+    SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1462,17 +1541,15 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
 void SOSD_handle_echo(SOS_buffer *buffer) { 
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_echo");
-    SOS_msg_header header;
-    int            offset;
     int            rc;
-
     dlog(5, "header.msg_type = SOS_MSG_TYPE_ECHO\n");
+    
+    SOS_msg_header header;
+    
+    int offset = 0;
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+    dlog(5, "Message unzipped.  Sending it back to the sender.\n");
 
     rc = send(SOSD.net->client_socket_fd, (void *) buffer->data, buffer->len, 0);
     if (rc == -1) {
@@ -1497,11 +1574,8 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     dlog(5, "header.msg_type = SOS_MSG_TYPE_VAL_SNAPS\n");
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-                      &header.msg_size,
-                      &header.msg_type,
-                      &header.msg_from,
-                      &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
+    
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
@@ -1542,11 +1616,9 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
         // Set it to be the KMEAN type of data:
         offset = 0;
         header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
-        SOS_buffer_pack(copy, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+
+        SOS_msg_zip(copy, header, 0, &offset);
+
         // Enqueue it to be handled:
         pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
         pipe_push(SOSD.sync.local.queue->intake, (void *)&copy, 1);
@@ -1575,11 +1647,6 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
-    //SOS_buffer_unpack(buffer, &offset, "iigg",
-    //                  &header.msg_size,
-    //                  &header.msg_type,
-    //                  &header.msg_from,
-    //                  &header.ref_guid);
 
     //Check version of the client against the server's:
     int client_version_major = -1;
@@ -1676,11 +1743,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
     header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(reply, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+    SOS_msg_zip(reply, header, 0, &offset);
 
     SOS_buffer_pack(reply, &offset, "gg",
             block_from,
@@ -1688,7 +1751,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(reply, &offset, "i", header.msg_size);
+    SOS_msg_zip(reply, header, 0, &offset);
 
     i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
@@ -1719,11 +1782,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
+    
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
@@ -1774,11 +1834,8 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-                      &header.msg_size,
-                      &header.msg_type,
-                      &header.msg_from,
-                      &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
+    
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
@@ -1828,11 +1885,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
         // Set it to be the KMEAN type of data:
         offset = 0;
         header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
-        SOS_buffer_pack(copy, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+        SOS_msg_zip(copy, header, 0, &offset);
         // Enqueue it to be handled:
         pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
         pipe_push(SOSD.sync.local.queue->intake, (void *) &copy, 1);
@@ -1859,11 +1912,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-                             &header.msg_size,
-                             &header.msg_type,
-                             &header.msg_from,
-                             &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_PACK_ACK(reply);
@@ -1914,11 +1963,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
     SOS_buffer_init(SOS, &reply);
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     if (SOS->role == SOS_ROLE_LISTENER) {
         /* Build a reply: */
@@ -1929,11 +1974,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         header.ref_guid = 0;
 
         offset = 0;
-        SOS_buffer_pack(reply, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+        SOS_msg_zip(reply, header, 0, &offset);
 
         /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
@@ -1945,7 +1986,8 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         /* Go back and set the message length to the actual length. */
         header.msg_size = offset;
         offset = 0;
-        SOS_buffer_pack(reply, &offset, "i", header.msg_size);
+        SOS_msg_zip(reply, header, 0, &offset);
+
 
         dlog(1, "Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", function_name);
 
@@ -1983,11 +2025,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     dlog(5, "Assembling probe data structure...\n");
 
     int offset = 0;
-    SOS_buffer_pack(reply, &offset, "iigg",
-                    header.msg_size,
-                    header.msg_type,
-                    header.msg_from,
-                    header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     /* Don't need to lock for probing because it doesn't matter if we're a little off. */
     uint64_t queue_depth_local     = SOSD.sync.local.queue->elem_count;
@@ -2097,11 +2135,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
     SOS_buffer_init(SOS, &reply);
 
     offset = 0;
-    SOS_buffer_unpack(reply, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     dlog(1, "header.msg_size == %d\n", header.msg_size);
     dlog(1, "header.msg_type == %d\n", header.msg_type);

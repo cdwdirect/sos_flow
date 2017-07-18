@@ -1,6 +1,7 @@
 #include "sos.h"
 #include "sosd.h"
 #include "sosd_system.h"
+#include "sos_debug.h"
 #include <sys/stat.h>
 #include <string.h>
 #include <sstream>
@@ -279,7 +280,6 @@ void ProcData::sample_values(void) {
 #define STRINGIFY2(X) #X
 #define STRINGIFY(X) STRINGIFY2(X)
 
-#define dlog(x,...)
 
 /* Get initial readings */
 extern "C" void SOSD_setup_system_data(void) {
@@ -287,10 +287,16 @@ extern "C" void SOSD_setup_system_data(void) {
 }
 
 void setup_system_monitor_pub(void) {
-    //SOS_SET_CONTEXT(SOSD.sos_context, __func__);
-  SOS_runtime * SOS = SOSD.sos_context;
+    SOS_runtime *SOS = SOSD.sos_context;
 
-  /* set up the networking */
+    /*
+     *  I'm not sure what's going on here, but this looks wrong.
+     *
+     *  Why are we not calling SOS_init(...) normally?
+     *
+     *
+
+    // set up the networking
     SOS_msg_header header;
     int i, n, retval, server_socket_fd;
     SOS_guid guid_pool_from;
@@ -457,8 +463,9 @@ void setup_system_monitor_pub(void) {
         dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
 
         SOS_buffer_destroy(buffer);
+        */
 
-  /* make our pub */
+  // make our pub 
   char * pub_title = strdup("system monitor");
   SOS_pub_create(SOSD.sos_context, &pub, pub_title, SOS_NATURE_CREATE_OUTPUT);
   std::stringstream version;
@@ -471,8 +478,6 @@ void setup_system_monitor_pub(void) {
   pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
   pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
-  /* do some other setup, because we aren't a regular client */
-  SOS_pipe_init(SOSD.sos_context, &(pub->snap_queue), sizeof(SOS_val_snap *));
   pids.insert(0);
 }
 

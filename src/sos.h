@@ -156,6 +156,9 @@ extern "C" {
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
             int starting_offset, int *offset_after_header);
 
+    int SOS_msg_seal(SOS_buffer *msg, SOS_msg_header header,
+            int starting_offset, int *offset_after_header_size_field);
+
     int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
             char *host, int port);
 

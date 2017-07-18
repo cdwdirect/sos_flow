@@ -24,6 +24,7 @@
 typedef struct {
     void                *sos_context;
     bool                 is_locking;
+    bool                 is_zipped;
     pthread_mutex_t     *lock;
     unsigned char       *data;
     int                  len;
