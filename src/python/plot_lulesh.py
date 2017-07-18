@@ -85,8 +85,8 @@ def queryAndPlot():
     plt.title('LULESH step = ' + str(max_cycle))
     plt.grid(True)
     plt.draw()
-    plt.savefig("lulesh.png")
-    plt.show()
+    plt.savefig("./imgs/lulesh_" + str(max_cycle) + ".png")
+    #plt.show()
 
     SOS.finalize();
     print "   ...DONE!"
