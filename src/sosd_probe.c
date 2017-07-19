@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     }
     
     if (GLOBAL_forced_sos_port_on > 0) {
-        strncpy(my_sos->net->server_port, GLOBAL_forced_sos_port, NI_MAXSERV);
+        strncpy(my_sos->net->remote_port, GLOBAL_forced_sos_port, NI_MAXSERV);
     }
     srandom(my_sos->my_guid);
 
@@ -263,7 +263,7 @@ int main(int argc, char *argv[]) {
             fprintf(GLOBAL_out, "{\"sosd_probe\": {\n");
             if (GLOBAL_forced_sos_port_on > 0) {
                 fprintf(GLOBAL_out, "\t\"__comment\" \"SOS_CMD_PORT overridden to %s\"\n",
-                       my_sos->net->server_port);
+                       my_sos->net->remote_port);
             }
             fprintf(GLOBAL_out, "\t\"timestamp\": \"%lf\",\n", time_now);
             fprintf(GLOBAL_out, "\t\"probe_rtt\": \"%lf\",\n", (rtt_at_reply - rtt_at_probe));

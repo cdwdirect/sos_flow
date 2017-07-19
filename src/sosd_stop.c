@@ -83,7 +83,7 @@ int main(int argc, char *argv[]) {
     dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
     SOS_target_connect(SOS->net);
-    SOS_target_send_msg(SOS->net, SOS->net->server_socket_fd, buffer);
+    SOS_target_send_msg(SOS->net, buffer);
 /**
  * @file sosdstop.c
  *  Utility to send the daemon a shutdown message w/out using a kill signal.
@@ -169,7 +169,7 @@ int main(int argc, char *argv[]) {
     dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
     SOS_target_connect(SOS->net);
-    SOS_target_send_msg(SOS->net, SOS->net->server_socket_fd, buffer);
+    SOS_target_send_msg(SOS->net, buffer);
     SOS_target_disconnect(SOS->net);
 
     SOS_buffer_destroy(buffer);

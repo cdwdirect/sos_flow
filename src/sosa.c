@@ -57,8 +57,8 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     SOS_socket *target = NULL;
     SOS_target_init(SOS, &target, target_host, target_port);
     SOS_target_connect(target);
-    SOS_target_send_msg(target, target->server_socket_fd, msg);
-    SOS_target_recv_msg(target, target->server_socket_fd, reply);
+    SOS_target_send_msg(target, msg);
+    SOS_target_recv_msg(target, reply);
     SOS_target_disconnect(target);
     SOS_target_destroy(target);
     

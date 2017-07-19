@@ -144,7 +144,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
-    int i, n, retval, server_socket_fd;
+    int i, n, retval, remote_socket_fd;
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
 
@@ -300,10 +300,10 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS_target_init(SOS, &SOS->net, SOS_DEFAULT_SERVER_HOST, sos_port); 
         SOS_target_connect(SOS->net);
         
-        if (SOS->net->server_socket_fd == 0) {
+        if (SOS->net->remote_socket_fd == 0) {
             fprintf(stderr, "ERROR!  Could not connect to"
                     " sosd.  (%s:%s)\n",
-                    SOS->net->server_host, SOS->net->server_port);
+                    SOS->net->remote_host, SOS->net->remote_port);
             pthread_mutex_destroy(SOS->net->send_lock);
             free(SOS->net->send_lock);
             free(*sos_runtime);
@@ -312,7 +312,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         }
 
         dlog(4, "  ... registering this instance with SOS->   (%s:%s)\n",
-            SOS->net->server_host, SOS->net->server_port);
+            SOS->net->remote_host, SOS->net->remote_port);
 
         SOS_buffer *buffer = NULL;
         SOS_buffer_init_sized(SOS, &buffer, 1024);
@@ -336,12 +336,12 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         offset = 0;
         SOS_msg_zip(buffer, header, 0, &offset);
 
-        retval = SOS_target_send_msg(SOS->net, SOS->net->server_socket_fd, buffer);
+        retval = SOS_target_send_msg(SOS->net, buffer);
 
         if (retval < 0) {
             fprintf(stderr, "ERROR!  Could not write to server socket!"
                     "  (%s:%s)\n",
-                    SOS->net->server_host, SOS->net->server_port);
+                    SOS->net->remote_host, SOS->net->remote_port);
             SOS_target_destroy(SOS->net);
             free(*sos_runtime);
             *sos_runtime = NULL;
@@ -352,7 +352,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 
         dlog(4, "  ... listening for the server to reply...\n");
         SOS_buffer_wipe(buffer);
-        SOS_target_recv_msg(SOS->net, SOS->net->server_socket_fd, buffer);
+        SOS_target_recv_msg(SOS->net, buffer);
         dlog(4, "  ... server responded with %d bytes.\n", retval);
 
         SOS_target_disconnect(SOS->net);
@@ -745,13 +745,13 @@ SOS_target_accept_connection(SOS_socket *target)
     dlog(5, "Listening for a message...\n");
     target->peer_addr_len = sizeof(target->peer_addr);
     dlog(6, "  ... accepting\n");
-    target->client_socket_fd = accept(target->server_socket_fd,
+    target->remote_socket_fd = accept(target->local_socket_fd,
             (struct sockaddr *) &target->peer_addr,
             &target->peer_addr_len);
     dlog(6, "  ... getting name info\n");
     i = getnameinfo((struct sockaddr *) &target->peer_addr,
-            target->peer_addr_len, target->client_host,
-            NI_MAXHOST, target->client_port, NI_MAXSERV,
+            target->peer_addr_len, target->remote_host,
+            NI_MAXHOST, target->remote_port, NI_MAXSERV,
             NI_NUMERICSERV);
     if (i != 0) {
         dlog(0, "Error calling getnameinfo() on client connection."
@@ -765,7 +765,6 @@ SOS_target_accept_connection(SOS_socket *target)
 int
 SOS_target_recv_msg(
         SOS_socket *target,
-        int from_fd,
         SOS_buffer *reply)
 {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_recv_msg");
@@ -784,7 +783,7 @@ SOS_target_recv_msg(
     }
     
     int offset = 0;
-    reply->len = recv(from_fd, reply->data, 
+    reply->len = recv(target->remote_socket_fd, reply->data, 
             reply->max, 0);
     if (reply->len < 0) {
         fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
@@ -809,7 +808,7 @@ SOS_target_recv_msg(
             SOS_buffer_grow(reply, 1 + (header.msg_size - reply->max),
                     SOS_WHOAMI);
         }
-        int rest = recv(from_fd, (void *) (reply->data + old),
+        int rest = recv(target->remote_socket_fd, (void *) (reply->data + old),
                 header.msg_size - old, 0);
         if (rest < 0) {
             fprintf(stderr, "SOS: recv() call for reply from"
@@ -845,24 +844,26 @@ SOS_target_init(
     pthread_mutex_lock(tgt->send_lock);
 
     if (target_host != NULL) {
-        strncpy(tgt->server_host, target_host, NI_MAXHOST);
+        strncpy(tgt->remote_host, target_host, NI_MAXHOST);
     } else {
         dlog(0, "WARNING: No host specified during a SOS_target_init."
                 "  Defaulting to 'localhost'.\n");
-        strncpy(tgt->server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+        strncpy(tgt->remote_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     }
 
-    snprintf(tgt->server_port, NI_MAXSERV, "%d", target_port);
+    snprintf(tgt->remote_port, NI_MAXSERV, "%d", target_port);
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->server_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    tgt->server_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
-    tgt->server_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
-    tgt->server_hint.ai_protocol   = 0;             // Any protocol
-    //tgt->server_hint.ai_canonname  = NULL;
-    //tgt->server_hint.ai_addr       = NULL;
-    //tgt->server_hint.ai_next       = NULL;
+    tgt->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
+    tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
+    tgt->local_hint.ai_protocol   = 0;             // Any protocol
+
+    strncpy(tgt->local_host, "localhost", NI_MAXHOST);
+    strncpy(tgt->local_port, "0", NI_MAXSERV);
+    tgt->port_number = 0;
+
 
     pthread_mutex_unlock(tgt->send_lock);
 
@@ -894,29 +895,29 @@ SOS_target_connect(SOS_socket *target) {
 
     dlog(8, "Attempting to open server socket...\n");
     dlog(8, "   ...gathering address info.\n");
-    target->server_socket_fd = -1;
-    retval = getaddrinfo(target->server_host, target->server_port,
-        &target->server_hint, &target->result_list);
+    target->remote_socket_fd = -1;
+    retval = getaddrinfo(target->remote_host, target->remote_port,
+        &target->remote_hint, &target->result_list);
     if (retval < 0) {
-        dlog(0, "ERROR!  Could not connect to target.  (%s:%s)\n",
-            target->server_host, target->server_port );
+        dlog(0, "ERROR!  Could not get info on target.  (%s:%s)\n",
+            target->remote_host, target->remote_port );
         pthread_mutex_unlock(target->send_lock);
         return -1;
     }
     
     dlog(8, "   ...iterating possible connection techniques.\n");
     // Iterate the possible connections and register with the SOS daemon:
-    for (target->server_addr = target->result_list ;
-        target->server_addr != NULL ;
-        target->server_addr = target->server_addr->ai_next)
+    for (target->remote_addr = target->result_list ;
+        target->remote_addr != NULL ;
+        target->remote_addr = target->remote_addr->ai_next)
     {
-        new_fd = socket(target->server_addr->ai_family,
-            target->server_addr->ai_socktype,
-            target->server_addr->ai_protocol);
+        new_fd = socket(target->remote_addr->ai_family,
+            target->remote_addr->ai_socktype,
+            target->remote_addr->ai_protocol);
         if (new_fd == -1) { continue; }
         
-        retval = connect(new_fd, target->server_addr->ai_addr,
-            target->server_addr->ai_addrlen);
+        retval = connect(new_fd, target->remote_addr->ai_addr,
+            target->remote_addr->ai_addrlen);
         if (retval != -1) break;
         
         close(new_fd);
@@ -929,14 +930,14 @@ SOS_target_connect(SOS_socket *target) {
     
     if (new_fd <= 0) {
         dlog(0, "Error attempting to connect to the server.  (%s:%s)\n",
-            target->server_host, target->server_port);
+            target->remote_host, target->remote_port);
         pthread_mutex_unlock(target->send_lock);
         return -1;
     }
 
-    target->server_socket_fd = new_fd;
+    target->remote_socket_fd = new_fd;
     dlog(8, "   ...successfully connected!"
-            "  target->server_socket_fd == %d\n", target->server_socket_fd);
+            "  target->remote_socket_fd == %d\n", target->remote_socket_fd);
 
     return 0;
 }
@@ -946,10 +947,10 @@ int SOS_target_disconnect(SOS_socket *target) {
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_disconnect");
     
     dlog(8, "Closing target file descriptor... (%d)\n",
-            target->server_socket_fd);
+            target->remote_socket_fd);
 
-    close(target->server_socket_fd);
-    target->server_socket_fd = -1; 
+    close(target->remote_socket_fd);
+    target->remote_socket_fd = -1; 
     dlog(8, "Releasing target send_lock...\n");
     pthread_mutex_unlock(target->send_lock);
     
@@ -960,7 +961,6 @@ int SOS_target_disconnect(SOS_socket *target) {
 int
 SOS_target_send_msg(
         SOS_socket *target,
-        int outgoing_fd,
         SOS_buffer *msg)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_target_send_msg");
@@ -997,7 +997,7 @@ SOS_target_send_msg(
             pthread_mutex_unlock(target->send_lock);
             return -1;
         }
-        retval = send(target->server_socket_fd, (msg->data + total_bytes_sent),
+        retval = send(target->remote_socket_fd, (msg->data + total_bytes_sent),
                 msg->len, 0);
         if (retval < 0) {
             failed_send_count++;
@@ -1031,21 +1031,21 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
 
     if (rc != 0) {
         dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
-                SOS->net->server_host,
-                SOS->net->server_port,
+                SOS->net->local_host,
+                SOS->net->local_port,
                 rc);
         dlog(0, "ERROR: Ignoring transmission request and returning.\n");
         return;
     }
 
-    rc = SOS_target_send_msg(SOS->net, SOS->net->server_socket_fd, message);
+    rc = SOS_target_send_msg(SOS->net, message);
     if (rc < 0) {
         fprintf(stderr, "ERROR: Unable to send message to the SOS daemon.\n");
         fflush(stderr);
         return;
     }
 
-    SOS_target_recv_msg(SOS->net, SOS->net->server_socket_fd, reply);
+    SOS_target_recv_msg(SOS->net, reply);
 
     SOS_target_disconnect(SOS->net);
 
@@ -1061,7 +1061,6 @@ void SOS_finalize(SOS_runtime *sos_context) {
     dlog(1, "SOS->status = SOS_STATUS_SHUTDOWN\n");
     SOS->status = SOS_STATUS_SHUTDOWN;
 
-    free(SOS->config.node_id);
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         if (SOS->config.receives != SOS_RECEIVES_NO_FEEDBACK) {
@@ -1071,7 +1070,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             SOS_target_init(SOS, &target, "localhost", SOS->config.receives_port);
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;
-            SOS_buffer_init_sized_locking(SOS, &msg, 100, false);
+            SOS_buffer_init_sized_locking(SOS, &msg, 1024, false);
             
             int offset = 0;
             SOS_msg_header header;
@@ -1085,7 +1084,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             offset = 0;
             SOS_msg_zip(msg, header, 0, &offset);
 
-            SOS_target_send_msg(target, target->server_socket_fd, msg);
+            SOS_target_send_msg(target, msg);
             SOS_target_disconnect(target);
             SOS_target_destroy(target);
             SOS_buffer_destroy(msg);
@@ -1120,6 +1119,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             //SOS_buffer_destroy(SOS->net->recv_part);
         }
     }    
+    free(SOS->config.node_id);
 
     dlog(1, "Done!\n");
     free(SOS);
@@ -1151,21 +1151,21 @@ SOS_THREAD_receives_direct(void *args)
 
     yes = 1;
 
-    insock.server_port[0] = '0';    // NOTE: 0 = Request an OS-assigned open port.
-    insock.server_socket_fd = -1;
+    insock.local_port[0] = '0';    // NOTE: 0 = Request an OS-assigned open port.
+    insock.remote_socket_fd = -1;
     insock.listen_backlog = 10;
 
-    memset(&insock.server_hint, '\0', sizeof(struct addrinfo));
-    insock.server_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    insock.server_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
-    insock.server_hint.ai_flags      = AI_PASSIVE;    // Wildcard IP addresses
-    insock.server_hint.ai_protocol   = 0;             // Any protocol
-    insock.server_hint.ai_canonname  = NULL;
-    insock.server_hint.ai_addr       = NULL;
-    insock.server_hint.ai_next       = NULL;
+    memset(&insock.local_hint, '\0', sizeof(struct addrinfo));
+    insock.local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    insock.local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
+    insock.local_hint.ai_flags      = AI_PASSIVE;    // Wildcard IP addresses
+    insock.local_hint.ai_protocol   = 0;             // Any protocol
+    insock.local_hint.ai_canonname  = NULL;
+    insock.local_hint.ai_addr       = NULL;
+    insock.local_hint.ai_next       = NULL;
 
     
-    i = getaddrinfo(NULL, insock.server_port, &insock.server_hint,
+    i = getaddrinfo(NULL, insock.local_port, &insock.local_hint,
             &insock.result_list);
 
     if (i != 0) {
@@ -1175,16 +1175,16 @@ SOS_THREAD_receives_direct(void *args)
         return NULL;
     }
 
-    for (insock.server_addr = insock.result_list ;
-        insock.server_addr != NULL ; 
-        insock.server_addr = insock.server_addr->ai_next )
+    for (insock.local_addr = insock.result_list ;
+        insock.local_addr != NULL ; 
+        insock.local_addr = insock.local_addr->ai_next )
     {
         dlog(1, "Trying an address...\n");
 
-        insock.server_socket_fd = socket(insock.server_addr->ai_family,
-            insock.server_addr->ai_socktype, insock.server_addr->ai_protocol);
+        insock.remote_socket_fd = socket(insock.local_addr->ai_family,
+            insock.local_addr->ai_socktype, insock.local_addr->ai_protocol);
 
-        if (insock.server_socket_fd < 1) {
+        if (insock.remote_socket_fd < 1) {
             fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
                 strerror(errno));
             fflush(stderr);
@@ -1192,7 +1192,7 @@ SOS_THREAD_receives_direct(void *args)
         }
 
         // Allow this socket to be reused/rebound quickly.
-        if (setsockopt(insock.server_socket_fd, SOL_SOCKET, SO_REUSEADDR,
+        if (setsockopt(insock.remote_socket_fd, SOL_SOCKET, SO_REUSEADDR,
             &yes, sizeof(int)) == -1)
         {
             dlog(0, "  ... could not set socket options.  (%s)\n",
@@ -1200,20 +1200,20 @@ SOS_THREAD_receives_direct(void *args)
             continue;
         }
        
-        insock.server_addr->ai_addrlen = sizeof(struct sockaddr_in);
+        insock.local_addr->ai_addrlen = sizeof(struct sockaddr_in);
 
-        if ( bind( insock.server_socket_fd, insock.server_addr->ai_addr,
-                insock.server_addr->ai_addrlen ) == -1 ) {
+        if ( bind( insock.remote_socket_fd, insock.local_addr->ai_addr,
+                insock.local_addr->ai_addrlen ) == -1 ) {
             dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
-            close( insock.server_socket_fd );
-            insock.server_socket_fd = -1;
+            close( insock.remote_socket_fd );
+            insock.remote_socket_fd = -1;
             continue;
         } 
         // If we get here, we're good to stop looking.
         break;
     }
 
-    if ( insock.server_socket_fd <= 0 ) {
+    if ( insock.remote_socket_fd <= 0 ) {
         fprintf(stderr, "ERROR: Client could not socket/setsockopt/"
                 "bind to anything to receive feedback. (%d:%s)\n",
                 errno, strerror(errno));
@@ -1225,20 +1225,20 @@ SOS_THREAD_receives_direct(void *args)
     freeaddrinfo(insock.result_list);
 
      // Enforce that this is a BLOCKING socket:
-    opts = fcntl(insock.server_socket_fd, F_GETFL);
+    opts = fcntl(insock.remote_socket_fd, F_GETFL);
     if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the"
-          " server_socket_fd to get its options.  Carrying on.  (%s)\n",
+          " remote_socket_fd to get its options.  Carrying on.  (%s)\n",
           strerror(errno));
     }
  
     opts = opts & !(O_NONBLOCK);
-    i    = fcntl(insock.server_socket_fd, F_SETFL, opts);
+    i    = fcntl(insock.remote_socket_fd, F_SETFL, opts);
     if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
-        " server_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
+        " remote_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
         strerror(errno));
     }
 
-    listen( insock.server_socket_fd, insock.listen_backlog );
+    listen( insock.remote_socket_fd, insock.listen_backlog );
     dlog(0, "Listening on socket.\n");
     
 
@@ -1247,7 +1247,7 @@ SOS_THREAD_receives_direct(void *args)
     /*   
     char hbuf[NI_MAXHOST] = {0};
     char sbuf[NI_MAXSERV] = {0};
-    i = getnameinfo(insock.server_addr->ai_addr, insock.server_addr->ai_addrlen,
+    i = getnameinfo(insock.local_addr->ai_addr, insock.local_addr->ai_addrlen,
             hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
             NI_NUMERICHOST | NI_NUMERICSERV);  
     printf("host=%s, serv=%s\n", hbuf, sbuf);
@@ -1256,7 +1256,7 @@ SOS_THREAD_receives_direct(void *args)
    
     struct sockaddr_in sin;
     socklen_t sin_len = sizeof(sin);
-    getsockname(insock.server_socket_fd, (struct sockaddr *)&sin, &sin_len);
+    getsockname(insock.local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     SOS->config.receives_port = ntohs(sin.sin_port);
     SOS->config.receives_ready = 1; 
 
@@ -1268,14 +1268,14 @@ SOS_THREAD_receives_direct(void *args)
     while (SOS->status == SOS_STATUS_RUNNING) {
     
         insock.peer_addr_len = sizeof(struct sockaddr_storage);
-        insock.client_socket_fd = accept(insock.server_socket_fd,
+        insock.remote_socket_fd = accept(insock.local_socket_fd,
                 (struct sockaddr *) &insock.peer_addr,
                 &insock.peer_addr_len);
         fflush(stdout);
         
         i = getnameinfo((struct sockaddr *) &insock.peer_addr,
-                insock.peer_addr_len, insock.client_host,
-                NI_MAXHOST, insock.client_port, NI_MAXSERV,
+                insock.peer_addr_len, insock.remote_host,
+                NI_MAXHOST, insock.remote_port, NI_MAXSERV,
                 NI_NUMERICSERV);
         if (i != 0) {
             dlog(0, "Error calling getnameinfo() on client connection."
@@ -1284,20 +1284,18 @@ SOS_THREAD_receives_direct(void *args)
         }
 
         if (SOS->status == SOS_STATUS_SHUTDOWN) {
-            close(insock.client_socket_fd);
-            insock.client_socket_fd = -1;
+            SOS_target_disconnect(&insock);
             break;
         }
 
-        buffer->len = recv(insock.client_socket_fd, (void *) buffer->data,
+        buffer->len = recv(insock.remote_socket_fd, (void *) buffer->data,
                 buffer->max, 0);
         dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
 
         if (buffer->len < 0) {
             dlog(1, "  ... recv() call returned an error.  (%s)\n",
                     strerror(errno));
-            close(insock.client_socket_fd);
-            insock.client_socket_fd = -1;
+            SOS_target_disconnect(&insock);
             continue;
         }
 
@@ -1307,8 +1305,7 @@ SOS_THREAD_receives_direct(void *args)
             SOS_msg_unzip(buffer, &header, 0, &offset);
         } else {
             dlog(0, "  ... Received short (useless) message.\n");
-            close(insock.client_socket_fd);
-            insock.client_socket_fd = -1;
+            SOS_target_disconnect(&insock);
             continue;
         }
 
@@ -1319,13 +1316,12 @@ SOS_THREAD_receives_direct(void *args)
                 SOS_buffer_grow(buffer, 1 + (header.msg_size - buffer->max),
                         SOS_WHOAMI);
             }
-            int rest = recv(insock.client_socket_fd,
+            int rest = recv(insock.remote_socket_fd,
                     (void *) (buffer->data + old), header.msg_size - old, 0);
             if (rest < 0) {
                 dlog(1, "  ... recv() call returned an error."
                         "  (%s)\n", strerror(errno));
-                close(insock.client_socket_fd);
-                insock.client_socket_fd = -1;
+                SOS_target_disconnect(&insock);
                 continue;
             } else {
                 dlog(6, "  ... recv() returned %d more bytes.\n", rest);
@@ -1405,8 +1401,7 @@ SOS_THREAD_receives_direct(void *args)
                         " no handler has been set. Doing nothing.\n");
             }
         }
-        close(insock.client_socket_fd);
-        insock.client_socket_fd = -1;
+        SOS_target_disconnect(&insock);
     } // while
 
     SOS_buffer_destroy(buffer);

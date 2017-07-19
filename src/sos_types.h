@@ -409,17 +409,18 @@ typedef void (*SOS_feedback_handler_f)
  
 typedef struct {
     void               *sos_context;
-    char                server_host[NI_MAXHOST];
-    char                server_port[NI_MAXSERV];
-    int                 server_socket_fd; 
-    struct addrinfo    *server_addr;
+    char                local_host[NI_MAXHOST];
+    char                local_port[NI_MAXSERV];
+    int                 local_socket_fd; 
+    struct addrinfo    *local_addr;
+    struct addrinfo     local_hint;
     struct addrinfo    *result_list;
-    struct addrinfo     server_hint;
-    struct addrinfo    *client_addr;
-    int                 client_len;
-    char                client_host[NI_MAXHOST];
-    char                client_port[NI_MAXSERV];
-    int                 client_socket_fd;
+    struct addrinfo    *remote_addr;
+    int                 remote_len;
+    char                remote_host[NI_MAXHOST];
+    char                remote_port[NI_MAXSERV];
+    int                 remote_socket_fd;
+    struct addrinfo     remote_hint;
     int                 port_number;
     int                 timeout;
     int                 buffer_len;

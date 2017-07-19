@@ -85,8 +85,8 @@ typedef struct {
     SOS_guid            guid;
     char               *sense_handle;
     SOS_guid            client_guid;
-    char               *client_host;
-    int                 client_port;
+    char               *remote_host;
+    int                 remote_port;
     SOS_socket         *target;
     void               *next_entry;
 } SOSD_sensitivity_entry;

@@ -121,23 +121,23 @@ int main(int argc, char *argv[])  {
     pthread_mutex_lock(tgt->send_lock);
 
     // Grab the port from the environment variable SOS_CMD_PORT
-    strncpy(tgt->server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
-    strncpy(tgt->server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
-    if ((tgt->server_port == NULL) || (strlen(tgt->server_port)) < 2) {
+    strncpy(tgt->local_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+    strncpy(tgt->local_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
+    if ((tgt->local_port == NULL) || (strlen(tgt->local_port)) < 2) {
         fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
-        strncpy(tgt->server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
+        strncpy(tgt->local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
     }
-    tgt->port_number = atoi(tgt->server_port);
+    tgt->port_number = atoi(tgt->local_port);
 
     tgt->listen_backlog = 20;
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->server_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    tgt->server_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
-    tgt->server_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
-    tgt->server_hint.ai_protocol   = 0;             // Any protocol
+    tgt->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
+    tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
+    tgt->local_hint.ai_protocol   = 0;             // Any protocol
     pthread_mutex_unlock(tgt->send_lock); 
     // --- end duplication of SOS_target_init();
 
@@ -376,7 +376,7 @@ int main(int argc, char *argv[])  {
     while (entry != NULL) {
         next_entry = entry->next_entry;
         free(entry->sense_handle);
-        free(entry->client_host);
+        free(entry->remote_host);
         SOS_target_destroy(entry->target);
         free(entry);
         entry = next_entry;
@@ -393,7 +393,7 @@ int main(int argc, char *argv[])  {
     dlog(0, "Closing the database.\n");
     SOSD_db_close_database();
     dlog(0, "Closing the socket.\n");
-    shutdown(SOSD.net->server_socket_fd, SHUT_RDWR);
+    shutdown(SOSD.net->local_socket_fd, SHUT_RDWR);
     #if (SOSD_CLOUD_SYNC > 0)
     dlog(0, "Detaching from the cloud of sosd daemons.\n");
     SOSD_cloud_finalize();
@@ -452,12 +452,12 @@ void SOSD_listen_loop() {
 
         //dlog(5, "Listening for a message...\n");
         //SOSD.net->peer_addr_len = sizeof(SOSD.net->peer_addr);
-        //SOSD.net->client_socket_fd = accept(SOSD.net->server_socket_fd,
+        //SOSD.net->remote_socket_fd = accept(SOSD.net->local_socket_fd,
         //        (struct sockaddr *) &SOSD.net->peer_addr,
         //        &SOSD.net->peer_addr_len);
         //i = getnameinfo((struct sockaddr *) &SOSD.net->peer_addr,
-        //        SOSD.net->peer_addr_len, SOSD.net->client_host,
-        //        NI_MAXHOST, SOSD.net->client_port, NI_MAXSERV,
+        //        SOSD.net->peer_addr_len, SOSD.net->remote_host,
+        //        NI_MAXHOST, SOSD.net->remote_port, NI_MAXSERV,
         //        NI_NUMERICSERV);
         //if (i != 0) {
         //    dlog(0, "Error calling getnameinfo() on client connection."
@@ -468,7 +468,7 @@ void SOSD_listen_loop() {
         SOS_target_accept_connection(SOSD.net);
 
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
-        i = SOS_target_recv_msg(SOSD.net, SOSD.net->client_socket_fd, buffer);
+        i = SOS_target_recv_msg(SOSD.net, buffer);
         if (i < sizeof(SOS_msg_header)) {
             SOS_target_disconnect(SOSD.net);
             continue;
@@ -513,7 +513,7 @@ void SOSD_listen_loop() {
                     SOS_DEFAULT_BUFFER_MAX, false);
             dlog(5, "  ... sending ACK w/reply->len == %d\n", rapid_reply->len);
 
-            i = send( SOSD.net->client_socket_fd, (void *) rapid_reply->data,
+            i = send( SOSD.net->remote_socket_fd, (void *) rapid_reply->data,
                     rapid_reply->len, 0);
 
             if (i == -1) {
@@ -649,7 +649,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                         query->reply_port);
             }
 
-            rc = SOS_target_send_msg(target, target->server_socket_fd, query->reply_msg);
+            rc = SOS_target_send_msg(target, query->reply_msg);
             if (rc < 0) {
                 dlog(0, "SOSD: Unable to send message to client.\n");
             }
@@ -695,15 +695,15 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     if (rc < 0) {
                         // Remove this target.
                         fprintf(stderr, "Removing missing target --> %s:%d\n",
-                                sense->client_host,
-                                sense->client_port);
+                                sense->remote_host,
+                                sense->remote_port);
                         fflush(stderr);
                         if (sense == SOSD.sync.sense_list_head) {
                             SOSD.sync.sense_list_head = sense->next_entry;
                         } else {
                             prev_sense->next_entry = sense->next_entry;
                         }
-                        free(sense->client_host);
+                        free(sense->remote_host);
                         free(sense->sense_handle);
                         SOS_target_destroy(sense->target);
                         sense = NULL;
@@ -716,7 +716,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
              *  Uncomment in case of emergency:
              *
             fprintf(stderr, "Message for the client at %s:%d  ...\n",
-                    sense->client_host, sense->client_port);
+                    sense->remote_host, sense->remote_port);
             fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
             fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
             fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
@@ -738,8 +738,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             fflush(stderr);
              *
              */
-                    SOS_target_send_msg(sense->target,
-                            sense->target->server_socket_fd, delivery);
+                    SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
                 }
                 prev_sense = sense;
@@ -1085,7 +1084,7 @@ void
 SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     SOS_SET_CONTEXT(send_buffer->sos_context, "SOSD_send_to_self");
     SOS_msg_header header;
-    int            server_socket_fd;
+    int            local_socket_fd;
     int            offset      = 0;
     int            inset       = 0;
     int            retval      = 0;
@@ -1097,49 +1096,49 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     SOS_socket out;
     out.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
     out.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-    strncpy(out.server_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
-    strncpy(out.server_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
-    if (strlen(out.server_port) < 2) {
+    strncpy(out.local_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
+    strncpy(out.local_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
+    if (strlen(out.local_port) < 2) {
         fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
-        strncpy(out.server_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
+        strncpy(out.local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
     }
 
-    out.server_hint.ai_family    = AF_UNSPEC;   // Allow IPv4 or IPv6
-    out.server_hint.ai_protocol  = 0;           // Any protocol
-    out.server_hint.ai_socktype  = SOCK_STREAM; // SOCK..._STREAM/_DGRAM/_RAW
-    out.server_hint.ai_flags     = AI_NUMERICSERV | out.server_hint.ai_flags;
+    out.local_hint.ai_family    = AF_UNSPEC;   // Allow IPv4 or IPv6
+    out.local_hint.ai_protocol  = 0;           // Any protocol
+    out.local_hint.ai_socktype  = SOCK_STREAM; // SOCK..._STREAM/_DGRAM/_RAW
+    out.local_hint.ai_flags     = AI_NUMERICSERV | out.local_hint.ai_flags;
 
-    retval = getaddrinfo(out.server_host, out.server_port,
-        &out.server_hint, &out.result_list);
+    retval = getaddrinfo(out.local_host, out.local_port,
+        &out.local_hint, &out.result_list);
     if (retval < 0) {
         dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
-            out.server_host, out.server_port );
+            out.local_host, out.local_port );
         return;
     }
    
     dlog(1, "Looking for connections.\n");
 
     // Iterate the possible connections and register with the SOS daemon:
-    for (out.server_addr = out.result_list ;
-        out.server_addr != NULL ;
-        out.server_addr = out.server_addr->ai_next)
+    for (out.local_addr = out.result_list ;
+        out.local_addr != NULL ;
+        out.local_addr = out.local_addr->ai_next)
     {
-        server_socket_fd = socket(out.server_addr->ai_family,
-            out.server_addr->ai_socktype,
-            out.server_addr->ai_protocol);
-        if (server_socket_fd == -1) { continue; }
-        if (connect(server_socket_fd, out.server_addr->ai_addr,
-            out.server_addr->ai_addrlen) != -1) break; // Success!
-        close(server_socket_fd);
+        local_socket_fd = socket(out.local_addr->ai_family,
+            out.local_addr->ai_socktype,
+            out.local_addr->ai_protocol);
+        if (local_socket_fd == -1) { continue; }
+        if (connect(local_socket_fd, out.local_addr->ai_addr,
+            out.local_addr->ai_addrlen) != -1) break; // Success!
+        close(local_socket_fd);
     }
     
     freeaddrinfo( out.result_list );
     
-    if (server_socket_fd == 0) {
+    if (local_socket_fd == 0) {
         dlog(0, "Error attempting to connect to the server.  (%s:%s)\n",
-            out.server_host, out.server_port);
+            out.local_host, out.local_port);
         return;
     }
 
@@ -1154,7 +1153,7 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
             dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts.\n");
             return;
         }
-        retval = send(server_socket_fd, (send_buffer->data + retval),
+        retval = send(local_socket_fd, (send_buffer->data + retval),
                 send_buffer->len, 0 );
         if (retval < 0) {
             failed_send_count++;
@@ -1183,11 +1182,11 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     //       new connection, when the termination signal did not
     //       arrive from the socket by from other intra-daemon
     //       messaging.
-    reply_buffer->len = recv(server_socket_fd, reply_buffer->data,
+    reply_buffer->len = recv(local_socket_fd, reply_buffer->data,
             reply_buffer->max, 0);
 
     // Done!
-    close( server_socket_fd );
+    close( local_socket_fd );
 
     dlog(1, "Reply fully received.  reply_buffer->len == %d\n",
             reply_buffer->len);
@@ -1210,7 +1209,7 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
     SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
     SOSD_PACK_ACK(reply);
 
-    rc = SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
+    rc = SOS_target_send_msg(SOSD.net, reply);
 
     dlog(5, "Replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
@@ -1241,7 +1240,7 @@ SOSD_handle_unregister(SOS_buffer *msg) {
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
     SOSD_PACK_ACK(reply);
-    rc = SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
+    rc = SOS_target_send_msg(SOSD.net, reply);
     dlog(5, "Replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1271,12 +1270,12 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
 
     sense->sense_handle = NULL;
     sense->client_guid = header.msg_from;
-    sense->client_host = NULL;
-    sense->client_port = -1;
+    sense->remote_host = NULL;
+    sense->remote_port = -1;
     
     SOS_buffer_unpack_safestr(msg, &offset, &sense->sense_handle);
-    SOS_buffer_unpack_safestr(msg, &offset, &sense->client_host);
-    SOS_buffer_unpack(msg, &offset, "i", &sense->client_port);
+    SOS_buffer_unpack_safestr(msg, &offset, &sense->remote_host);
+    SOS_buffer_unpack(msg, &offset, "i", &sense->remote_port);
 
     bool OK_to_add = true;
 
@@ -1299,11 +1298,11 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
         sense->guid = SOS_uid_next(SOSD.guid);
         sense->next_entry = SOSD.sync.sense_list_head;
         sense->target = NULL;
-        SOS_target_init(SOS, &sense->target, sense->client_host, sense->client_port);
+        SOS_target_init(SOS, &sense->target, sense->remote_host, sense->remote_port);
         SOSD.sync.sense_list_head = sense;
     } else {
         free(sense->sense_handle);
-        free(sense->client_host);
+        free(sense->remote_host);
         free(sense);
     }
 
@@ -1314,7 +1313,7 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
     SOSD_PACK_ACK(reply);
     int rc = 0;
-    SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
+    SOS_target_send_msg(SOSD.net, reply);
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1343,7 +1342,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOSD_PACK_ACK(reply);
 
     int rc;
-    rc = SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
+    rc = SOS_target_send_msg(SOSD.net, reply);
 
     if (rc == -1) {
             dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1449,7 +1448,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, 1024);
     SOSD_PACK_ACK(reply);
-    SOS_target_send_msg(SOSD.net, SOSD.net->client_socket_fd, reply);
+    SOS_target_send_msg(SOSD.net, reply);
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
@@ -1475,7 +1474,7 @@ void SOSD_handle_echo(SOS_buffer *buffer) {
 
     dlog(5, "Message unzipped.  Sending it back to the sender.\n");
 
-    rc = send(SOSD.net->client_socket_fd, (void *) buffer->data, buffer->len, 0);
+    rc = send(SOSD.net->remote_socket_fd, (void *) buffer->data, buffer->len, 0);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1631,7 +1630,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         SOSD_PACK_ACK(reply);
     }
 
-    i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
+    i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
@@ -1679,7 +1678,7 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
     offset = 0;
     SOS_msg_zip(reply, header, 0, &offset);
 
-    i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
+    i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
@@ -1846,7 +1845,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_PACK_ACK(reply);
         
-        i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
+        i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
         if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
         else {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i);
@@ -1866,7 +1865,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
      * the listener, so setting the flag (above) is sufficient to stop the listener
      * loop and initiate a clean shutdown.
      *
-    shutdown(SOSD.net->server_socket_fd, SHUT_RDWR);
+    shutdown(SOSD.net->local_socket_fd, SHUT_RDWR);
      *
      */
 
@@ -1921,7 +1920,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
 
         dlog(1, "Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", function_name);
 
-        i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
+        i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
         if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
         else {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i); 
@@ -2040,7 +2039,7 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     // Buffer is now ready to send...
 
     dlog(5, "   ...sending probe results, len = %d\n", reply->len);
-    i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
+    i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
@@ -2081,7 +2080,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
 
     SOSD_PACK_ACK(reply);
 
-    i = send( SOSD.net->client_socket_fd, (void *) reply->data, reply->len, 0 );
+    i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
     if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
@@ -2103,23 +2102,23 @@ void SOSD_setup_socket() {
 
     yes = 1;
 
-    memset(&SOSD.net->server_hint, '\0', sizeof(struct addrinfo));
-    SOSD.net->server_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
-    SOSD.net->server_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
-    SOSD.net->server_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
-    SOSD.net->server_hint.ai_protocol   = 0;             /* Any protocol */
-    SOSD.net->server_hint.ai_canonname  = NULL;
-    SOSD.net->server_hint.ai_addr       = NULL;
-    SOSD.net->server_hint.ai_next       = NULL;
+    memset(&SOSD.net->local_hint, '\0', sizeof(struct addrinfo));
+    SOSD.net->local_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
+    SOSD.net->local_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
+    SOSD.net->local_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
+    SOSD.net->local_hint.ai_protocol   = 0;             /* Any protocol */
+    SOSD.net->local_hint.ai_canonname  = NULL;
+    SOSD.net->local_hint.ai_addr       = NULL;
+    SOSD.net->local_hint.ai_next       = NULL;
 
-    i = getaddrinfo(NULL, SOSD.net->server_port, &SOSD.net->server_hint, &SOSD.net->result_list);
+    i = getaddrinfo(NULL, SOSD.net->local_port, &SOSD.net->local_hint, &SOSD.net->result_list);
     if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", gai_strerror(errno)); exit(EXIT_FAILURE); }
 
-    for ( SOSD.net->server_addr = SOSD.net->result_list ; SOSD.net->server_addr != NULL ; SOSD.net->server_addr = SOSD.net->server_addr->ai_next ) {
+    for ( SOSD.net->local_addr = SOSD.net->result_list ; SOSD.net->local_addr != NULL ; SOSD.net->local_addr = SOSD.net->local_addr->ai_next ) {
         dlog(1, "Trying an address...\n");
 
-        SOSD.net->server_socket_fd = socket(SOSD.net->server_addr->ai_family, SOSD.net->server_addr->ai_socktype, SOSD.net->server_addr->ai_protocol );
-        if ( SOSD.net->server_socket_fd < 1) {
+        SOSD.net->local_socket_fd = socket(SOSD.net->local_addr->ai_family, SOSD.net->local_addr->ai_socktype, SOSD.net->local_addr->ai_protocol );
+        if ( SOSD.net->local_socket_fd < 1) {
             dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
             continue;
         }
@@ -2127,21 +2126,21 @@ void SOSD_setup_socket() {
         /*
          *  Allow this socket to be reused/rebound quickly by the daemon.
          */
-        if ( setsockopt( SOSD.net->server_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
+        if ( setsockopt( SOSD.net->local_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
             dlog(0, "  ... could not set socket options.  (%s)\n", strerror(errno));
             continue;
         }
 
-        if ( bind( SOSD.net->server_socket_fd, SOSD.net->server_addr->ai_addr, SOSD.net->server_addr->ai_addrlen ) == -1 ) {
+        if ( bind( SOSD.net->local_socket_fd, SOSD.net->local_addr->ai_addr, SOSD.net->local_addr->ai_addrlen ) == -1 ) {
             dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
-            close( SOSD.net->server_socket_fd );
+            close( SOSD.net->local_socket_fd );
             continue;
         } 
         /* If we get here, we're good to stop looking. */
         break;
     }
 
-    if ( SOSD.net->server_socket_fd < 0 ) {
+    if ( SOSD.net->local_socket_fd < 0 ) {
         dlog(0, "  ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", errno, strerror(errno));
         exit(EXIT_FAILURE);
     } else {
@@ -2153,15 +2152,15 @@ void SOSD_setup_socket() {
     /*
      *   Enforce that this is a BLOCKING socket:
      */
-    opts = fcntl(SOSD.net->server_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the server_socket_fd to get its options.  Carrying on.  (%s)\n", strerror(errno)); }
+    opts = fcntl(SOSD.net->local_socket_fd, F_GETFL);
+    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the local_socket_fd to get its options.  Carrying on.  (%s)\n", strerror(errno)); }
  
     opts = opts & !(O_NONBLOCK);
-    i    = fcntl(SOSD.net->server_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the server_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", strerror(errno)); }
+    i    = fcntl(SOSD.net->local_socket_fd, F_SETFL, opts);
+    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the local_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", strerror(errno)); }
 
 
-    listen( SOSD.net->server_socket_fd, SOSD.net->listen_backlog );
+    listen( SOSD.net->local_socket_fd, SOSD.net->listen_backlog );
     dlog(0, "Listening on socket.\n");
 
     return;
