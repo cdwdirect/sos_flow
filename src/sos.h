@@ -150,7 +150,7 @@ extern "C" {
 
     // Communication wrapper functions:
 
-    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header,
+    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, 
             int starting_offset, int *offset_after_header);
 
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
@@ -162,9 +162,9 @@ extern "C" {
     int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
             char *host, int port);
 
-    int SOS_target_accept_connection(SOS_socket *target);
-
     int SOS_target_connect(SOS_socket *target);
+
+    int SOS_target_accept_connection(SOS_socket *target);
 
     int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);
 
@@ -190,7 +190,12 @@ extern "C" {
 #define SOS_min(a,b) ((a < b) ? a : b)
 #endif
 
-#define SOS_TIME(__SOS_now)       { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6)); }
+#define SOS_TIME(__SOS_now)                                     \
+    {                                                           \
+        struct timeval t;                                       \
+        gettimeofday(&t, NULL);                                 \
+        __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6));       \
+    }
 
 
 #define SOS_LOCK_REENTRANT(__SOS_int_var, usec_delay)  {        \
@@ -203,37 +208,54 @@ extern "C" {
     __SOS_int_var += 1;                                         \
     }
 
-#define SOS_UNLOCK_REENTRANT(__SOS_int_var) {           \
-    __SOS_int_var -= 1;                                 \
+#define SOS_UNLOCK_REENTRANT(__SOS_int_var) {                   \
+    __SOS_int_var -= 1;                                         \
     }
 
 #if (SOS_DEBUG < 0)
-    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
-    SOS_runtime *SOS;                                                   \
-    SOS = (SOS_runtime *) __SOS_context;                                \
-    if (SOS == NULL) {                                                  \
-        printf("(%s:%s) ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n", \
-               __FILE__, __LINE__);                                     \
-        exit(EXIT_FAILURE);                                             \
+    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)      \
+    SOS_runtime *SOS;                                           \
+    SOS = (SOS_runtime *) __SOS_context;                        \
+    if (SOS == NULL) {                                          \
+        printf("(%s:%s) ERROR: SOS_runtime *sos_context"        \
+                " provided to SOS_SET_CONTEXT() is null!\n",    \
+               __FILE__, __LINE__);                             \
+        exit(EXIT_FAILURE);                                     \
     }
 #else
-#define SOS_SET_CONTEXT(__SOS_context, __SOS_str_funcname)                                                                 \
-    SOS_runtime *SOS;                                                                                                      \
-    SOS = (SOS_runtime *) __SOS_context;                                                                                   \
-    if (SOS == NULL) {                                                                                                     \
-                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!  (%s)\n",             \
-                             __SOS_str_funcname);                                                                          \
-                      exit(EXIT_FAILURE);                                                                                  \
-                      }                                                                                                    \
-    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                                                                         \
-    snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");                                                               \
-    switch (SOS->role) {                                                                                                   \
-    case SOS_ROLE_CLIENT     : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
-    case SOS_ROLE_LISTENER   : sprintf(SOS_WHOAMI, "listener(%d).%s",                 SOS->config.comm_rank, __SOS_str_funcname); break; \
-    case SOS_ROLE_AGGREGATOR : sprintf(SOS_WHOAMI, "aggregator(%d).%s",                     SOS->config.comm_rank, __SOS_str_funcname); break; \
-    case SOS_ROLE_ANALYTICS  : sprintf(SOS_WHOAMI, "analytics(%d).%s",              SOS->config.comm_rank, __SOS_str_funcname); break; \
-    default                  : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
-    }
+#define SOS_SET_CONTEXT(__SOS_context, __SOS_str_funcname)      \
+    SOS_runtime *SOS;                                           \
+    SOS = (SOS_runtime *) __SOS_context;                        \
+    if (SOS == NULL) {                                          \
+        printf("ERROR: SOS_runtime *sos_context provided"       \
+                " provided to SOS_SET_CONTEXT() is null!"       \
+                "  (%s)\n", __SOS_str_funcname);                \
+        exit(EXIT_FAILURE);                                     \
+    }                                                           \
+    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};              \
+    snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");    \
+    switch (SOS->role) {                                        \
+    case SOS_ROLE_CLIENT     :                                  \
+        sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",     \
+                SOS->my_guid, __SOS_str_funcname);              \
+        break;                                                  \
+    case SOS_ROLE_LISTENER   :                                  \
+        sprintf(SOS_WHOAMI, "listener(%d).%s",                  \
+                SOS->config.comm_rank, __SOS_str_funcname);     \
+        break;                                                  \
+    case SOS_ROLE_AGGREGATOR :                                  \
+        sprintf(SOS_WHOAMI, "aggregator(%d).%s",                \
+                SOS->config.comm_rank, __SOS_str_funcname);     \
+        break;                                                  \
+    case SOS_ROLE_ANALYTICS  :                                  \
+        sprintf(SOS_WHOAMI, "analytics(%d).%s",                 \
+                SOS->config.comm_rank, __SOS_str_funcname);     \
+        break;                                                  \
+    default                  :                                  \
+        sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",     \
+                SOS->my_guid, __SOS_str_funcname); break;       \
+    }                                                           \
+    dlog(8, "Entering function: %s\n", __SOS_str_funcname);
 #endif
 
 

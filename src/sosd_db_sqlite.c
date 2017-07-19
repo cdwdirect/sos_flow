@@ -25,6 +25,7 @@
 #define SOSD_DB_ENUM_TABLE_NAME "tblEnums"
 #define SOSD_DB_SOSD_TABLE_NAME "tblSOSDConfig"
 
+#define SOSD_DB_VIEW_COMBINED_NAME  "viewCombined"
 
 void SOSD_db_insert_enum(const char *type, const char **var_strings, int max_index);
 
@@ -35,6 +36,7 @@ sqlite3_stmt *stmt_insert_data;
 sqlite3_stmt *stmt_insert_val;
 sqlite3_stmt *stmt_insert_enum;
 sqlite3_stmt *stmt_insert_sosd;
+
 
 #if (SOS_CONFIG_DB_ENUM_STRINGS > 0)
     #define __ENUM_DB_TYPE " STRING "
@@ -109,6 +111,29 @@ char *sql_create_table_sosd_config = ""                \
     " key "             " STRING, "                             \
     " value "           " STRING); ";
 
+
+char *sql_create_view_combined = ""                           \
+    "CREATE VIEW IF NOT EXISTS " SOSD_DB_VIEW_COMBINED_NAME " AS "          \
+    "   SELECT "                                                            \
+    "       tblPubs.process_id  AS process_id, "                            \
+    "       tblPubs.node_id     AS node_id, "                               \
+    "       tblPubs.title       AS pub_title, "                             \
+    "       tblPubs.guid        AS pub_guid, "                              \
+    "       tblPubs.comm_rank   AS comm_rank, "                             \
+    "       tblPubs.prog_name   AS prog_name, "                             \
+    "       tblVals.time_pack   AS time_pack, "                             \
+    "       tblVals.time_recv   AS time_recv, "                             \
+    "       tblVals.frame       AS frame, "                                 \
+    "       tblData.name        AS value_name, "                            \
+    "       tblData.guid        AS value_guid, "                            \
+    "       tblData.val_type    AS value_type, "                            \
+    "       tblVals.val         AS value "                                  \
+    "   FROM "                                                              \
+    "       tblVals "                                                       \
+    "       LEFT JOIN tblData ON tblVals.guid       = tblData.guid "        \
+    "       LEFT JOIN tblPubs ON tblData.pub_guid   = tblPubs.guid "        \
+    "   ; "                                                                 \
+    "";                       
 
 
 char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals.guid;";
@@ -239,7 +264,6 @@ void SOSD_db_init_database() {
     sqlite3_exec(database, sql_create_index_tblvals, NULL, NULL, NULL);
     sqlite3_exec(database, sql_create_index_tbldata, NULL, NULL, NULL);
     sqlite3_exec(database, sql_create_index_tblpubs, NULL, NULL, NULL);
-
 
     dlog(2, "Preparing transactions...\n");
 
@@ -664,7 +688,10 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         // Roll through and free the snaps.
         for (snap_index = 0; snap_index < snap_count ; snap_index++) {
             switch(val_type) {
-            case SOS_VAL_TYPE_STRING: free(snap_list[snap_index]->val.c_val); break;
+            case SOS_VAL_TYPE_STRING:
+                dlog(0, "freeing a string!\n");
+                //free(snap_list[snap_index]->val.c_val);
+                break;
             case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
             default: break;
             }
@@ -811,42 +838,62 @@ void SOSD_db_create_tables(void) {
 
     rc = sqlite3_exec(database, sql_create_table_pubs, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_PUBS_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_data, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_DATA_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_vals, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_VALS_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_enum, NULL, NULL, &err);
     if ( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_ENUM_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_ENUM_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_ENUM_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_sosd_config, NULL, NULL, &err);
     if ( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_SOSD_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_SOSD_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_SOSD_TABLE_NAME);
+    }
+
+    rc = sqlite3_exec(database, sql_create_view_combined, NULL, NULL, &err);
+    if ( err != NULL ) {
+        dlog(0, "ERROR!  Can't create " SOSD_DB_VIEW_COMBINED_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(0, "  ... Created: %s\n", SOSD_DB_VIEW_COMBINED_NAME);
     }
 
     dlog(1, "  ... done.\n");

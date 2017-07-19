@@ -599,6 +599,46 @@ void VerifyAndWriteFinalOutput(Real_t elapsed_time,
 // lulesh-viz
 void DumpToVisit(Domain& domain, int numFiles, int myRank, int numRanks);
 
+// SOS-experiment functions
+/*#ifdef __cplusplus
+extern "C" {
+#endif
+typedef struct pstat {
+    long unsigned int utime_ticks;
+    long int cutime_ticks;
+    long unsigned int stime_ticks;
+    long int cstime_ticks;
+    long unsigned int vsize; // virtual memory size in bytes
+    long unsigned int rss; //Resident  Set  Size in bytes
+
+    long unsigned int cpu_total_time;
+};
+#ifdef __cplusplus
+}
+#endif
+int get_usage(const pid_t pid, struct pstat* result);
+void calc_cpu_usage_pct(const struct pstat* cur_usage,
+                        const struct pstat* last_usage,
+                        double* ucpu_usage, double* scpu_usage);
+void calc_cpu_usage(const struct pstat* cur_usage,
+                    const struct pstat* last_usage,
+                    long unsigned int* ucpu_usage,
+                    long unsigned int* scpu_usage);
+*/
+
+
+
+int flatPointIndex(int x, int y, int z);
+
+void findMinMaxIndexes(
+        Domain& domain,
+        int indexes[8]);
+
+void grabCoords(
+        Domain& domain,
+        int indexes[8]);
+
+
 // lulesh-comm
 void CommRecv(Domain& domain, Int_t msgType, Index_t xferFields,
               Index_t dx, Index_t dy, Index_t dz,

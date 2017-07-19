@@ -141,18 +141,24 @@ int main(int argc, char *argv[])  {
     pthread_mutex_unlock(tgt->send_lock); 
     // --- end duplication of SOS_target_init();
 
-
     /* Process command-line arguments */
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     if ( argc < 9 ) {
 #else
     if ( argc < 5 ) {
 #endif
-        fprintf(stderr, "ERROR: Invalid number of arguments supplied.   (%d)\n\n%s\n", argc, USAGE);
+        fprintf(stderr, "ERROR: Invalid number of arguments supplied."
+                "   (%d)\n\n%s\n", argc, USAGE);
         exit(EXIT_FAILURE);
     }
+    //SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
-        if ((next_elem = elem + 1) == argc) { fprintf(stderr, "ERROR: Incorrect parameter pairing.\n\n%s\n", USAGE); exit(EXIT_FAILURE); }
+        if ((next_elem = elem + 1) == argc) {
+            fprintf(stderr, "ERROR: Incorrect parameter"
+                    " pairing.\n\n%s\n", USAGE);
+            exit(EXIT_FAILURE);
+        }
+
         if (      (strcmp(argv[elem], "--listeners"       ) == 0)
         ||        (strcmp(argv[elem], "-l"                ) == 0)) {
             SOSD.daemon.listener_count = atoi(argv[next_elem]);
@@ -262,9 +268,6 @@ int main(int argc, char *argv[])  {
     my_role = SOS->role;
 
     dlog(0, "Initializing SOSD:\n");
-
-    SOSD.net->sos_context = SOS;
-    
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
             " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
     SOS_init_existing_runtime( &argc, &argv, &SOSD.sos_context,
@@ -283,6 +286,7 @@ int main(int argc, char *argv[])  {
 
     dlog(0, "Calling daemon_setup_socket()...\n");
     SOSD_setup_socket();
+    SOSD.net->sos_context = SOSD.sos_context;
 
     dlog(0, "Calling daemon_init_database()...\n");
     SOSD_db_init_database();
@@ -993,7 +997,8 @@ void* SOSD_THREAD_cloud_send(void *args) {
         //dlog(0, "   ...queue_depth == %d\n", queue_depth);
 
         if (queue_depth > 0) {
-            msg_list = (SOS_buffer **) malloc(queue_depth * sizeof(SOS_buffer *));
+            msg_list = (SOS_buffer **)
+                malloc(queue_depth * sizeof(SOS_buffer *));
         } else {
             //Going back to sleep.
             pthread_mutex_unlock(my->queue->sync_lock);
@@ -1099,8 +1104,8 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     strncpy(out.local_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     strncpy(out.local_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
     if (strlen(out.local_port) < 2) {
-        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
-                SOS_DEFAULT_SERVER_PORT);
+        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set."
+                "  Using default: %s\n", SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
         strncpy(out.local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
     }
@@ -1150,7 +1155,8 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     SOS_TIME(time_start);
     while (more_to_send) {
         if (failed_send_count > 8) {
-            dlog(0, "ERROR: Unable to contact sosd daemon after 8 attempts.\n");
+            dlog(0, "ERROR: Unable to contact sosd daemon"
+                    " after 8 attempts.\n");
             return;
         }
         retval = send(local_socket_fd, (send_buffer->data + retval),
@@ -1202,16 +1208,16 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
     SOS_msg_header header;
     int rc;
     
-    //TODO: Remove the specific sensitivity GUID+handle combo
-    // Right now this does nothing.
-
+    // 1. Remove the specific sensitivity GUID+handle combo
+    
     SOS_buffer *reply = NULL;
-    SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
     SOSD_PACK_ACK(reply);
 
     rc = SOS_target_send_msg(SOSD.net, reply);
-
-    dlog(5, "Replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+    
+    dlog(5, "Replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1238,10 +1244,13 @@ SOSD_handle_unregister(SOS_buffer *msg) {
     // 4. Remove all sensitivities for this GUID
     
     SOS_buffer *reply = NULL;
-    SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
     SOSD_PACK_ACK(reply);
+    
     rc = SOS_target_send_msg(SOSD.net, reply);
-    dlog(5, "Replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+
+    dlog(5, "Replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1263,7 +1272,11 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOS_msg_header header;
     int offset = 0;
 
-    SOS_msg_unzip(msg, &header, 0, &offset);
+    SOS_buffer_unpack(msg, &offset, "iigg",
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.ref_guid);
 
     SOSD_sensitivity_entry *sense =
         calloc(1, sizeof(SOSD_sensitivity_entry));
@@ -1298,7 +1311,8 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
         sense->guid = SOS_uid_next(SOSD.guid);
         sense->next_entry = SOSD.sync.sense_list_head;
         sense->target = NULL;
-        SOS_target_init(SOS, &sense->target, sense->remote_host, sense->remote_port);
+        SOS_target_init(SOS, &sense->target,
+                sense->remote_host, sense->remote_port);
         SOSD.sync.sense_list_head = sense;
     } else {
         free(sense->sense_handle);
@@ -1310,11 +1324,12 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
 
 
     SOS_buffer *reply = NULL;
-    SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 256, false);
     SOSD_PACK_ACK(reply);
     int rc = 0;
     SOS_target_send_msg(SOSD.net, reply);
-    dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1338,7 +1353,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     dlog(5, "Cloud function returned, sending ACK reply to client"
             "that pulled the trigger.\n");
     SOS_buffer *reply;
-    SOS_buffer_init_sized(SOS, &reply, 1024);
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
 
     int rc;
@@ -1372,8 +1387,12 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     dlog(5, "header.msg_type = SOS_MSG_TYPE_KMEAN_DATA\n");
 
     offset = 0;
-    SOS_msg_unzip(buffer, &header, 0, &offset);
-    
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+                      &header.msg_size,
+                      &header.msg_type,
+                      &header.msg_from,
+                      &header.ref_guid);
+
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
@@ -1409,7 +1428,11 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
     offset = 0;
-    SOS_msg_unzip(buffer, &header, 0, &offset);
+    SOS_buffer_unpack(buffer, &offset, "iigg",
+            &header.msg_size,
+            &header.msg_type,
+            &header.msg_from,
+            &header.ref_guid);
 
     SOSD_query_handle *query_handle = NULL;
     query_handle = (SOSD_query_handle *)
@@ -1446,10 +1469,11 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     dlog(6, "   ...sending ACK to client.\n");
     SOS_buffer *reply = NULL;
-    SOS_buffer_init_sized(SOS, &reply, 1024);
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
     SOS_target_send_msg(SOSD.net, reply);
-    dlog(5, "replying with reply->len == %d bytes, rc == %d\n", reply->len, rc);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1474,7 +1498,8 @@ void SOSD_handle_echo(SOS_buffer *buffer) {
 
     dlog(5, "Message unzipped.  Sending it back to the sender.\n");
 
-    rc = send(SOSD.net->remote_socket_fd, (void *) buffer->data, buffer->len, 0);
+    rc = send(SOSD.net->remote_socket_fd, (void *) buffer->data,
+            buffer->len, 0);
     if (rc == -1) {
         dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
     } else {
@@ -1607,14 +1632,14 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
-
-        dlog(0, "REGISTER: Providing client with GUIDs _from=%" SOS_GUID_FMT ", _to=%" SOS_GUID_FMT "\n", guid_block_from, guid_block_to);
+        dlog(0, "REGISTER: Providing client with GUIDs _from=%" SOS_GUID_FMT
+                ", _to=%" SOS_GUID_FMT "\n", guid_block_from, guid_block_to);
         //Pack in the GUID's
         SOS_buffer_pack(reply, &offset, "gg",
                 guid_block_from,
                 guid_block_to);
 
-        //Pack in the server's version #
+        //Pack in the server's version # (just in case)
         SOS_buffer_pack(reply, &offset, "ii",
                 SOS_VERSION_MAJOR,
                 SOS_VERSION_MINOR);
@@ -1626,13 +1651,14 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         /* An existing client (such as a scripting language wrapped library)
          * is coming back online, so don't give them any GUIDs.
          */
-        dlog(0, "REGISTER: Existing client re-registering...\n");
         SOSD_PACK_ACK(reply);
     }
 
     i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
-    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-    else {
+
+    if (i == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
         SOSD_countof(socket_bytes_sent += i);
     }
@@ -1660,7 +1686,8 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
     reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
-    SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &block_from, &block_to);
+    SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK,
+            &block_from, &block_to);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
@@ -1679,7 +1706,10 @@ void SOSD_handle_guid_block(SOS_buffer *buffer) {
     SOS_msg_zip(reply, header, 0, &offset);
 
     i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
-    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
+
+    if (i == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    }
     else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
         SOSD_countof(socket_bytes_sent += i);
@@ -1710,7 +1740,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
     
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%"
+            SOS_GUID_FMT, header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
@@ -1724,7 +1755,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     } else {
         dlog(5, "     ... FOUND IT!\n");
     }
-    dlog(5, "     ... SOSD.pub_table.size() = %d\n", SOSD.pub_table->size(SOSD.pub_table));
+    dlog(5, "     ... SOSD.pub_table.size() = %d\n",
+            SOSD.pub_table->size(SOSD.pub_table));
     dlog(5, "Calling SOSD_apply_announce() ...\n");
 
     SOSD_apply_announce(pub, buffer);
@@ -1739,7 +1771,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     SOS_buffer_destroy(reply);
     pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
 
-    dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n", pub->guid, pub->elem_count);
+    dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n",
+            pub->guid, pub->elem_count);
 
     return;
 }
@@ -1763,7 +1796,8 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
     
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT, header.ref_guid);
+    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
+            header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     /* Check the table for this pub ... */
@@ -1772,8 +1806,10 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
 
     if (pub == NULL) {
         /* If it's not in the table, add it. */
-    dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT ") NOT FOUND! (WEIRD!)\n", header.ref_guid);
-    dlog(0, "ERROR: .... ADDING previously unknown pub to the table... (this is bogus, man)\n");
+    dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT
+            ") NOT FOUND! (WEIRD!)\n", header.ref_guid);
+    dlog(0, "ERROR: .... ADDING previously unknown pub to the table..."
+            " (this is bogus, man)\n");
         SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
@@ -1782,7 +1818,8 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     } else {
         dlog(5, "     ... FOUND it!\n");
     }
-    dlog(5, "     ... SOSD.pub_table.size() = %d\n", SOSD.pub_table->size(SOSD.pub_table));
+    dlog(5, "     ... SOSD.pub_table.size() = %d\n",
+            SOSD.pub_table->size(SOSD.pub_table));
 
     SOSD_apply_publish(pub, buffer);
 
@@ -1845,8 +1882,12 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_PACK_ACK(reply);
         
-        i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
-        if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
+        i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
+                reply->len, 0);
+
+        if (i == -1) {
+            dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+        }
         else {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i);
             SOSD_countof(socket_bytes_sent += i);
@@ -1895,7 +1936,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
     if (SOS->role == SOS_ROLE_LISTENER) {
-        /* Build a reply: */
+        // Build a reply:
         memset(&header, '\0', sizeof(SOS_msg_header));
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_FEEDBACK;
@@ -1905,24 +1946,27 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
 
-        /* TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case. */
+        // TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case.
+        // This needs to get turned into a 'mailbox' kind of system.
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",
             SOS_FEEDBACK_TYPE_PAYLOAD,
             function_name);
 
-        /* Go back and set the message length to the actual length. */
         header.msg_size = offset;
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
 
 
-        dlog(1, "Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)...\n", function_name);
+        dlog(1, "Replying to CHECK_IN with SOS_FEEDBACK_EXEC_FUNCTION(%s)"
+                "...\n", function_name);
 
-        i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
-        if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-        else {
+        i = send( SOSD.net->remote_socket_fd, (void *) reply->data,
+                reply->len, 0 );
+        if (i == -1) {
+            dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+        } else {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i); 
             SOSD_countof(socket_bytes_sent += i);
         }
@@ -1957,7 +2001,6 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     int offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
-    /* Don't need to lock for probing because it doesn't matter if we're a little off. */
     uint64_t queue_depth_local     = SOSD.sync.local.queue->elem_count;
     uint64_t queue_depth_cloud     = 0;
     if (SOS->role == SOS_ROLE_LISTENER) {
@@ -2013,7 +2056,8 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     sprintf(mf_path, "/proc/%d/status", getpid());
     mf = fopen(mf_path, "r");
     if (mf == NULL) {
-        dlog(0, "ERROR: Could not open %s file for probe request.   (%s)\n", mf_path, strerror(errno));
+        dlog(0, "ERROR: Could not open %s file for probe request.   (%s)\n",
+                mf_path, strerror(errno));
         vm_peak    = 0;
         vm_size    = 0;
     } else {
@@ -2039,9 +2083,11 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     // Buffer is now ready to send...
 
     dlog(5, "   ...sending probe results, len = %d\n", reply->len);
-    i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
-    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-    else {
+    i = send( SOSD.net->remote_socket_fd, (void *) reply->data,
+            reply->len, 0 );
+    if (i == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
         SOSD_countof(socket_bytes_sent += i);
     }
@@ -2080,9 +2126,11 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
 
     SOSD_PACK_ACK(reply);
 
-    i = send( SOSD.net->remote_socket_fd, (void *) reply->data, reply->len, 0 );
-    if (i == -1) { dlog(0, "Error sending a response.  (%s)\n", strerror(errno)); }
-    else {
+    i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    if (i == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
         SOSD_countof(socket_bytes_sent += i);
     }
@@ -2103,45 +2151,63 @@ void SOSD_setup_socket() {
     yes = 1;
 
     memset(&SOSD.net->local_hint, '\0', sizeof(struct addrinfo));
-    SOSD.net->local_hint.ai_family     = AF_UNSPEC;     /* Allow IPv4 or IPv6 */
-    SOSD.net->local_hint.ai_socktype   = SOCK_STREAM;   /* SOCK_STREAM vs. SOCK_DGRAM vs. SOCK_RAW */
-    SOSD.net->local_hint.ai_flags      = AI_PASSIVE;    /* For wildcard IP addresses */
-    SOSD.net->local_hint.ai_protocol   = 0;             /* Any protocol */
+    SOSD.net->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    SOSD.net->local_hint.ai_socktype   = SOCK_STREAM;   // STREAM/DGRAM/RAW
+    SOSD.net->local_hint.ai_flags      = AI_PASSIVE;
+    SOSD.net->local_hint.ai_protocol   = 0;
     SOSD.net->local_hint.ai_canonname  = NULL;
     SOSD.net->local_hint.ai_addr       = NULL;
     SOSD.net->local_hint.ai_next       = NULL;
 
-    i = getaddrinfo(NULL, SOSD.net->local_port, &SOSD.net->local_hint, &SOSD.net->result_list);
-    if (i != 0) { dlog(0, "Error!  getaddrinfo() failed. (%s) Exiting daemon.\n", gai_strerror(errno)); exit(EXIT_FAILURE); }
+    i = getaddrinfo(NULL, SOSD.net->local_port, &SOSD.net->local_hint,
+            &SOSD.net->result_list);
+    if (i != 0) {
+       dlog(0, "Error!  getaddrinfo() failed. (%s)"
+            " Exiting daemon.\n", gai_strerror(errno));
+       exit(EXIT_FAILURE);
+    }
 
-    for ( SOSD.net->local_addr = SOSD.net->result_list ; SOSD.net->local_addr != NULL ; SOSD.net->local_addr = SOSD.net->local_addr->ai_next ) {
+    for ( SOSD.net->local_addr = SOSD.net->result_list ;
+            SOSD.net->local_addr != NULL ;
+            SOSD.net->local_addr = SOSD.net->local_addr->ai_next )
+    {
         dlog(1, "Trying an address...\n");
 
-        SOSD.net->local_socket_fd = socket(SOSD.net->local_addr->ai_family, SOSD.net->local_addr->ai_socktype, SOSD.net->local_addr->ai_protocol );
+        SOSD.net->local_socket_fd =
+            socket(SOSD.net->local_addr->ai_family,
+                    SOSD.net->local_addr->ai_socktype,
+                    SOSD.net->local_addr->ai_protocol);
         if ( SOSD.net->local_socket_fd < 1) {
             dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
             continue;
         }
 
-        /*
-         *  Allow this socket to be reused/rebound quickly by the daemon.
-         */
-        if ( setsockopt( SOSD.net->local_socket_fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-            dlog(0, "  ... could not set socket options.  (%s)\n", strerror(errno));
+         // Allow this socket to be reused/rebound quickly by the daemon.
+        if ( setsockopt( SOSD.net->local_socket_fd, SOL_SOCKET,
+                    SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        {
+            dlog(0, "  ... could not set socket options.  (%s)\n", 
+                    strerror(errno));
             continue;
         }
 
-        if ( bind( SOSD.net->local_socket_fd, SOSD.net->local_addr->ai_addr, SOSD.net->local_addr->ai_addrlen ) == -1 ) {
-            dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
+        if ( bind(SOSD.net->local_socket_fd,
+                    SOSD.net->local_addr->ai_addr,
+                    SOSD.net->local_addr->ai_addrlen) == -1 )
+        {
+            dlog(0, "  ... failed to bind to socket.  (%s)\n",
+                    strerror(errno));
             close( SOSD.net->local_socket_fd );
             continue;
         } 
-        /* If we get here, we're good to stop looking. */
+        // If we get here, we're good to stop looking.
         break;
     }
 
     if ( SOSD.net->local_socket_fd < 0 ) {
-        dlog(0, "  ... could not socket/setsockopt/bind to anything in the result set.  last errno = (%d:%s)\n", errno, strerror(errno));
+        dlog(0, "  ... could not socket/setsockopt/bind to anything in the"
+                " result set.  last errno = (%d:%s)\n",
+                errno, strerror(errno));
         exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... got a socket, and bound to it!\n");
@@ -2149,15 +2215,21 @@ void SOSD_setup_socket() {
 
     freeaddrinfo(SOSD.net->result_list);
 
-    /*
-     *   Enforce that this is a BLOCKING socket:
-     */
+    // Enforce that this is a BLOCKING socket:
     opts = fcntl(SOSD.net->local_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the local_socket_fd to get its options.  Carrying on.  (%s)\n", strerror(errno)); }
+    if (opts < 0) {
+        dlog(0, "ERROR!  Cannot call fcntl() on the"
+                " local_socket_fd to get its options.  Carrying on.  (%s)\n",
+                strerror(errno));
+    }
  
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(SOSD.net->local_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the local_socket_fd to BLOCKING more.  Carrying on.  (%s).\n", strerror(errno)); }
+    if (i < 0) {
+        dlog(0, "ERROR!  Cannot use fcntl() to set the"
+                " local_socket_fd to BLOCKING more.  Carrying on.  (%s).\n",
+                strerror(errno));
+    }
 
 
     listen( SOSD.net->local_socket_fd, SOSD.net->listen_backlog );
@@ -2173,109 +2245,114 @@ void SOSD_init() {
     pid_t pid, ppid, sid;
     int rc;
 
-    /* [daemon name]
-     *     assign a name appropriate for whether it is participating in a cloud or not
-     */
+    // [daemon name]
     switch (SOS->role) {
-    case SOS_ROLE_LISTENER:  snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".mon" */); break;
-    case SOS_ROLE_AGGREGATOR:      snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN, "%s", SOSD_DAEMON_NAME /* ".dat" */); break;
+    case SOS_ROLE_LISTENER:
+        snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN,
+                "%s", SOSD_DAEMON_NAME /* ".mon" */);
+        break;
+    case SOS_ROLE_AGGREGATOR:
+        snprintf(SOSD.daemon.name, SOS_DEFAULT_STRING_LEN,
+                "%s", SOSD_DAEMON_NAME /* ".dat" */);
+        break;
     default: break;
     }
 
-    /* [lock file]
-     *     create and hold lock file to prevent multiple daemon spawn
-     */
+    // [lock file]
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.lock", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN,
+            "%s/%s.%05d.lock", SOSD.daemon.work_dir,
+            SOSD.daemon.name, SOS->config.comm_rank);
     #else
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
+    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN,
+            "%s/%s.local.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
     sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
     if (sos_daemon_lock_fptr < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not access lock file %s in directory %s\n",
-            SOSD.daemon.name,
-            SOSD.daemon.lock_file,
-            SOSD.daemon.work_dir);
+        fprintf(stderr, "\nERROR!  Unable to start daemon (%s):"
+                " Could not access lock file %s in directory %s\n",
+                SOSD.daemon.name,
+                SOSD.daemon.lock_file,
+                SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
     if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s): Could not lock instance id file %s in directory %s\n",
-            SOSD.daemon.name,
-            SOSD.daemon.lock_file,
-            SOSD.daemon.work_dir);
+        fprintf(stderr, "\nERROR!  Unable to start daemon (%s):"
+                " Could not lock instance id file %s in directory %s\n",
+                SOSD.daemon.name,
+                SOSD.daemon.lock_file,
+                SOSD.daemon.work_dir);
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Lock file obtained.  (%s)\n", SOSD.daemon.lock_file); fflush(stdout); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) {
+        printf("Lock file obtained.  (%s)\n", SOSD.daemon.lock_file);
+        fflush(stdout);
+    }
 
 
-    /* [log file]
-     *      system logging initialize
-     */
+    // [log file]
 #if (SOSD_DAEMON_LOG > 0)
     #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.%05d.log", SOSD.daemon.work_dir, SOSD.daemon.name, SOS->config.comm_rank);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN,
+            "%s/%s.%05d.log", SOSD.daemon.work_dir,
+            SOSD.daemon.name, SOS->config.comm_rank);
     #else
-    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
+    snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN,
+            "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("Opening log file: %s\n", SOSD.daemon.log_file); fflush(stdout); }
-    sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w"); /* Open a log file, even if we don't use it... */
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { printf("  ... done.\n"); fflush(stdout); }
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { 
+        printf("Opening log file: %s\n", SOSD.daemon.log_file);
+        fflush(stdout);
+    }
+    sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w"); 
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) {
+        printf("  ... done.\n"); fflush(stdout);
+    }
 #endif
 
 
     if (!SOSD_ECHO_TO_STDOUT) {
-        dlog(1, "Logging output up to this point has been suppressed, but all initialization has gone well.\n");
+        dlog(1, "Logging output up to this point has been suppressed, but"
+                " all initialization has gone well.\n");
         dlog(1, "Log file is now open.  Proceeding...\n");
         dlog(1, "SOSD_init():\n");
     }
 
-    /* [mode]
-     *      interactive or detached/daemon
-     */
+    // [mode]
     #if (SOSD_DAEMON_MODE > 0)
     {
     dlog(1, "  ...mode: DETACHED DAEMON (fork/umask/sedsid)\n");
-        /* [fork]
-         *     split off from the parent process (& terminate parent)
-         */
+        // [fork]
         ppid = getpid();
         pid  = fork();
         
         if (pid < 0) {
-            dlog(0, "ERROR! Unable to start daemon (%s): Could not fork() off parent process.\n", SOSD.daemon.name);
+            dlog(0, "ERROR! Unable to start daemon (%s): Could not fork()"
+                    " off parent process.\n", SOSD.daemon.name);
             exit(EXIT_FAILURE);
         }
         if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
         
-        /* [child session]
-         *     create/occupy independent session from parent process
-         */
+        // [child session]
         umask(0);
         sid = setsid();
         if (sid < 0) {
-            dlog(0, "ERROR!  Unable to start daemon (%s): Could not acquire a session id.\n", SOSD_DAEMON_NAME); 
+            dlog(0, "ERROR!  Unable to start daemon (%s): Could not acquire"
+                    " a session id.\n", SOSD_DAEMON_NAME); 
             exit(EXIT_FAILURE);
         }
         if ((chdir(SOSD.daemon.work_dir)) < 0) {
-            dlog(0, "ERROR!  Unable to start daemon (%s): Could not change to working directory: %s\n", SOSD_DAEMON_NAME, SOSD.daemon.work_dir);
+            dlog(0, "ERROR!  Unable to start daemon (%s): Could not change"
+                    " to working directory: %s\n", SOSD_DAEMON_NAME,
+                    SOSD.daemon.work_dir);
             exit(EXIT_FAILURE);
         }
-
-        /* [file handles]
-         *     close unused IO handles
-        if (SOS_DEBUG < 1) {
-            dlog(1, "Closing traditional I/O for the daemon...\n");
-            close(STDIN_FILENO);
-            close(STDOUT_FILENO);
-            close(STDERR_FILENO);
-        }
-         */
-
         
-        dlog(1, "  ... session(%d) successfully split off from parent(%d).\n", getpid(), ppid);
+        dlog(1, "  ... session(%d) successfully split off from parent(%d).\n",
+                getpid(), ppid);
     }
     #else
     {
@@ -2286,33 +2363,33 @@ void SOSD_init() {
     sprintf(SOSD.daemon.pid_str, "%d", getpid());
     dlog(1, "  ... pid: %s\n", SOSD.daemon.pid_str);
 
-    /* Now we can write our PID out to the lock file safely... */
-    rc = write(sos_daemon_lock_fptr, SOSD.daemon.pid_str, strlen(SOSD.daemon.pid_str));
+    // Now we can write our PID out to the lock file safely...
+    rc = write(sos_daemon_lock_fptr, SOSD.daemon.pid_str,
+            strlen(SOSD.daemon.pid_str));
 
 
 
-    /* [guid's]
-     *     configure the issuer of guids for this daemon
-     */
+    // [guid's]
     dlog(1, "Obtaining this instance's guid range...\n");
     #if (SOSD_CLOUD_SYNC > 0)
-        SOS_guid guid_block_size = (SOS_guid) (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
-        SOS_guid guid_my_first   = (SOS_guid) SOS->config.comm_rank * guid_block_size;
-        //printf("%d: My guid range: %" SOS_GUID_FMT " - %" SOS_GUID_FMT "\n", SOS->config.comm_rank,
-        //        guid_my_first, (guid_my_first + (guid_block_size - 1))); fflush(stdout);
-        SOS_uid_init(SOS, &SOSD.guid, guid_my_first, (guid_my_first + (guid_block_size - 1)));
+        SOS_guid guid_block_size = (SOS_guid)
+            (SOS_DEFAULT_UID_MAX / (SOS_guid) SOS->config.comm_size);
+        SOS_guid guid_my_first   = (SOS_guid)
+            SOS->config.comm_rank * guid_block_size;
+        SOS_uid_init(SOS, &SOSD.guid, guid_my_first,
+                (guid_my_first + (guid_block_size - 1)));
     #else
-        dlog(1, "DATA NOTE:  Running in local mode, CLOUD_SYNC is disabled.\n");
+        dlog(1, "DATA NOTE:  Running in local mode,"
+                " CLOUD_SYNC is disabled.\n");
         dlog(1, "DATA NOTE:  GUID values are unique only to this node.\n");
         SOS_uid_init(&SOSD.guid, 1, SOS_DEFAULT_UID_MAX);
     #endif
     // Set up the GUID pool for daemon-internal pub handles.
     SOSD.sos_context->uid.my_guid_pool = SOSD.guid;
-    dlog(1, "  ... (%" SOS_GUID_FMT " ---> %" SOS_GUID_FMT ")\n", SOSD.guid->next, SOSD.guid->last);
+    dlog(1, "  ... (%" SOS_GUID_FMT " ---> %" SOS_GUID_FMT ")\n",
+            SOSD.guid->next, SOSD.guid->last);
 
-    /* [hashtable]
-     *    storage system for received pubs.  (will enque their key -> db)
-     */
+    // [hashtable]
     dlog(1, "Setting up a hash table for pubs...\n");
     SOSD.pub_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
 
@@ -2323,31 +2400,46 @@ void SOSD_init() {
 
 
 
- void SOSD_sync_context_init(SOS_runtime *sos_context, SOSD_sync_context *sync_context, size_t elem_size, void* (*thread_func)(void *thread_param)) {
+void
+SOSD_sync_context_init(
+        SOS_runtime *sos_context, 
+        SOSD_sync_context *sync_context,
+        size_t elem_size, void* (*thread_func)(void *thread_param))
+{
     SOS_SET_CONTEXT(sos_context, "SOSD_sync_context_init");
 
     sync_context->sos_context = sos_context;
     if (elem_size > 0) {
         SOS_pipe_init(SOS, &sync_context->queue, elem_size);
     }
-    sync_context->handler = (pthread_t *) malloc(sizeof(pthread_t));
-    sync_context->lock    = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-    sync_context->cond    = (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
+    sync_context->handler =
+        (pthread_t *) malloc(sizeof(pthread_t));
+    sync_context->lock    =
+        (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
+    sync_context->cond    =
+        (pthread_cond_t *) malloc(sizeof(pthread_cond_t));
 
     pthread_mutex_init(sync_context->lock, NULL);
     pthread_cond_init(sync_context->cond, NULL);
-    pthread_create(sync_context->handler, NULL, thread_func, (void *) sync_context);
+    pthread_create(sync_context->handler, NULL, thread_func,
+            (void *) sync_context);
 
     return;
 }
 
-void SOSD_claim_guid_block(SOS_uid *id, int size, SOS_guid *pool_from, SOS_guid *pool_to) {
+void
+SOSD_claim_guid_block(
+        SOS_uid *id,
+        int size,
+        SOS_guid *pool_from,
+        SOS_guid *pool_to)
+{
     SOS_SET_CONTEXT(id->sos_context, "SOSD_claim_guid_block");
 
     pthread_mutex_lock( id->lock );
 
     if ((id->next + size) > id->last) {
-        /* This is basically a failure case if any more GUIDs are requested. */
+        // This is basically a failure case if any more GUIDs are requested. 
         *pool_from = id->next;
         *pool_to   = id->last;
         id->next   = id->last + 1;
@@ -2355,8 +2447,9 @@ void SOSD_claim_guid_block(SOS_uid *id, int size, SOS_guid *pool_from, SOS_guid 
         *pool_from = id->next;
         *pool_to   = id->next + size;
         id->next   = id->next + size + 1;
-        dlog(0, "served GUID block: %" SOS_GUID_FMT " ----> %" SOS_GUID_FMT "\n",
-             *pool_from, *pool_to);
+        dlog(0, "served GUID block: %" SOS_GUID_FMT " ----> %"
+                SOS_GUID_FMT "\n",
+                *pool_from, *pool_to);
     }
 
     pthread_mutex_unlock( id->lock );
@@ -2392,48 +2485,72 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
 void SOSD_display_logo(void) {
 
     int choice = 0;
+    srand(getpid());
+    choice = rand() % 2;
 
-    //srand(getpid());
-    //choice = rand() % 2;
-
-    printf("--------------------------------------------------------------------------------\n");
+    printf("------------------------------------------"
+            "--------------------------------------\n");
     printf("\n");
 
     switch (choice) {
     case 0:
-        printf("           _/_/_/    _/_/      _/_/_/ ||[]||[]}))))}]|[]||||  Scalable\n");
-        printf("        _/        _/    _/  _/        |||||[][{(((({[]|[]|||  Observation\n");
-        printf("         _/_/    _/    _/    _/_/     |[][]|[]}))))}][]|||[]  System\n");
-        printf("            _/  _/    _/        _/    []|||[][{(((({[]|[]|||  for Scientific\n");
-        printf("     _/_/_/      _/_/    _/_/_/       ||[]||[]}))))}][]||[]|  Workflows\n");
+        printf("           _/_/_/    _/_/      _/_/_/ "
+                "||[]||[]}))))}]|[]||||  Scalable\n");
+        printf("        _/        _/    _/  _/        "
+                "|||||[][{(((({[]|[]|||  Observation\n");
+        printf("         _/_/    _/    _/    _/_/     "
+                "|[][]|[]}))))}][]|||[]  System\n");
+        printf("            _/  _/    _/        _/    "
+                "[]|||[][{(((({[]|[]|||  for Scientific\n");
+        printf("     _/_/_/      _/_/    _/_/_/       "
+                "||[]||[]}))))}][]||[]|  Workflows\n");
         break;
 
 
     case 1:
-        printf("               ._____________________________________________________ ___  _ _\n");
-        printf("              /_____/\\/\\/\\/\\/\\____/\\/\\/\\/\\______/\\/\\/\\/\\/\\________ ___ _ _\n");
-        printf("             /___/\\/\\__________/\\/\\____/\\/\\__/\\/\\_______________ ___  _   __ _\n");
-        printf("            /_____/\\/\\/\\/\\____/\\/\\____/\\/\\____/\\/\\/\\/\\_________  _ __\n");
-        printf("           /___________/\\/\\__/\\/\\____/\\/\\__________/\\/\\_______ ___ _  __ _   _\n");
-        printf("          /___/\\/\\/\\/\\/\\______/\\/\\/\\/\\____/\\/\\/\\/\\/\\_________ ___ __ _  _   _\n");
-        printf("         /_____________________________________________________ _  _      _\n");
-        printf("        /___/\\/\\/\\__/\\/\\___________________________________ ___ _ __ __  _    _\n");
-        printf("       /___/\\/\\______/\\/\\______/\\/\\/\\____/\\/\\______/\\/\\___ ___ _ ___ __ _  _\n");
-        printf("      /___/\\/\\/\\____/\\/\\____/\\/\\__/\\/\\__/\\/\\__/\\__/\\/\\___ __ _ _  _  _  _\n");
-        printf("     /___/\\/\\______/\\/\\____/\\/\\__/\\/\\__/\\/\\/\\/\\/\\/\\/\\____ __ ___  _\n");
-        printf("    /___/\\/\\______/\\/\\/\\____/\\/\\/\\______/\\/\\__/\\/\\_____ ___     _\n");
-        printf("   |__________________________________________________ ___ _  _ _  ___  _\n");
+        printf("               .____________________________________"
+                "_________________ ___  _ _\n");
+        printf("              /_____/\\/\\/\\/\\/\\____/\\/\\/\\/\\_"
+                "_____/\\/\\/\\/\\/\\________ ___ _ _\n");
+        printf("             /___/\\/\\__________/\\/\\____/\\/\\__/"
+                "\\/\\_______________ ___  _   __ _\n");
+        printf("            /_____/\\/\\/\\/\\____/\\/\\____/\\/\\__"
+                "__/\\/\\/\\/\\_________  _ __\n");
+        printf("           /___________/\\/\\__/\\/\\____/\\/\\_____"
+                "_____/\\/\\_______ ___ _  __ _   _\n");
+        printf("          /___/\\/\\/\\/\\/\\______/\\/\\/\\/\\____/"
+                "\\/\\/\\/\\/\\_________ ___ __ _  _   _\n");
+        printf("         /__________________________________________"
+                "___________ _  _      _\n");
+        printf("        /___/\\/\\/\\__/\\/\\_______________________"
+                "____________ ___ _ __ __  _    _\n");
+        printf("       /___/\\/\\______/\\/\\______/\\/\\/\\____/\\/"
+                "\\______/\\/\\___ ___ _ ___ __ _  _\n");
+        printf("      /___/\\/\\/\\____/\\/\\____/\\/\\__/\\/\\__/\\/"
+                "\\__/\\__/\\/\\___ __ _ _  _  _  _\n");
+        printf("     /___/\\/\\______/\\/\\____/\\/\\__/\\/\\__/\\/\\/"
+                "\\/\\/\\/\\/\\____ __ ___  _\n");
+        printf("    /___/\\/\\______/\\/\\/\\____/\\/\\/\\______/\\/"
+                "\\__/\\/\\_____ ___     _\n");
+        printf("   |________________________________________________"
+                "__ ___ _  _ _  ___  _\n");
         printf("\n");
-        printf("   * * *   Scalable Observation System for Scientific Workflows   * * *\n");
+        printf("   * * *   Scalable Observation System for "
+                "Scientific Workflows   * * *\n");
         break;
 
 
     case 2:
         printf("_._____. .____  .____.._____. _  ..\n");
-        printf("__  ___/_  __ \\_  ___/__  __/__  /________      __    .:|   Scalable\n");
-        printf(".____ \\_  / / /.___ \\__  /_ ._  /_  __ \\_ | /| / /    .:|   Observation\n");
-        printf("____/ // /_/ /.___/ /_  __/ _  / / /_/ /_ |/ |/ /     .:|   System for Scientific\n");
-        printf("/____/ \\____/ /____/ /_/    /_/  \\____/____/|__/      .:|   Workflows\n");
+        printf("__  ___/_  __ \\_  ___/__  __/__  /__"
+                "______      __    .:|   Scalable\n");
+        printf(".____ \\_  / / /.___ \\__  /_ ._  /_ "
+                " __ \\_ | /| / /    .:|   Observation\n");
+        printf("____/ // /_/ /.___/ /_  __/ _  / / /_"
+                "/ /_ |/ |/ /     .:|   System for "
+                "Scientific\n");
+        printf("/____/ \\____/ /____/ /_/    /_/  \\_"
+                "___/____/|__/      .:|   Workflows\n");
         break;
 
     case 3:
@@ -2456,7 +2573,8 @@ void SOSD_display_logo(void) {
     printf("             Version: %d.%d\n",
             SOS_VERSION_MAJOR,
             SOS_VERSION_MINOR);
-    printf("      Target machine: %s\n", SOS_QUOTE_DEF_STR(SOS_HOST_KNOWN_AS));
+    printf("      Target machine: %s\n",
+            SOS_QUOTE_DEF_STR(SOS_HOST_KNOWN_AS));
     printf("\n");
     printf("         Compiled on: %s at %s\n", __DATE__, __TIME__);
     printf("   Build environment: %s (%s@%s)\n",
@@ -2465,7 +2583,8 @@ void SOSD_display_logo(void) {
             SOS_QUOTE_DEF_STR(SOS_HOST_NODE_NAME));
     printf("         Commit head: %s\n", SOS_QUOTE_DEF_STR(GIT_SHA1));
     printf("\n");
-    printf("--------------------------------------------------------------------------------\n");
+    printf("------------------------------------------"
+            "--------------------------------------\n");
 
     return;
 }

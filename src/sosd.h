@@ -330,10 +330,15 @@ extern "C" {
         header.msg_from = 0;                             \
         header.ref_guid = 0;                             \
         offset = 0;                                      \
-        SOS_msg_zip(__buffer, header, 0, &offset);       \
+        SOS_buffer_pack(__buffer, &offset, "iigg",       \
+                                      header.msg_size,   \
+                                      header.msg_type,   \
+                                      header.msg_from,   \
+                                      header.ref_guid);  \
         header.msg_size = offset;                        \
         offset = 0;                                      \
-        SOS_msg_zip(__buffer, header, 0, &offset);       \
+        SOS_buffer_pack(__buffer, &offset, "i",          \
+                        header.msg_size);                \
     }
 
 

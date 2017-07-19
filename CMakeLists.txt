@@ -19,7 +19,7 @@ option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?
        ON)
 
 option(SECURE_WITH_MUNGE "Use the Munge library to verify connections between instances of SOSflow?"
-       ON)
+    OFF)
 
 ###########
 ###########
@@ -47,10 +47,7 @@ add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 add_definitions("-DUSE_MPI=1")
 
 if(SECURE_WITH_MUNGE)
-    add_definitions("-DUSE_MUNGE")
-    message(STATUS ">>> MUNGE:")
-    message(STATUS ">>> MUNGE: Enabled!")
-    message(STATUS ">>> MUNGE:")
+    add_definitions("-DUSE_MUNGE=1")
 endif()
 
 project(${PROJECT_NAME} C CXX)
