@@ -310,8 +310,6 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         offset = 0;
         SOS_msg_zip(buffer, header, 0, &offset);
 
-        pthread_mutex_lock(SOS->daemon->send_lock);
-
         dlog(4, "Built a registration message:\n");
         dlog(4, "  ... buffer->data == %ld\n", (long) buffer->data);
         dlog(4, "  ... buffer->len  == %d\n", buffer->len);
@@ -584,7 +582,8 @@ SOS_sense_trigger(SOS_runtime *sos_context,
 // it will be zero.
 // Eventually this could be used to compress all but the header of
 // the message, but for now it simply goes back and sets the final
-// length in the correct part of the header.
+// length in the correct part of the header, and potentially
+// embeds Munge signatures.
 int
 SOS_msg_zip(
         SOS_buffer *msg,
@@ -627,9 +626,6 @@ SOS_msg_zip(
 }
 
 
-// NOTE: This exists to allow us to de-compress, in the future.
-// For now it doesn't do anything but extract the header and
-// the offset that points to the beginning of the data segment.
 int
 SOS_msg_unzip(
         SOS_buffer *msg,

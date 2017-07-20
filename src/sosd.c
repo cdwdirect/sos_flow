@@ -474,7 +474,7 @@ void SOSD_listen_loop() {
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
         i = SOS_target_recv_msg(SOSD.net, buffer);
         if (i < sizeof(SOS_msg_header)) {
-            SOS_target_disconnect(SOSD.net);
+            //SOS_target_disconnect(SOSD.net);
             continue;
         }
 
@@ -541,7 +541,7 @@ void SOSD_listen_loop() {
         default:                       SOSD_handle_unknown     (buffer); break;
         }
 
-        SOS_target_disconnect(SOSD.net);
+        //SOS_target_disconnect(SOSD.net);
     }
 
     SOS_buffer_destroy(buffer);

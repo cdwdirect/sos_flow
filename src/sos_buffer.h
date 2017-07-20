@@ -41,12 +41,15 @@ extern "C" {
 #endif
 
 void         SOS_buffer_init(void *sos_context, SOS_buffer **buffer);
-void         SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer, int max_size);
-void         SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer, int max_size, bool locking);
+void         SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer,
+                    int max_size);
+void         SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer,
+                    int max_size, bool locking);
 void         SOS_buffer_clone(SOS_buffer **dest, SOS_buffer *src);
 void         SOS_buffer_lock(SOS_buffer *buffer);
 void         SOS_buffer_unlock(SOS_buffer *buffer);
 void         SOS_buffer_destroy(SOS_buffer *buffer);
+
              // The following functions do *NOT* lock the buffer...
              // (You should hold the lock already, manually)
 void         SOS_buffer_wipe(SOS_buffer *buffer);
