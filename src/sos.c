@@ -641,10 +641,10 @@ SOS_msg_unzip(
 
     int offset = starting_offset;
     SOS_buffer_unpack(msg, &offset, "iigg",
-            header->msg_size,
-            header->msg_type,
-            header->msg_from,
-            header->ref_guid);
+            &header->msg_size,
+            &header->msg_type,
+            &header->msg_from,
+            &header->ref_guid);
 
 #ifdef USE_MUNGE
     header->ref_cred = NULL;
@@ -1070,10 +1070,6 @@ void SOS_finalize(SOS_runtime *sos_context) {
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
         
-        if (SOS->config.offline_test_mode == false) {
-            dlog(1, "  ... Clearing up networking...\b");
-            SOS_buffer_destroy(SOS->daemon->recv_part);
-        }
     }    
     free(SOS->config.node_id);
 
@@ -1097,7 +1093,7 @@ SOS_THREAD_receives_direct(void *args)
     //Get a socket to receive direct feedback messages and begin
     //listening to it.
 
-    SOS_socket insock;
+    SOS_socket *insock;
 
     int i;
     int yes;
@@ -1105,24 +1101,16 @@ SOS_THREAD_receives_direct(void *args)
     int offset;
     SOS_msg_header header;
 
-    yes = 1;
+    insock = NULL;
+    SOS_target_init(SOS, &insock, "localhost", 0);
 
-    insock.local_port[0] = '0';    // NOTE: 0 = Request an OS-assigned open port.
-    insock.remote_socket_fd = -1;
-    insock.listen_backlog = 10;
+    gethostname(insock->local_host, NI_MAXHOST);
+    strncpy(insock->local_port, "0", NI_MAXSERV);
+    insock->port_number = 0;
 
-    memset(&insock.local_hint, '\0', sizeof(struct addrinfo));
-    insock.local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    insock.local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
-    insock.local_hint.ai_flags      = AI_PASSIVE;    // Wildcard IP addresses
-    insock.local_hint.ai_protocol   = 0;             // Any protocol
-    insock.local_hint.ai_canonname  = NULL;
-    insock.local_hint.ai_addr       = NULL;
-    insock.local_hint.ai_next       = NULL;
-
-    
-    i = getaddrinfo(NULL, insock.local_port, &insock.local_hint,
-            &insock.result_list);
+        
+    i = getaddrinfo(NULL, insock->local_port, &insock->local_hint,
+            &insock->result_list);
 
     if (i != 0) {
         fprintf(stderr, "ERROR: Feedback broken, client-side getaddrinfo()"
@@ -1131,16 +1119,16 @@ SOS_THREAD_receives_direct(void *args)
         return NULL;
     }
 
-    for (insock.local_addr = insock.result_list ;
-        insock.local_addr != NULL ; 
-        insock.local_addr = insock.local_addr->ai_next )
+    for (insock->local_addr = insock->result_list ;
+        insock->local_addr != NULL ; 
+        insock->local_addr = insock->local_addr->ai_next )
     {
         dlog(1, "Trying an address...\n");
 
-        insock.remote_socket_fd = socket(insock.local_addr->ai_family,
-            insock.local_addr->ai_socktype, insock.local_addr->ai_protocol);
+        insock->local_socket_fd = socket(insock->local_addr->ai_family,
+            insock->local_addr->ai_socktype, insock->local_addr->ai_protocol);
 
-        if (insock.remote_socket_fd < 1) {
+        if (insock->remote_socket_fd < 1) {
             fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
                 strerror(errno));
             fflush(stderr);
@@ -1148,7 +1136,7 @@ SOS_THREAD_receives_direct(void *args)
         }
 
         // Allow this socket to be reused/rebound quickly.
-        if (setsockopt(insock.remote_socket_fd, SOL_SOCKET, SO_REUSEADDR,
+        if (setsockopt(insock->local_socket_fd, SOL_SOCKET, SO_REUSEADDR,
             &yes, sizeof(int)) == -1)
         {
             dlog(0, "  ... could not set socket options.  (%s)\n",
@@ -1156,20 +1144,20 @@ SOS_THREAD_receives_direct(void *args)
             continue;
         }
        
-        insock.local_addr->ai_addrlen = sizeof(struct sockaddr_in);
+        insock->local_addr->ai_addrlen = sizeof(struct sockaddr_in);
 
-        if ( bind( insock.remote_socket_fd, insock.local_addr->ai_addr,
-                insock.local_addr->ai_addrlen ) == -1 ) {
+        if ( bind( insock->local_socket_fd, insock->local_addr->ai_addr,
+                insock->local_addr->ai_addrlen ) == -1 ) {
             dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
-            close( insock.remote_socket_fd );
-            insock.remote_socket_fd = -1;
+            close( insock->local_socket_fd );
+            insock->local_socket_fd = -1;
             continue;
         } 
         // If we get here, we're good to stop looking.
         break;
     }
 
-    if ( insock.remote_socket_fd <= 0 ) {
+    if ( insock->local_socket_fd <= 0 ) {
         fprintf(stderr, "ERROR: Client could not socket/setsockopt/"
                 "bind to anything to receive feedback. (%d:%s)\n",
                 errno, strerror(errno));
@@ -1178,44 +1166,30 @@ SOS_THREAD_receives_direct(void *args)
         dlog(0, "  ... got a socket, and bound to it!\n");
     }
 
-    freeaddrinfo(insock.result_list);
-
+    freeaddrinfo(insock->result_list);
+    
      // Enforce that this is a BLOCKING socket:
-    opts = fcntl(insock.remote_socket_fd, F_GETFL);
+    opts = fcntl(insock->local_socket_fd, F_GETFL);
     if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the"
           " remote_socket_fd to get its options.  Carrying on.  (%s)\n",
           strerror(errno));
     }
  
     opts = opts & !(O_NONBLOCK);
-    i    = fcntl(insock.remote_socket_fd, F_SETFL, opts);
+    i    = fcntl(insock->local_socket_fd, F_SETFL, opts);
     if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
         " remote_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
         strerror(errno));
     }
 
-    listen( insock.remote_socket_fd, insock.listen_backlog );
+    listen( insock->local_socket_fd, insock->listen_backlog );
     dlog(0, "Listening on socket.\n");
     
-
-    //Part 2: Notify the listener what port we are monitoring.
-    // NOTE: Our hostname is in SOS->config.node_id 
-    /*   
-    char hbuf[NI_MAXHOST] = {0};
-    char sbuf[NI_MAXSERV] = {0};
-    i = getnameinfo(insock.local_addr->ai_addr, insock.local_addr->ai_addrlen,
-            hbuf, sizeof(hbuf), sbuf, sizeof(sbuf),
-            NI_NUMERICHOST | NI_NUMERICSERV);  
-    printf("host=%s, serv=%s\n", hbuf, sbuf);
-    fflush(stdout);
-    */
-   
     struct sockaddr_in sin;
     socklen_t sin_len = sizeof(sin);
-    getsockname(insock.local_socket_fd, (struct sockaddr *)&sin, &sin_len);
+    getsockname(insock->local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     SOS->config.receives_port = ntohs(sin.sin_port);
     SOS->config.receives_ready = 1; 
-
 
     //Part 3: Listening loop for feedback messages.
     SOS_buffer *buffer = NULL;
@@ -1223,35 +1197,22 @@ SOS_THREAD_receives_direct(void *args)
 
     while (SOS->status == SOS_STATUS_RUNNING) {
     
-        insock.peer_addr_len = sizeof(struct sockaddr_storage);
-        insock.remote_socket_fd = accept(insock.local_socket_fd,
-                (struct sockaddr *) &insock.peer_addr,
-                &insock.peer_addr_len);
-        fflush(stdout);
-        
-        i = getnameinfo((struct sockaddr *) &insock.peer_addr,
-                insock.peer_addr_len, insock.remote_host,
-                NI_MAXHOST, insock.remote_port, NI_MAXSERV,
-                NI_NUMERICSERV);
-        if (i != 0) {
-            dlog(0, "Error calling getnameinfo() on client connection."
-                    "  (%s)\n", strerror(errno));
-            break;
-        }
+        SOS_target_accept_connection(insock);
+
 
         if (SOS->status == SOS_STATUS_SHUTDOWN) {
-            SOS_target_disconnect(&insock);
+            SOS_target_disconnect(insock);
             break;
         }
 
-        buffer->len = recv(insock.remote_socket_fd, (void *) buffer->data,
+        buffer->len = recv(insock->remote_socket_fd, (void *) buffer->data,
                 buffer->max, 0);
         dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
 
         if (buffer->len < 0) {
             dlog(1, "  ... recv() call returned an error.  (%s)\n",
                     strerror(errno));
-            SOS_target_disconnect(&insock);
+            SOS_target_disconnect(insock);
             continue;
         }
 
@@ -1261,7 +1222,7 @@ SOS_THREAD_receives_direct(void *args)
             SOS_msg_unzip(buffer, &header, 0, &offset);
         } else {
             dlog(0, "  ... Received short (useless) message.\n");
-            SOS_target_disconnect(&insock);
+            SOS_target_disconnect(insock);
             continue;
         }
 
@@ -1272,12 +1233,12 @@ SOS_THREAD_receives_direct(void *args)
                 SOS_buffer_grow(buffer, 1 + (header.msg_size - buffer->max),
                         SOS_WHOAMI);
             }
-            int rest = recv(insock.remote_socket_fd,
+            int rest = recv(insock->remote_socket_fd,
                     (void *) (buffer->data + old), header.msg_size - old, 0);
             if (rest < 0) {
                 dlog(1, "  ... recv() call returned an error."
                         "  (%s)\n", strerror(errno));
-                SOS_target_disconnect(&insock);
+                SOS_target_disconnect(insock);
                 continue;
             } else {
                 dlog(6, "  ... recv() returned %d more bytes.\n", rest);
@@ -1357,7 +1318,7 @@ SOS_THREAD_receives_direct(void *args)
                         " no handler has been set. Doing nothing.\n");
             }
         }
-        SOS_target_disconnect(&insock);
+        SOS_target_disconnect(insock);
     } // while
 
     SOS_buffer_destroy(buffer);

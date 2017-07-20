@@ -474,7 +474,7 @@ void SOSD_listen_loop() {
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
         i = SOS_target_recv_msg(SOSD.net, buffer);
         if (i < sizeof(SOS_msg_header)) {
-            //SOS_target_disconnect(SOSD.net);
+            SOS_target_disconnect(SOSD.net);
             continue;
         }
 
@@ -541,7 +541,7 @@ void SOSD_listen_loop() {
         default:                       SOSD_handle_unknown     (buffer); break;
         }
 
-        //SOS_target_disconnect(SOSD.net);
+        SOS_target_disconnect(SOSD.net);
     }
 
     SOS_buffer_destroy(buffer);
@@ -1428,12 +1428,8 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-            &header.msg_size,
-            &header.msg_type,
-            &header.msg_from,
-            &header.ref_guid);
-
+    SOS_msg_unzip(buffer, &header, 0, &offset);
+    
     SOSD_query_handle *query_handle = NULL;
     query_handle = (SOSD_query_handle *)
             calloc(1, sizeof(SOSD_query_handle));

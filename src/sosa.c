@@ -62,9 +62,6 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     SOS_target_disconnect(target);
     SOS_target_destroy(target);
 
-    //dlog(7, "   ... extracting response into result set.\n");
-    //SOSA_results_from_buffer(results, reply);
-
     SOS_buffer_destroy(msg);
     SOS_buffer_destroy(reply);
 
@@ -205,12 +202,14 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     dlog(7, "Unpacking %d columns for %d rows...\n", col_incoming, row_incoming);
     dlog(7, "   ... headers.\n");
     for (col = 0; col < col_incoming; col++) {
+        results->col_names[col] = NULL;
         SOS_buffer_unpack_safestr(buffer, &offset, &results->col_names[col]);
     }
 
     dlog(7, "   ... data.\n");
     for (row = 0; row < row_incoming; row++) {
         for (col = 0; col < col_incoming; col++) {
+            results->data[row][col] = NULL;
             SOS_buffer_unpack_safestr(buffer, &offset, &results->data[row][col]);
         }
     }
@@ -223,9 +222,6 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     dlog(7, "   ... done.\n");
     return;
 }
-
-
-
 
 
 
