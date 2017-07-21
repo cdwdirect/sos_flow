@@ -1086,12 +1086,11 @@ SOS_THREAD_receives_direct(void *args)
     SOS_SET_CONTEXT((SOS_runtime *) args, "SOS_THREAD_receives_direct");
 
     SOS->config.receives_ready = -1;
-    while (SOS->status == SOS_STATUS_INIT) {
+    while (SOS->status != SOS_STATUS_RUNNING) {
         usleep(10000);
     }
-    
-    //Get a socket to receive direct feedback messages and begin
-    //listening to it.
+   
+    dlog(0, "SOS is up and running... entering feedback listen loop.\n");
 
     SOS_socket *insock;
 
@@ -1128,7 +1127,7 @@ SOS_THREAD_receives_direct(void *args)
         insock->local_socket_fd = socket(insock->local_addr->ai_family,
             insock->local_addr->ai_socktype, insock->local_addr->ai_protocol);
 
-        if (insock->remote_socket_fd < 1) {
+        if (insock->local_socket_fd < 1) {
             fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
                 strerror(errno));
             fflush(stderr);
@@ -1191,60 +1190,33 @@ SOS_THREAD_receives_direct(void *args)
     SOS->config.receives_port = ntohs(sin.sin_port);
     SOS->config.receives_ready = 1; 
 
+    printf("Listening to socket: %d\n", SOS->config.receives_port);
+    fflush(stdout);
+
     //Part 3: Listening loop for feedback messages.
     SOS_buffer *buffer = NULL;
     SOS_buffer_init_sized_locking(SOS, &buffer, SOS_DEFAULT_BUFFER_MAX, false);
 
     while (SOS->status == SOS_STATUS_RUNNING) {
-    
-        SOS_target_accept_connection(insock);
+        SOS_buffer_wipe(buffer);
 
+        dlog(5, "Waiting for a connection.\n");
+        SOS_target_accept_connection(insock);
+        dlog(5, "Connection received!\n");
 
         if (SOS->status == SOS_STATUS_SHUTDOWN) {
             SOS_target_disconnect(insock);
             break;
         }
 
-        buffer->len = recv(insock->remote_socket_fd, (void *) buffer->data,
-                buffer->max, 0);
-        dlog(6, "  ... recv() returned %d bytes.\n", buffer->len);
-
-        if (buffer->len < 0) {
-            dlog(1, "  ... recv() call returned an error.  (%s)\n",
-                    strerror(errno));
+        i = SOS_target_recv_msg(insock, buffer);
+        if (i < sizeof(SOS_msg_header)) {
             SOS_target_disconnect(insock);
             continue;
-        }
+        };
 
-        memset(&header, '\0', sizeof(SOS_msg_header));
-        if (buffer->len >= sizeof(SOS_msg_header)) {
-            offset = 0;
-            SOS_msg_unzip(buffer, &header, 0, &offset);
-        } else {
-            dlog(0, "  ... Received short (useless) message.\n");
-            SOS_target_disconnect(insock);
-            continue;
-        }
-
-        // Check the size of the message. We may not have gotten it all.
-        while (header.msg_size > buffer->len) {
-            int old = buffer->len;
-            while (header.msg_size > buffer->max) {
-                SOS_buffer_grow(buffer, 1 + (header.msg_size - buffer->max),
-                        SOS_WHOAMI);
-            }
-            int rest = recv(insock->remote_socket_fd,
-                    (void *) (buffer->data + old), header.msg_size - old, 0);
-            if (rest < 0) {
-                dlog(1, "  ... recv() call returned an error."
-                        "  (%s)\n", strerror(errno));
-                SOS_target_disconnect(insock);
-                continue;
-            } else {
-                dlog(6, "  ... recv() returned %d more bytes.\n", rest);
-            }
-            buffer->len += rest;
-        }
+        offset = 0;
+        SOS_msg_unzip(buffer, &header, 0, &offset);
 
         dlog(5, "Received connection.\n");
         dlog(5, "  ... msg_size == %d         (buffer->len == %d)\n",

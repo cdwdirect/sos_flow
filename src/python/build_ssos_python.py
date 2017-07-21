@@ -10,6 +10,7 @@ ffibuilder.set_source(
 
     #include "ssos.h"
     #include "sosa.h"
+    #include "sos_debug.h"
 
     """,
     sources=[

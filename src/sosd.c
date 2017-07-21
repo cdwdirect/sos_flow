@@ -638,12 +638,18 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         SOSD_query_handle *query;
 
+
         switch(task->type) {
         case SOS_FEEDBACK_TYPE_QUERY: 
             query = (SOSD_query_handle *) task->ref;
             SOS_socket *target = NULL;
             rc = SOS_target_init(SOS, &target,
                     query->reply_host, query->reply_port);
+
+            printf("SOSD: Sending query results to %s:%d ...\n",
+                    query->reply_host,
+                    query->reply_port);
+            fflush(stdout);
 
             rc = SOS_target_connect(target);
             if (rc != 0) {
@@ -657,10 +663,13 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             if (rc < 0) {
                 dlog(0, "SOSD: Unable to send message to client.\n");
             }
+            printf("SOSD: Done sending message.  (%d bytes sent)\n", rc);
+            fflush(stdout);
+
 
             rc = SOS_target_disconnect(target);
             rc = SOS_target_destroy(target);
-            
+           
             break;
 
         case SOS_FEEDBACK_TYPE_PAYLOAD:
@@ -1270,14 +1279,10 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     dlog(5, "Registering a client sensitivity.\n");
     
     SOS_msg_header header;
+    
     int offset = 0;
-
-    SOS_buffer_unpack(msg, &offset, "iigg",
-            &header.msg_size,
-            &header.msg_type,
-            &header.msg_from,
-            &header.ref_guid);
-
+    SOS_msg_unzip(msg, &header, 0, &offset);
+   
     SOSD_sensitivity_entry *sense =
         calloc(1, sizeof(SOSD_sensitivity_entry));
 
@@ -1387,11 +1392,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     dlog(5, "header.msg_type = SOS_MSG_TYPE_KMEAN_DATA\n");
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "iigg",
-                      &header.msg_size,
-                      &header.msg_type,
-                      &header.msg_from,
-                      &header.ref_guid);
+    SOS_msg_unzip(buffer, &header, 0, &offset);
 
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
