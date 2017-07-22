@@ -727,7 +727,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
             /*
              *  Uncomment in case of emergency:
-             *
+             */
             fprintf(stderr, "Message for the client at %s:%d  ...\n",
                     sense->remote_host, sense->remote_port);
             fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
@@ -749,7 +749,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             fprintf(stderr, "   ...\n");
             fprintf(stderr, "\n");
             fflush(stderr);
-             *
+             /*
              */
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
@@ -2481,13 +2481,24 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
 
 void SOSD_display_logo(void) {
 
+    int col = 0;
     int choice = 0;
     srand(getpid());
-    choice = rand() % 2;
+    choice = rand() % 3;
 
-    printf("------------------------------------------"
-            "--------------------------------------\n");
     printf("\n");
+    printf(SOS_BOLD_WHT);
+    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR SOS_WHT);
+    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR "\n" SOS_WHT);
+    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR SOS_DIM_WHT);
+    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR "\n\n");
+
+    printf(SOS_BOLD_GRN);
+
 
     switch (choice) {
     case 0:
@@ -2505,35 +2516,35 @@ void SOSD_display_logo(void) {
 
 
     case 1:
-        printf("               .____________________________________"
+        printf("             .____________________________________"
                 "_________________ ___  _ _\n");
-        printf("              /_____/\\/\\/\\/\\/\\____/\\/\\/\\/\\_"
+        printf("            /_____/\\/\\/\\/\\/\\____/\\/\\/\\/\\_"
                 "_____/\\/\\/\\/\\/\\________ ___ _ _\n");
-        printf("             /___/\\/\\__________/\\/\\____/\\/\\__/"
+        printf("           /___/\\/\\__________/\\/\\____/\\/\\__/"
                 "\\/\\_______________ ___  _   __ _\n");
-        printf("            /_____/\\/\\/\\/\\____/\\/\\____/\\/\\__"
+        printf("          /_____/\\/\\/\\/\\____/\\/\\____/\\/\\__"
                 "__/\\/\\/\\/\\_________  _ __\n");
-        printf("           /___________/\\/\\__/\\/\\____/\\/\\_____"
+        printf("         /___________/\\/\\__/\\/\\____/\\/\\_____"
                 "_____/\\/\\_______ ___ _  __ _   _\n");
-        printf("          /___/\\/\\/\\/\\/\\______/\\/\\/\\/\\____/"
+        printf("        /___/\\/\\/\\/\\/\\______/\\/\\/\\/\\____/"
                 "\\/\\/\\/\\/\\_________ ___ __ _  _   _\n");
-        printf("         /__________________________________________"
+        printf("       /__________________________________________"
                 "___________ _  _      _\n");
-        printf("        /___/\\/\\/\\__/\\/\\_______________________"
+        printf("      /___/\\/\\/\\__/\\/\\_______________________"
                 "____________ ___ _ __ __  _    _\n");
-        printf("       /___/\\/\\______/\\/\\______/\\/\\/\\____/\\/"
+        printf("     /___/\\/\\______/\\/\\______/\\/\\/\\____/\\/"
                 "\\______/\\/\\___ ___ _ ___ __ _  _\n");
-        printf("      /___/\\/\\/\\____/\\/\\____/\\/\\__/\\/\\__/\\/"
+        printf("    /___/\\/\\/\\____/\\/\\____/\\/\\__/\\/\\__/\\/"
                 "\\__/\\__/\\/\\___ __ _ _  _  _  _\n");
-        printf("     /___/\\/\\______/\\/\\____/\\/\\__/\\/\\__/\\/\\/"
+        printf("   /___/\\/\\______/\\/\\____/\\/\\__/\\/\\__/\\/\\/"
                 "\\/\\/\\/\\/\\____ __ ___  _\n");
-        printf("    /___/\\/\\______/\\/\\/\\____/\\/\\/\\______/\\/"
+        printf("  /___/\\/\\______/\\/\\/\\____/\\/\\/\\______/\\/"
                 "\\__/\\/\\_____ ___     _\n");
-        printf("   |________________________________________________"
+        printf(" |________________________________________________"
                 "__ ___ _  _ _  ___  _\n");
         printf("\n");
-        printf("   * * *   Scalable Observation System for "
-                "Scientific Workflows   * * *\n");
+        printf("         Scalable Observation System for "
+                "Scientific Workflows        \n");
         break;
 
 
@@ -2550,7 +2561,7 @@ void SOSD_display_logo(void) {
                 "___/____/|__/      .:|   Workflows\n");
         break;
 
-    case 3:
+    case 99:
         printf("             _/_/_/    _/_/      _/_/_/\n");
         printf("          _/        _/    _/  _/       \n");
         printf("           _/_/    _/    _/    _/_/    \n");
@@ -2566,22 +2577,34 @@ void SOSD_display_logo(void) {
 
     }
 
+    printf(SOS_CLR);
+    printf(SOS_GRN);
+
     printf("\n");
-    printf("             Version: %d.%d\n",
+    printf(SOS_GRN "             Version: " SOS_CLR "%d.%d\n",
             SOS_VERSION_MAJOR,
             SOS_VERSION_MINOR);
-    printf("      Target machine: %s\n",
+    printf(SOS_GRN "      Target machine: " SOS_CLR "%s\n",
             SOS_QUOTE_DEF_STR(SOS_HOST_KNOWN_AS));
     printf("\n");
-    printf("         Compiled on: %s at %s\n", __DATE__, __TIME__);
-    printf("   Build environment: %s (%s@%s)\n",
-            SOS_QUOTE_DEF_STR(SOS_HOST_DETAILED),
+    printf(SOS_GRN "         Compiled on: " SOS_CLR "%s" SOS_GRN " at "
+            SOS_CLR "%s" SOS_GRN " by " SOS_CLR "%s@%s\n",
+            __DATE__, __TIME__,
             SOS_QUOTE_DEF_STR(SOS_BUILDER),
             SOS_QUOTE_DEF_STR(SOS_HOST_NODE_NAME));
-    printf("         Commit head: %s\n", SOS_QUOTE_DEF_STR(GIT_SHA1));
+    printf(SOS_GRN "   Build environment: " SOS_CLR "%s\n",
+            SOS_QUOTE_DEF_STR(SOS_HOST_DETAILED));
+    printf(SOS_GRN "         Commit head: " SOS_CLR "%s\n",
+            SOS_QUOTE_DEF_STR(GIT_SHA1));
     printf("\n");
-    printf("------------------------------------------"
-            "--------------------------------------\n");
-
+    printf(SOS_BOLD_WHT);
+    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR SOS_WHT);
+    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR "\n" SOS_WHT);
+    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR SOS_DIM_WHT);
+    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+    printf(SOS_CLR "\n\n");
     return;
 }

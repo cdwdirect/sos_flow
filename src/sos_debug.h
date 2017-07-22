@@ -24,12 +24,12 @@
  *     -1 = disable logging entirely  <--- Faster, but HIDES ALL sosd/sosa logs, too!
  */
 #ifndef SOS_DEBUG
-#define SOS_DEBUG                 10
+#define SOS_DEBUG                 -1
 #endif
 #define SOS_DEBUG_SHOW_LOCATION   0
 
 /* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           10
+#define SOSD_DAEMON_LOG           0
 #define SOSD_ECHO_TO_STDOUT       0
 
 
@@ -62,7 +62,7 @@ FILE   *sos_daemon_log_fptr;
                     printf("ERROR: SOS_WHOAMI == NULL !\n");            \
                     exit(EXIT_FAILURE);                                 \
                 }                                                       \
-                printf("[%s]: ", SOS_WHOAMI);                           \
+                printf("[%s.%s]: ", SOS_WHOAMI, SOS_WHEREAMI);          \
                 printf(__VA_ARGS__);                                    \
                 if (stdout) fflush(stdout);                             \
             }                                                           \
@@ -79,15 +79,21 @@ FILE   *sos_daemon_log_fptr;
                     exit(EXIT_FAILURE);                                 \
                 }                                                       \
                 if (sos_daemon_log_fptr != NULL) {                      \
-                    fprintf(sos_daemon_log_fptr, "[%s]: ", SOS_WHOAMI); \
+                    fprintf(sos_daemon_log_fptr, "[%s.%s]: ",           \
+                            SOS_WHOAMI, SOS_WHEREAMI);                  \
                     fprintf(sos_daemon_log_fptr, __VA_ARGS__);          \
                     fflush(sos_daemon_log_fptr);                        \
                 }                                                       \
                 if ((SOSD_DAEMON_MODE == 0) && SOSD_ECHO_TO_STDOUT) {   \
                     if (SOS_DEBUG_SHOW_LOCATION > 0) {                  \
-                        printf("(%s:%d)", __FILE__, __LINE__ );         \
+                        printf("(" SOS_MAG);                            \
+                        printf("%s" SOS_CYN ":" SOS_GRN "%d",           \
+                                __FILE__, __LINE__ );                   \
+                        printf(SOS_CLR ")");                            \
                     }                                                   \
-                    printf("[%s]: ", SOS_WHOAMI);                       \
+                    printf("[" SOS_DIM_WHT "%s." SOS_CLR SOS_BOLD_RED   \
+                            "%s" SOS_CLR                                \
+                            "]: ", SOS_WHOAMI, SOS_WHEREAMI);           \
                     printf(__VA_ARGS__);                                \
                     fflush(stdout);                                     \
                 }                                                       \
@@ -96,13 +102,17 @@ FILE   *sos_daemon_log_fptr;
     } else {                                                            \
         if (SOS_DEBUG >= level && SOS->role == SOS_ROLE_CLIENT) {       \
             if (SOS_DEBUG_SHOW_LOCATION > 0) {                          \
-                printf("(%s:%d)", __FILE__, __LINE__ );                 \
+                printf("(" SOS_MAG "%s" SOS_CYN ":" SOS_GRN             \
+                        "%d" SOS_CLR ")", __FILE__, __LINE__ );         \
+                printf(SOS_CLR);                                        \
             }                                                           \
             if (SOS_WHOAMI == NULL) {                                   \
                 printf("ERROR: SOS_WHOAMI == NULL !\n");                \
                 exit(EXIT_FAILURE);                                     \
             }                                                           \
-            printf("[%s]: ", SOS_WHOAMI);                               \
+            printf("[" SOS_DIM_WHT "%s." SOS_CLR SOS_BOLD_RED "%s"      \
+                    SOS_CLR "]: ",                                      \
+                    SOS_WHOAMI, SOS_WHEREAMI);                          \
             printf(__VA_ARGS__);                                        \
             if (stdout) fflush(stdout);                                 \
         }                                                               \

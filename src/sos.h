@@ -233,32 +233,77 @@ extern "C" {
         exit(EXIT_FAILURE);                                     \
     }                                                           \
     char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};              \
+    char SOS_WHEREAMI[SOS_DEFAULT_STRING_LEN] = {0};            \
     snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");    \
     switch (SOS->role) {                                        \
     case SOS_ROLE_CLIENT     :                                  \
-        sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",     \
-                SOS->my_guid, __SOS_str_funcname);              \
+        sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ")",        \
+                SOS->my_guid);                                  \
         break;                                                  \
     case SOS_ROLE_LISTENER   :                                  \
-        sprintf(SOS_WHOAMI, "listener(%d).%s",                  \
-                SOS->config.comm_rank, __SOS_str_funcname);     \
+        sprintf(SOS_WHOAMI, "listener(%d)",                     \
+                SOS->config.comm_rank);                         \
         break;                                                  \
     case SOS_ROLE_AGGREGATOR :                                  \
-        sprintf(SOS_WHOAMI, "aggregator(%d).%s",                \
-                SOS->config.comm_rank, __SOS_str_funcname);     \
+        sprintf(SOS_WHOAMI, "aggregator(%d)",                   \
+                SOS->config.comm_rank);                         \
         break;                                                  \
     case SOS_ROLE_ANALYTICS  :                                  \
         sprintf(SOS_WHOAMI, "analytics(%d).%s",                 \
-                SOS->config.comm_rank, __SOS_str_funcname);     \
+                SOS->config.comm_rank);                         \
         break;                                                  \
     default                  :                                  \
-        sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",     \
-                SOS->my_guid, __SOS_str_funcname); break;       \
+        sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ")",        \
+                SOS->my_guid);                                  \
+        break;                                                  \
     }                                                           \
+    snprintf(SOS_WHEREAMI, SOS_DEFAULT_STRING_LEN, "%s",        \
+            __SOS_str_funcname);                                \
     dlog(8, "Entering function: %s\n", __SOS_str_funcname);
 #endif
 
+// Unicode box drawing macros:
+#define SOS_SYM_BR "\e(0\x6a\e(B " /* -^  */
+#define SOS_SYM_TR "\e(0\x6b\e(B " /* -.  */
+#define SOS_SYM_TL "\e(0\x6c\e(B " /* .-  */
+#define SOS_SYM_BL "\e(0\x6d\e(B " /* ^-  */
+#define SOS_SYM_LX "\e(0\x6e\e(B " /* -|- */
+#define SOS_SYM_LH "\e(0\x71\e(B " /* --- */
+#define SOS_SYM_VL "\e(0\x74\e(B " /*  |- */
+#define SOS_SYM_VR "\e(0\x75\e(B " /* -|  */
+#define SOS_SYM_LU "\e(0\x76\e(B " /* -^- */
+#define SOS_SYM_LD "\e(0\x77\e(B " /* -.- */
+#define SOS_SYM_LV "\e(0\x78\e(B " /*  |  */
+ 
+// Symbols:
+#define SOS_SYM_GREY_BLOCK "\xE2\x96\x92"
+
+// Colors
+#define SOS_RED         "\x1B[31m"
+#define SOS_GRN         "\x1B[32m"
+#define SOS_YEL         "\x1B[33m"
+#define SOS_BLU         "\x1B[34m"
+#define SOS_MAG         "\x1B[35m"
+#define SOS_CYN         "\x1B[36m"
+#define SOS_WHT         "\x1B[37m"
+#define SOS_BOLD_RED    "\x1B[1;31m"
+#define SOS_BOLD_GRN    "\x1B[1;32m"
+#define SOS_BOLD_YEL    "\x1B[1;33m"
+#define SOS_BOLD_BLU    "\x1B[1;34m"
+#define SOS_BOLD_MAG    "\x1B[1;35m"
+#define SOS_BOLD_CYN    "\x1B[1;36m"
+#define SOS_BOLD_WHT    "\x1B[1;37m"
+#define SOS_DIM_RED    "\x1B[2;31m"
+#define SOS_DIM_GRN    "\x1B[2;32m"
+#define SOS_DIM_YEL    "\x1B[2;33m"
+#define SOS_DIM_BLU    "\x1B[2;34m"
+#define SOS_DIM_MAG    "\x1B[2;35m"
+#define SOS_DIM_CYN    "\x1B[2;36m"
+#define SOS_DIM_WHT    "\x1B[2;37m"
+#define SOS_CLR         "\x1B[0m"
+
+// Example of colors:
+// printf(SOS_RED "red\n" SOS_CLR);
 
 
-
-#endif //SOS_H
+#endif

@@ -820,7 +820,10 @@ SOS_target_init(
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
 
-    strncpy(tgt->local_host, "localhost", NI_MAXHOST);
+    char local_hostname[NI_MAXHOST];
+    gethostname(local_hostname, NI_MAXHOST);
+
+    strncpy(tgt->local_host, local_hostname, NI_MAXHOST);
     strncpy(tgt->local_port, "0", NI_MAXSERV);
     tgt->port_number = 0;
 
@@ -1099,16 +1102,17 @@ SOS_THREAD_receives_direct(void *args)
     int opts;
     int offset;
     SOS_msg_header header;
+    char local_hostname[NI_MAXHOST];
 
     insock = NULL;
-    SOS_target_init(SOS, &insock, "localhost", 0);
+    SOS_target_init(SOS, &insock, "NULL_recv_only", 0);
 
     gethostname(insock->local_host, NI_MAXHOST);
     strncpy(insock->local_port, "0", NI_MAXSERV);
     insock->port_number = 0;
 
         
-    i = getaddrinfo(NULL, insock->local_port, &insock->local_hint,
+    i = getaddrinfo(insock->local_host, insock->local_port, &insock->local_hint,
             &insock->result_list);
 
     if (i != 0) {
@@ -1189,9 +1193,6 @@ SOS_THREAD_receives_direct(void *args)
     getsockname(insock->local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     SOS->config.receives_port = ntohs(sin.sin_port);
     SOS->config.receives_ready = 1; 
-
-    printf("Listening to socket: %d\n", SOS->config.receives_port);
-    fflush(stdout);
 
     //Part 3: Listening loop for feedback messages.
     SOS_buffer *buffer = NULL;
