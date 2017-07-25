@@ -16,7 +16,6 @@
 #include "sosa.h"
 #include "sos_types.h"
 #include "ssos.h"
-#include "sos_debug.h"
 
 int                 g_sos_is_online = 0;
 int                 g_results_are_ready = 0;

@@ -249,7 +249,7 @@ extern "C" {
                 SOS->config.comm_rank);                         \
         break;                                                  \
     case SOS_ROLE_ANALYTICS  :                                  \
-        sprintf(SOS_WHOAMI, "analytics(%d).%s",                 \
+        sprintf(SOS_WHOAMI, "analytics(%d)",                    \
                 SOS->config.comm_rank);                         \
         break;                                                  \
     default                  :                                  \

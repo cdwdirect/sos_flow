@@ -66,14 +66,8 @@ DEMO_feedback_handler(
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
         SOSA_results_from_buffer(results, payload_data);
-        printf("----------\n");
         SOSA_results_output_to(stdout, results,
-                "Query Results", SOSA_OUTPUT_JSON);
-        printf("----------\n");
-        printf("Summary:\n");
-        printf("    Columns...: %d\n", results->col_count);
-        printf("    Rows......: %d\n", results->row_count);
-        printf("----------\n");
+                "Query Results", SOSA_OUTPUT_W_HEADER);
         SOSA_results_destroy(results);
         break;
 

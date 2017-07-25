@@ -48,9 +48,9 @@ def demonstrateSOS():
     #    print "      ...OK!"
 
     if (len(sys.argv) > 1):
-        sql_string = "SELECT * FROM viewCombined WHERE frame = 499 LIMIT " + sys.argv[1] + ";"
+        sql_string = "SELECT * FROM viewCombined WHERE frame = " + sys.argv[1] + ";"
     else:
-        sql_string = "SELECT * FROM viewCombined WHERE frame = 499 LIMIT 10000;"
+        sql_string = "SELECT * FROM viewCombined WHERE frame = 0 LIMIT 10000;"
  
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string

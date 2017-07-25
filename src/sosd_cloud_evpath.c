@@ -216,11 +216,8 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
 
     SOS_msg_header header;
     int offset = 0;
-    SOS_buffer_unpack(msg, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.ref_guid);
+
+    SOS_msg_unzip(msg, &header, 0, &offset);
 
     int offset_after_header = offset;
 
@@ -249,12 +246,10 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         SOS_buffer_pack(wrapped_msg, &offset, "i",
             msg_count);
 
-        SOS_buffer_pack(wrapped_msg, &offset, "iigg",
-            header.msg_size,
-            header.msg_type,
-            header.msg_from,
-            header.ref_guid);
+        offset_after_header = offset;
 
+        SOS_msg_zip(wrapped_msg, header, offset_after_header, &offset);
+    
         SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
         memcpy(wrapped_msg->data + offset, msg->data + offset_after_header, msg->len - offset_after_header);
         wrapped_msg->len += (msg->len - offset_after_header);

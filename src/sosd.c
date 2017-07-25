@@ -665,10 +665,10 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                 continue;
             }
 
-            printf("SOSD: Sending query results to %s:%d ...\n",
-                    query->reply_host,
-                    query->reply_port);
-            fflush(stdout);
+           // printf("SOSD: Sending query results to %s:%d ...\n",
+           //         query->reply_host,
+           //         query->reply_port);
+           // fflush(stdout);
 
             rc = SOS_target_connect(target);
             if (rc != 0) {
@@ -686,8 +686,8 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             if (rc < 0) {
                 dlog(0, "SOSD: Unable to send message to client.\n");
             }
-            printf("SOSD: Done sending message.  (%d bytes sent)\n", rc);
-            fflush(stdout);
+            //printf("SOSD: Done sending message.  (%d bytes sent)\n", rc);
+            //fflush(stdout);
 
             rc = SOS_target_disconnect(target);
             rc = SOS_target_destroy(target);
@@ -757,7 +757,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
                     /*
                      *  Uncomment in case of emergency:
-                     */
+                     * 
                     fprintf(stderr, "Message for the client at %s:%d  ...\n",
                             sense->remote_host, sense->remote_port);
                     fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
@@ -780,7 +780,6 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     fprintf(stderr, "   ...\n");
                     fprintf(stderr, "\n");
                     fflush(stderr);
-                    /*
                     */
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);

@@ -10,7 +10,6 @@ ffibuilder.set_source(
 
     #include "ssos.h"
     #include "sosa.h"
-    #include "sos_debug.h"
 
     """,
     sources=[
@@ -25,6 +24,8 @@ ffibuilder.cdef("""
 
     typedef struct {
         void        *sos_context;
+        char        *query_sql;
+        uint64_t     query_guid;
         uint32_t     col_max;
         uint32_t     col_count;
         char       **col_names;
