@@ -610,7 +610,15 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
     pthread_mutex_lock(my->lock);
 
+    // For processing queries...
+    SOSD_query_handle *query;
+    SOS_buffer *results_reply_msg = NULL;
+    SOS_buffer_init(SOS, &results_reply_msg);
+    // For processing payloads...
     SOSD_feedback_payload *payload = NULL;
+    SOS_buffer *delivery = NULL;
+    SOS_buffer_init_sized_locking(SOS, &delivery, 1024, false);
+
 
     gettimeofday(&now, NULL);
     wait.tv_sec  = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
@@ -636,15 +644,26 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             pthread_mutex_unlock(my->queue->sync_lock);
         }
 
-        SOSD_query_handle *query;
-
-
         switch(task->type) {
         case SOS_FEEDBACK_TYPE_QUERY: 
             query = (SOSD_query_handle *) task->ref;
             SOS_socket *target = NULL;
             rc = SOS_target_init(SOS, &target,
                     query->reply_host, query->reply_port);
+            if (rc != 0) {
+                dlog(0, "ERROR: Unable to initialize link to %s:%s"
+                        " ... destroying results and returning.\n",
+                        query->reply_host,
+                        query->reply_port);
+                if (query->reply_host != NULL) {
+                    free(query->reply_host);
+                    query->reply_host = NULL;
+                }
+                SOSA_results_destroy(query->results);
+                free(query);
+                free(task);
+                continue;
+            }
 
             printf("SOSD: Sending query results to %s:%d ...\n",
                     query->reply_host,
@@ -659,17 +678,26 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                         query->reply_port);
             }
 
-            rc = SOS_target_send_msg(target, query->reply_msg);
+            SOS_buffer_wipe(results_reply_msg);
+            SOSA_results_to_buffer(results_reply_msg, query->results);
+            SOSA_results_destroy(query->results);
+
+            rc = SOS_target_send_msg(target, results_reply_msg);
             if (rc < 0) {
                 dlog(0, "SOSD: Unable to send message to client.\n");
             }
             printf("SOSD: Done sending message.  (%d bytes sent)\n", rc);
             fflush(stdout);
 
-
             rc = SOS_target_disconnect(target);
             rc = SOS_target_destroy(target);
+            if (query->reply_host != NULL) {
+                free(query->reply_host);
+                query->reply_host = NULL;
+            }
            
+            //Done delivering query results.
+            free(query);
             break;
 
         case SOS_FEEDBACK_TYPE_PAYLOAD:
@@ -685,14 +713,13 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             header.msg_from = SOS->config.comm_rank;
             header.ref_guid = 0;
 
-            SOS_buffer *delivery = NULL;
-            SOS_buffer_init_sized_locking(SOS, &delivery, 1024, false);
+            SOS_buffer_wipe(delivery);
 
             offset = 0;
-            SOS_msg_zip(buffer, header, 0, &offset);
-            
+            SOS_msg_zip(delivery, header, 0, &offset);
             int after_header = offset;
 
+            // Pack the payload message into the delivery.
             SOS_buffer_pack_bytes(delivery, &offset, payload->size, payload->data);
 
             header.msg_size = offset;
@@ -725,32 +752,33 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                         continue;
                     }
 
-            /*
-             *  Uncomment in case of emergency:
-             */
-            fprintf(stderr, "Message for the client at %s:%d  ...\n",
-                    sense->remote_host, sense->remote_port);
-            fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
-            fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
-            fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
-                    header.msg_from);
-            fprintf(stderr, "   header.ref_guid == %" SOS_GUID_FMT "\n",
-                    header.ref_guid);
-            fprintf(stderr, "\n");
-            fprintf(stderr, "   offset_after_header == %d\n", after_header);
-            fprintf(stderr, "\n");
-            fprintf(stderr, "   delivery->len == %d\n", delivery->len);
-            fprintf(stderr, "   delivery->max == %d\n", delivery->max);
-            fprintf(stderr, "   delivery->data[offset_after_header"
-                    " + 4] == \"%s\"\n", (char *)(delivery->data + after_header + 4));
-            fprintf(stderr, "\n");
-            fprintf(stderr, "   payload->size == %d\n", payload->size);
-            fprintf(stderr, "   payload->data == %s\n", (char *) payload->data);
-            fprintf(stderr, "   ...\n");
-            fprintf(stderr, "\n");
-            fflush(stderr);
-             /*
-             */
+                    /*
+                     *  Uncomment in case of emergency:
+                     */
+                    fprintf(stderr, "Message for the client at %s:%d  ...\n",
+                            sense->remote_host, sense->remote_port);
+                    fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
+                    fprintf(stderr, "   header.msg_type == %d\n", header.msg_type);
+                    fprintf(stderr, "   header.msg_from == %" SOS_GUID_FMT "\n",
+                            header.msg_from);
+                    fprintf(stderr, "   header.ref_guid == %" SOS_GUID_FMT "\n",
+                            header.ref_guid);
+                    fprintf(stderr, "\n");
+                    fprintf(stderr, "   offset_after_header == %d\n", after_header);
+                    fprintf(stderr, "\n");
+                    fprintf(stderr, "   delivery->len == %d\n", delivery->len);
+                    fprintf(stderr, "   delivery->max == %d\n", delivery->max);
+                    fprintf(stderr, "   delivery->data[offset_after_header"
+                            " + 4] == \"%s\"\n",
+                            (char *)(delivery->data + after_header + 4));
+                    fprintf(stderr, "\n");
+                    fprintf(stderr, "   payload->size == %d\n", payload->size);
+                    fprintf(stderr, "   payload->data == %s\n", (char *) payload->data);
+                    fprintf(stderr, "   ...\n");
+                    fprintf(stderr, "\n");
+                    fflush(stderr);
+                    /*
+                    */
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
                 }
@@ -759,6 +787,9 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             }
 
             pthread_mutex_unlock(SOSD.sync.sense_list_lock);
+
+            //Done delivering payload.
+            free(payload->data);
             break;
 
         default:
@@ -767,6 +798,8 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         }
 
+        //Done processing this feedback task.
+        free(task);
 
         gettimeofday(&now, NULL);
         wait.tv_sec = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
@@ -774,6 +807,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                 + (1000 * now.tv_usec);
     }
 
+    dlog(1, "Feedback handler shut down cleanly.\n");
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
 }
@@ -1097,114 +1131,22 @@ void* SOSD_THREAD_cloud_send(void *args) {
 void
 SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     SOS_SET_CONTEXT(send_buffer->sos_context, "SOSD_send_to_self");
-    SOS_msg_header header;
-    int            local_socket_fd;
-    int            offset      = 0;
-    int            inset       = 0;
-    int            retval      = 0;
-    double         time_start  = 0.0;
-    double         time_out    = 0.0;
 
-    dlog(1, "Processing a self-send...\n");
+    dlog(1, "Preparing to send a message to our own listening socket...\n");
+    dlog(1, "  ... Initializing...\n");
+    SOS_socket *my_own_listen_port = NULL;
+    SOS_target_init(SOS, &my_own_listen_port, "localhost", 
+            atoi(getenv("SOS_CMD_PORT")));
+    dlog(1, "  ... Connecting...\n");
+    SOS_target_connect(my_own_listen_port);
+    dlog(1, "  ... Sending...\n");
+    SOS_target_send_msg(my_own_listen_port, send_buffer);
+    dlog(1, "  ... Receiving reply...\n");
+    SOS_target_recv_msg(my_own_listen_port, reply_buffer);
+    dlog(1, "  ... Disconnecting...\n");
+    SOS_target_disconnect(my_own_listen_port);
 
-    SOS_socket out;
-    out.buffer_len    = SOS_DEFAULT_BUFFER_MAX;
-    out.timeout       = SOS_DEFAULT_MSG_TIMEOUT;
-    strncpy(out.local_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
-    strncpy(out.local_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
-    if (strlen(out.local_port) < 2) {
-        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set."
-                "  Using default: %s\n", SOS_DEFAULT_SERVER_PORT);
-        fflush(stderr);
-        strncpy(out.local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
-    }
-
-    out.local_hint.ai_family    = AF_UNSPEC;   // Allow IPv4 or IPv6
-    out.local_hint.ai_protocol  = 0;           // Any protocol
-    out.local_hint.ai_socktype  = SOCK_STREAM; // SOCK..._STREAM/_DGRAM/_RAW
-    out.local_hint.ai_flags     = AI_NUMERICSERV | out.local_hint.ai_flags;
-
-    retval = getaddrinfo(out.local_host, out.local_port,
-        &out.local_hint, &out.result_list);
-    if (retval < 0) {
-        dlog(0, "ERROR!  Could not locate the SOS daemon.  (%s:%s)\n",
-            out.local_host, out.local_port );
-        return;
-    }
-   
-    dlog(1, "Looking for connections.\n");
-
-    // Iterate the possible connections and register with the SOS daemon:
-    for (out.local_addr = out.result_list ;
-        out.local_addr != NULL ;
-        out.local_addr = out.local_addr->ai_next)
-    {
-        local_socket_fd = socket(out.local_addr->ai_family,
-            out.local_addr->ai_socktype,
-            out.local_addr->ai_protocol);
-        if (local_socket_fd == -1) { continue; }
-        if (connect(local_socket_fd, out.local_addr->ai_addr,
-            out.local_addr->ai_addrlen) != -1) break; // Success!
-        close(local_socket_fd);
-    }
-    
-    freeaddrinfo( out.result_list );
-    
-    if (local_socket_fd == 0) {
-        dlog(0, "Error attempting to connect to the server.  (%s:%s)\n",
-            out.local_host, out.local_port);
-        return;
-    }
-
-    int more_to_send      = 1;
-    int failed_send_count = 0;
-    int total_bytes_sent  = 0;
-    retval = 0;
-
-    SOS_TIME(time_start);
-    while (more_to_send) {
-        if (failed_send_count > 8) {
-            dlog(0, "ERROR: Unable to contact sosd daemon"
-                    " after 8 attempts.\n");
-            return;
-        }
-        retval = send(local_socket_fd, (send_buffer->data + retval),
-                send_buffer->len, 0 );
-        if (retval < 0) {
-            failed_send_count++;
-            if (failed_send_count < 2) {
-                dlog(0, "ERROR: Could not send message to daemon."
-                    " (%s)\n", strerror(errno));
-            }
-            dlog(0, "ERROR:    ...retrying %d more times after a"
-                    " brief delay.\n", (9 - failed_send_count));
-            usleep(10000);
-            continue;
-        } else {
-            total_bytes_sent += retval;
-        }
-        if (total_bytes_sent >= send_buffer->len) {
-            more_to_send = 0;
-        }
-    }//while
-
-    dlog(1, "Send complete, waiting for a reply...\n");
-
-    offset = 0;
-
-    // NOTE: No reply is expected.  send_to_self is only used for
-    //       clearing the listening thread waiting to accept some
-    //       new connection, when the termination signal did not
-    //       arrive from the socket by from other intra-daemon
-    //       messaging.
-    reply_buffer->len = recv(local_socket_fd, reply_buffer->data,
-            reply_buffer->max, 0);
-
-    // Done!
-    close( local_socket_fd );
-
-    dlog(1, "Reply fully received.  reply_buffer->len == %d\n",
-            reply_buffer->len);
+    dlog(1, "Done.\n");
 
     return;
 }
@@ -1437,15 +1379,16 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     query_handle->state          = SOS_QUERY_STATE_INCOMING;
     query_handle->reply_to_guid  = header.msg_from;
+    query_handle->query_guid     = -1;
     query_handle->query_sql      = NULL;
     query_handle->reply_host     = NULL;
     query_handle->reply_port     = -1;
-    query_handle->reply_msg      = NULL;
 
     dlog(6, "   ...extracting query...\n");
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->reply_host);
     SOS_buffer_unpack(buffer, &offset, "i", &query_handle->reply_port);
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->query_sql);
+    SOS_buffer_unpack(buffer, &offset, "g", &query_handle->query_guid);
 
     dlog(6, "      ...received reply_host: \"%s\"\n",
             query_handle->reply_host);
@@ -1870,6 +1813,17 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
 
+    if (SOS->role == SOS_ROLE_AGGREGATOR) {
+        fprintf(stderr, "WARNING: Attempt to trigger shutdown"
+                " at AGGREGATOR.\n");
+        dlog(0, "CRITICAL WARNING: Shutdown was triggered on an AGGREGATION\n"
+                "    daemon. Shutdown should be sent to each in situ LISTENER,\n"
+                "    and they will automatically propagate the notification via\n"
+                "    inter-daemon communication channels to the appropriate\n"
+                "    aggregation targets, if any exist.\n"
+                "    ... attempting to proceed anyway.\n");
+    }
+
     reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
 
@@ -1877,15 +1831,14 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
     if (SOS->role == SOS_ROLE_LISTENER) {
+        dlog(5, "Replying to the client who submitted the shutdown"
+                " request in situ...\n");
         SOSD_PACK_ACK(reply);
-        
         i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
                 reply->len, 0);
-
         if (i == -1) {
             dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
-        }
-        else {
+        } else {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i);
             SOSD_countof(socket_bytes_sent += i);
         }
@@ -1898,16 +1851,9 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     SOSD.daemon.running = 0;
     SOS->status = SOS_STATUS_SHUTDOWN;
 
-    /*
-     * We don't need to do this here, the handlers are called by the same thread as
-     * the listener, so setting the flag (above) is sufficient to stop the listener
-     * loop and initiate a clean shutdown.
-     *
-    shutdown(SOSD.net->local_socket_fd, SHUT_RDWR);
-     *
-     */
-
     SOS_buffer_destroy(reply);
+
+    dlog(5, "Done.\n");
 
     return;
 }

@@ -472,12 +472,8 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
 
     // Even if we didn't execute the query, we need to send back the empty
     // results in case there is a client that is blocking waiting on them.
-
-    SOS_buffer_init_sized_locking(SOS, &query->reply_msg,
-            SOS_DEFAULT_BUFFER_MAX, false);
-
-    SOSA_results_to_buffer(query->reply_msg, results);
-    SOSA_results_destroy(results);
+    SOSA_results_label(results, query->query_guid, query->query_sql);
+    query->results = results;
 
     // Enqueue the results to send back to the client...
     SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));

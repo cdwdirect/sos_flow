@@ -19,7 +19,7 @@
 #include "sos_types.h"
 #include "sos_debug.h"
 
-void
+SOS_guid
 SOSA_exec_query(SOS_runtime *sos_context, char *query,
         char *target_host, int target_port)
 {
@@ -44,10 +44,28 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     int offset = 0;
     SOS_msg_zip(msg, header, 0, &offset);
     
+    SOS_guid query_guid;
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        // NOTE: This guid is returned by the function so it can
+        // be tracked by clients.  They can blast out a bunch
+        // of queries to different daemons that get returned
+        // asynchronously, and can do some internal bookkeeping by
+        // uniting the results with the original query submission.
+        query_guid = SOS_uid_next(SOS->uid.my_guid_pool);
+    } else {
+        // Or...
+        // this generally should not happen unless the daemon is
+        // submitting queries internally, which is downright
+        // funky and shouldn't be happening, IMO.  -CW
+        query_guid = -99999;
+    }
+    dlog(7, "   ... assigning query_guid = %" SOS_GUID_FMT "\n",
+            query_guid);
     
     SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
     SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
     SOS_buffer_pack(msg, &offset, "s", query);
+    SOS_buffer_pack(msg, &offset, "g", query_guid);
 
     header.msg_size = offset;
     offset = 0;
@@ -66,7 +84,7 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     SOS_buffer_destroy(reply);
 
     dlog(7, "   ... done.\n");
-    return;
+    return query_guid;
 }
 
 
@@ -109,6 +127,37 @@ void SOSA_results_put_name(SOSA_results *results, int col, const char *name) {
 }
 
 
+void SOSA_results_label(SOSA_results *results, SOS_guid guid, const char *sql) {
+    if (results == NULL) {
+        fprintf(stderr, "CRITICAL ERROR: Attempting to label a NULL results set.\n");
+        fprintf(stderr, "                Doing nothing and returning.\n");
+        return;
+    }
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_label");
+
+    dlog(7, "Tagging results with guid and sql metadata:\n");
+    dlog(7, "   ... results->guid = %" SOS_GUID_FMT "\n", guid);
+    results->query_guid = guid;
+
+    if (results->query_sql != NULL) {
+        dlog(7, "   ... free'ing existing SQL string: \"%s\"\n",
+                results->query_sql);
+        free(results->query_sql);
+        results->query_sql = NULL;
+    }
+    if (sql == NULL) {
+        dlog(7, "   ... results->query_sql = \"%s\"\n", sql);
+        results->query_sql = strdup("[none]");
+    } else {
+        results->query_sql = strdup(sql);
+    }
+
+    dlog(7, "Done.\n");
+
+    return;
+}
+
+
 void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_to_buffer");
 
@@ -131,6 +180,14 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     header.ref_guid = 0;
     int offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
+
+    if (results->query_sql == NULL) {
+        dlog(1, "WARNING: Encoding query results that have not been labelled.\n");
+    }
+    
+    SOS_buffer_pack(buffer, &offset, "sg",
+                    results->query_sql,
+                    results->query_guid);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
@@ -182,6 +239,13 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
 
     // Strip out the header...
     SOS_msg_unzip(buffer, &header, 0, &offset);
+
+    results->query_sql = NULL;
+    SOS_buffer_unpack_safestr(buffer, &offset, &results->query_sql);
+    SOS_buffer_unpack(buffer, &offset, "g", &results->query_guid);
+    dlog(9, "Unpacking results for query_guid=%" SOS_GUID_FMT ", query_sql=\"%s\"\n",
+            results->query_guid,
+            results->query_sql);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
@@ -258,6 +322,8 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
         
         fprintf(fptr, "{\"title\"      : \"%s\",\n",  title);
         fprintf(fptr, " \"time_stamp\" : \"%lf\",\n", time_now);
+        fprintf(fptr, " \"query_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
+        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
         fprintf(fptr, " \"col_count\"  : \"%d\",\n",  results->col_count);
         fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
         fprintf(fptr, " \"data\"       : [\n");
@@ -265,7 +331,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
         for (row = 0; row < results->row_count; row++) {
             fprintf(fptr, "\t{\n"); //row:begin
 
-            fprintf(fptr, "\t\t\"result_row\": \"%d\"\n", row);
+            fprintf(fptr, "\t\t\"result_row\": \"%d\",\n", row);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\t\t\"%s\": \"%s\"", results->col_names[col], results->data[row][col]);
                 if (col < (results->col_count - 1)) {
@@ -294,6 +360,13 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
     default://OUTPUT_CSV:
         // Display header (optional)
         if (options & SOSA_OUTPUT_W_HEADER) {
+            fprintf(fptr, "title      : \"%s\"\n",  title);
+            fprintf(fptr, "time_stamp : \"%lf\"\n", time_now);
+            fprintf(fptr, "query_guid : \"%" SOS_GUID_FMT "\"\n", results->query_guid);
+            fprintf(fptr, "query_sql  : \"%s\"\n", results->query_sql);
+            fprintf(fptr, "col_count  : \"%d\"\n",  results->col_count);
+            fprintf(fptr, "row_count  : \"%d\"\n",  results->row_count);
+            fprintf(fptr, "----------\n");
             fprintf(fptr, "\"result_row\",");
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);
@@ -317,11 +390,6 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
     return;
 }
-
-
-
-
-
 
 
 // NOTE: Only call this when you already hold the uid->lock
@@ -370,9 +438,6 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
 }
 
 
-
-
-
 void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr) {
     SOS_SET_CONTEXT(sos_context, "SOSA_results_init");
     int col = 0;
@@ -388,6 +453,10 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
     SOSA_results *results = *results_object_ptraddr; 
     results->sos_context = SOS;
+
+    // These get set manually w/in the daemons:
+    results->query_guid  = -1;
+    results->query_sql   = NULL;
 
     results->col_count   = 0;
     results->row_count   = 0;
@@ -492,6 +561,12 @@ void SOSA_results_wipe(SOSA_results *results) {
     dlog(7, "    ... results->col_max = %d\n", results->col_max);
     dlog(7, "    ... results->row_max = %d\n", results->row_max);
 
+    results->query_guid = -1;
+    if (results->query_sql != NULL) {
+        free(results->query_sql);
+        results->query_sql = NULL;
+    }
+
     for (row = 0; row < results->row_max; row++) {
         for (col = 0; col < results->col_max; col++) {
             if (results->data[row][col] != NULL) {
@@ -522,33 +597,47 @@ void SOSA_results_wipe(SOSA_results *results) {
 void SOSA_results_destroy(SOSA_results *results) {
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_destroy");
 
-    dlog(7, "Destroying results set...\n");
+    dlog(7, "Destroying results set for results->query_guid == %" SOS_GUID_FMT "\n",
+            results->query_guid);
     dlog(7, "    ... results->col_count == %d of %d\n", results->col_count, results->col_max);
     dlog(7, "    ... results->row_count == %d of %d\n", results->row_count, results->row_max);
 
     int row = 0;
     int col = 0;
+    dlog(7, "    ... free'ing cells...\n");
     for (row = 0; row < results->row_count; row++) {
         for (col = 0; col < results->col_count; col++) {
             free(results->data[row][col]);
         }
     }
 
+    dlog(7, "    ... free'ing columns...\n");
     for (row = 0; row < results->row_max; row++) {
         free(results->data[row]);
     }
 
+    dlog(7, "    ... free'ing rows...\n");
     free(results->data);
 
+    dlog(7, "    ... free'ing column names...\n");
     for (col = 0; col < results->col_max; col++) {
         if (results->col_names[col] != NULL) {
             free(results->col_names[col]);
         }
     }
     free(results->col_names);
+
+    results->query_guid = -1;
+    if (results->query_sql != NULL) {
+        dlog(7, "    ... free'ing SQL string...\n");
+        free(results->query_sql);
+        results->query_sql = NULL;
+    }
+
+    dlog(7, "    ... free'ing results object itself...\n");
     free(results);
 
-    dlog(7, "    ... done.\n");
+    dlog(7, "Done.\n");
 
     return;
 }

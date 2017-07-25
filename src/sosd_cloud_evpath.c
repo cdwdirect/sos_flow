@@ -739,6 +739,36 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_destroy(shutdown_msg);
         SOS_buffer_destroy(reply);
 
+    } else {
+        // AGGREGATOR:
+        //     Build a dummy message to send to ourself to purge the
+        //     main listen loop's accept() call:
+        dlog(1, "Processing a self-send to flush main listen"
+                " loop's socket accept()...\n");
+
+        SOS_msg_header header;
+        int offset;
+
+        SOS_buffer *shutdown_msg = NULL;
+        SOS_buffer *shutdown_reply = NULL;
+        SOS_buffer_init(SOS, &shutdown_msg);
+        SOS_buffer_init(SOS, &shutdown_reply);
+
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
+        header.msg_from = SOS->my_guid;
+        header.ref_guid = -1;
+
+        offset = 0;
+        SOS_msg_zip(shutdown_msg, header, 0, &offset);
+
+        header.msg_size = offset;
+        offset = 0;
+        SOS_msg_zip(shutdown_msg, header, 0, &offset);
+
+        SOSD_send_to_self(shutdown_msg, shutdown_reply);
+        SOS_buffer_destroy(shutdown_msg);
+        SOS_buffer_destroy(shutdown_reply);
     }
     
     dlog(1, "  ... done\n");

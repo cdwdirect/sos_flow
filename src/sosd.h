@@ -19,7 +19,7 @@
 
 #include "sos.h"
 #include "sos_types.h"
-
+#include "sosa.h"
 
 /*********************/
 /* [SOSD_DAEMON_MODE]
@@ -74,11 +74,12 @@ typedef struct {
 
 typedef struct {
     SOS_query_state     state;
-    char               *query_sql;
     SOS_guid            reply_to_guid;
+    char               *query_sql;
+    SOS_guid            query_guid;
     char               *reply_host;
     int                 reply_port;
-    SOS_buffer         *reply_msg;
+    void               *results;
 } SOSD_query_handle;
 
 typedef struct {

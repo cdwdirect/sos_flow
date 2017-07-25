@@ -145,6 +145,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
 {
     SOS_msg_header header;
     int i, n, retval, remote_socket_fd;
+    int rc;
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
 
@@ -285,7 +286,16 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         SOS->daemon = NULL;
         SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
                 atoi(getenv("SOS_CMD_PORT")));
-        SOS_target_connect(SOS->daemon);
+        rc = SOS_target_connect(SOS->daemon);
+
+        if (rc != 0) {
+            fprintf(stderr, "Unable to connect to an SOSflow daemon on"
+                    " port %d.  (rc == %d)\n",
+                    atoi(getenv("SOS_CMD_PORT")), rc);
+            free(SOS);
+            SOS = NULL;
+            return;
+        }
 
         dlog(4, "  ... registering this instance with SOS->   (%s:%s)\n",
         SOS->daemon->remote_host, SOS->daemon->remote_port);
@@ -1025,15 +1035,19 @@ void SOS_finalize(SOS_runtime *sos_context) {
 
 
     if (SOS->role == SOS_ROLE_CLIENT) {
-        if (SOS->config.receives != SOS_RECEIVES_NO_FEEDBACK) {
-            dlog(1, "  ... Joining threads...\n");
-            dlog(1, "      ... sending empty message to unblock feedback listener\n");
+        dlog(1, "    Closing down client-related items...\n");
+        if (SOS->config.receives == SOS_RECEIVES_DIRECT_MESSAGES) {
+            dlog(1, "  ... This client RECEIVES_DIRECT_MESSAGES:\n");
+            dlog(1, "      ... establishing connection it self...\n"); 
             SOS_socket *target = NULL;
             SOS_target_init(SOS, &target, "localhost", SOS->config.receives_port);
+            dlog(1, "      ... connecting to self...\n");
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;
             SOS_buffer_init_sized_locking(SOS, &msg, 1024, false);
             
+            // Send ourselves an empty feedback message to
+            // flush the socket accept() and return from that thread.
             int offset = 0;
             SOS_msg_header header;
             header.msg_size = -1;
@@ -1046,22 +1060,26 @@ void SOS_finalize(SOS_runtime *sos_context) {
             offset = 0;
             SOS_msg_zip(msg, header, 0, &offset);
 
+            dlog(1, "      ... sending empty feedback message to self...\n");
             SOS_target_send_msg(target, msg);
+            dlog(1, "      ... disconnecting and destroying connection/msg...\n");
             SOS_target_disconnect(target);
             SOS_target_destroy(target);
             SOS_buffer_destroy(msg);
-            /*
-            dlog(1, "      ... joining feedback thread\n");
-            pthread_cond_signal(SOS->task.feedback_cond);
-            pthread_cond_destroy(SOS->task.feedback_cond);
-            pthread_join(*SOS->task.feedback, NULL);
-            pthread_mutex_lock(SOS->task.feedback_lock);
-            pthread_mutex_destroy(SOS->task.feedback_lock);
-            free(SOS->task.feedback_lock);
-            free(SOS->task.feedback_cond);
-            free(SOS->task.feedback);
-            dlog(1, "      ... done joining threads.\n");
-        */
+            
+            // *  NOTE: The below code is not needed, as the above message
+            // *  will flush the thread out, if not a message in the queue
+            // *  or incoming from the daemon.
+            //dlog(1, "      ... joining feedback thread\n");
+            //pthread_cond_signal(SOS->task.feedback_cond);
+            //pthread_cond_destroy(SOS->task.feedback_cond);
+            //pthread_join(*SOS->task.feedback, NULL);
+            //pthread_mutex_lock(SOS->task.feedback_lock);
+            //pthread_mutex_destroy(SOS->task.feedback_lock);
+            //free(SOS->task.feedback_lock);
+            //free(SOS->task.feedback_cond);
+            //free(SOS->task.feedback);
+            //dlog(1, "      ... done joining threads.\n");
         }
 
         dlog(1, "  ... Removing send lock...\n");
