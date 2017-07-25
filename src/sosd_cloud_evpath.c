@@ -290,12 +290,12 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     SOS_buffer_unpack(msg, &offset, "i", &message_len);
     SOS_buffer_unpack_safestr(msg, &offset, &message);
 
-    //fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
-    //        " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
-    //        SOS->config.comm_rank,
-    //        header.msg_from,
-    //        header.msg_size);
-    //fflush(stderr);
+    fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
+            " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
+            SOS->config.comm_rank,
+            header.msg_from,
+            header.msg_size);
+    fflush(stderr);
 
     SOSD_feedback_task *task;
     task = calloc(1, sizeof(SOSD_feedback_task));
@@ -306,15 +306,15 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     payload->size = message_len;
     payload->data = (void *) message;
 
-    //fprintf(stderr, "sosd(%d) enquing the following task->ref:\n"
-    //        "   payload->handle == %s\n"
-    //        "   payload->size   == %d\n"
-    //        "   payload->data   == \"%s\"\n",
-    //        SOSD.sos_context->config.comm_rank,
-    //        payload->handle,
-    //        payload->size,
-    //        (char*) payload->data);
-    //fflush(stderr);
+    fprintf(stderr, "sosd(%d) enquing the following task->ref:\n"
+            "   payload->handle == %s\n"
+            "   payload->size   == %d\n"
+            "   payload->data   == \"%s\"\n",
+            SOSD.sos_context->config.comm_rank,
+            payload->handle,
+            payload->size,
+            (char*) payload->data);
+    fflush(stderr);
 
     task->ref = (void *) payload;    
     pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);

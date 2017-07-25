@@ -715,13 +715,16 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
             SOS_buffer_wipe(delivery);
 
+            dlog(5, "Signing the delivery buffer (initial zip)\n");
             offset = 0;
             SOS_msg_zip(delivery, header, 0, &offset);
             int after_header = offset;
 
+            dlog(5, "Packing the payload data into the delivery buffer.\n");
             // Pack the payload message into the delivery.
             SOS_buffer_pack_bytes(delivery, &offset, payload->size, payload->data);
 
+            dlog(5, "Re-signing it with the known size now (%d)...\n", offset);
             header.msg_size = offset;
             offset = 0;
             SOS_msg_zip(delivery, header, 0, &offset);
@@ -799,6 +802,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         }
 
         //Done processing this feedback task.
+        dlog(5, "Done processing this feedback task.\n");
         free(task);
 
         gettimeofday(&now, NULL);
@@ -1295,6 +1299,10 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
     #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     SOSD_evpath_handle_triggerpull(msg);
+    #else
+    fprintf(stderr, "WARNING: Trigger message received, but support for\n"
+            "         handling this message has not been compiled into this build\n"
+            "         of SOSflow.  Sending an ACK and doing nothing.\n");
     #endif
 
     dlog(5, "Cloud function returned, sending ACK reply to client"
