@@ -9,7 +9,10 @@ include_directories("${sos_flow_SOURCE_DIR}/src")
 #   link_directories("${sos_flow_SOURCE_DIR}/lib")
 
 
-subdirs (sosa_mods)
+#
+# Don't build these "analytics" mods anymore... we do it different now.
+#
+#subdirs (sosa_mods)
 
 
 if(DEFINED SQLITE3_INCLUDE_DIR)
