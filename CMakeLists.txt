@@ -19,7 +19,7 @@ option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?
        ON)
 
 option(SECURE_WITH_MUNGE "Use the Munge library to verify connections between instances of SOSflow?"
-    ON)
+       ON)
 
 ###########
 ###########

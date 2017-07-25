@@ -259,7 +259,7 @@ extern "C" {
     }                                                           \
     snprintf(SOS_WHEREAMI, SOS_DEFAULT_STRING_LEN, "%s",        \
             __SOS_str_funcname);                                \
-    dlog(8, "Entering function: %s\n", __SOS_str_funcname);
+    /*dlog(8, "Entering function: %s\n", __SOS_str_funcname);*/
 #endif
 
 // Unicode box drawing macros:

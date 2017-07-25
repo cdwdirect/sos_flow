@@ -21,7 +21,9 @@ def queryAndPlot():
     SELECT MAX(frame) FROM viewCombined WHERE viewCombined.value_name LIKE "lulesh.time"
     ;
     """
-    results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
+    results, col_names = SOS.query(sql_string,
+            os.environ.get("HOSTNAME"),
+            os.environ.get("SOS_CMD_PORT"))
     
     max_cycle = int(results[0][0])
     print "Max cycle: " + str(max_cycle)
@@ -86,7 +88,7 @@ def queryAndPlot():
     plt.grid(True)
     plt.draw()
     plt.savefig("./imgs/lulesh_" + str(max_cycle) + ".png")
-    #plt.show()
+    plt.show()
 
     SOS.finalize();
     print "   ...DONE!"
