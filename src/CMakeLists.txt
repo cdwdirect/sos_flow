@@ -67,8 +67,6 @@ endif()
 add_library("sos_qhashtbl" "sos_qhashtbl.c")
 
 
-
-
 #TARGET ---> sos
 #            (library)
 #add_library("sos" SHARED "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
@@ -100,7 +98,6 @@ if(CMAKE_THREAD_LIBS_INIT)
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-
 #TARGET ---> sosa
 #            (library)
 add_library("sosa" "sosa.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
@@ -119,7 +116,14 @@ if(MPI_C_LINK_FLAGS)
   set_target_properties("sosa" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
-
+file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
+export(TARGETS sos_buffer    APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sos_pipe      APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sos_qhashtbl  APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sos           APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS ssos          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sosa          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+ 
 
 #TARGET ---> sosd
 #            (daemon)
@@ -310,6 +314,5 @@ INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
   OWNER_READ GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ)
-
 INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
 #INSTALL(TARGETS sos_pipe sos_buffer sos sosa sosd_stop sosd_probe demo_app demo_sweep proc_app RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib) 

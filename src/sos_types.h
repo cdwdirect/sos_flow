@@ -1,5 +1,8 @@
 #ifndef SOS_TYPES_H
 #define SOS_TYPES_H
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -496,5 +499,5 @@ typedef struct {
 #endif
 } SOS_runtime;
 
-
+#pragma GCC diagnostic pop
 #endif

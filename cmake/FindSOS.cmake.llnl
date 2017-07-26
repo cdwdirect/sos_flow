@@ -1,0 +1,45 @@
+###############################################################################
+#
+# Setup SOSflow
+#
+###############################################################################
+#
+#  Expects SOSFLOW_DIR to point to a SOSflow installation.
+#
+# This file defines the following CMake variables:
+#  SOSFLOW_FOUND - If SOSflow was found
+#  SOSFLOW_INCLUDE_DIRS - The SOSflow include directories
+#
+#  If found, the SOSflow CMake targets will also be imported.
+#  The main SOSflow library targets are:
+#   sos
+#
+###############################################################################
+
+###############################################################################
+# Check for SOSFLOW_DIR
+###############################################################################
+if(NOT SOSFLOW_DIR)
+    MESSAGE(FATAL_ERROR "Could not find SOSflow. SOSflow requires explicit SOSFLOW_DIR.")
+endif()
+
+if(NOT EXISTS ${SOSFLOW_DIR}/lib/cmake/sosflow.cmake)
+    MESSAGE(FATAL_ERROR "Could not find SOSflow CMake include file (${SOSFLOW_DIR}/lib/cmake/sosflow.cmake)")
+endif()
+
+###############################################################################
+# Import SOSflow's CMake targets
+###############################################################################
+include(${SOSFLOW_DIR}/lib/cmake/sosflow.cmake)
+
+###############################################################################
+# Set remaining CMake variables 
+###############################################################################
+# we found Alpine
+set(SOSFLOW_FOUND TRUE)
+# provide location of the headers and libraries
+set(SOSFLOW_INCLUDE_DIRS ${SOSFLOW_DIR}/include)
+set(SOSFLOW_LIB_DIRS ${SOSFLOW_DIR}/lib)
+
+
+
