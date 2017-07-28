@@ -1,0 +1,10 @@
+#!/bin/bash
+if [ "x$SOS_ENV_SET" == "x" ] ; then
+	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
+    kill -INT $$
+fi
+echo "AGGREGATOR task X 3 :"
+SOS_CMD_PORT=20690 mpirun -np 3 $SOS_BUILD_DIR/bin/demo_app -i 1 -p 1 -m 100000 -d 10000000 &
+echo "LISTENER   task X 7 :"  
+mpirun -np 7 $SOS_BUILD_DIR/bin/demo_app -i 1 -p 1 -m 100000 -d 10000000 &
+

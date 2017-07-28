@@ -20,7 +20,6 @@ then
     fi
 fi
 export ASAN_OPTIONS="abort_on_error=0"
-env SOS_CMD_PORT=20690 ./bin/sosd -l 1 -a 1 -w `pwd` -k 0 -r aggregator &
-sleep 1
-./bin/sosd -l 1 -a 1 -w `pwd` -k 1 -r listener & 
+env SOS_CMD_PORT=20690 $SOS_BUILD_DIR/bin/sosd -l 1 -a 1 -w `pwd` -k 0 -r aggregator &
+$SOS_BUILD_DIR/bin/sosd -l 1 -a 1 -w `pwd` -k 1 -r listener & 
 

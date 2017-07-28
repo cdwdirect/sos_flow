@@ -208,15 +208,16 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 }
 
 
-// NOTE: Trigger pulls do not flow out beyond the scope of where
+// NOTE: Trigger pulls do not flow out beyond the node where
 //       they are pulled (at this time).  They go "downstream"
-//       towards the applications only.
+//       from AGG->LIS and LIS->APP
 void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
 
+    dlog(4, "Message received... unzipping.\n");
+
     SOS_msg_header header;
     int offset = 0;
-
     SOS_msg_unzip(msg, &header, 0, &offset);
 
     int offset_after_header = offset;
@@ -224,7 +225,7 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     if ((SOS->role == SOS_ROLE_AGGREGATOR)
      && (SOS->config.comm_size > 1)) {
         
-        // We are an Aggregator and we have Listener[s] to
+        // We are an Aggregator AND we have Listener[s] to
         // notify...
 
         SOSD_evpath *evp = &SOSD.daemon.evpath;
@@ -247,11 +248,13 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
             msg_count);
 
         offset_after_header = offset;
+        offset = 0;
 
         SOS_msg_zip(wrapped_msg, header, offset_after_header, &offset);
     
         SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
-        memcpy(wrapped_msg->data + offset, msg->data + offset_after_header, msg->len - offset_after_header);
+        memcpy(wrapped_msg->data + offset, msg->data + offset_after_header,
+                msg->len - offset_after_header);
         wrapped_msg->len += (msg->len - offset_after_header);
         offset += (msg->len - offset_after_header);
 
@@ -627,8 +630,11 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
                       &header.msg_from,
                       &header.ref_guid);
 
-    dlog(6, "Enqueueing a %s message of %d bytes...\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
-    if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR: buffer->len(%d) != header.msg_size(%d)", buffer->len, header.msg_size); }
+    dlog(6, "Enqueueing a %s message of %d bytes...\n",
+            SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
+    if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR:"
+            " buffer->len(%d) != header.msg_size(%d)",
+            buffer->len, header.msg_size); }
 
     pthread_mutex_lock(SOSD.sync.cloud_send.queue->sync_lock);
     pipe_push(SOSD.sync.cloud_send.queue->intake, (void *) &buffer, sizeof(SOS_buffer *));
@@ -640,10 +646,11 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
 }
 
 
-/* name.......: SOSD_cloud_fflush
- * description: Force the send-queue to flush and transmit.
- * note.......: With EVPath, this might be totally unnecessary.  (i.e. "Let EVPath handle it...")
- */
+// name.......: SOSD_cloud_fflush
+// description: Force the send-queue to flush and transmit.
+// note.......: With EVPath, this might be totally unnecessary.
+//              (i.e. "Let EVPath handle it...")
+//
 void  SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.EVPATH");
 
@@ -696,7 +703,9 @@ void  SOSD_cloud_shutdown_notice(void) {
     {
         dlog(1, "  ... preparing notice to SOS_ROLE_AGGREGATOR at"
                 " rank %d\n", SOSD.daemon.cloud_sync_target);
-        /* The first N listener ranks will notify the N aggregators... */
+        // LISTENER:
+        // The first N listener ranks will notify the N aggregators...
+        //
         SOS_msg_header header;
         SOS_buffer    *shutdown_msg;
         SOS_buffer    *reply;
@@ -717,6 +726,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
         msg_inset = offset;
 
+        
         header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
                                           header.msg_size,
                                           header.msg_type,

@@ -632,7 +632,7 @@ SOS_msg_zip(
         pthread_mutex_unlock(msg->lock);
     }
 
-    return offset;
+    return (offset - starting_offset);
 }
 
 
