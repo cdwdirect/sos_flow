@@ -6,7 +6,6 @@
 #include <time.h>
 
 #include "sos.h"
-#include "sosd.h"
 #include "sos_types.h"
 
 
