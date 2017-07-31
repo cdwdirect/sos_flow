@@ -210,13 +210,13 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         exit (1);
     }
     SOS->my_cred = NULL;
-    dlog(0, "Obtaining MUNGE credential...\n");
+    dlog(1, "Obtaining MUNGE credential...\n");
     munge_err = munge_encode(&SOS->my_cred, munge_ctx, NULL, 0);
     if (munge_err != EMUNGE_SUCCESS) {
         fprintf (stderr, "ERROR: %s\n", munge_ctx_strerror (munge_ctx));
         exit (1);
     }
-    dlog(0, "   credential == \"%s\"\n", SOS->my_cred);
+    dlog(1, "   credential == \"%s\"\n", SOS->my_cred);
 #endif
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
@@ -1111,7 +1111,7 @@ SOS_THREAD_receives_direct(void *args)
         usleep(10000);
     }
    
-    dlog(0, "SOS is up and running... entering feedback listen loop.\n");
+    dlog(1, "SOS is up and running... entering feedback listen loop.\n");
 
     SOS_socket *insock;
 
@@ -1184,27 +1184,27 @@ SOS_THREAD_receives_direct(void *args)
                 errno, strerror(errno));
          
     } else {
-        dlog(0, "  ... got a socket, and bound to it!\n");
+        dlog(1, "  ... got a socket, and bound to it!\n");
     }
 
     freeaddrinfo(insock->result_list);
     
      // Enforce that this is a BLOCKING socket:
     opts = fcntl(insock->local_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "ERROR!  Cannot call fcntl() on the"
+    if (opts < 0) { dlog(0, "ERROR: Cannot call fcntl() on the"
           " remote_socket_fd to get its options.  Carrying on.  (%s)\n",
           strerror(errno));
     }
  
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(insock->local_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "ERROR!  Cannot use fcntl() to set the"
+    if (i < 0) { dlog(0, "ERROR: Cannot use fcntl() to set the"
         " remote_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
         strerror(errno));
     }
 
     listen( insock->local_socket_fd, insock->listen_backlog );
-    dlog(0, "Listening on socket.\n");
+    dlog(1, "Listening on socket.\n");
     
     struct sockaddr_in sin;
     socklen_t sin_len = sizeof(sin);
@@ -1313,7 +1313,7 @@ SOS_THREAD_receives_direct(void *args)
     } // while
 
     SOS_buffer_destroy(buffer);
-    dlog(0, "Feedback listener closing down.\n");
+    dlog(1, "Feedback listener closing down.\n");
     return NULL;
 }
 
@@ -1563,7 +1563,7 @@ SOS_uid_next( SOS_uid *id ) {
             SOS_buffer_init_sized_locking(SOS, &buf,
                     sizeof(SOS_msg_header), false);
             
-            dlog(0, "The last guid has been used from SOS->uid.my_guid_pool!"
+            dlog(1, "The last guid has been used from SOS->uid.my_guid_pool!"
                     "  Requesting a new block...\n");
             header.msg_size = -1;
             header.msg_type = SOS_MSG_TYPE_GUID_BLOCK;
@@ -1594,7 +1594,7 @@ SOS_uid_next( SOS_uid *id ) {
                 // We are a normal client, move us to the next block.
                 SOS_buffer_unpack(reply, &offset, "g", &id->next);
                 SOS_buffer_unpack(reply, &offset, "g", &id->last);
-                dlog(0, "  ... recieved a new guid block from %"
+                dlog(1, "  ... recieved a new guid block from %"
                         SOS_GUID_FMT " to %" SOS_GUID_FMT ".\n",
                         id->next, id->last);
             }
@@ -2793,7 +2793,7 @@ SOS_announce( SOS_pub *pub ) {
     dlog(6, "Preparing an announcement message...\n");
 
     if (pub->announced != 0) {
-        dlog(0, "WARNING: This publication has already been announced!"
+        dlog(1, "WARNING: This publication has already been announced!"
                 " Doing nothing.\n");
         return;
     }

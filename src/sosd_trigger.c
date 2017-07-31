@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_trigger:main()");
 
-    dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
 
     SOS_buffer_init(SOS, &buffer);
 
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 
     SOS_buffer_destroy(buffer);
     SOS_buffer_destroy(reply);
-    dlog(0, "Done.\n");
+    dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
     return (EXIT_SUCCESS);

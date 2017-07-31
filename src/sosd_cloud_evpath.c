@@ -210,7 +210,7 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 
 // NOTE: Trigger pulls do not flow out beyond the node where
 //       they are pulled (at this time).  They go "downstream"
-//       from AGG->LIS and LIS->APP
+//       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
 
@@ -220,13 +220,16 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     int offset = 0;
     SOS_msg_unzip(msg, &header, 0, &offset);
 
-    int offset_after_header = offset;
+    int offset_after_original_header = offset;
+
+    dlog(4, "Done unzipping.  offset_after_original_header == %d\n", 
+            offset_after_original_header);
 
     if ((SOS->role == SOS_ROLE_AGGREGATOR)
      && (SOS->config.comm_size > 1)) {
         
-        // We are an Aggregator AND we have Listener[s] to
-        // notify...
+        dlog(4, "I am an aggregator, and I have some"
+                " listener[s] to notify.\n");
 
         SOSD_evpath *evp = &SOSD.daemon.evpath;
         buffer_rec rec;
@@ -234,7 +237,6 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         dlog(2, "Wrapping the trigger message...\n");
 
         SOS_buffer *wrapped_msg;
-
         SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
         
         int msg_count = 1;
@@ -244,25 +246,25 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
         header.ref_guid = 0;
 
         offset = 0;
-        SOS_buffer_pack(wrapped_msg, &offset, "i",
-            msg_count);
-
-        offset_after_header = offset;
+        SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
+        int offset_after_wrapped_header = offset;
         offset = 0;
 
-        SOS_msg_zip(wrapped_msg, header, offset_after_header, &offset);
-    
         SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
-        memcpy(wrapped_msg->data + offset, msg->data + offset_after_header,
-                msg->len - offset_after_header);
-        wrapped_msg->len += (msg->len - offset_after_header);
-        offset += (msg->len - offset_after_header);
+        memcpy(wrapped_msg->data + offset_after_wrapped_header,
+                msg->data,
+                msg->len);
+        wrapped_msg->len = (msg->len + offset_after_wrapped_header);
+        offset = wrapped_msg->len;
 
         header.msg_size = offset;
         offset = 0;
+        dlog(4, "Tacking on the newly wrapped message size...\n");
+        dlog(4, "   header.msg_size == %d\n", header.msg_size);
         SOS_buffer_pack(wrapped_msg, &offset, "ii",
             msg_count,
             header.msg_size);
+
 
         int id = 0;
         for (id = 0; id < SOS->config.comm_size; id++) {
@@ -273,13 +275,14 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
                 EVsubmit(evp->node[id]->src, &rec, NULL);
             }
         }
-        offset = offset_after_header;
     }
 
     // Both Aggregators and Listeners should drop the feedback into
     // their queues in case they have local processes that have
     // registered sensitivity...
-    
+   
+    offset = offset_after_original_header;
+
     char *handle = NULL;
     char *message = NULL;
     int message_len = -1;
