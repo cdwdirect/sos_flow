@@ -2,9 +2,7 @@
 
 # Absolute path this script is in, thus /home/user/bin
 SCRIPTPATH="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"
-echo $SCRIPTPATH
 BASEDIR="$(cd "$SCRIPTPATH/../.."; pwd)"
-echo $BASEDIR
 
 export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$HOME/local/lib
 export PATH=$PATH:$BASEDIR/scripts
@@ -19,12 +17,22 @@ export SOS_CMD_PORT=22500
 export SOS_ROOT=$BASEDIR
 export BUILDDIR=build-llnl
 export SOS_BUILD_DIR=$BASEDIR/$BUILDDIR
-export SOS_WORK=$SOS_BUILD_DIR
+export SOS_WORK=/dev/shm/sos_flow_data
 export SOS_EVPATH_MEETUP=$SOS_BUILD_DIR
 export CC=gcc
 export CXX=g++
 export MPICC=mpicc
 export MPICXX=mpiCC
+
+rm -rf /dev/shm/sos_flow_data
+mkdir /dev/shm/sos_flow_data
+
+echo ""
+echo "SOS Environment: $SOS_HOST_KNOWN_AS"
+echo ""
+echo "SOS_ROOT: $SOS_ROOT"
+echo "SOS_WORK: $SOS_WORK"
+echo ""
 
 export SOS_ENV_SET=1
 

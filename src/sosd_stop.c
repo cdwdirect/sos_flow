@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
-    dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
 
     setenv("SOS_SHUTDOWN", "1", 1);
 
@@ -80,14 +80,14 @@ int main(int argc, char *argv[]) {
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
 
-    dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
+    dlog(1, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
     SOS_target_connect(SOS->daemon);
     SOS_target_send_msg(SOS->daemon, buffer);
     SOS_target_disconnect(SOS->daemon);
 
     SOS_buffer_destroy(buffer);
-    dlog(0, "Done.\n");
+    dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
     return (EXIT_SUCCESS);
