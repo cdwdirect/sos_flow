@@ -198,12 +198,12 @@ Domain::BuildMesh(Int_t nx, Int_t edgeNodes, Int_t edgeElems)
     for (Index_t row=0; row<edgeNodes; ++row) {
       Real_t tx = Real_t(1.125)*Real_t(m_colLoc*nx)/Real_t(meshEdgeElems) ;
       for (Index_t col=0; col<edgeNodes; ++col) {
-	x(nidx) = tx ;
-	y(nidx) = ty ;
-	z(nidx) = tz ;
-	++nidx ;
-	// tx += ds ; // may accumulate roundoff... 
-	tx = Real_t(1.125)*Real_t(m_colLoc*nx+col+1)/Real_t(meshEdgeElems) ;
+          x(nidx) = tx ;
+          y(nidx) = ty ;
+          z(nidx) = tz ;
+          ++nidx ;
+          // tx += ds ; // may accumulate roundoff... 
+          tx = Real_t(1.125)*Real_t(m_colLoc*nx+col+1)/Real_t(meshEdgeElems) ;
       }
       // ty += ds ;  // may accumulate roundoff... 
       ty = Real_t(1.125)*Real_t(m_rowLoc*nx+row+1)/Real_t(meshEdgeElems) ;

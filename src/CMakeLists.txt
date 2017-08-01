@@ -66,8 +66,6 @@ endif()
 add_library("sos_qhashtbl" "sos_qhashtbl.c")
 
 
-
-
 #TARGET ---> sos
 #            (library)
 #add_library("sos" SHARED "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
@@ -82,6 +80,10 @@ if(CMAKE_THREAD_LIBS_INIT)
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
+if(SECURE_WITH_MUNGE)
+    target_link_libraries("sos" "munge")
+endif()
+
 #TARGET ---> ssos
 #            (library)
 add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
@@ -94,7 +96,6 @@ if(CMAKE_THREAD_LIBS_INIT)
     "${CMAKE_THREAD_LIBS_INIT}")
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
-
 
 #TARGET ---> sosa
 #            (library)
@@ -114,7 +115,14 @@ if(MPI_C_LINK_FLAGS)
   set_target_properties("sosa" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
-
+file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
+export(TARGETS sos_buffer    APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sos_pipe      APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sos_qhashtbl  APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sos           APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS ssos          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+export(TARGETS sosa          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
+ 
 
 #TARGET ---> sosd
 #            (daemon)
@@ -228,8 +236,9 @@ if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sosd" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
-
-
+if(SECURE_WITH_MUNGE)
+  target_link_libraries("sosd" "munge")
+endif()
 
 #TARGET ---> sosd_stop
 #            (shut down the daemon)
@@ -279,19 +288,6 @@ if(MPI_CXX_LINK_FLAGS)
 	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
-#TARGET ---> demo_sweep
-#            (demonstration / example)
-add_executable("demo_sweep" "demo_sweep.c")
-target_link_libraries("demo_sweep" "sos" "${MPI_C_LIBRARIES}")
-if(MPI_C_COMPILE_FLAGS)
-  set_target_properties("demo_sweep" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
-endif()
-if(MPI_C_LINK_FLAGS)
-  set_target_properties("demo_sweep" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
-endif()
-
-
-
 
 
 #TARGET ---> proc_app
@@ -311,6 +307,5 @@ INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
   OWNER_READ GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ)
-
 INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
 #INSTALL(TARGETS sos_pipe sos_buffer sos sosa sosd_stop sosd_probe demo_app demo_sweep proc_app RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib) 

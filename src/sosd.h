@@ -13,9 +13,13 @@
 #include "evpath.h"
 #endif
 
+#ifdef USE_MUNGE
+#include "munge.h"
+#endif
+
 #include "sos.h"
 #include "sos_types.h"
-
+#include "sosa.h"
 
 /*********************/
 /* [SOSD_DAEMON_MODE]
@@ -70,20 +74,21 @@ typedef struct {
 
 typedef struct {
     SOS_query_state     state;
-    char               *query_sql;
     SOS_guid            reply_to_guid;
+    char               *query_sql;
+    SOS_guid            query_guid;
     char               *reply_host;
     int                 reply_port;
-    SOS_buffer         *reply_msg;
+    void               *results;
 } SOSD_query_handle;
 
 typedef struct {
     SOS_guid            guid;
     char               *sense_handle;
     SOS_guid            client_guid;
-    char               *client_host;
-    int                 client_port;
-    SOS_socket_out     *target;
+    char               *remote_host;
+    int                 remote_port;
+    SOS_socket         *target;
     void               *next_entry;
 } SOSD_sensitivity_entry;
 
@@ -211,7 +216,7 @@ typedef struct {
     SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
-    SOS_socket_in       net;
+    SOS_socket         *net;
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
@@ -326,15 +331,10 @@ extern "C" {
         header.msg_from = 0;                             \
         header.ref_guid = 0;                             \
         offset = 0;                                      \
-        SOS_buffer_pack(__buffer, &offset, "iigg",       \
-                                      header.msg_size,   \
-                                      header.msg_type,   \
-                                      header.msg_from,   \
-                                      header.ref_guid);  \
+        SOS_msg_zip(__buffer, header, 0, &offset);       \
         header.msg_size = offset;                        \
         offset = 0;                                      \
-        SOS_buffer_pack(__buffer, &offset, "i",          \
-                        header.msg_size);                \
+        SOS_msg_zip(__buffer, header, 0, &offset);       \
     }
 
 

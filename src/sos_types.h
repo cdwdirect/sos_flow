@@ -1,5 +1,8 @@
 #ifndef SOS_TYPES_H
 #define SOS_TYPES_H
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -25,11 +28,6 @@
     ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)
 
-#define FOREACH_TARGET(TARGET)                  \
-    TARGET(SOS_TARGET_LOCAL_SYNC)               \
-    TARGET(SOS_TARGET_CLOUD_SYNC)               \
-    TARGET(SOS_TARGET___MAX)
-    
 #define FOREACH_STATUS(STATUS)                  \
     STATUS(SOS_STATUS_INIT)                     \
     STATUS(SOS_STATUS_RUNNING)                  \
@@ -204,7 +202,6 @@
 #define GENERATE_STRING(STRING) #STRING,
 
 typedef enum { FOREACH_ROLE(GENERATE_ENUM)          } SOS_role;
-typedef enum { FOREACH_TARGET(GENERATE_ENUM)        } SOS_target;
 typedef enum { FOREACH_STATUS(GENERATE_ENUM)        } SOS_status;
 typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)      } SOS_msg_type;
 typedef enum { FOREACH_RECEIVES(GENERATE_ENUM)      } SOS_receives;
@@ -228,7 +225,6 @@ typedef enum { FOREACH_RETAIN(GENERATE_ENUM)        } SOS_retain;
 typedef enum { FOREACH_LOCALE(GENERATE_ENUM)        } SOS_locale;
 
 static const char *SOS_ROLE_string[] =           { FOREACH_ROLE(GENERATE_STRING)         };
-static const char *SOS_TARGET_string[] =         { FOREACH_TARGET(GENERATE_STRING)       };
 static const char *SOS_STATUS_string[] =         { FOREACH_STATUS(GENERATE_STRING)       };
 static const char *SOS_MSG_TYPE_string[] =       { FOREACH_MSG_TYPE(GENERATE_STRING)     };
 static const char *SOS_RECEIVES_string[] =       { FOREACH_RECEIVES(GENERATE_STRING)     };
@@ -416,36 +412,27 @@ typedef void (*SOS_feedback_handler_f)
  
 typedef struct {
     void               *sos_context;
-    char                server_host[NI_MAXHOST];
-    char                server_port[NI_MAXSERV];
-    int                 server_socket_fd; 
-    struct addrinfo    *server_addr;
+    char                local_host[NI_MAXHOST];
+    char                local_port[NI_MAXSERV];
+    int                 local_socket_fd; 
+    struct addrinfo    *local_addr;
+    struct addrinfo     local_hint;
     struct addrinfo    *result_list;
-    struct addrinfo     server_hint;
-    struct addrinfo    *client_addr;
+    struct addrinfo    *remote_addr;
+    int                 remote_len;
+    char                remote_host[NI_MAXHOST];
+    char                remote_port[NI_MAXSERV];
+    int                 remote_socket_fd;
+    struct addrinfo     remote_hint;
+    int                 port_number;
     int                 timeout;
     int                 buffer_len;
+    int                 listen_backlog;
     pthread_mutex_t    *send_lock;
     SOS_buffer         *recv_part;
-} SOS_socket_out;
-
-typedef struct {
-    void               *sos_context;
-    int                 server_socket_fd;
-    int                 client_socket_fd;
-    int                 port_number;
-    char               *server_port;
-    int                 listen_backlog;
-    int                 client_len;
-    struct addrinfo     server_hint;
-    struct addrinfo    *server_addr;
-    char                client_host[NI_MAXHOST];
-    char                client_port[NI_MAXSERV];
-    struct addrinfo    *result;
     struct sockaddr_storage   peer_addr;
-    socklen_t           peer_addr_len;
-} SOS_socket_in;
-
+    socklen_t                 peer_addr_len;
+} SOS_socket;
 
 
 typedef struct {
@@ -453,6 +440,9 @@ typedef struct {
     SOS_msg_type        msg_type;
     SOS_guid            msg_from;
     SOS_guid            ref_guid;
+#ifdef USE_MUNGE
+    char               *ref_cred;
+#endif
 } SOS_msg_header;
 
 typedef struct {
@@ -502,9 +492,12 @@ typedef struct {
     SOS_status          status;
     SOS_unique_set      uid;
     SOS_task_set        task;
-    SOS_socket_out      net;
+    SOS_socket         *daemon;
     SOS_guid            my_guid;
+#ifdef USE_MUNGE
+    char               *my_cred;
+#endif
 } SOS_runtime;
 
-
+#pragma GCC diagnostic pop
 #endif

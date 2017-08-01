@@ -18,6 +18,9 @@ option(SOSD_CLOUD_SYNC_WITH_MPI "Use MPI discover and synchronize data between d
 option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?"
        ON)
 
+option(SECURE_WITH_MUNGE "Use the Munge library to verify connections between instances of SOSflow?"
+       ON)
+
 ###########
 ###########
 
@@ -42,6 +45,10 @@ include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 add_definitions("-DUSE_MPI=1")
+
+if(SECURE_WITH_MUNGE)
+    add_definitions("-DUSE_MUNGE=1")
+endif()
 
 project(${PROJECT_NAME} C CXX)
 set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
