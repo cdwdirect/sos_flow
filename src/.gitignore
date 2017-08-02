@@ -8,6 +8,7 @@ sosd.*.log
 runit.log
 demo_app
 sos_cmd
+tags
 ../output/*
 ../bin/*
 *.lo
