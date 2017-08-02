@@ -174,6 +174,8 @@ int main(int argc, char *argv[]) {
     my_sos = NULL;
     SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
+
+    /*
     if(my_sos == NULL) {
         printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
         fork_exec_sosd();
@@ -194,6 +196,13 @@ int main(int argc, char *argv[]) {
             printf("Unable to connect to SOS daemon. Failing...\n");
             exit(1);
         }
+    }
+    */
+
+    if (my_sos == NULL) {
+        fprintf(stderr, "demo_app: Shutting down.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
     }
 
     SOS_register_signal_handler(my_sos);

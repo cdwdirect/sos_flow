@@ -339,8 +339,18 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
             dlog(4, "Registration message sent.   (retval == %d)\n", retval);
         }
 
+
         SOS_buffer_wipe(buffer);
-        SOS_target_recv_msg(SOS->daemon, buffer);
+        retval = SOS_target_recv_msg(SOS->daemon, buffer);
+
+        if (retval < 1) {
+            fprintf(stderr, "ERROR!  Daemon does not appear to be running!\n");
+            SOS_target_disconnect(SOS->daemon);
+            SOS_target_destroy(SOS->daemon);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
+        }
 
         dlog(4, "  ... server responded with %d bytes.\n", retval);
 
