@@ -328,7 +328,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         retval = SOS_target_send_msg(SOS->daemon, buffer);
 
         if (retval < 0) {
-            fprintf(stderr, "ERROR!  Could not write to server socket!"
+            fprintf(stderr, "ERROR: Could not write to server socket!"
                     "  (%s:%s)\n",
             SOS->daemon->remote_host, SOS->daemon->remote_port);
             SOS_target_destroy(SOS->daemon);
@@ -344,7 +344,7 @@ SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
         retval = SOS_target_recv_msg(SOS->daemon, buffer);
 
         if (retval < 1) {
-            fprintf(stderr, "ERROR!  Daemon does not appear to be running!\n");
+            fprintf(stderr, "ERROR: Daemon does not appear to be running!\n");
             SOS_target_disconnect(SOS->daemon);
             SOS_target_destroy(SOS->daemon);
             free(*sos_runtime);
@@ -882,7 +882,7 @@ SOS_target_connect(SOS_socket *target) {
     retval = getaddrinfo(target->remote_host, target->remote_port,
         &target->remote_hint, &target->result_list);
     if (retval < 0) {
-        dlog(0, "ERROR!  Could not get info on target.  (%s:%s)\n",
+        dlog(0, "ERROR: Could not get info on target.  (%s:%s)\n",
             target->remote_host, target->remote_port );
         pthread_mutex_unlock(target->send_lock);
         return -1;

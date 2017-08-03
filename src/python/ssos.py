@@ -19,10 +19,16 @@ class SSOS:
         is_online_flag = ffi.new("int*")
         is_online_flag[0] = 0
         lib.SSOS_is_online(is_online_flag)
-        while(is_online_flag[0] < 1):
+        connect_delay = 0
+        while((connect_delay < 4) and (is_online_flag[0] < 1)):
             lib.SSOS_is_online(is_online_flag)
-            print "   ... attempting to connect to SOS"
+            print "   ... waiting to connect to SOS"
             time.sleep(0.5)
+            connect_delay += 1
+        
+        if (is_online_flag[0] < 1):
+            print "ERROR: Unable to connect to the SOS daemon."
+            exit()
 
     def is_online(self):
         is_online_flag = ffi.new("int*")
