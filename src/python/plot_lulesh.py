@@ -43,6 +43,9 @@ def queryAndPlot():
     ;
     """
 
+    print sql_string
+    exit
+
     #print "Sending this query to the SOS daemon: "
     #print "    " + sql_string
     results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
