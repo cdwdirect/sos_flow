@@ -91,7 +91,28 @@ find_package("Sqlite3" REQUIRED)
 #  EVPath as the communications framework, the SOS daemon
 #  will not conduct any of its business using MPI.
 message(STATUS ">>> MPI:  Locating package...")
-find_package("MPI" REQUIRED QUIET)
+#
+#  The "standard" way of finding MPI:
+#
+set(MPI_HOME "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/") 
+#find_package("MPI" REQUIRED QUIET)
+#
+#  The LLNL-integration way of tracking down MPI (MVAPICH2): 
+#find_package("MVAPICH" REQUIRED QUIET)
+#
+#  Some hardcoded way of finding MPI (incomplete):
+#
+set(ENABLE_MPI ON CACHE PATH "")
+set(MPI_FOUND ON) 
+set(MPI_INCLUDE_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include")
+set(MPI_LIBRARY_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib")
+set(MPI_C_LIBRARIES "mpi")
+#set(MPI_C_COMPILE_FLAGS "-I/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include -L/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib /usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib -lmpi -lpmi2 ")
+#set(MPI_C_LINK_FLAGS "-I/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include -L/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib /usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib -lmpi -lpmi2 ")
+set(MPI_C_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicc" CACHE PATH "")
+set(MPI_CXX_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicxx" CACHE PATH "")
+set(MPI_Fortran_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpifort" CACHE PATH "")
+
 if(MPI_FOUND)
 message(STATUS ">>> MPI:  Found!")
 endif(MPI_FOUND)

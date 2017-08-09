@@ -139,8 +139,8 @@ fi
 cmd="cmake \
      -DCMAKE_BUILD_TYPE=${buildtype} \
      -DCMAKE_INSTALL_PREFIX=. \
-     -DCMAKE_C_COMPILER=$CC \
-     -DCMAKE_CXX_COMPILER=$CXX \
+     -DCMAKE_C_COMPILER=mpicc \
+     -DCMAKE_CXX_COMPILER=mpicxx \
      ${evpathopts} \
      ${sanitizeopts} \
      -DMPI_C_COMPILER=$MPICC -DMPI_CXX_COMPILER=$MPICXX \
