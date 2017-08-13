@@ -1,5 +1,5 @@
 /**
- * @file sosdstop.c
+ * @file sosd_stop.c
  *  Utility to send the daemon a shutdown message w/out using a kill signal.
  */
 
@@ -7,6 +7,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <mpi.h>
 
 #include "sos.h"
 #include "sos_buffer.h"
@@ -35,6 +37,12 @@ int main(int argc, char *argv[]) {
     SOS_runtime    *my_SOS;
     int             offset;
 
+    MPI_Init(&argc, &argv);
+
+    int rank, size;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+
     // Process command line arguments
     int i, j;
     for (i = 2; i < argc; ) {
@@ -53,6 +61,10 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
+    printf("sosd_stop(%d): Signaling SOS daemon on %s to shut down.\n",
+            rank, getenv("HOSTNAME"));
+    fflush(stdout);
+
     my_SOS = NULL;
     SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
@@ -62,7 +74,11 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
-    dlog(1, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    char  mpi_hostname[ MPI_MAX_PROCESSOR_NAME] = {0};
+    int   mpi_hostname_len;
+    MPI_Get_processor_name(mpi_hostname, &mpi_hostname_len);
+
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", mpi_hostname);
 
     setenv("SOS_SHUTDOWN", "1", 1);
 
@@ -90,6 +106,7 @@ int main(int argc, char *argv[]) {
     dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
+    MPI_Finalize();
     return (EXIT_SUCCESS);
 }
 

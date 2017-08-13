@@ -2439,19 +2439,28 @@ void SOSD_display_logo(void) {
     srand(getpid());
     choice = rand() % 3;
 
-    printf("\n");
-    printf(SOS_BOLD_WHT);
-    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR SOS_WHT);
-    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR "\n" SOS_WHT);
-    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR SOS_DIM_WHT);
-    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR "\n\n");
+    if (getenv("SOS_BATCH_ENVIRONMENT") != NULL) {
+        // Don't print colors or extended characters...
+        printf("========================================="
+               "=========================================\n");
+        printf("-----------------------------------------"
+               "-----------------------------------------\n");
+        printf("\n");
 
-    printf(SOS_BOLD_GRN);
-
+    } else {
+        printf("\n");
+        printf(SOS_BOLD_WHT);
+        for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR SOS_WHT);
+        for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR "\n" SOS_WHT);
+        for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR SOS_DIM_WHT);
+        for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR "\n\n");
+    
+        printf(SOS_BOLD_GRN);
+    }
 
     switch (choice) {
     case 0:
@@ -2530,34 +2539,62 @@ void SOSD_display_logo(void) {
 
     }
 
-    printf(SOS_CLR);
-    printf(SOS_GRN);
+    
+    if (getenv("SOS_BATCH_ENVIRONMENT") == NULL) {
+        printf(SOS_CLR);
+        printf(SOS_GRN);
 
-    printf("\n");
-    printf(SOS_GRN "             Version: " SOS_CLR "%d.%d\n",
-            SOS_VERSION_MAJOR,
-            SOS_VERSION_MINOR);
-    printf(SOS_GRN "      Target machine: " SOS_CLR "%s\n",
-            SOS_QUOTE_DEF_STR(SOS_HOST_KNOWN_AS));
-    printf("\n");
-    printf(SOS_GRN "         Compiled on: " SOS_CLR "%s" SOS_GRN " at "
-            SOS_CLR "%s" SOS_GRN " by " SOS_CLR "%s@%s\n",
-            __DATE__, __TIME__,
-            SOS_QUOTE_DEF_STR(SOS_BUILDER),
-            SOS_QUOTE_DEF_STR(SOS_HOST_NODE_NAME));
-    printf(SOS_GRN "   Build environment: " SOS_CLR "%s\n",
-            SOS_QUOTE_DEF_STR(SOS_HOST_DETAILED));
-    printf(SOS_GRN "         Commit head: " SOS_CLR "%s\n",
-            SOS_QUOTE_DEF_STR(GIT_SHA1));
-    printf("\n");
-    printf(SOS_BOLD_WHT);
-    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR SOS_WHT);
-    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR "\n" SOS_WHT);
-    for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR SOS_DIM_WHT);
-    for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
-    printf(SOS_CLR "\n\n");
+        printf("\n");
+        printf(SOS_GRN "             Version: " SOS_CLR "%d.%d\n",
+                SOS_VERSION_MAJOR,
+                SOS_VERSION_MINOR);
+        printf(SOS_GRN "      Target machine: " SOS_CLR "%s\n",
+                SOS_QUOTE_DEF_STR(SOS_HOST_KNOWN_AS));
+        printf("\n");
+        printf(SOS_GRN "         Compiled on: " SOS_CLR "%s" SOS_GRN " at "
+                SOS_CLR "%s" SOS_GRN " by " SOS_CLR "%s@%s\n",
+                __DATE__, __TIME__,
+                SOS_QUOTE_DEF_STR(SOS_BUILDER),
+                SOS_QUOTE_DEF_STR(SOS_HOST_NODE_NAME));
+        printf(SOS_GRN "   Build environment: " SOS_CLR "%s\n",
+                SOS_QUOTE_DEF_STR(SOS_HOST_DETAILED));
+        printf(SOS_GRN "         Commit head: " SOS_CLR "%s\n",
+                SOS_QUOTE_DEF_STR(GIT_SHA1));
+        printf("\n");
+        printf(SOS_BOLD_WHT);
+        for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR SOS_WHT);
+        for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR "\n" SOS_WHT);
+        for (col = 0; col < 1; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR SOS_DIM_WHT);
+        for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
+        printf(SOS_CLR "\n\n");
+    } else {
+        // Suppress colors and extended ASCII characters...
+        printf("\n");
+        printf("             Version: %d.%d\n",
+                SOS_VERSION_MAJOR,
+                SOS_VERSION_MINOR);
+        printf("      Target machine: %s\n",
+                SOS_QUOTE_DEF_STR(SOS_HOST_KNOWN_AS));
+        printf("\n");
+        printf("         Compiled on: "  "%s"  " at "
+                "%s" " by " "%s@%s\n",
+                __DATE__, __TIME__,
+                SOS_QUOTE_DEF_STR(SOS_BUILDER),
+                SOS_QUOTE_DEF_STR(SOS_HOST_NODE_NAME));
+        printf("   Build environment: "  "%s\n",
+                SOS_QUOTE_DEF_STR(SOS_HOST_DETAILED));
+        printf("         Commit head: "  "%s\n",
+                SOS_QUOTE_DEF_STR(GIT_SHA1));
+        printf("\n");
+        printf("-----------------------------------------"
+               "-----------------------------------------\n");
+        printf("========================================="
+               "=========================================\n");
+        
+    } 
+
     return;
 }

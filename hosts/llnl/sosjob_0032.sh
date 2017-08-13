@@ -25,36 +25,9 @@ fi
 #
 echo ""
 echo "Launching SOS daemons..."
-echo "    sosd(0) @ 33 -- aggregator"
-srun \
-    -n=1 \
-    -dist=cyclic \
-    -r=32 \
-    ${SOS_BUILD_DIR}/bin/sosd \
-        -l 32 \
-        -a 1 \
-        -w ${SOS_WORK} \
-        -k 0 \
-        -r aggregator \
-    &
-#
-#  Listeners:
-for SOS_RANK in {1..32}
-do
-    OFFSET=$(expr $SOS_RANK - 1)
-    echo "    sosd($SOS_RANK) @ $OFFSET -- listener"
-    srun \
-        -n=1 \
-        -dist=cyclic \
-        -r=$OFFSET \
-        ${SOS_BUILD_DIR}/bin/sosd \
-            -l 32 \
-            -a 1 \
-            -w ${SOS_WORK} \
-            -k ${THIS_RANK} \
-            -r listener \
-        &
-done
+echo ""
+srun -n 33 -l --multi-prog sosjob_0032.conf &
+echo ""
 echo "Pausing to ensure runtime is completely established..."
 sleep 5 
 echo "SOS is now online."
@@ -65,7 +38,7 @@ echo "SOS is now online."
 #vv
 #v
 
-srun -n=32 -r=0 ${SOS_BUILD_DIR}/bin/demo_app -i 1 -p 5 -m 25
+srun -n 32 -r 1 ${SOS_BUILD_DIR}/bin/demo_app -i 1 -p 5 -m 25
 
 #^
 #^^
@@ -75,6 +48,6 @@ srun -n=32 -r=0 ${SOS_BUILD_DIR}/bin/demo_app -i 1 -p 5 -m 25
 #
 #  Bring the SOS runtime down cleanly:
 #
-srun -n=32 -r=0 ${SOS_BUILD_DIR}/bin/sosd_stop
+srun -n 32 -r 1 ${SOS_BUILD_DIR}/bin/sosd_stop
 #
 ####

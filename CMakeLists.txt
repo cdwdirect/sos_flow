@@ -19,7 +19,7 @@ option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?
        ON)
 
 option(SECURE_WITH_MUNGE "Use the Munge library to verify connections between instances of SOSflow?"
-       OFF)
+    ON)
 
 ###########
 ###########
@@ -48,6 +48,9 @@ add_definitions("-DUSE_MPI=1")
 
 if(SECURE_WITH_MUNGE)
     add_definitions("-DUSE_MUNGE=1")
+    message(STATUS ">>> MUNGE:")
+    message(STATUS ">>> MUNGE:  Munge is ENABLED!")
+    message(STATUS ">>> MUNGE:")
 endif()
 
 project(${PROJECT_NAME} C CXX)
@@ -94,24 +97,23 @@ message(STATUS ">>> MPI:  Locating package...")
 #
 #  The "standard" way of finding MPI:
 #
-set(MPI_HOME "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/") 
-#find_package("MPI" REQUIRED QUIET)
+find_package("MPI" REQUIRED QUIET)
 #
 #  The LLNL-integration way of tracking down MPI (MVAPICH2): 
 #find_package("MVAPICH" REQUIRED QUIET)
 #
 #  Some hardcoded way of finding MPI (incomplete):
 #
-set(ENABLE_MPI ON CACHE PATH "")
-set(MPI_FOUND ON) 
-set(MPI_INCLUDE_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include")
-set(MPI_LIBRARY_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib")
-set(MPI_C_LIBRARIES "mpi")
-#set(MPI_C_COMPILE_FLAGS "-I/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include -L/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib /usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib -lmpi -lpmi2 ")
-#set(MPI_C_LINK_FLAGS "-I/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include -L/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib /usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib -lmpi -lpmi2 ")
-set(MPI_C_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicc" CACHE PATH "")
-set(MPI_CXX_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicxx" CACHE PATH "")
-set(MPI_Fortran_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpifort" CACHE PATH "")
+#set(MPI_HOME "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/") 
+#set(ENABLE_MPI ON CACHE PATH "")
+#set(MPI_FOUND ON) 
+#set(MPI_INCLUDE_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include")
+#set(MPI_LIBRARY_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib")
+#set(MPI_C_LIBRARIES "mpi")
+#set(MPI_CXX_LIBRARIES "mpi")
+#set(MPI_C_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicc" CACHE PATH "")
+#set(MPI_CXX_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicxx" CACHE PATH "")
+#set(MPI_Fortran_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpifort" CACHE PATH "")
 
 if(MPI_FOUND)
 message(STATUS ">>> MPI:  Found!")

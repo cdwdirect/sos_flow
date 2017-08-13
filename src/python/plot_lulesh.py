@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/workspace/wsa/pavis/third_party/toss3_gcc-4.9.3/python/bin/python
 
 import sys
 import time
@@ -22,7 +22,7 @@ def queryAndPlot():
     ;
     """
     results, col_names = SOS.query(sql_string,
-            os.environ.get("HOSTNAME"),
+            "localhost",
             os.environ.get("SOS_CMD_PORT"))
     
     max_cycle = int(results[0][0])
@@ -43,13 +43,12 @@ def queryAndPlot():
     ;
     """
 
-    print sql_string
-    exit
-
     #print "Sending this query to the SOS daemon: "
     #print "    " + sql_string
     results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
-    #print "Results:"
+    print "Results:"
+    print str(col_names)
+    print str(results)
 
     attr = dict()
     attr['comm_rank']  =  [el[0] for el in results]
@@ -66,32 +65,37 @@ def queryAndPlot():
     ###
     ### NOTE: Some matplot lib stuff...
     ###
+    #norm = Normalize(vmin=0.0000001, vmax=0.000001)
+    
+    if (os.environ.get("DISPLAY") is not None):
+        print "Rendering a plot using matplotlib..."
+        colorset = cm.rainbow
+        fig = plt.figure()
+        ax = fig.add_subplot(111, projection='3d')
 
-    norm = Normalize(vmin=0.0000001, vmax=0.000001)
-    colorset = cm.rainbow
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+        for rank in range(rank_max):
+            xpt = [None]*8
+            ypt = [None]*8
+            zpt = [None]*8
+            cpt = [None]*8
+            for i in range(8):
+                xpt[i] = float(coords[rank][(i * 3)])
+                ypt[i] = float(coords[rank][(i * 3) + 1])
+                zpt[i] = float(coords[rank][(i * 3) + 2])
+                cpt[i] = xpt[i] + ypt[i] + zpt[i]
+            ax.scatter(xpt, ypt, zpt, s=200, c=cpt, cmap=colorset, marker='s')
+            ax.set_xlabel('X')
+            ax.set_ylabel('Y')
+            ax.set_zlabel('Z')
 
-    for rank in range(rank_max):
-        xpt = [None]*8
-        ypt = [None]*8
-        zpt = [None]*8
-        cpt = [None]*8
-        for i in range(8):
-            xpt[i] = float(coords[rank][(i * 3)])
-            ypt[i] = float(coords[rank][(i * 3) + 1])
-            zpt[i] = float(coords[rank][(i * 3) + 2])
-            cpt[i] = xpt[i] + ypt[i] + zpt[i]
-        ax.scatter(xpt, ypt, zpt, s=200, c=cpt, cmap=colorset, marker='s')
-        ax.set_xlabel('X')
-        ax.set_ylabel('Y')
-        ax.set_zlabel('Z')
-
-    plt.title('LULESH step = ' + str(max_cycle))
-    plt.grid(True)
-    plt.draw()
-    #plt.savefig("./imgs/lulesh_" + str(max_cycle) + ".png")
-    plt.show()
+        plt.title('LULESH step = ' + str(max_cycle))
+        plt.grid(True)
+        plt.draw()
+        #print "Saving image ..."
+        #plt.savefig("./imgs/lulesh_" + str(max_cycle) + ".png")
+        plt.show()
+    else:
+        print "There is no DISPLAY variable set, skipping rendering." 
 
     SOS.finalize();
     print "   ...DONE!"

@@ -17,15 +17,14 @@ export SOS_CMD_PORT=22500
 export SOS_ROOT=$BASEDIR
 export BUILDDIR=build-llnl
 export SOS_BUILD_DIR=$BASEDIR/$BUILDDIR
-export SOS_WORK=/dev/shm/sos_flow_data
-export SOS_EVPATH_MEETUP=$SOS_BUILD_DIR
+export SOS_WORK=$HOME
+export SOS_EVPATH_MEETUP=$HOME
 export CC=gcc
 export CXX=g++
 export MPICC=mpicc
 export MPICXX=mpiCC
 
-rm -rf /dev/shm/sos_flow_data
-mkdir /dev/shm/sos_flow_data
+mkdir -p $SOS_WORK
 
 echo ""
 echo "SOS Environment: $SOS_HOST_KNOWN_AS"
