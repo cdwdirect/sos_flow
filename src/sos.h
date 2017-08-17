@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 11 
+#define SOS_VERSION_MINOR 98 
 
 // ...
 
@@ -38,6 +38,9 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#ifdef USE_MUNGE
+#include <munge.h>
+#endif
 
 /* SOS Configuration Switches... */
 
@@ -52,7 +55,7 @@
 #define SOS_DEFAULT_BUFFER_MAX      4096
 #define SOS_DEFAULT_BUFFER_MIN      512
 #define SOS_DEFAULT_PIPE_DEPTH      100000
-#define SOS_DEFAULT_REPLY_LEN       128
+#define SOS_DEFAULT_REPLY_LEN       1024
 #define SOS_DEFAULT_FEEDBACK_LEN    1024
 #define SOS_DEFAULT_STRING_LEN      256
 #define SOS_DEFAULT_RING_SIZE       65536
@@ -147,26 +150,32 @@ extern "C" {
 
     // Communication wrapper functions:
 
-    int SOS_msg_zip(SOS_buffer *msg, int msg_length, int at_offset);
+    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, 
+            int starting_offset, int *offset_after_header);
 
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
-            int *offset_after_header);
+            int starting_offset, int *offset_after_header);
 
-    int SOS_target_init(SOS_runtime *sos_context, SOS_socket_out **target,
+    int SOS_msg_seal(SOS_buffer *msg, SOS_msg_header header,
+            int starting_offset, int *offset_after_header_size_field);
+
+    int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
             char *host, int port);
 
-    int SOS_target_connect(SOS_socket_out *target);
+    int SOS_target_connect(SOS_socket *target);
 
-    int SOS_target_send_msg(SOS_socket_out *target, SOS_buffer *msg);
+    int SOS_target_accept_connection(SOS_socket *target);
 
-    int SOS_target_recv_msg(SOS_socket_out *target, SOS_buffer *reply);
+    int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);
 
-    int SOS_target_disconnect(SOS_socket_out *tgt_conn);
+    int SOS_target_recv_msg(SOS_socket *target, SOS_buffer *reply);
 
-    int SOS_target_destroy(SOS_socket_out *target);
+    int SOS_target_disconnect(SOS_socket *tgt_conn);
 
-    //Soon deprecated...
+    int SOS_target_destroy(SOS_socket *target);
+
     void SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
+
 
 
 #ifdef __cplusplus
@@ -181,7 +190,12 @@ extern "C" {
 #define SOS_min(a,b) ((a < b) ? a : b)
 #endif
 
-#define SOS_TIME(__SOS_now)       { struct timeval t; gettimeofday(&t, NULL); __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6)); }
+#define SOS_TIME(__SOS_now)                                     \
+    {                                                           \
+        struct timeval t;                                       \
+        gettimeofday(&t, NULL);                                 \
+        __SOS_now = (double)(t.tv_sec + (t.tv_usec/1e6));       \
+    }
 
 
 #define SOS_LOCK_REENTRANT(__SOS_int_var, usec_delay)  {        \
@@ -194,40 +208,102 @@ extern "C" {
     __SOS_int_var += 1;                                         \
     }
 
-#define SOS_UNLOCK_REENTRANT(__SOS_int_var) {           \
-    __SOS_int_var -= 1;                                 \
+#define SOS_UNLOCK_REENTRANT(__SOS_int_var) {                   \
+    __SOS_int_var -= 1;                                         \
     }
 
 #if (SOS_DEBUG < 0)
-    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)              \
-    SOS_runtime *SOS;                                                   \
-    SOS = (SOS_runtime *) __SOS_context;                                \
-    if (SOS == NULL) {                                                  \
-        printf("(%s:%s) ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!\n", \
-               __FILE__, __LINE__);                                     \
-        exit(EXIT_FAILURE);                                             \
+    #define SOS_SET_CONTEXT(__SOS_context, __SOS_str_func)      \
+    SOS_runtime *SOS;                                           \
+    SOS = (SOS_runtime *) __SOS_context;                        \
+    if (SOS == NULL) {                                          \
+        printf("(%s:%s) ERROR: SOS_runtime *sos_context"        \
+                " provided to SOS_SET_CONTEXT() is null!\n",    \
+               __FILE__, __LINE__);                             \
+        exit(EXIT_FAILURE);                                     \
     }
 #else
-#define SOS_SET_CONTEXT(__SOS_context, __SOS_str_funcname)                                                                 \
-    SOS_runtime *SOS;                                                                                                      \
-    SOS = (SOS_runtime *) __SOS_context;                                                                                   \
-    if (SOS == NULL) {                                                                                                     \
-                      printf("ERROR: SOS_runtime *sos_context provided to SOS_SET_CONTEXT() is null!  (%s)\n",             \
-                             __SOS_str_funcname);                                                                          \
-                      exit(EXIT_FAILURE);                                                                                  \
-                      }                                                                                                    \
-    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};                                                                         \
-    snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");                                                               \
-    switch (SOS->role) {                                                                                                   \
-    case SOS_ROLE_CLIENT     : sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
-    case SOS_ROLE_LISTENER   : sprintf(SOS_WHOAMI, "listener(%d).%s",                 SOS->config.comm_rank, __SOS_str_funcname); break; \
-    case SOS_ROLE_AGGREGATOR : sprintf(SOS_WHOAMI, "aggregator(%d).%s",                     SOS->config.comm_rank, __SOS_str_funcname); break; \
-    case SOS_ROLE_ANALYTICS  : sprintf(SOS_WHOAMI, "analytics(%d).%s",              SOS->config.comm_rank, __SOS_str_funcname); break; \
-    default                  : sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ").%s",  SOS->my_guid, __SOS_str_funcname); break;          \
-    }
+#define SOS_SET_CONTEXT(__SOS_context, __SOS_str_funcname)      \
+    SOS_runtime *SOS;                                           \
+    SOS = (SOS_runtime *) __SOS_context;                        \
+    if (SOS == NULL) {                                          \
+        printf("ERROR: SOS_runtime *sos_context provided"       \
+                " provided to SOS_SET_CONTEXT() is null!"       \
+                "  (%s)\n", __SOS_str_funcname);                \
+        exit(EXIT_FAILURE);                                     \
+    }                                                           \
+    char SOS_WHOAMI[SOS_DEFAULT_STRING_LEN] = {0};              \
+    char SOS_WHEREAMI[SOS_DEFAULT_STRING_LEN] = {0};            \
+    snprintf(SOS_WHOAMI, SOS_DEFAULT_STRING_LEN, "* ??? *");    \
+    switch (SOS->role) {                                        \
+    case SOS_ROLE_CLIENT     :                                  \
+        sprintf(SOS_WHOAMI, "client(%" SOS_GUID_FMT ")",        \
+                SOS->my_guid);                                  \
+        break;                                                  \
+    case SOS_ROLE_LISTENER   :                                  \
+        sprintf(SOS_WHOAMI, "listener(%d)",                     \
+                SOS->config.comm_rank);                         \
+        break;                                                  \
+    case SOS_ROLE_AGGREGATOR :                                  \
+        sprintf(SOS_WHOAMI, "aggregator(%d)",                   \
+                SOS->config.comm_rank);                         \
+        break;                                                  \
+    case SOS_ROLE_ANALYTICS  :                                  \
+        sprintf(SOS_WHOAMI, "analytics(%d)",                    \
+                SOS->config.comm_rank);                         \
+        break;                                                  \
+    default                  :                                  \
+        sprintf(SOS_WHOAMI, "------(%" SOS_GUID_FMT ")",        \
+                SOS->my_guid);                                  \
+        break;                                                  \
+    }                                                           \
+    snprintf(SOS_WHEREAMI, SOS_DEFAULT_STRING_LEN, "%s",        \
+            __SOS_str_funcname);                                \
+    /*dlog(8, "Entering function: %s\n", __SOS_str_funcname);*/
 #endif
 
+// Unicode box drawing macros:
+#define SOS_SYM_BR "\e(0\x6a\e(B " /* -^  */
+#define SOS_SYM_TR "\e(0\x6b\e(B " /* -.  */
+#define SOS_SYM_TL "\e(0\x6c\e(B " /* .-  */
+#define SOS_SYM_BL "\e(0\x6d\e(B " /* ^-  */
+#define SOS_SYM_LX "\e(0\x6e\e(B " /* -|- */
+#define SOS_SYM_LH "\e(0\x71\e(B " /* --- */
+#define SOS_SYM_VL "\e(0\x74\e(B " /*  |- */
+#define SOS_SYM_VR "\e(0\x75\e(B " /* -|  */
+#define SOS_SYM_LU "\e(0\x76\e(B " /* -^- */
+#define SOS_SYM_LD "\e(0\x77\e(B " /* -.- */
+#define SOS_SYM_LV "\e(0\x78\e(B " /*  |  */
+ 
+// Symbols:
+#define SOS_SYM_GREY_BLOCK "\xE2\x96\x92"
+
+// Colors
+#define SOS_RED         "\x1B[31m"
+#define SOS_GRN         "\x1B[32m"
+#define SOS_YEL         "\x1B[33m"
+#define SOS_BLU         "\x1B[34m"
+#define SOS_MAG         "\x1B[35m"
+#define SOS_CYN         "\x1B[36m"
+#define SOS_WHT         "\x1B[37m"
+#define SOS_BOLD_RED    "\x1B[1;31m"
+#define SOS_BOLD_GRN    "\x1B[1;32m"
+#define SOS_BOLD_YEL    "\x1B[1;33m"
+#define SOS_BOLD_BLU    "\x1B[1;34m"
+#define SOS_BOLD_MAG    "\x1B[1;35m"
+#define SOS_BOLD_CYN    "\x1B[1;36m"
+#define SOS_BOLD_WHT    "\x1B[1;37m"
+#define SOS_DIM_RED    "\x1B[2;31m"
+#define SOS_DIM_GRN    "\x1B[2;32m"
+#define SOS_DIM_YEL    "\x1B[2;33m"
+#define SOS_DIM_BLU    "\x1B[2;34m"
+#define SOS_DIM_MAG    "\x1B[2;35m"
+#define SOS_DIM_CYN    "\x1B[2;36m"
+#define SOS_DIM_WHT    "\x1B[2;37m"
+#define SOS_CLR         "\x1B[0m"
+
+// Example of colors:
+// printf(SOS_RED "red\n" SOS_CLR);
 
 
-
-#endif //SOS_H
+#endif

@@ -85,7 +85,7 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_trigger:main()");
 
-    dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
 
     SOS_buffer_init(SOS, &buffer);
 
@@ -95,11 +95,7 @@ int main(int argc, char *argv[]) {
     header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                              header.msg_size,
-                              header.msg_type,
-                              header.msg_from,
-                              header.ref_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     SOS_buffer_pack(buffer, &offset, "sis",
             handle,
@@ -108,7 +104,7 @@ int main(int argc, char *argv[]) {
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &reply, 128, false);
@@ -117,7 +113,7 @@ int main(int argc, char *argv[]) {
 
     SOS_buffer_destroy(buffer);
     SOS_buffer_destroy(reply);
-    dlog(0, "Done.\n");
+    dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
     return (EXIT_SUCCESS);

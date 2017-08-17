@@ -13,8 +13,8 @@ def triggerSOSD():
     SOS = SSOS()
 
     sense_handle = "example_sense"
-    #payload_data = "Hello, you've been triggered by Python!"
-    payload_data = "adjust;100ms"
+    payload_data = "Hello, I've been triggered by Python!"
+    #payload_data = "adjust;100ms"
     payload_size = len(payload_data)
 
     print "Initializing SOS..."

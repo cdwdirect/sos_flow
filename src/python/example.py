@@ -47,17 +47,22 @@ def demonstrateSOS():
         SOS.publish()
         print "      ...OK!"
 
-    sql_string = "SELECT * FROM tblVals LIMIT 10000;"
-    
+    #if (len(sys.argv) > 1):
+    #    sql_string = "SELECT * FROM viewCombined WHERE frame = " + sys.argv[1] + ";"
+    #else:
+    #    sql_string = "SELECT * FROM viewCombined WHERE frame = 0 LIMIT 10000;"
+ 
+    sql_string = os.environ.get("SOS_SQL")
+
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
     results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
     print "Results:"
     print "    Output rows....: " + str(len(results))
-    print "    Output values..: " + str(results)
+    #print "    Output values..: " + str(results)
     print "    Column count...: " + str(len(col_names)) 
-    print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
-    pp.pprint(col_names)
+    #print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
+    #pp.pprint(col_names)
     print ""
     print "Finalizing..."
    

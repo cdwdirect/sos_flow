@@ -67,7 +67,7 @@ DEMO_feedback_handler(
         SOSA_results_init(my_sos, &results);
         SOSA_results_from_buffer(results, payload_data);
         SOSA_results_output_to(stdout, results,
-                "Query Results", SOSA_OUTPUT_W_HEADER);  
+                "Query Results", SOSA_OUTPUT_W_HEADER);
         SOSA_results_destroy(results);
         break;
 
@@ -174,6 +174,8 @@ int main(int argc, char *argv[]) {
     my_sos = NULL;
     SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
+
+    /*
     if(my_sos == NULL) {
         printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
         fork_exec_sosd();
@@ -195,6 +197,13 @@ int main(int argc, char *argv[]) {
             exit(1);
         }
     }
+    */
+
+    if (my_sos == NULL) {
+        fprintf(stderr, "demo_app: Shutting down.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
 
     SOS_register_signal_handler(my_sos);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
@@ -212,16 +221,16 @@ int main(int argc, char *argv[]) {
     
     } else {
 
-        dlog(0, "Registering sensitivity...\n");
+        dlog(1, "Registering sensitivity...\n");
         SOS_sense_register(my_sos, "example_sense");
 
-        if (rank == 0) dlog(0, "Creating a pub...\n");
+        if (rank == 0) dlog(1, "Creating a pub...\n");
 
         SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
         
-        if (rank == 0) dlog(0, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
+        if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
-        if (rank == 0) dlog(0, "Manually configuring some pub metadata...\n");
+        if (rank == 0) dlog(1, "Manually configuring some pub metadata...\n");
         strcpy (pub->prog_ver, str_prog_ver);
         pub->meta.channel     = 1;
         pub->meta.nature      = SOS_NATURE_EXEC_WORK;
@@ -239,7 +248,7 @@ int main(int argc, char *argv[]) {
             ones += 1;
             if ((ones%ITERATION_SIZE) == 0) {
                 SOS_TIME( time_now );
-                if (rank == 0) dlog(0, "  ... [ SOS_publish(%d vals) x %d ]"
+                if (rank == 0) dlog(1, "  ... [ SOS_publish(%d vals) x %d ]"
                         "[ %lf seconds @ %lf / value ][ total: %d values ]\n",
                         PUB_ELEM_COUNT,
                         ITERATION_SIZE,
@@ -253,7 +262,7 @@ int main(int argc, char *argv[]) {
                 SOS_TIME( time_start);
             }
             if (((ones * PUB_ELEM_COUNT)%1000000) == 0) {
-                if (rank == 0) dlog(0, "     ... 1,000,000 value milestone ---------\n");
+                if (rank == 0) dlog(1, "     ... 1,000,000 value milestone ---------\n");
             }
 
             for (i = 0; i < PUB_ELEM_COUNT; i++) {
@@ -263,7 +272,7 @@ int main(int argc, char *argv[]) {
             }
 
             if (ones == 1) {
-                if (rank == 0) { dlog(0, "Announcing\n"); }
+                if (rank == 0) { dlog(1, "Announcing\n"); }
                 SOS_announce(pub);
             }
             SOS_publish(pub);

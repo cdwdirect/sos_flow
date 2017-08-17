@@ -186,15 +186,8 @@ void SSOS_init(char *prog_name) {
             SSOS_feedback_handler);
 
         if (g_sos == NULL) {
-            attempt += 1;
-            fprintf(stderr, "SSOS (PID:%d) -- Failed to connect to daemon."
-                " (#: %d)\n", getpid(), attempt);
-            sleep(SSOS_ATTEMPT_DELAY);
-        }
-
-        if (attempt > SSOS_ATTEMPT_MAX) {
-            fprintf(stderr, "SSOS (PID:%d) -- Maximum attempts reached."
-                " Giving up.\n", getpid());
+            fprintf(stderr, "SSOS (PID:%d) -- Failed to connect to daemon.",
+                    getpid());
             return;
         }
     }

@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # file "build_ssos_python.py"
 
 import os
@@ -14,7 +15,7 @@ ffibuilder.set_source(
     sources=[
        "../ssos.c"
     ],
-    libraries=["ssos", "sos", "sosa"],
+    libraries=["ssos", "sos", "sosa", "munge"],
     library_dirs=[os.environ.get("SOS_BUILD_DIR") + "/lib"],
     include_dirs=[os.environ.get("SOS_BUILD_DIR") + "/include", ".."],
     extra_compile_args=["-Wno-unused-variable"])
@@ -23,6 +24,8 @@ ffibuilder.cdef("""
 
     typedef struct {
         void        *sos_context;
+        char        *query_sql;
+        uint64_t     query_guid;
         uint32_t     col_max;
         uint32_t     col_count;
         char       **col_names;

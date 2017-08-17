@@ -18,6 +18,9 @@ option(SOSD_CLOUD_SYNC_WITH_MPI "Use MPI discover and synchronize data between d
 option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?"
        ON)
 
+option(SECURE_WITH_MUNGE "Use the Munge library to verify connections between instances of SOSflow?"
+       OFF)
+
 ###########
 ###########
 
@@ -43,10 +46,14 @@ get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 add_definitions("-DUSE_MPI=1")
 
+if(SECURE_WITH_MUNGE)
+    add_definitions("-DUSE_MUNGE=1")
+endif()
+
 project(${PROJECT_NAME} C CXX)
 set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
-set(CMAKE_PREFIX_PATH /g/g17/wood67/local/include $CMAKE_PREFIX_PATH)
-set(CMAKE_LIBRARY_PATH /g/g17/wood67/local/lib $CMAKE_LIBRARY_PATH)
+set(CMAKE_PREFIX_PATH $ENV{HOME}/local/include $CMAKE_PREFIX_PATH)
+set(CMAKE_LIBRARY_PATH $ENV{HOME}/local/lib $CMAKE_LIBRARY_PATH)
 if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -70,7 +77,7 @@ if(ENABLE_TAU_WRAPPER)
   link_directories(/usr/local/tau-2.24.1/x86_64/lib)
 endif()
 
-include_directories(/g/g17/wood67/local/include)
+include_directories($ENV{HOME}/local/include)
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
@@ -90,10 +97,12 @@ message(STATUS ">>> MPI:  Found!")
 endif(MPI_FOUND)
 
 message(STATUS ">>> PYTHON:  Locating package...")
-pkg_search_module(PYTHON REQUIRED python QUIET)
-if(PYTHON_FOUND)
-message(STATUS ">>> PYTHON:  Found!")
-endif(PYTHON_FOUND)
+if(ENABLE_PYTHON)
+    #pkg_search_module(PYTHON REQUIRED python QUIET)
+    if(PYTHON_FOUND)
+    message(STATUS ">>> PYTHON:  Found!")
+    endif(PYTHON_FOUND)
+endif(ENABLE_PYTHON)
 
 if(SOSD_CLOUD_SYNC_WITH_MPI)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
@@ -102,7 +111,7 @@ endif()
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
   #find_package("evpath" REQUIRED)
-  pkg_search_module(EVPATH REQUIRED libenet QUIET)
+  #pkg_search_module(EVPATH REQUIRED libenet QUIET)
   #pkg_search_module(FABRIC REQUIRED libfabric)
   message(STATUS ">>> EVPATH:  Found!")
   message(STATUS ">>> EVPATH:  Using EVPath for communication...")
