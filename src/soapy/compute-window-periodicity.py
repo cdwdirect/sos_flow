@@ -241,7 +241,7 @@ application = sys.argv[2]
 # open the connection
 c = open_connection(sqlite_file)
 
-rows=20
+rows=100
 
 # get the publisher guids, ranks
 pub_guids,ranks = get_ranks(c, application)
@@ -265,10 +265,11 @@ for pg in pub_guids:
         j = j + 1
     # How long are the compute windows?
     durations = find_gap_between_timestamps(starts,ends)
+    print "clustering..."
     clusters,numclust,maxc,maxv = dbscan_vector(durations, 0.5, 2)
     print numclust
     #print durations
-    #print clusters,c,v
+    print clusters,numclust,maxc,maxv
     # What is the periodicity of the windows?
     # filter out any durations not in the largest cluster values
     if numclust > 1:
@@ -295,18 +296,31 @@ for pg in pub_guids:
     #means = durations
     mean_arrivals[index] = np.mean(means)
     index = index + 1
+
+# filter out the zeros from the numpy arrays
+all_starts = np.ma.masked_equal(all_starts,0).compressed()
+all_ends = np.ma.masked_equal(all_ends,0).compressed()
+time_start = 0
+if False:
+    time_start = all_starts[0]
+
 print "periodicity: ", np.mean(periods)
 print "compute duration, first arrival: ", get_first_arrival(mean_arrivals), ", last arrival: ", get_last_arrival(mean_arrivals)
+print "last window: "
+print np.mean(last_windows) - time_start, "to", np.mean(last_windows) + get_first_arrival(mean_arrivals) - time_start
 print "next 3 windows: "
-print np.mean(last_windows) + np.mean(next_windows) - all_starts[0], "to", np.mean(last_windows) + np.mean(next_windows) + get_first_arrival(mean_arrivals) - all_starts[0]
-print np.mean(last_windows) + 2 * np.mean(next_windows) - all_starts[0], "to", np.mean(last_windows) + (2 * np.mean(next_windows)) + get_first_arrival(mean_arrivals) - all_starts[0]
-print np.mean(last_windows) + 3 * np.mean(next_windows) - all_starts[0], "to", np.mean(last_windows) + (3 * np.mean(next_windows)) + get_first_arrival(mean_arrivals) - all_starts[0]
+print np.mean(last_windows) + np.mean(next_windows) - time_start, "to", np.mean(last_windows) + np.mean(next_windows) + get_first_arrival(mean_arrivals) - time_start
+print np.mean(last_windows) + 2 * np.mean(next_windows) - time_start, "to", np.mean(last_windows) + (2 * np.mean(next_windows)) + get_first_arrival(mean_arrivals) - time_start
+print np.mean(last_windows) + 3 * np.mean(next_windows) - time_start, "to", np.mean(last_windows) + (3 * np.mean(next_windows)) + get_first_arrival(mean_arrivals) - time_start
 
 print("Closing connection to database.")
 conn.close()
 print("Done.")
 
-print len(all_ends)
+#print len(all_starts)
+#print len(all_ends)
+#print all_starts
+#print all_ends
 
 all_timestamps = []
 all_counts = []
@@ -319,31 +333,34 @@ t = 0
 while s < len(all_starts) and e < len(all_ends):
     if all_starts[s] < all_ends[e]:
         if t == 0:
-            all_timestamps.append(all_starts[s] - all_starts[0])
+            all_timestamps.append(all_starts[s] - time_start)
             all_counts.append(0)
             i = i + 1
-        all_timestamps.append(all_starts[s] - all_starts[0])
+        all_timestamps.append(all_starts[s] - time_start)
         t = t + 1
         all_counts.append(t)
         s = s + 1
     else:
         if t == len(pub_guids):
-            all_timestamps.append(all_ends[e] - all_starts[0])
+            all_timestamps.append(all_ends[e] - time_start)
             all_counts.append(t)
             i = i + 1
-        all_timestamps.append(all_ends[e] - all_starts[0])
+        all_timestamps.append(all_ends[e] - time_start)
         t = t - 1
         all_counts.append(t)
         e = e + 1
     i = i + 1
 for j in range(0,len(pub_guids)):
-    all_timestamps.append(all_ends[e] - all_starts[0])
+    if t == 0:
+       break
+    all_timestamps.append(all_ends[e] - time_start)
     t = t - 1
     all_counts.append(t)
     e = e + 1
     i = i + 1
 
-#print all_timestamps, all_counts
+#print all_timestamps
+#print all_counts
 plt.plot(all_timestamps, all_counts)
 plt.ylabel('Num Ranks at Collective')
 plt.show()
