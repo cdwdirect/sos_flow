@@ -24,12 +24,12 @@ export TAU_CONFIG=-mpi-pthread
 export TAU_ROOT=$HOME/src/tau2
 export ADIOS_ROOT=/usr/local/packages/adios/git-gcc-4.9
 #export GPERFTOOLS_ROOT=/usr/local/packages/gperftools/2.5
-if [ `hostname` == "ln1" ] || [ `hostname` == "ktau" ] ; then
+if [ -d /usr/local/packages/adios/chaos ] ; then
+  export CHAOS=/usr/local/packages/adios/chaos
+else
   export CHAOS=$HOME/src/chaos/linux-gcc
 #  module use /projects/tau/packages/Modules/modulefiles
 #  module load python/2.7.13
-else
-  export CHAOS=/usr/local/packages/adios/chaos
 fi
 
 export cmake_extras_examples="-DADIOS_ROOT=${ADIOS_ROOT} -DSOS_ROOT=${BASEDIR}/${BUILDDIR}"

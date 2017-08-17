@@ -189,7 +189,7 @@ def get_ranks(c,application):
 
 # Get the GUIDs for the MPI Collective events, for this publisher GUID (i.e. for this rank).
 def get_mpi_collective_guid(pg):
-    sql_statement = ("select guid from tblData where pub_guid = " + str(pg) + " and name like 'MPI collective%';")
+    sql_statement = ("select guid from tblData where pub_guid = " + str(pg) + " and name like 'ADIOS avance%';")
     try_execute(c,sql_statement);
     all_rows = c.fetchall()
     guid = np.array([x[0] for x in all_rows])
@@ -241,7 +241,7 @@ application = sys.argv[2]
 # open the connection
 c = open_connection(sqlite_file)
 
-rows=100
+rows=50
 
 # get the publisher guids, ranks
 pub_guids,ranks = get_ranks(c, application)
