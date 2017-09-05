@@ -427,9 +427,6 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
     int packed_bytes;  // how many bytes have been packed...
 
     dlog(8, "Packing the following format string: \"%s\"\n", format);
-    /* Check if the offset is more than half the buffer. this is
-     * VERY conservative, but we likely won't have to check when
-     * packing strings, later. */
     if (*offset > ((buffer->max) >> 1)) {
         SOS_buffer_grow(buffer, *offset, SOS_WHOAMI);
         // just in case the buffer moved.
@@ -487,6 +484,10 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
         case 's': // string
             s = va_arg(ap, char*);
             len = strlen(s);
+            if ((*offset + len) >= buffer->max) {
+                SOS_buffer_grow(buffer, (len + SOS_DEFAULT_BUFFER_MAX), SOS_WHOAMI);
+                buf = (buffer->data + *offset);
+            }
             dlog(8, "  ... packing s @ %d:   \"%s\"   (%d bytes + 4)   [STRING]\n", packed_bytes, s, len);
             SOS_buffer_packi32(buf, len);
             buf += 4;

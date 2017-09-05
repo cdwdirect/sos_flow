@@ -29,7 +29,7 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
 
     SOS_buffer *msg;
     SOS_buffer *reply;
-    SOS_buffer_init_sized_locking(SOS, &msg,   1024, false);
+    SOS_buffer_init_sized_locking(SOS, &msg,   4096, false);
     SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
 
 

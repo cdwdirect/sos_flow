@@ -34,7 +34,7 @@
 
 
 /* Analytics module output verbosity.  (Req. SOS_DEBUG >= 0) */
-#define SOSA_DEBUG_LEVEL          0 
+#define SOSA_DEBUG_LEVEL          0
 
 
 int     sos_daemon_lock_fptr;
