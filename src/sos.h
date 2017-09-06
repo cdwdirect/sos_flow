@@ -110,8 +110,11 @@ extern "C" {
     // ---------- internal / utility functions -----------------
 
     void SOS_init_existing_runtime(int *argc, char ***argv,
-        SOS_runtime **runtime, SOS_role role,
+        SOS_runtime **runtime, SOS_config *config, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
+
+    int SOS_process_config_file(SOS_config **sos_config_ptr_ref,
+            SOS_role role, char *filepath, char *special_settings_key);
 
     int SOS_file_exists(char *path);
 

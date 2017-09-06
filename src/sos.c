@@ -29,6 +29,10 @@
 #include <netdb.h>
 #include <fcntl.h>
 
+#include <lua.h>
+#include <lualib.h>
+
+
 #ifdef USE_MUNGE
 #include <munge.h>
 #endif
@@ -78,6 +82,45 @@ int SOS_file_exists(char *filepath) {
 }
 
 /**
+ * @brief Run the SOS options LUA script that defines this environment.
+ *
+ */
+int SOS_process_config_file(
+        SOS_config    **sos_config_ptr_ref,
+        SOS_role        role,
+        char           *filepath,
+        char           *special_settings_key)
+{
+
+    //Initialize the options 
+    *sos_config_ptr_ref = (SOS_config *) calloc(1, sizeof(SOS_config));
+    SOS_config *config = *sos_config_ptr_ref;
+
+    lua_State *LUA = lua_open();
+    luaopen_base(LUA);
+    luaopen_io(LUA);
+    luaopen_string(LUA);
+    luaopen_math(LUA);
+
+    if (luaL_loadfile(LUA, filepath) || lua_pcall(LUA, 0, 0, 0)) {
+        error(L, "ERROR: Cannot process SOS options file.\nERROR: %s\n",
+                lua_tostring(LUA, -1));
+    }
+
+    lua_getglobal(LUA, "LISTENER_PORT");
+    if (!lua_isnumber(LUA, -1)) {
+        error(LUA, "ERROR: \"LISTENER_PORT\" should be a number.\n");
+    }
+
+    // Copy the value in from LUA:
+    //*height = (int)lua_tonumber(L, -1);
+
+    lua_close(LUA);
+    return 0;
+}
+
+
+/**
  * @brief Initialize the SOS library and register with the SOS runtime.
  *
  * This is the first SOS function that gets called. If the client
@@ -110,7 +153,13 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
 {
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
-    SOS_init_existing_runtime(argc, argv, sos_runtime, role, receives, handler);
+
+    SOS_config *sos_config = NULL;
+    SOS_process_config_file(&sos_config, role,
+            getenv("SOS_CONFIG_FILE"), NULL);
+
+    SOS_init_existing_runtime(argc, argv, sos_runtime, sos_config,
+            role, receives, handler);
     return;
 }
 
@@ -140,8 +189,14 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
  * @warning The SOS daemon needs to be up and running before calling.
  */
 void
-SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
-    SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
+SOS_init_existing_runtime(
+        int *argc,
+        char ***argv,
+        SOS_runtime **sos_runtime,
+        SOS_config *sos_config_ptr_ref
+        SOS_role role,
+        SOS_receives receives,
+        SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
     int i, n, retval, remote_socket_fd;

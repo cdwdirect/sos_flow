@@ -1,24 +1,31 @@
 cmake_minimum_required (VERSION 2.8)
 
-option(ENABLE_ADIOS_EXAMPLES "Build the examples that require the presence of ADIOS?"
-       OFF)
+option(ENABLE_ADIOS_EXAMPLES
+    "Build the examples that require the presence of ADIOS?"
+    OFF)
 
-option(ENABLE_TAU_WRAPPER "Compile the codes with tau_cc.sh?"
-       OFF)
+option(ENABLE_TAU_WRAPPER
+    "Compile the codes with tau_cc.sh?"
+    OFF)
 
-option(SOSD_DAEMON_DETACH "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
-       OFF)
+option(SOSD_DAEMON_DETACH
+    "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
+    OFF)
 
-option(SOSD_CLOUD_SYNC "Activate cloud_sync operations for the daemon?"
-       ON)
+option(SOSD_CLOUD_SYNC
+    "Activate cloud_sync operations for the daemon?"
+    ON)
 
-option(SOSD_CLOUD_SYNC_WITH_MPI "Use MPI discover and synchronize data between daemons?"
-       OFF)
+option(SOSD_CLOUD_SYNC_WITH_MPI
+    "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
+    OFF)
 
-option(SOSD_CLOUD_SYNC_WITH_EVPATH "Use EVPATH synchronize data between daemons?"
-       ON)
+option(SOSD_CLOUD_SYNC_WITH_EVPATH
+    "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
+    ON)
 
-option(SECURE_WITH_MUNGE "Use the Munge library to verify connections between instances of SOSflow?"
+option(SECURE_WITH_MUNGE
+    "Use the Munge library to verify SOSflow messages?"
     ON)
 
 ###########
@@ -53,6 +60,13 @@ if(SECURE_WITH_MUNGE)
     message(STATUS ">>> MUNGE:")
 endif()
 
+if(SOSD_CLOUD_SYNC_WITH_EVPATH)
+    message(STATUS ">>> EVPATH:")
+    message(STATUS ">>> EVPATH:  EVPath is ENABLED!")
+    message(STATUS ">>> EVPATH:")
+endif()
+
+
 project(${PROJECT_NAME} C CXX)
 set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
 set(CMAKE_PREFIX_PATH $ENV{HOME}/local/include $CMAKE_PREFIX_PATH)
@@ -86,7 +100,8 @@ message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package(PkgConfig REQUIRED)
 find_package("Sqlite3" REQUIRED)
-# pkg_search_module(LIBTCMALLOC libtcmalloc)
+
+
 
 #  Always include the MPI stuff, some components reference it
 #  and not including it will cause the project not to build.
@@ -99,29 +114,15 @@ message(STATUS ">>> MPI:  Locating package...")
 #
 find_package("MPI" REQUIRED QUIET)
 #
-#  The LLNL-integration way of tracking down MPI (MVAPICH2): 
-#find_package("MVAPICH" REQUIRED QUIET)
-#
-#  Some hardcoded way of finding MPI (incomplete):
-#
-#set(MPI_HOME "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/") 
-#set(ENABLE_MPI ON CACHE PATH "")
-#set(MPI_FOUND ON) 
-#set(MPI_INCLUDE_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/include")
-#set(MPI_LIBRARY_PATH "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/lib")
-#set(MPI_C_LIBRARIES "mpi")
-#set(MPI_CXX_LIBRARIES "mpi")
-#set(MPI_C_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicc" CACHE PATH "")
-#set(MPI_CXX_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpicxx" CACHE PATH "")
-#set(MPI_Fortran_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpifort" CACHE PATH "")
-
 if(MPI_FOUND)
 message(STATUS ">>> MPI:  Found!")
 endif(MPI_FOUND)
 
-message(STATUS ">>> PYTHON:  Locating package...")
+
+
 if(ENABLE_PYTHON)
     #pkg_search_module(PYTHON REQUIRED python QUIET)
+    message(STATUS ">>> PYTHON:  Locating package...")
     if(PYTHON_FOUND)
     message(STATUS ">>> PYTHON:  Found!")
     endif(PYTHON_FOUND)
@@ -131,14 +132,28 @@ if(SOSD_CLOUD_SYNC_WITH_MPI)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif()
 
+
+
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
+  #
+  #  NOTE: This needs to get uncommented for systems that have EVPath
+  #        installed in a common location.
+  #
   #find_package("evpath" REQUIRED)
   #pkg_search_module(EVPATH REQUIRED libenet QUIET)
   #pkg_search_module(FABRIC REQUIRED libfabric)
   message(STATUS ">>> EVPATH:  Found!")
-  message(STATUS ">>> EVPATH:  Using EVPath for communication...")
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
+endif()
+
+
+message(STATUS ">>> LUA:  Locating package...")
+find_package(Lua52 REQUIRED QUIET)
+if(DEFINED LUA_LIBRARY)
+    message(STATUS ">>> LUA:  Found!")
+else()
+    message(STATUS ">>> LUA:  WARNING -- Could NOT locate the LUA package!")
 endif()
 
 # set everything up to use -pthread

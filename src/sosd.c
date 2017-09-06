@@ -57,6 +57,11 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+#include <lua.h>
+#include <lauxlib.h>
+#include <lualib.h>
+
+
 #ifdef SOSD_CLOUD_SYNC_WITH_MPI
 #include "sosd_cloud_mpi.h"
 #endif

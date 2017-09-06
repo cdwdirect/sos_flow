@@ -15,6 +15,12 @@ include_directories("${sos_flow_SOURCE_DIR}/src")
 #subdirs (sosa_mods)
 
 
+if(DEFINED LUA_INCLUDE_DIR)
+    add_definitions(-DLUA)
+    include_directories(${LUA_INCLUDE_DIR})
+endif()
+
+
 if(DEFINED SQLITE3_INCLUDE_DIR)
     include_directories("${SQLITE3_INCLUDE_DIR}")
 else()
@@ -32,11 +38,14 @@ if(DEFINED EVPATH_FOUND)
     link_libraries(${FABRIC_LIBRARIES})
 endif()
 
-if(DEFINED LIBTCMALLOC_FOUND)
-    #include_directories(${EVPATH_INCLUDE_DIRS})
-    link_directories(${LIBTCMALLOC_LIBRARY_DIRS})
-    link_libraries(${LIBTCMALLOC_LIBRARIES})
-endif()
+#
+#  NOTE: Deprecated ....
+#
+#if(DEFINED LIBTCMALLOC_FOUND)
+#    #include_directories(${EVPATH_INCLUDE_DIRS})
+#    link_directories(${LIBTCMALLOC_LIBRARY_DIRS})
+#    link_libraries(${LIBTCMALLOC_LIBRARIES})
+#endif()
 
 if(SOSD_DAEMON_DETACH)
   message(STATUS ">>> DAEMON_DETACH:  Daemon is set to DETACH and run in the background...")
@@ -76,7 +85,8 @@ if(CMAKE_THREAD_LIBS_INIT)
     "sos_buffer"
     "sos_qhashtbl"
     "sos_pipe"
-    "${CMAKE_THREAD_LIBS_INIT}")
+    "${CMAKE_THREAD_LIBS_INIT}"
+    "${LUA_LIBRARY}")
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
@@ -152,6 +162,7 @@ if(SOSD_CLOUD_SYNC)
       "sosa"
       "${MPI_C_LIBRARIES}"
       "${SQLITE3_LIBRARY}"
+      "${LUA_LIBRARY}"
 	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does not support the '-lrt' compiler option.
@@ -191,6 +202,7 @@ if(SOSD_CLOUD_SYNC)
       "ffs"
       "atl"
       "${SQLITE3_LIBRARY}"
+      "${LUA_LIBRARY}"
 	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
@@ -223,6 +235,7 @@ else()
     "sos_pipe"
     "sosa"
     "${SQLITE3_LIBRARY}"
+    "${LUA_LIBRARY}"
 	"${DYNAMICLIB}" stdc++)
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.
