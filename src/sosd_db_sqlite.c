@@ -268,23 +268,28 @@ void SOSD_db_init_database() {
     dlog(2, "Preparing transactions...\n");
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_pub);
-    retval = sqlite3_prepare_v2(database, sql_insert_pub, strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_pub,
+            strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_data);
-    retval = sqlite3_prepare_v2(database, sql_insert_data, strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_data,
+            strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_val);
-    retval = sqlite3_prepare_v2(database, sql_insert_val, strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_val,
+            strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_enum);
-    retval = sqlite3_prepare_v2(database, sql_insert_enum, strlen(sql_insert_enum) + 1, &stmt_insert_enum, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_enum,
+            strlen(sql_insert_enum) + 1, &stmt_insert_enum, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_sosd_config);
-    retval = sqlite3_prepare_v2(database, sql_insert_sosd_config, strlen(sql_insert_sosd_config) + 1, &stmt_insert_sosd, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_sosd_config,
+            strlen(sql_insert_sosd_config) + 1, &stmt_insert_sosd, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
 
@@ -298,7 +303,7 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("ROLE",          SOS_ROLE_string,          SOS_ROLE___MAX          );
     SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
     SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );
-    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_string, SOS_FEEDBACK_TYPE___MAX      );
+    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_string, SOS_FEEDBACK_TYPE___MAX );
     SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
     SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
     SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
@@ -711,7 +716,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     return;
 }
 
-/* tblData : Data definitions / metadata that comes with a SOS_publish() call. */
+//tblData : Data definitions / metadata that comes with a SOS_publish() call.
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;

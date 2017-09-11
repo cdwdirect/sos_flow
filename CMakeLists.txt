@@ -133,7 +133,7 @@ endif()
 
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
-  pkg_search_module(EVPATH REQUIRED libenet QUIET)
+  #pkg_search_module(EVPATH REQUIRED libenet QUIET)
   #pkg_search_module(FABRIC REQUIRED libfabric)
   message(STATUS ">>> EVPATH:  Found!")
   message(STATUS ">>> EVPATH:  Using EVPath for communication...")

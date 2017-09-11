@@ -1691,6 +1691,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
             SOS_GUID_FMT, header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
+    bool firstAnnouncement = false;
+
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
@@ -1699,8 +1701,11 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;
         SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
+        // Make sure the pub only goes in once...
+        firstAnnouncement = true;
     } else {
         dlog(5, "     ... FOUND IT!\n");
+        firstAnnouncement = false;
     }
     dlog(5, "     ... SOSD.pub_table.size() = %d\n",
             SOSD.pub_table->size(SOSD.pub_table));
@@ -1708,15 +1713,17 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     SOSD_apply_announce(pub, buffer);
     pub->announced = SOSD_PUB_ANN_DIRTY;
-
-    task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->ref = (void *) pub;
-    task->type = SOS_MSG_TYPE_ANNOUNCE;
-    pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-    pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-    SOSD.sync.db.queue->elem_count++;
-    SOS_buffer_destroy(reply);
-    pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+   
+    if (firstAnnouncement == true) {
+        task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
+        task->ref = (void *) pub;
+        task->type = SOS_MSG_TYPE_ANNOUNCE;
+        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+        SOSD.sync.db.queue->elem_count++;
+        SOS_buffer_destroy(reply);
+        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+    }
 
     dlog(5, "  ... pub(%" SOS_GUID_FMT ")->elem_count = %d\n",
             pub->guid, pub->elem_count);
@@ -1747,15 +1754,15 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
             header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
-    /* Check the table for this pub ... */
+    // Check the table for this pub ...
     dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n",pub_guid_str);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
 
     if (pub == NULL) {
-        /* If it's not in the table, add it. */
-    dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT
+        // If it's not in the table, add it.
+        dlog(0, "ERROR: PUBLISHING INTO A PUB (guid:%" SOS_GUID_FMT
             ") NOT FOUND! (WEIRD!)\n", header.ref_guid);
-    dlog(0, "ERROR: .... ADDING previously unknown pub to the table..."
+        dlog(0, "ERROR: .... ADDING previously unknown pub to the table..."
             " (this is bogus, man)\n");
         SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
