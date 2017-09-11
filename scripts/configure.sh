@@ -31,7 +31,7 @@ SCRIPTPATH=$(dirname "$SCRIPT")
 echo $SCRIPTPATH
 BASEDIR=$SCRIPTPATH/..
 
-echo "Building SOS $BUILDDIR from source in $BASEDIR"
+echo "Building SOS $SOS_BUILD_DIR from source in $BASEDIR"
 
 # Parse the arguments
 args=$(getopt -l "searchpath:" -o "cdhtrs" -- "$@")
@@ -102,17 +102,22 @@ if [ "x${SOS_CMD_PORT}" == "x" ] ; then
     echo "Please set the SOS_CMD_PORT environment variable."
     kill -INT $$
 fi
+if [ "x${SOS_BUILD_DIR}" == "x" ] ; then
+    echo "Please set the SOS_BUILD_DIR environment variable."
+    kill -INT $$
+fi
+
 
 if [ ${clean} -eq 1 ] ; then
-    rm -rf $BUILDDIR
+    rm -rf $SOS_BUILD_DIR
 else
-    if [ -d $BUILDDIR ] ; then
+    if [ -d $SOS_BUILD_DIR ] ; then
         echo "Warning: build directory exists. To start fresh, use the -c option."
         kill -INT $$
     fi
 fi
-mkdir -p $BUILDDIR
-cd $BUILDDIR
+mkdir -p $SOS_BUILD_DIR
+cd $SOS_BUILD_DIR
 
 buildtype=RelWithDebInfo
 if [ ${debug} -eq 1 ] ; then

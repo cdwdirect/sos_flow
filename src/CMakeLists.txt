@@ -33,7 +33,7 @@ endif()
 if(DEFINED EVPATH_FOUND)
     include_directories(${EVPATH_INCLUDE_DIRS})
     link_directories(${EVPATH_LIBRARY_DIRS})
-    link_libraries(${EVPATH_LIBRARIES})
+    link_libraries(${EVPATH_LIBRARIES} dill ffs cercs_env)
     link_directories(${FABRIC_LIBRARY_DIRS})
     link_libraries(${FABRIC_LIBRARIES})
 endif()
@@ -321,4 +321,9 @@ INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   OWNER_READ GROUP_EXECUTE GROUP_READ
   WORLD_EXECUTE WORLD_READ)
 INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
-#INSTALL(TARGETS sos_pipe sos_buffer sos sosa sosd_stop sosd_probe demo_app demo_sweep proc_app RUNTIME DESTINATION bin LIBRARY DESTINATION lib ARCHIVE DESTINATION lib) 
+INSTALL(TARGETS 
+  sosd_stop sosd_probe demo_app proc_app sosd sosd_trigger 
+  sos sosa sos_buffer sos_pipe sos_qhashtbl ssos
+  RUNTIME DESTINATION bin 
+  LIBRARY DESTINATION lib 
+  ARCHIVE DESTINATION lib) 
