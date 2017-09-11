@@ -96,7 +96,7 @@ int SOS_process_config_file(
     *sos_config_ptr_ref = (SOS_config *) calloc(1, sizeof(SOS_config));
     SOS_config *config = *sos_config_ptr_ref;
 
-    lua_State *LUA = lua_open();
+    lua_State* LUA = lua_open();
     luaopen_base(LUA);
     luaopen_io(LUA);
     luaopen_string(LUA);
@@ -193,7 +193,7 @@ SOS_init_existing_runtime(
         int *argc,
         char ***argv,
         SOS_runtime **sos_runtime,
-        SOS_config *sos_config_ptr_ref
+        SOS_config *sos_config_ptr_ref,
         SOS_role role,
         SOS_receives receives,
         SOS_feedback_handler_f handler)
