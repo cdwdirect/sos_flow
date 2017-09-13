@@ -148,13 +148,13 @@ if(SOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
 
-message(STATUS ">>> LUA:  Locating package...")
-find_package(Lua52 REQUIRED QUIET)
-if(DEFINED LUA_LIBRARY)
-    message(STATUS ">>> LUA:  Found!")
-else()
-    message(STATUS ">>> LUA:  WARNING -- Could NOT locate the LUA package!")
-endif()
+#message(STATUS ">>> LUA:  Locating package...")
+#find_package(Lua52 REQUIRED QUIET)
+#if(DEFINED LUA_LIBRARY)
+#    message(STATUS ">>> LUA:  Found!")
+#else()
+#    message(STATUS ">>> LUA:  WARNING -- Could NOT locate the LUA package!")
+#endif()
 
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)

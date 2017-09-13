@@ -29,10 +29,6 @@
 #include <netdb.h>
 #include <fcntl.h>
 
-#include <lua.h>
-#include <lualib.h>
-
-
 #ifdef USE_MUNGE
 #include <munge.h>
 #endif
@@ -85,37 +81,28 @@ int SOS_file_exists(char *filepath) {
  * @brief Run the SOS options LUA script that defines this environment.
  *
  */
-int SOS_process_config_file(
-        SOS_config    **sos_config_ptr_ref,
+int SOS_process_options_file(
+        SOS_options   **sos_options_ptr_ref,
         SOS_role        role,
         char           *filepath,
         char           *special_settings_key)
 {
 
     //Initialize the options 
-    *sos_config_ptr_ref = (SOS_config *) calloc(1, sizeof(SOS_config));
-    SOS_config *config = *sos_config_ptr_ref;
+    *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
+    SOS_options *opt = *sos_options_ptr_ref;
 
-    lua_State* LUA = lua_open();
-    luaopen_base(LUA);
-    luaopen_io(LUA);
-    luaopen_string(LUA);
-    luaopen_math(LUA);
+    //TODO: Actually process an options file...
+    opt->listener_port    = -999;
+    opt->listener_count   = -999;
+    opt->aggregator_count = -999;
+    opt->build_dir        = NULL;
+    opt->install_dir      = NULL;
+    opt->source_dir       = NULL;
+    opt->project_dir      = NULL;
+    opt->work_dir         = NULL;
+    opt->discovery_dir    = NULL;
 
-    if (luaL_loadfile(LUA, filepath) || lua_pcall(LUA, 0, 0, 0)) {
-        error(L, "ERROR: Cannot process SOS options file.\nERROR: %s\n",
-                lua_tostring(LUA, -1));
-    }
-
-    lua_getglobal(LUA, "LISTENER_PORT");
-    if (!lua_isnumber(LUA, -1)) {
-        error(LUA, "ERROR: \"LISTENER_PORT\" should be a number.\n");
-    }
-
-    // Copy the value in from LUA:
-    //*height = (int)lua_tonumber(L, -1);
-
-    lua_close(LUA);
     return 0;
 }
 
@@ -154,11 +141,11 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
 
-    SOS_config *sos_config = NULL;
-    SOS_process_config_file(&sos_config, role,
-            getenv("SOS_CONFIG_FILE"), NULL);
+    SOS_options *sos_options = NULL;
+    SOS_process_options_file(&sos_options, role,
+            getenv("SOS_OPTIONS_FILE"), NULL);
 
-    SOS_init_existing_runtime(argc, argv, sos_runtime, sos_config,
+    SOS_init_existing_runtime(argc, argv, sos_runtime, sos_options,
             role, receives, handler);
     return;
 }
@@ -193,7 +180,7 @@ SOS_init_existing_runtime(
         int *argc,
         char ***argv,
         SOS_runtime **sos_runtime,
-        SOS_config *sos_config_ptr_ref,
+        SOS_options *sos_options_ptr,
         SOS_role role,
         SOS_receives receives,
         SOS_feedback_handler_f handler)

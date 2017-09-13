@@ -466,6 +466,18 @@ typedef struct {
 
 
 typedef struct {
+    int                 listener_port;
+    int                 listener_count;
+    int                 aggregator_count;
+    char               *build_dir;
+    char               *install_dir;
+    char               *source_dir;
+    char               *project_dir;
+    char               *work_dir;
+    char               *discovery_dir;
+} SOS_options;
+
+typedef struct {
     void               *sos_context;
     SOS_guid            next;
     SOS_guid            last;

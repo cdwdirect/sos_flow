@@ -15,10 +15,10 @@ include_directories("${sos_flow_SOURCE_DIR}/src")
 #subdirs (sosa_mods)
 
 
-if(DEFINED LUA_INCLUDE_DIR)
-    add_definitions(-DLUA)
-    include_directories(${LUA_INCLUDE_DIR})
-endif()
+#if(DEFINED LUA_INCLUDE_DIR)
+#    add_definitions(-DLUA)
+#    include_directories(${LUA_INCLUDE_DIR})
+#endif()
 
 
 if(DEFINED SQLITE3_INCLUDE_DIR)
@@ -85,8 +85,7 @@ if(CMAKE_THREAD_LIBS_INIT)
     "sos_buffer"
     "sos_qhashtbl"
     "sos_pipe"
-    "${CMAKE_THREAD_LIBS_INIT}"
-    "${LUA_LIBRARY}")
+    "${CMAKE_THREAD_LIBS_INIT}")
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
 
@@ -162,7 +161,6 @@ if(SOSD_CLOUD_SYNC)
       "sosa"
       "${MPI_C_LIBRARIES}"
       "${SQLITE3_LIBRARY}"
-      "${LUA_LIBRARY}"
 	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does not support the '-lrt' compiler option.
@@ -202,7 +200,6 @@ if(SOSD_CLOUD_SYNC)
       "ffs"
       "atl"
       "${SQLITE3_LIBRARY}"
-      "${LUA_LIBRARY}"
 	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
@@ -235,7 +232,6 @@ else()
     "sos_pipe"
     "sosa"
     "${SQLITE3_LIBRARY}"
-    "${LUA_LIBRARY}"
 	"${DYNAMICLIB}" stdc++)
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.

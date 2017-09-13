@@ -57,10 +57,6 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
-#include <lua.h>
-#include <lauxlib.h>
-#include <lualib.h>
-
 
 #ifdef SOSD_CLOUD_SYNC_WITH_MPI
 #include "sosd_cloud_mpi.h"
@@ -273,10 +269,16 @@ int main(int argc, char *argv[])  {
     my_role = SOS->role;
 
     dlog(0, "Initializing SOSD:\n");
+
+    dlog(0, "   ... loading options file...\n");
+    SOS_options *sos_options = NULL;
+    SOS_process_options_file(&sos_options, my_role,
+            getenv("SOS_OPTIONS_FILE"), NULL);
+
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
             " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
     SOS_init_existing_runtime( &argc, &argv, &SOSD.sos_context,
-            my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
+            sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
