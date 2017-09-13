@@ -137,6 +137,7 @@ if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   #pkg_search_module(FABRIC REQUIRED libfabric)
   message(STATUS ">>> EVPATH:  Found!")
   message(STATUS ">>> EVPATH:  Using EVPath for communication...")
+  message(STATUS ">>> EVPATH:  Extralibs: ${SOS_EVPATH_EXTRA_LIBS}")
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
