@@ -19,9 +19,6 @@ export CC=gcc
 export CXX=g++
 export MPICC=mpicc
 export MPICXX=mpicxx
-export TAU_ARCH=x86_64
-export TAU_CONFIG=-mpi-pthread
-export TAU_ROOT=$HOME/src/tau2
 export ADIOS_ROOT=/usr/local/packages/adios/git-gcc-4.9
 #export GPERFTOOLS_ROOT=/usr/local/packages/gperftools/2.5
 if [ -d /usr/local/packages/adios/chaos ] ; then
