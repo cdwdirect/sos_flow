@@ -1858,11 +1858,10 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i);
             SOSD_countof(socket_bytes_sent += i);
         }
+#if (SOSD_CLOUD_SYNC > 0)
+        SOSD_cloud_shutdown_notice();
+#endif
     }
-
-    #if (SOSD_CLOUD_SYNC > 0)
-    SOSD_cloud_shutdown_notice();
-    #endif
 
     SOSD.daemon.running = 0;
     SOS->status = SOS_STATUS_SHUTDOWN;
