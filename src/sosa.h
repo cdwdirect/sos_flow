@@ -38,15 +38,24 @@ typedef struct {
 extern "C" {
 #endif
 
-    void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
-SOS_guid SOSA_exec_query(SOS_runtime *sos_context, char *sql_string,
-            char *target_host, int target_port);
-    void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr);
+SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
+        char *sql_string,
+        char *target_host,
+        int target_port);
+
+SOS_guid SOSA_peek(SOS_runtime *sos_context,
+        char *peek_val_name,
+        char *target_host,
+        int target_port);
+
+    void SOSA_results_init(SOS_runtime *sos_context,
+            SOSA_results **results_object_ptraddr);
     void SOSA_results_label(SOSA_results *results, SOS_guid guid, const char *sql);
     void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max);
     void SOSA_results_put_name(SOSA_results *results, int col, const char *name);
     void SOSA_results_put(SOSA_results *results, int col, int row, const char *value);
-    void SOSA_results_output_to(FILE *file, SOSA_results *results, char *title, int options);
+    void SOSA_results_output_to(FILE *file,
+            SOSA_results *results, char *title, int options);
     void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results);
     void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer);
     void SOSA_results_wipe(SOSA_results *results_object);
@@ -54,6 +63,7 @@ SOS_guid SOSA_exec_query(SOS_runtime *sos_context, char *sql_string,
 
     void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply);
 
+    void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
 
 
 

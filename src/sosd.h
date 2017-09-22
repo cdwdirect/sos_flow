@@ -83,6 +83,16 @@ typedef struct {
 } SOSD_query_handle;
 
 typedef struct {
+    SOS_guid            reply_to_guid;
+    char               *val_name;
+    SOS_guid            req_guid;
+    char               *reply_host;
+    int                 reply_port;
+    void               *results;
+} SOSD_peek_handle;
+
+
+typedef struct {
     SOS_guid            guid;
     char               *sense_handle;
     SOS_guid            client_guid;
@@ -275,6 +285,7 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
+    void  SOSD_handle_peek(SOS_buffer *buffer);
     void  SOSD_handle_sensitivity(SOS_buffer *buffer);
     void  SOSD_handle_desensitize(SOS_buffer *buffer);
     void  SOSD_handle_triggerpull(SOS_buffer *buffer);
