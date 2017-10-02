@@ -123,12 +123,14 @@ int main(int argc, char *argv[])  {
 
     // Grab the port from the environment variable SOS_CMD_PORT
     strncpy(tgt->local_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
-    strncpy(tgt->local_port, getenv("SOS_CMD_PORT"), NI_MAXSERV);
-    if ((tgt->local_port == NULL) || (strlen(tgt->local_port)) < 2) {
+    char* tmp_port = getenv("SOS_CMD_PORT");
+    if ((tmp_port == NULL) || (strlen(tmp_port)) < 2) {
         fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
         strncpy(tgt->local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
+    } else {
+      strncpy(tgt->local_port, tmp_port, NI_MAXSERV);
     }
     tgt->port_number = atoi(tgt->local_port);
 
@@ -670,7 +672,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             rc = SOS_target_init(SOS, &target,
                     query->reply_host, query->reply_port);
             if (rc != 0) {
-                dlog(0, "ERROR: Unable to initialize link to %s:%s"
+                dlog(0, "ERROR: Unable to initialize link to %s:%d"
                         " ... destroying results and returning.\n",
                         query->reply_host,
                         query->reply_port);
@@ -1933,11 +1935,10 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i);
             SOSD_countof(socket_bytes_sent += i);
         }
+#if (SOSD_CLOUD_SYNC > 0)
+        SOSD_cloud_shutdown_notice();
+#endif
     }
-
-    #if (SOSD_CLOUD_SYNC > 0)
-    SOSD_cloud_shutdown_notice();
-    #endif
 
     SOSD.daemon.running = 0;
     SOS->status = SOS_STATUS_SHUTDOWN;

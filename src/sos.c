@@ -2375,7 +2375,8 @@ SOS_val_snap_queue_from_buffer(
             break;
 
         case SOS_VAL_TYPE_STRING:
-            snap->val.c_val = (char *) calloc(sizeof(char), snap->val_len);
+            // add one byte for the null terminator.
+            snap->val.c_val = (char *) calloc(sizeof(char), snap->val_len+1);
             SOS_buffer_unpack(buffer, &offset, "s", snap->val.c_val);
             break;
 

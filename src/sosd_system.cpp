@@ -52,7 +52,10 @@ inline long long read_package0 (void) {
   if (fff==NULL) {
     std::cerr << "Error opening package0!" << std::endl;
   } else {
-    fscanf(fff,"%lld",&tmplong);
+    int num = fscanf(fff,"%lld",&tmplong);
+    if (num <= 0) {
+        std::cerr << "Error reading package0 power!" << std::endl;
+    }
     fclose(fff);
   }
   return tmplong/1000000;
@@ -66,7 +69,10 @@ inline long long  read_dram (void) {
   if (fff==NULL) {
     std::cerr << "Error opening dram!" << std::endl;
   } else {
-    fscanf(fff,"%lld",&tmplong);
+    int num = fscanf(fff,"%lld",&tmplong);
+    if (num <= 0) {
+        std::cerr << "Error reading dram power!" << std::endl;
+    }
     fclose(fff);
   }
   return tmplong/1000000;
