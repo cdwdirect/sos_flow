@@ -1,7 +1,9 @@
-// note: use vtk6 -chad
 //
-// to color the cells, see this:
-//  https://lorensen.github.io/VTKExamples/site/Cxx/PolyData/ColorCells/
+// Render two different VTK files side-by-side w/scaled color by attribute.
+//
+// Use VTK 6.3  (Is what I tested on.)
+//
+//      -Chad
 //
 //
 #include <vtkSmartPointer.h>
@@ -19,28 +21,28 @@
 #include <vtkCellData.h>
 #include <vtkPolyData.h>
 #include <vtkPolyDataMapper.h>
+#include <vtkIndent.h>
 
 #include <vtkNamedColors.h>
 
 int main ( int argc, char *argv[] )
 {
     //parse command line arguments
-    if(argc != 4)
+    if(argc != 3)
     {
         std::cerr << "Usage: " << argv[0]
-            << " FileA(.vtk) FileB(.vtk) colorByIndex" << std::endl;
+            << " FileA(.vtk) FileB(.vtk)" << std::endl;
         return EXIT_FAILURE;
     }
 
     std::string fileA = argv[1];
     std::string fileB = argv[2];
-    int colorByIndex  = atoi(argv[3]);
-
 
     //FILE A: read all the data from the file
     vtkSmartPointer<vtkUnstructuredGridReader> readerA =
         vtkSmartPointer<vtkUnstructuredGridReader>::New();
     readerA->SetFileName(fileA.c_str());
+    readerA->ReadAllScalarsOn();
     readerA->Update();
 
     //FILE B: read all the data from the file
@@ -52,13 +54,7 @@ int main ( int argc, char *argv[] )
     //COLOR A: Build a RGB color map automatically.
     vtkSmartPointer<vtkLookupTable> lutA =
         vtkSmartPointer<vtkLookupTable>::New();
-    int colorCountA = 512;
-    lutA->SetTableRange(0, colorCountA);
-    lutA->SetHueRange(0.0, 1.0);
-    lutA->SetSaturationRange(0.0, 1.0);
-    lutA->SetAlphaRange(1.0, 1.0);
-    lutA->SetValueRange(0.0, colorCountA);
-    lutA->Build();
+    lutA->SetAlphaRange(0.3, 0.1);
     
     //COLOR B: Build a color map manually.
     vtkSmartPointer<vtkLookupTable> lutB =
@@ -81,12 +77,38 @@ int main ( int argc, char *argv[] )
     //FILE A: Create a mapper and actor
     vtkSmartPointer<vtkDataSetMapper> mapperA =
         vtkSmartPointer<vtkDataSetMapper>::New();
-
     mapperA->SetInputConnection(readerA->GetOutputPort());
-    mapperA->SetScalarRange(0, colorCountA - 1);
+    //Find the min/max scalars to set the range...
+    int              arrayIndex      = 5; //0 == max_backlog, 5 == loops
+    vtkDataArray    *arrayData       = mapperA->GetInput()->GetCellData()->GetArray(arrayIndex);
+    char            *arrayName       = arrayData->GetName();
+    int              arrayTuples     = arrayData->GetNumberOfTuples();
+    int              arrayComponents = arrayData->GetNumberOfComponents();
+
+    double arrayMin = 0.0;
+    double arrayMax = 0.0;
+    double thisValue = 0.0;
+
+    int tup, comp;
+    for (tup = 0; tup < arrayTuples; tup++) {
+        for (comp = 0; comp < arrayComponents; comp++) {
+            thisValue = arrayData->GetComponent(tup, comp);
+            arrayMin = std::min(arrayMin, thisValue);
+            arrayMax = std::max(arrayMax, thisValue);
+        }
+    }
+
+    std::cout << "array[" << arrayName << "]: min=" << arrayMin << "  max=" << arrayMax << std::endl;
+
+    //
+    //
+    mapperA->SetScalarRange(arrayMin, arrayMax);
     mapperA->SetScalarModeToUseCellData();
-    mapperA->GetInput()->GetCellData()->SetActiveScalars("rank");
-    mapperA->SelectColorArray("rank");
+    mapperA->GetInput()->GetCellData()->SetActiveScalars("loops");
+
+    // mapperA->SelectColorArray("max_backlog");          //<-- DEPRECATED
+    mapperA->GetInput()->PrintSelf(cout, vtkIndent()); //<-- DEBUG
+
     mapperA->SetLookupTable(lutA);
     vtkSmartPointer<vtkActor> actorA =
         vtkSmartPointer<vtkActor>::New();
@@ -109,7 +131,7 @@ int main ( int argc, char *argv[] )
         vtkSmartPointer<vtkRenderer>::New();
     vtkSmartPointer<vtkRenderWindow> renderWindow =
         vtkSmartPointer<vtkRenderWindow>::New();
-    renderWindow->SetSize(600, 300);
+    renderWindow->SetSize(1200, 600);
     // Add one interactor: 
     vtkSmartPointer<vtkRenderWindowInteractor> renderWindowInteractor =
         vtkSmartPointer<vtkRenderWindowInteractor>::New();
@@ -124,13 +146,13 @@ int main ( int argc, char *argv[] )
         vtkSmartPointer<vtkRenderer>::New();
     renderWindow->AddRenderer(leftRenderer);
     leftRenderer->SetViewport(leftViewport);
-    leftRenderer->SetBackground(0.6, 0.5, 0.4);
+    leftRenderer->SetBackground(1.0, 1.0, 1.0);  //(0.6, 0.5, 0.4);
 
     vtkSmartPointer<vtkRenderer> rightRenderer =
         vtkSmartPointer<vtkRenderer>::New();
     renderWindow->AddRenderer(rightRenderer);
     rightRenderer->SetViewport(rightViewport);
-    rightRenderer->SetBackground(0.4, 0.5, 0.6);
+    rightRenderer->SetBackground(1.0, 1.0, 1.0);  //(0.4, 0.5, 0.6);
 
     //Add the actor to the scene
     leftRenderer->AddActor(actorA);
