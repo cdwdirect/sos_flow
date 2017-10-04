@@ -33,19 +33,20 @@ def queryAndPlot():
     #if len(results[0]) > 0:
     #    max_cycle = int(results[0][0])
     #else:
-    max_cycle = 1
+    max_cycle = 1 
     print "Max cycle: " + str(max_cycle)
 
     #####
     #
     #  Get the list of field names for non-string values.
     #
+    #  Removed:   AND value_type != 3
+    #
     sql_string = """
     SELECT
     DISTINCT value_name
     FROM viewCombined
-    WHERE value_type != 3
-    AND frame = """ + str(max_cycle) + """
+    WHERE frame = """ + str(max_cycle) + """
     ;
     """
     results, col_names = SOS.query(sql_string,
@@ -141,8 +142,8 @@ def queryAndPlot():
     res_coords = list()
     elev = {}
 
-    size = 0.25;
-    rise = 0.05;
+    size = 0.4;
+    rise = 0.01;
 
     for rank in range(rank_max):
         ctrX = float(attr['TAU::0::Metadata::CRAY_PMI_X'][rank])
@@ -161,7 +162,9 @@ def queryAndPlot():
         #       | /    | /
         #       |/     |/
         #  (-) 7*------*8
-       
+      
+        ctrY *= 1.25
+
         keystr = str(ctrX) + " " + str(ctrY) + " " + str(ctrZ)
 
         if keystr in elev:
