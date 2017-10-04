@@ -25,6 +25,7 @@
 
 #include <vtkNamedColors.h>
 
+
 int main ( int argc, char *argv[] )
 {
     //parse command line arguments
@@ -104,7 +105,7 @@ int main ( int argc, char *argv[] )
     //
     mapperA->SetScalarRange(arrayMin, arrayMax);
     mapperA->SetScalarModeToUseCellData();
-    mapperA->GetInput()->GetCellData()->SetActiveScalars("loops");
+    mapperA->GetInput()->GetCellData()->SetActiveScalars("rank");
 
     // mapperA->SelectColorArray("max_backlog");          //<-- DEPRECATED
     mapperA->GetInput()->PrintSelf(cout, vtkIndent()); //<-- DEBUG
