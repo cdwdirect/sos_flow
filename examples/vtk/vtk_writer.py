@@ -1,4 +1,5 @@
-#!/usr/workspace/wsa/pavis/third_party/toss3_gcc-4.9.3/python/bin/python
+####
+#   #!/usr/workspace/wsa/pavis/third_party/toss3_gcc-4.9.3/python/bin/python
 import sys
 visit_path="/usr/gapps/visit/current/linux-x86_64-toss3/lib/site-packages/"
 sys.path.append(visit_path)
@@ -118,12 +119,14 @@ class vtk_hex_data_set:
     for c in range(0,self.__size):
       f.write(str(self.__rank_ids[c]) + "\n")
     f.close()
+    return filename
 
 def write_visit_file(filenames):
   f = open("dataset.visit", "wb")
-  size = len(filenames)
+  filecount = len(filenames)
+  print "Generated " + str(filecount) + " files:"
   for name in filenames:
-    print name
+    print "    " + name
     f.write(name + "\n")
   f.close()
 
