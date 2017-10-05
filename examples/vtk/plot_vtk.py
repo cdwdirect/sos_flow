@@ -34,10 +34,9 @@ def sosVTKProjector():
 
     sosHost = "localhost"
     sosPort = os.environ.get("SOS_CMD_PORT")
-
-    print "Initializing SOS..."
+    printf("Initializing SOS: ...\b\b\b")
     SOS.init()
-    print "DONE init SOS..."
+    printf("OK!\n")
 
     #####
     #
@@ -60,7 +59,7 @@ def sosVTKProjector():
     sqlMaxFrame = "SELECT MAX(" + cycleFieldName + ") FROM viewCombined;"
     results, col_names = SOS.query(sqlMaxFrame, sosHost, sosPort)
     max_cycle = int(results[0][0])
-    print "Max cycle: " + str(max_cycle)
+    print "Maximum observed '" + cycleFieldName + "' value: " + str(max_cycle)
     #
     #####
 
@@ -78,11 +77,13 @@ def sosVTKProjector():
     # EXAMPLE A: Generate .vtk set for ALL simulation cycles:
     print "Generating VTK files..."
     for simCycle in range(0, max_cycle, stride):
-        printf("    ... %d of %d", simCycle, max_cycle)
-        printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b")
+        printf("    ... %d of %d ", simCycle, max_cycle)
         vtkOutputFileName = generateVTKFile(SOS, simCycle)
         filenames.append(vtkOutputFileName)
-    printf("\n")
+    #end:for simCycle
+    printf("                                        ")
+    printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b")
+    printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b")
     # -----
     # EXAMPLE B: Generate .vtk file for MOST RECENT cycle:
     #vtkOutputFile = generateVTKFile(selectedFields, max_cycle)
@@ -160,6 +161,10 @@ def generateVTKFile(SOS, simCycle):
     selectedFields = dict()
     selectedFields['name'] = [el[0] for el in results]
     name_count = len(selectedFields['name'])
+
+    printf("(%d fields)", name_count)
+    printf("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b")
+
     #
     # NOTE: Debug output...
     #
@@ -290,9 +295,12 @@ def generateVTKFile(SOS, simCycle):
         ctrX = float(attr[keyX][rank]) if keyX in attr else lastX[rank]
         ctrY = float(attr[keyY][rank]) if keyY in attr else lastY[rank]
         ctrZ = float(attr[keyZ][rank]) if keyZ in attr else lastZ[rank]
-        if ctrX != lastX[rank]: lastX[rank] = ctrX
-        if ctrY != lastY[rank]: lastY[rank] = ctrY
-        if ctrZ != lastZ[rank]: lastZ[rank] = ctrZ
+        if ctrX != lastX[rank]:
+            lastX[rank] = ctrX
+        if ctrY != lastY[rank]:
+            lastY[rank] = ctrY
+        if ctrZ != lastZ[rank]:
+            lastZ[rank] = ctrZ
         #
         #rankGeometry = xyzToHexStringRandomScatter(ctrX, ctrY, ctrZ, plotState)
         rankGeometry = xyzToHexStringStackedWafers(ctrX, ctrY, ctrZ, plotState)
