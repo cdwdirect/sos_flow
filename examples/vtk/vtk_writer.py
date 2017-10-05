@@ -110,7 +110,10 @@ class vtk_hex_data_set:
       f.write("SCALARS " + field  + " float 1\n")
       f.write("LOOKUP_TABLE default\n")
       for c in range(0,self.__size):
-        f.write(str(vals[c]) + "\n")
+        if str(vals[c]) == "NULL":
+          f.write("0\n")
+        else:
+          f.write(str(vals[c]) + "\n")
     #
     # write out rank ids
     #

@@ -61,6 +61,11 @@ def sosVTKProjector():
     max_cycle = int(results[0][0])
     print "Maximum observed '" + cycleFieldName + "' value: " + str(max_cycle)
     #
+    sqlMaxFrame = "SELECT MAX(comm_rank) FROM viewCombined;"
+    results, col_names = SOS.query(sqlMaxFrame, sosHost, sosPort)
+    rank_max = int(results[0][0])
+    print "Maximum observed  'comm_rank' value: " + str(rank_max)
+    #
     #####
 
     #####
@@ -76,9 +81,12 @@ def sosVTKProjector():
     #
     # EXAMPLE A: Generate .vtk set for ALL simulation cycles:
     print "Generating VTK files..."
+    lastX = [0.0]*(rank_max + 1)
+    lastY = [0.0]*(rank_max + 1)
+    lastZ = [0.0]*(rank_max + 1)
     for simCycle in range(0, max_cycle, stride):
-        printf("    ... %d of %d ", simCycle, max_cycle)
-        vtkOutputFileName = generateVTKFile(SOS, simCycle)
+        printf("    ... %d of %d ", (simCycle + 1), max_cycle)
+        vtkOutputFileName = generateVTKFile(SOS, cycleFieldName, simCycle, lastX, lastY, lastZ)
         filenames.append(vtkOutputFileName)
     #end:for simCycle
     printf("                                        ")
@@ -142,7 +150,7 @@ def sosVTKProjector():
 
 #####
 #
-def generateVTKFile(SOS, simCycle):
+def generateVTKFile(SOS, cycleFieldName, simCycle, lastX, lastY, lastZ):
     sosHost = "localhost"
     sosPort = os.environ.get("SOS_CMD_PORT")
     #####
@@ -155,6 +163,7 @@ def generateVTKFile(SOS, simCycle):
     SELECT
     DISTINCT value_name
     FROM viewCombined
+    WHERE """ + cycleFieldName + """ = """ + str(simCycle) + """
     ;
     """
     results, col_names = SOS.query(sqlFieldNames, sosHost, sosPort)
@@ -191,7 +200,6 @@ def generateVTKFile(SOS, simCycle):
     sqlValsToColsByRank  = """ """
     sqlValsToColsByRank += """ SELECT """
     sqlValsToColsByRank += """ comm_rank """
-    sqlValsToColsByRank += """,frame """
     for field_name in selectedFields['name']:
         sqlValsToColsByRank += """,GROUP_CONCAT( CASE WHEN """
         sqlValsToColsByRank += ' value_name LIKE "' + field_name + '" '
@@ -204,13 +212,14 @@ def generateVTKFile(SOS, simCycle):
     #
     sqlValsToColsByRank += """, GROUP_CONCAT( CASE WHEN """
     sqlValsToColsByRank += ' value_name LIKE "%CRAY_PMI_X%" '
-    sqlValsToColsByRank += ' THEN value END) AS "X" '
+    sqlValsToColsByRank += ' THEN value END) AS "PMI_X" '
     sqlValsToColsByRank += """, GROUP_CONCAT( CASE WHEN """
     sqlValsToColsByRank += ' value_name LIKE "%CRAY_PMI_Y%" '
-    sqlValsToColsByRank += ' THEN value END) AS "Y" '
+    sqlValsToColsByRank += ' THEN value END) AS "PMI_Y" '
     sqlValsToColsByRank += """, GROUP_CONCAT( CASE WHEN """
     sqlValsToColsByRank += ' value_name LIKE "%CRAY_PMI_Z%" '
-    sqlValsToColsByRank += ' THEN value END) AS "Z" '
+    sqlValsToColsByRank += ' THEN value END) AS "PMI_Z" '
+    #
     sqlValsToColsByRank += """ FROM viewCombined """
     sqlValsToColsByRank += " WHERE frame = " + str(simCycle) + " " 
     sqlValsToColsByRank += """ GROUP BY """
@@ -223,35 +232,41 @@ def generateVTKFile(SOS, simCycle):
     #
     results, col_names = SOS.query(sqlValsToColsByRank, sosHost, sosPort)
     #
-    # NOTE: Debug output...
-    #
-    #print "=========="
-    #for col in col_names:
-    #    print str(col) + " "
-    #print "=========="
-    #for row in results:
-    #    for col_index in range(len(row)):
-    #        print str(col_names[col_index]) + ": " + str(row[col_index])
-    #    print "----------"
-    #print "=========="
     #
     #####
 
     #####
     #
-    # Build an attribute dictionary of the results.
+    # Build an attribute dictionary of the results
+    #
+    # NOTE: These keys use the CLEANED name!  (See below)
+    #
+    keyX = 'TAU_0_Metadata_CRAY_PMI_X'
+    keyY = 'TAU_0_Metadata_CRAY_PMI_Y'
+    keyZ = 'TAU_0_Metadata_CRAY_PMI_Z'
+    #
+    #
     attr = dict()
     attr['comm_rank']  =  [el[0] for el in results]
     fieldNames = list()
     position = 1
     for field_name in selectedFields['name']:
         # NOTE: Replace non-alphanumerics in the metric field names
-        #       with '_' so VisIt doesn't hang:
+        #       with '_' per sequence of them, so VisIt doesn't hang:
         cleanFieldName = re.sub('[^0-9a-zA-Z]+', '_', str(field_name))
         fieldNames.append(cleanFieldName)
         attr[cleanFieldName] = [el[position] for el in results]
         position += 1
     #end:for field_name
+
+    #for field_name in selectedFields['name']:
+    #    rank = 0
+    #    for this_ranks_value in attr[field_name]:
+    #        print "comm_rank(" + str(rank) + ")." + field_name + " = " + this_ranks_value
+    #        rank += 1
+    #
+
+
     #
     #####
 
@@ -278,29 +293,46 @@ def generateVTKFile(SOS, simCycle):
     plotState = dict()
     rank_max = len(attr['comm_rank'])
     #
-    # NOTE: This is the CLEANED name!  (See above...)
-    #
-    keyX = 'TAU__0__Metadata__CRAY_PMI_X'
-    keyY = 'TAU__0__Metadata__CRAY_PMI_Y'
-    keyZ = 'TAU__0__Metadata__CRAY_PMI_Z'
-    #
-    # NOTE: If geometry is only given once at the start of a run,
-    #       this organization of variables will keep track of it.
-    #
-    lastX = [0.0]*rank_max
-    lastY = [0.0]*rank_max
-    lastZ = [0.0]*rank_max
     #
     for rank in range(rank_max):
-        ctrX = float(attr[keyX][rank]) if keyX in attr else lastX[rank]
-        ctrY = float(attr[keyY][rank]) if keyY in attr else lastY[rank]
-        ctrZ = float(attr[keyZ][rank]) if keyZ in attr else lastZ[rank]
+        ctrX = 0.0
+        ctrY = 0.0
+        ctrZ = 0.0
+        # Sanity checking on the presence of values makes these
+        # ugly code blocks...
+        #---
+        if keyX in attr:
+            if attr[keyX][rank] == "NULL":
+                ctrX = lastX[rank]
+            else:
+                ctrX = float(attr[keyX][rank])
+        else:
+            ctrX = lastX[rank]
+        #---
+        if keyY in attr:
+            if attr[keyY][rank] == "NULL":
+                ctrY = lastY[rank]
+            else:
+                ctrY = float(attr[keyY][rank])
+        else:
+            ctrY = lastY[rank]
+        #---
+        if keyZ in attr:
+            if attr[keyZ][rank] == "NULL":
+                ctrZ = lastZ[rank]
+            else:
+                ctrZ = float(attr[keyZ][rank])
+        else:
+            ctrZ = lastZ[rank]
+        #---
+        # Update the last known good values, if we have new ones. 
         if ctrX != lastX[rank]:
             lastX[rank] = ctrX
         if ctrY != lastY[rank]:
             lastY[rank] = ctrY
         if ctrZ != lastZ[rank]:
             lastZ[rank] = ctrZ
+        #
         #
         #rankGeometry = xyzToHexStringRandomScatter(ctrX, ctrY, ctrZ, plotState)
         rankGeometry = xyzToHexStringStackedWafers(ctrX, ctrY, ctrZ, plotState)
@@ -354,8 +386,6 @@ def xyzToHexStringStackedWafers(ctrX, ctrY, ctrZ, elev):
     #       |/     |/
     #  (-) 7*------*8
     
-    ctrY *= 1.25
-    
     keystr = str(ctrX) + " " + str(ctrY) + " " + str(ctrZ)
     
     if keystr in elev:
@@ -364,7 +394,7 @@ def xyzToHexStringStackedWafers(ctrX, ctrY, ctrZ, elev):
         elev[keystr] = 0.0
 
     size = 0.4
-    rise = 0.05
+    rise = 0.005
 
     elev[keystr] += (rise * 3)
     
@@ -392,7 +422,7 @@ def xyzToHexStringStackedWafers(ctrX, ctrY, ctrZ, elev):
    
 
 
-def xyzToHexStringRandScatter(ctrX, ctrY, ctrZ, state):
+def xyzToHexStringRandomScatter(ctrX, ctrY, ctrZ, state):
     #         1*______*2 (+)
     #         /|     /|
     #        / |    / |
