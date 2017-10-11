@@ -136,13 +136,8 @@ endif()
 
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
-  #
-  #  NOTE: This needs to get uncommented for systems that have EVPath
-  #        installed in a common location.
-  #
-  #find_package("evpath" REQUIRED)
-  #pkg_search_module(EVPATH REQUIRED libenet QUIET)
-  #pkg_search_module(FABRIC REQUIRED libfabric)
+  pkg_search_module(EVPATH REQUIRED libenet QUIET)
+  pkg_search_module(FABRIC libfabric QUIET)
   message(STATUS ">>> EVPATH:  Found!")
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
