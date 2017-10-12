@@ -300,7 +300,6 @@ void SOSD_db_init_database() {
     SOSD_db_transaction_begin();
     dlog(2, "  Inserting the enumeration table...\n");
 
-    /* TODO: {DB, ENUM}  Make this a macro expansion... */
     SOSD_db_insert_enum("ROLE",          SOS_ROLE_string,          SOS_ROLE___MAX          );
     SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
     SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );

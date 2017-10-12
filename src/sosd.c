@@ -1417,11 +1417,11 @@ void SOSD_handle_peek(SOS_buffer *buffer) {
     SOS_buffer_unpack(buffer, &offset, "g",    &peek->req_guid);
 
     dlog(6, "      ...received reply_host: \"%s\"\n",
-            reply_host);
+            peek->reply_host);
     dlog(6, "      ...received reply_port: \"%d\"\n",
-            reply_port);
+            peek->reply_port);
     dlog(6, "      ...received peek_var_name: \"%s\"\n",
-            peek_var_name);
+            peek->val_name);
 
     //Queue up the peek task for the feedback thread.
     SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
