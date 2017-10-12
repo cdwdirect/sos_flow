@@ -102,12 +102,12 @@ endif()
 #            (library)
 add_library("sosa" "sosa.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("sosa"
-    "sos_buffer"
-    "sos_qhashtbl"
-    "sos_pipe"
-    "${CMAKE_THREAD_LIBS_INIT}"
-    "${MPI_C_LIBRARIES}")
+  target_link_libraries("sosa" 
+  "sos_buffer" 
+  "sos_qhashtbl" 
+  "sos_pipe" 
+  "${CMAKE_THREAD_LIBS_INIT}"
+  "${MPI_C_LIBRARIES}")
 endif()
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("sosa" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
@@ -244,7 +244,11 @@ endif()
 #TARGET ---> sosd_stop
 #            (shut down the daemon)
 add_executable("sosd_stop" "sosd_stop.c")
+if(MPI_C_LIBRARIES)
 target_link_libraries("sosd_stop" "sos" "${MPI_C_LIBRARIES}")
+else()
+target_link_libraries("sosd_stop" "sos")
+endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("sosd_stop" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
@@ -255,7 +259,11 @@ endif()
 #TARGET ---> sosd_trigger
 #            (trigger feedback from aggregator to listeners)
 add_executable("sosd_trigger" "sosd_trigger.c")
-target_link_libraries("sosd_trigger" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_LIBRARIES)
+	target_link_libraries("sosd_trigger" "sos" "${MPI_C_LIBRARIES}")
+else()
+	target_link_libraries("sosd_trigger" "sos")
+endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("sosd_trigger" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
@@ -267,7 +275,11 @@ endif()
 #TARGET ---> sosd_probe
 #            (get daemon satus and display it)
 add_executable("sosd_probe" "sosd_probe.c")
-target_link_libraries("sosd_probe" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_LIBRARIES)
+	target_link_libraries("sosd_probe" "sos" "${MPI_C_LIBRARIES}")
+else()
+	target_link_libraries("sosd_probe" "sos")
+endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("sosd_probe" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
@@ -294,7 +306,11 @@ endif()
 #TARGET ---> proc_app
 #            (demonstration / example)
 add_executable("proc_app" "proc_app.c")
-target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
+if(MPI_C_LIBRARIES)
+	target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
+else()
+	target_link_libraries("proc_app" "sos")
+endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()

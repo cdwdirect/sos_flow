@@ -54,9 +54,12 @@ if(SECURE_WITH_MUNGE)
 endif()
 
 project(${PROJECT_NAME} C CXX)
-set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
-set(CMAKE_PREFIX_PATH $ENV{HOME}/local/include $CMAKE_PREFIX_PATH)
-set(CMAKE_LIBRARY_PATH $ENV{HOME}/local/lib $CMAKE_LIBRARY_PATH)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
 if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -80,8 +83,6 @@ if(ENABLE_TAU_WRAPPER)
   link_directories(/usr/local/tau-2.24.1/x86_64/lib)
 endif()
 
-include_directories($ENV{HOME}/local/include)
-
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
 find_package(PkgConfig REQUIRED)
@@ -97,7 +98,15 @@ message(STATUS ">>> MPI:  Locating package...")
 #
 #  The "standard" way of finding MPI:
 #
-find_package("MPI" REQUIRED QUIET)
+if(NOT MPI_C_NO_INTERROGATE)
+	find_package("MPI" QUIET)
+else()
+	set(MPI_FOUND ON) 
+endif(NOT MPI_C_NO_INTERROGATE)
+
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+set(POSITION_INDEPENDENT_CODE TRUE)
+
 #
 #  The LLNL-integration way of tracking down MPI (MVAPICH2): 
 #find_package("MVAPICH" REQUIRED QUIET)
@@ -116,7 +125,7 @@ find_package("MPI" REQUIRED QUIET)
 #set(MPI_Fortran_COMPILER "/usr/tce/packages/mvapich2/mvapich2-2.2-gcc-4.9.3/bin/mpifort" CACHE PATH "")
 
 if(MPI_FOUND)
-message(STATUS ">>> MPI:  Found!")
+	message(STATUS ">>> MPI:  Found!")
 endif(MPI_FOUND)
 
 message(STATUS ">>> PYTHON:  Locating package...")
@@ -144,8 +153,12 @@ endif()
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+find_package(Threads)
+if(Threads_FOUND)
+    set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+else()
+	set(LIBS ${LIBS} -lpthread)
+endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 	find_library(DYNAMICLIB dl)
