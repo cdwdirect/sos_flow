@@ -492,7 +492,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         FILE *contact_file;
         contact_file = fopen(contact_filename, "w");
-        fprintf(contact_file, "%s", evp->recv.contact_string);
+        fprintf(contact_file, "%s\n%s\n",
+                evp->recv.contact_string,
+                SOSD.sos_context->config.node_id);
         fflush(contact_file);
         fclose(contact_file);
 
@@ -510,7 +512,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         while(strnlen(evp->send.contact_string, 1024) < 1) {
             FILE *contact_file;
             contact_file = fopen(contact_filename, "r");
-            if (fgets(evp->send.contact_string, 1024, contact_file) == NULL) {
+            fscanf(contact_file, "%1024s\n",
+                    evp->send.contact_string);
+            if (strlen(evp->send.contact_string) < 1) {
                 dlog(0, "Error reading the contact key file. Aborting.\n");
                 exit(EXIT_FAILURE);
             }

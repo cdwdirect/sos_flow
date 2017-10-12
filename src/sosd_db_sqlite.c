@@ -58,27 +58,27 @@ char *sql_create_table_pubs = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUBS_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " title "           " STRING, "                                     \
+    " title "           " TEXT, "                                       \
     " process_id "      " INTEGER, "                                    \
     " thread_id "       " INTEGER, "                                    \
     " comm_rank "       " INTEGER, "                                    \
-    " node_id "         " STRING, "                                     \
-    " prog_name "       " STRING, "                                     \
-    " prog_ver "        " STRING, "                                     \
+    " node_id "         " TEXT, "                                     \
+    " prog_name "       " TEXT, "                                     \
+    " prog_ver "        " TEXT, "                                     \
     " meta_channel "    " INTEGER, "                                    \
     " meta_nature "     __ENUM_DB_TYPE ", "                                \
     " meta_layer "      __ENUM_DB_TYPE ", "                                \
     " meta_pri_hint "   __ENUM_DB_TYPE ", "                                \
     " meta_scope_hint " __ENUM_DB_TYPE ", "                                \
     " meta_retain_hint "__ENUM_DB_TYPE ", "                                \
-    " pragma "          " STRING); ";
+    " pragma "          " TEXT); ";
 
 char *sql_create_table_data = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " pub_guid "        " UNSIGNED BIG INT, "                           \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " name "            " STRING, "                                     \
+    " name "            " TEXT, "                                     \
     " val_type "        __ENUM_DB_TYPE ", "                                \
     " meta_freq "       __ENUM_DB_TYPE ", "                                \
     " meta_class "      __ENUM_DB_TYPE ", "                                \
@@ -88,7 +88,7 @@ char *sql_create_table_data = ""                                        \
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " val "             " STRING, "                                     \
+    " val "             " TEXT, "                                     \
     " frame "           " INTEGER, "                                    \
     " meta_semantic "   __ENUM_DB_TYPE ", "                                \
     " meta_mood "       __ENUM_DB_TYPE ", "                                \
@@ -100,16 +100,16 @@ char *sql_create_table_vals = ""                                        \
 char *sql_create_table_enum = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_ENUM_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
-    " type "            " STRING, "                                     \
-    " text "            " STRING, "                                     \
+    " type "            " TEXT, "                                     \
+    " text "            " TEXT, "                                     \
     " enum_val "        " INTEGER); ";
 
 char *sql_create_table_sosd_config = ""                \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_SOSD_TABLE_NAME " ( " \
     " row_id "          " INTEGER PRIMARY KEY, "                \
-    " daemon_id "       " STRING, "                             \
-    " key "             " STRING, "                             \
-    " value "           " STRING); ";
+    " daemon_id "       " TEXT, "                             \
+    " key "             " TEXT, "                             \
+    " value "           " TEXT); ";
 
 
 char *sql_create_view_combined = ""                           \
@@ -250,6 +250,7 @@ void SOSD_db_init_database() {
     sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
     sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
     sqlite3_exec(database, "PRAGMA journal_mode  = DELETE;",   NULL, NULL, NULL); // Default
+  //sqlite3_exec(database, "PRAGMA encoding      = UTF-8;",    NULL, NULL, NULL); // Trim bloat if possible, unicode is rare.
   //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
   //sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
@@ -540,13 +541,13 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     dlog(6, "     ... pragma     = \"%s\"\n", pragma);
 
     CALL_SQLITE (bind_int64  (stmt_insert_pub, 1,  guid         ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            -1 , SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 3,  process_id   ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 4,  thread_id    ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 5,  comm_rank    ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id,          1 + strlen(node_id), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name,        1 + strlen(prog_name), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver,         1 + strlen(prog_ver), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id,          -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name,        -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver,         -1 , SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 9,  meta_channel ));
     __BIND_ENUM (stmt_insert_pub, 10, meta_nature  );
     __BIND_ENUM (stmt_insert_pub, 11, meta_layer   );
@@ -660,7 +661,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
         CALL_SQLITE (bind_int64  (stmt_insert_val, 1,  guid         ));
         if (val != NULL) {
-            CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, 1 + strlen(val), SQLITE_STATIC ));
+            CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, -1 , SQLITE_STATIC ));
         } else {
             CALL_SQLITE (bind_text   (stmt_insert_val, 2,  "", 1, SQLITE_STATIC ));
         }
@@ -767,7 +768,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
 
         CALL_SQLITE (bind_int64  (stmt_insert_data, 1,  pub_guid     ));
         CALL_SQLITE (bind_int64  (stmt_insert_data, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             1 + strlen(name), SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             -1 , SQLITE_STATIC     ));
         __BIND_ENUM (stmt_insert_data, 4,  val_type     );
         __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
         __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
@@ -812,8 +813,8 @@ void SOSD_db_insert_enum(const char *var_type, const char **var_name, int var_ma
         int pos = i;
         name = var_name[i];
 
-        CALL_SQLITE (bind_text   (stmt_insert_enum, 1,  type,         1 + strlen(type), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_enum, 2,  name,         1 + strlen(name), SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_enum, 1,  type,         -1 , SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_enum, 2,  name,         -1 , SQLITE_STATIC     ));
         CALL_SQLITE (bind_int    (stmt_insert_enum, 3,  pos ));
 
         dlog(2, "  --> SOS_%s_string[%d] == \"%s\"\n", type, i, name);

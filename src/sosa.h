@@ -61,6 +61,10 @@ SOS_guid SOSA_peek(SOS_runtime *sos_context,
     void SOSA_results_wipe(SOSA_results *results_object);
     void SOSA_results_destroy(SOSA_results *results_object);
 
+    //TODO: Allow result sets to be appended together:
+    //void SOSA_results_append(SOSA_results *to_set, *from_set);
+
+
     void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply);
 
     void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
