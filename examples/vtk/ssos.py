@@ -74,7 +74,6 @@ class SSOS:
             thisrow = []
             for col in range(res_obj.col_count):
                 thisrow.append(ffi.string(res_obj.data[row][col]))
-            print "results[{}] = {}".format(row, thisrow)
             results.append(thisrow)
 
         # Generate the column name list:
