@@ -2,24 +2,25 @@
 #define SOS_H
 
 /*
- * sos.h              Core API for SOS_flow project. 
+ * sos_stub.h
  *
- *                    (see also:  sos_types.h)
+ * Drop-in API replacement that macros-out SOS functions.
  *
+ * This is meant for USERS, as the internal library functions
+ * may have more complex embeddings. It doesn't make sense
+ * to be macro-ing out SOS from within SOS, but for consistency
+ * we knock out all the function signatures anyway.
+ *
+ * NOTE: Modify this to suite your use cases.  Some users collect
+ *       SOS_pack(...), returned pub index value so will need to
+ *       replace its ';;;' macro with '-99999' or equivalent.
  */
 
 
-// NOTE: Major and minor versions should be simple integers,
-//       as they are treated as ints when exchanged between
-//       client and server.
-
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 98 
+#define SOS_VERSION_MINOR 0 
 
 // ...
-
-#define SOS_Q(x) #x
-#define SOS_QUOTE_DEF_STR(x) SOS_Q(x)
 
 #ifndef SOS_BUILDER
 #define SOS_BUILDER "----------" 
@@ -29,155 +30,84 @@
 #define SOS_BUILT_FOR "----------"
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <pthread.h>
-#include <sys/time.h>
-#include <limits.h>
-#include <inttypes.h>
-#include <sys/socket.h>
-#include <netdb.h>
-
-#ifdef USE_MUNGE
-#include <munge.h>
-#endif
-
 /* SOS Configuration Switches... */
 
-#define SOS_CONFIG_DB_STRING_ENUMS  0
-#define SOS_CONFIG_USE_THREAD_POOL  1
-#define SOS_CONFIG_FEEDBACK_ACTIVE  1
+#define SOS_CONFIG_DB_STRING_ENUMS  -99999 
+#define SOS_CONFIG_USE_THREAD_POOL  -99999
+#define SOS_CONFIG_FEEDBACK_ACTIVE  -99999
 
-#define SOS_DEFAULT_SERVER_HOST     "localhost"
-#define SOS_DEFAULT_SERVER_PORT     "22500"
-#define SOS_DEFAULT_MSG_TIMEOUT     2048
-#define SOS_DEFAULT_TIMEOUT_SEC     2.0
-#define SOS_DEFAULT_BUFFER_MAX      4096
-#define SOS_DEFAULT_BUFFER_MIN      512
-#define SOS_DEFAULT_PIPE_DEPTH      100000
-#define SOS_DEFAULT_REPLY_LEN       1024
-#define SOS_DEFAULT_FEEDBACK_LEN    1024
-#define SOS_DEFAULT_STRING_LEN      256
-#define SOS_DEFAULT_RING_SIZE       65536
-#define SOS_DEFAULT_TABLE_SIZE      655360
-#define SOS_DEFAULT_GUID_BLOCK      8001027
-#define SOS_DEFAULT_ELEM_MAX        1024
-#define SOS_DEFAULT_UID_MAX         LLONG_MAX
-
-
-#include "sos_types.h"
+#define SOS_DEFAULT_SERVER_HOST     ""
+#define SOS_DEFAULT_SERVER_PORT     ""
+#define SOS_DEFAULT_MSG_TIMEOUT     -99999
+#define SOS_DEFAULT_TIMEOUT_SEC     -99999
+#define SOS_DEFAULT_BUFFER_MAX      -99999
+#define SOS_DEFAULT_BUFFER_MIN      -99999
+#define SOS_DEFAULT_PIPE_DEPTH      -99999
+#define SOS_DEFAULT_REPLY_LEN       -99999
+#define SOS_DEFAULT_FEEDBACK_LEN    -99999
+#define SOS_DEFAULT_STRING_LEN      -99999
+#define SOS_DEFAULT_RING_SIZE       -99999
+#define SOS_DEFAULT_TABLE_SIZE      -99999
+#define SOS_DEFAULT_GUID_BLOCK      -99999
+#define SOS_DEFAULT_ELEM_MAX        -99999
+#define SOS_DEFAULT_UID_MAX         -99999
 
 
-/* ************************************ */
-/* Required if included by C++ code. */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// =======================================================
+// ==================== SOS FUNCTIONS ====================
+// =======================================================
 
-    // ---------- primary functions --------------------
+// --- SOS core API (EXTERNAL):
+#define SOS_init(...)                               ;;; 
+#define SOS_pub_create(...)                         ;;;
+#define SOS_pack(...)                               ;;; 
+#define SOS_pack_bytes(...)                         ;;;
+#define SOS_event(...)                              ;;;
+#define SOS_announce(...)                           ;;;
+#define SOS_publish(...)                            ;;;
+#define SOS_sense_register(...)                     ;;;
+#define SOS_sense_trigger(...)                      ;;;
+#define SOS_finalize(...)                           ;;;
 
-    void SOS_init(int *argc, char ***argv,
-        SOS_runtime **runtime, SOS_role role,
-        SOS_receives receives, SOS_feedback_handler_f handler);
+// --- SOS utilities (INTERNAL):
+#define SOS_init_existing_runtime(...)              ;;;
+#define SOS_process_options_file(...)               ;;;
+#define SOS_file_exists(...)                        -99999 
+#define SOS_pub_create_sized(...)                   ;;;
+#define SOS_pub_search(...)                         -99999
+#define SOS_pub_destroy(...)                        ;;;
+#define SOS_announce_to_buffer(...)                 ;;;
+#define SOS_announce_from_buffer(...)               ;;;
+#define SOS_publish_to_buffer(...)                  ;;;
+#define SOS_publish_from_buffer(...)                ;;;
+#define SOS_uid_init(...)                           ;;;
+#define SOS_uid_next(...)                           99999 
+#define SOS_uid_destroy(...)                        ;;;
+#define SOS_val_snap_queue_to_buffer(...)           ;;;
+#define SOS_val_snap_queue_from_buffer(...)         ;;;
+#define SOS_strip_str(...)                          ;;;
+#define SOS_uint64_to_str(...)                      ;;;
 
-    void SOS_pub_create(SOS_runtime *sos_context,
-        SOS_pub **pub_handle, char *pub_title, SOS_nature nature);
+// --- SOS messaging:   (INTERNAL) 
+#define SOS_msg_zip(...)                            -99999
+#define SOS_msg_unzip(...)                          -99999
+#define SOS_msg_seal(...)                           -99999
+#define SOS_target_init(...)                        -99999
+#define SOS_target_connect(...)                     -99999
+#define SOS_target_accept_connection(...)           -99999
+#define SOS_target_send_msg(...)                    -99999
+#define SOS_target_recv_msg(...)                    -99999
+#define SOS_target_disconnect(...)                  -99999
+#define SOS_target_destroy(...)                     -99999
+#define SOS_send_to_daemon(...)                     -99999
 
-    int SOS_pack(SOS_pub *pub, const char *name,
-        SOS_val_type pack_type, void *pack_val_var);
-
-    int SOS_pack_bytes(SOS_pub *pub, const char *name,
-        int byte_count, void *pack_source);
-
-    int SOS_event(SOS_pub *pub, const char *name,
-        SOS_val_semantic semantic);
-
-    void SOS_announce(SOS_pub *pub);
-
-    void SOS_publish(SOS_pub *pub);
-
-    void SOS_sense_register(SOS_runtime *sos_context, char *handle);
-
-    void SOS_sense_trigger(SOS_runtime *sos_context,
-        char *handle, char *data, int data_length);
-
-    void SOS_finalize(SOS_runtime *sos_context);
-
-
-
-
-    // ---------- internal / utility functions -----------------
-
-    void SOS_init_existing_runtime(int *argc, char ***argv,
-        SOS_runtime **runtime, SOS_options *options, SOS_role role,
-        SOS_receives receives, SOS_feedback_handler_f handler);
-
-    int SOS_process_options_file(SOS_options **sos_options_ptr_ref,
-            SOS_role role, char *filepath, char *special_settings_key);
-
-    int SOS_file_exists(char *path);
-
-    void SOS_pub_create_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
-        char *pub_title, SOS_nature nature, int new_size);
-
-    int SOS_pub_search(SOS_pub *pub, const char *name);
-
-    void SOS_pub_destroy(SOS_pub *pub);
-
-    void SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
-
-    void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub);
-
-    void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer);
-
-    void SOS_publish_from_buffer(SOS_buffer *buffer,
-        SOS_pub *pub, SOS_pipe *optional_snap_queue);
-
-    void SOS_uid_init(SOS_runtime *sos_context,
-        SOS_uid **uid, SOS_guid from, SOS_guid to);
-
-    SOS_guid SOS_uid_next(SOS_uid *uid);
-
-    void SOS_uid_destroy(SOS_uid *uid);
-
-    void SOS_val_snap_queue_to_buffer(SOS_pub *pub,
-        SOS_buffer *buffer, bool destroy_snaps);
-
-    void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer,
-        SOS_pipe *snap_queue, SOS_pub *pub);
-
-    void SOS_strip_str(char *str);
-
-    char* SOS_uint64_to_str(uint64_t val, char *result, int result_len);
-
-    // Communication wrapper functions:
-
-    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, 
-            int starting_offset, int *offset_after_header);
-
-    int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
-            int starting_offset, int *offset_after_header);
-
-    int SOS_msg_seal(SOS_buffer *msg, SOS_msg_header header,
-            int starting_offset, int *offset_after_header_size_field);
-
-    int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
-            char *host, int port);
-
-    int SOS_target_connect(SOS_socket *target);
-
-    int SOS_target_accept_connection(SOS_socket *target);
-
-    int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);
-
-    int SOS_target_recv_msg(SOS_socket *target, SOS_buffer *reply);
-
-    int SOS_target_disconnect(SOS_socket *tgt_conn);
-
-    int SOS_target_destroy(SOS_socket *target);
-
-    void SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
+// =======================================================
+// ==================== SOS FUNCTIONS ====================
+// =======================================================
 
 
 

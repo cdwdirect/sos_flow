@@ -74,7 +74,7 @@ class SSOS:
             thisrow = []
             for col in range(res_obj.col_count):
                 thisrow.append(ffi.string(res_obj.data[row][col]))
-            #print "results[{}] = {}".format(row, thisrow)
+            print "results[{}] = {}".format(row, thisrow)
             results.append(thisrow)
 
         # Generate the column name list:
@@ -84,35 +84,6 @@ class SSOS:
 
         lib.SSOS_results_destroy(res_obj)
         return (results, col_names)
-
-    def queryFile(self, sql, filename):
-        tmpresultfile = str(os.getpid()) + ".tmpsql.csv"
-        rc = subprocess.call("sqlite3", "-header -csv -column \"" + sql \
-                + "\" > " + tmpresultfile)
-        results = []
-        col_names = []
-        if rc != 0:
-            print "Error executing query: \" + sql + "\""
-            return (results, col_names)
-        with io.open('times.csv', 'r', newline='') as csvfile:
-            data = csv.reader(csvfile)
-            row_count = len(data)
-            for row in range(2, row_count)
-                this_row = []
-                col_count = len(row)
-                for col in range(col_count)
-                    this_row.append(data[row][col])
-                results.append(this_row)
-            for col in range(col_count)
-                col_names.append(data[1][col]
-        return (results, col_names)
-
-
-            for time_iter, start_time, start_sec, stop_time, stop_sec in data:
-                print time_iter + ' : ' + str(int(stop_sec) - int(start_sec))
-  
-
-
 
     def trigger(self, handle, payload_size, payload_data):
         c_handle = ffi.new("char[]", handle)

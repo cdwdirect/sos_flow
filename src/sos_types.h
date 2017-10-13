@@ -54,6 +54,7 @@
     MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
     MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
+    MSG_TYPE(SOS_MSG_TYPE_PEEK)                 \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 #define FOREACH_RECEIVES(RECEIVES)              \
@@ -67,6 +68,7 @@
 #define FOREACH_FEEDBACK_TYPE(FEEDBACK_TYPE)    \
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_PAYLOAD)    \
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_PEEK)       \
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE___MAX)
 
 #define FOREACH_QUERY_STATE(QUERY_STATE)        \
@@ -464,6 +466,18 @@ typedef struct {
     bool                runtime_utility;
 } SOS_config;
 
+
+typedef struct {
+    int                 listener_port;
+    int                 listener_count;
+    int                 aggregator_count;
+    char               *build_dir;
+    char               *install_dir;
+    char               *source_dir;
+    char               *project_dir;
+    char               *work_dir;
+    char               *discovery_dir;
+} SOS_options;
 
 typedef struct {
     void               *sos_context;

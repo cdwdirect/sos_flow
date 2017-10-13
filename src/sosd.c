@@ -57,6 +57,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 
+
 #ifdef SOSD_CLOUD_SYNC_WITH_MPI
 #include "sosd_cloud_mpi.h"
 #endif
@@ -270,10 +271,16 @@ int main(int argc, char *argv[])  {
     my_role = SOS->role;
 
     dlog(0, "Initializing SOSD:\n");
+
+    dlog(0, "   ... loading options file...\n");
+    SOS_options *sos_options = NULL;
+    SOS_process_options_file(&sos_options, my_role,
+            getenv("SOS_OPTIONS_FILE"), NULL);
+
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
             " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
     SOS_init_existing_runtime( &argc, &argv, &SOSD.sos_context,
-            my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
+            sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(0, "   ... calling SOSD_init()...\n");
     SOSD_init();
@@ -537,6 +544,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_CHECK_IN:    SOSD_handle_check_in    (buffer); break;
         case SOS_MSG_TYPE_PROBE:       SOSD_handle_probe       (buffer); break;
         case SOS_MSG_TYPE_QUERY:       SOSD_handle_query       (buffer); break;
+        case SOS_MSG_TYPE_PEEK:        SOSD_handle_peek        (buffer); break;
         case SOS_MSG_TYPE_SENSITIVITY: SOSD_handle_sensitivity (buffer); break;
         case SOS_MSG_TYPE_DESENSITIZE: SOSD_handle_desensitize (buffer); break;
         case SOS_MSG_TYPE_TRIGGERPULL: SOSD_handle_triggerpull (buffer); break;
@@ -647,6 +655,17 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         }
 
         switch(task->type) {
+
+        case SOS_FEEDBACK_TYPE_PEEK:
+
+            //SLICE
+
+            //for each pub this daemon is aware of
+                //search for value name
+                //if found add to results along with pub metadata
+            //send results to requestor
+            
+
         case SOS_FEEDBACK_TYPE_QUERY: 
             query = (SOSD_query_handle *) task->ref;
             SOS_socket *target = NULL;
@@ -1371,6 +1390,66 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
 
 
 
+void SOSD_handle_peek(SOS_buffer *buffer) { 
+    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_peek");
+    SOS_msg_header header;
+    int            offset;
+    int            rc;
+
+    dlog(5, "header.msg_type = SOS_MSG_TYPE_PEEK\n");
+
+    offset = 0;
+    SOS_msg_unzip(buffer, &header, 0, &offset);
+    
+    SOSD_peek_handle *peek = calloc(1, sizeof(SOSD_peek_handle));
+
+    peek->reply_to_guid = header.msg_from;
+    peek->val_name    = NULL;
+    peek->req_guid    = 0;
+    peek->reply_host  = NULL;
+    peek->reply_port  = 0;
+    peek->results     = NULL;
+    
+    dlog(6, "   ...extracting peek request...\n");
+    SOS_buffer_unpack_safestr(buffer, &offset, &peek->reply_host);
+    SOS_buffer_unpack(buffer, &offset, "i",    &peek->reply_port);
+    SOS_buffer_unpack_safestr(buffer, &offset, &peek->val_name);
+    SOS_buffer_unpack(buffer, &offset, "g",    &peek->req_guid);
+
+    dlog(6, "      ...received reply_host: \"%s\"\n",
+            reply_host);
+    dlog(6, "      ...received reply_port: \"%d\"\n",
+            reply_port);
+    dlog(6, "      ...received peek_var_name: \"%s\"\n",
+            peek_var_name);
+
+    //Queue up the peek task for the feedback thread.
+    SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
+    feedback->type = SOS_FEEDBACK_TYPE_PEEK;
+    feedback->ref = peek;
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
+
+    dlog(6, "   ...send ACK to client.\n");
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+    SOS_target_send_msg(SOSD.net, reply);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply); 
+    
+    dlog(6, "Done.\n");
+    return;
+}
+
 void SOSD_handle_query(SOS_buffer *buffer) { 
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_sosa_query");
     SOS_msg_header header;
@@ -1754,8 +1833,6 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
     
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
-
     // Check the table for this pub ...
     dlog(5, "  ... checking SOS->pub_table for GUID(%s):\n",pub_guid_str);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);

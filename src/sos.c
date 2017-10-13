@@ -78,6 +78,36 @@ int SOS_file_exists(char *filepath) {
 }
 
 /**
+ * @brief Run the SOS options LUA script that defines this environment.
+ *
+ */
+int SOS_process_options_file(
+        SOS_options   **sos_options_ptr_ref,
+        SOS_role        role,
+        char           *filepath,
+        char           *special_settings_key)
+{
+
+    //Initialize the options 
+    *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
+    SOS_options *opt = *sos_options_ptr_ref;
+
+    //TODO: Actually process an options file...
+    opt->listener_port    = -999;
+    opt->listener_count   = -999;
+    opt->aggregator_count = -999;
+    opt->build_dir        = NULL;
+    opt->install_dir      = NULL;
+    opt->source_dir       = NULL;
+    opt->project_dir      = NULL;
+    opt->work_dir         = NULL;
+    opt->discovery_dir    = NULL;
+
+    return 0;
+}
+
+
+/**
  * @brief Initialize the SOS library and register with the SOS runtime.
  *
  * This is the first SOS function that gets called. If the client
@@ -110,7 +140,13 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
 {
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
-    SOS_init_existing_runtime(argc, argv, sos_runtime, role, receives, handler);
+
+    SOS_options *sos_options = NULL;
+    SOS_process_options_file(&sos_options, role,
+            getenv("SOS_OPTIONS_FILE"), NULL);
+
+    SOS_init_existing_runtime(argc, argv, sos_runtime, sos_options,
+            role, receives, handler);
     return;
 }
 
@@ -140,8 +176,14 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
  * @warning The SOS daemon needs to be up and running before calling.
  */
 void
-SOS_init_existing_runtime(int *argc, char ***argv, SOS_runtime **sos_runtime,
-    SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
+SOS_init_existing_runtime(
+        int *argc,
+        char ***argv,
+        SOS_runtime **sos_runtime,
+        SOS_options *sos_options_ptr,
+        SOS_role role,
+        SOS_receives receives,
+        SOS_feedback_handler_f handler)
 {
     SOS_msg_header header;
     int i, n, retval, remote_socket_fd;

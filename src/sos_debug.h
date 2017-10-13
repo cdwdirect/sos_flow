@@ -24,7 +24,7 @@
  *     -1 = disable logging entirely  <--- Faster, but HIDES ALL sosd/sosa logs, too!
  */
 #ifndef SOS_DEBUG
-#define SOS_DEBUG                 -1
+#define SOS_DEBUG                 -1 
 #endif
 #define SOS_DEBUG_SHOW_LOCATION   1
 
@@ -34,7 +34,7 @@
 
 
 /* Analytics module output verbosity.  (Req. SOS_DEBUG >= 0) */
-#define SOSA_DEBUG_LEVEL          0 
+#define SOSA_DEBUG_LEVEL          0
 
 
 int     sos_daemon_lock_fptr;
