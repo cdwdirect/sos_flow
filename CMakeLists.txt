@@ -146,6 +146,7 @@ endif()
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
   pkg_search_module(EVPATH REQUIRED libenet QUIET)
+  # could be needed on some platforms
   pkg_search_module(FABRIC libfabric QUIET)
   message(STATUS ">>> EVPATH:  Found!")
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
