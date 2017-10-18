@@ -386,7 +386,7 @@ SOS_init_existing_runtime(
         retval = SOS_target_recv_msg(SOS->daemon, buffer);
 
         if (retval < 1) {
-            fprintf(stderr, "ERROR: Daemon does not appear to be running!\n");
+            //fprintf(stderr, "ERROR: Daemon does not appear to be running!\n");
             SOS_target_disconnect(SOS->daemon);
             SOS_target_destroy(SOS->daemon);
             free(*sos_runtime);
@@ -808,8 +808,8 @@ SOS_target_recv_msg(
     reply->len = recv(target->remote_socket_fd, reply->data, 
             reply->max, 0);
     if (reply->len < 0) {
-        fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
-                strerror(errno));
+        //fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
+                //strerror(errno));
         return -1;
     }
 

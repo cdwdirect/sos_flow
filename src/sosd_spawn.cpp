@@ -2,7 +2,6 @@
 #include "mpi.h"
 #include <string>
 #include <iostream>
-#include <sstream>
 #include <vector>
 #include <iterator>
 #include <unistd.h>
@@ -15,12 +14,25 @@ int _commsize;
 int _daemon_rank;
 int _daemon_pid;
 
+/* Because the PGI compiler is a pile of steamy garbage,
+   we have to tokenize strings manually. Using a real
+   C++ technique breaks the static linker on Titan. */
+void split(const char *str, std::vector<std::string> &tokens)
+{
+    const char c = ' ';
+    do {
+        const char *begin = str;
+        while(*str != c && *str) {
+            str++;
+        }
+        tokens.push_back(std::string(begin, str));
+    } while (0 != *str++);
+    return;
+}
+
 void do_fork(std::string forkCommand) {
-    std::istringstream iss(forkCommand);
     std::vector<std::string> tokens;
-    copy(std::istream_iterator<std::string>(iss),
-         std::istream_iterator<std::string>(),
-         std::back_inserter(tokens));
+    split(forkCommand.c_str(), tokens);
     const char **args = (const char **)calloc(tokens.size()+1, sizeof(char*));
     for (int i = 0; i < tokens.size() ; i++) {
         args[i] = tokens[i].c_str();
@@ -36,7 +48,6 @@ void do_fork(std::string forkCommand) {
 
 extern "C" void fork_exec_sosd_shutdown(void) {
     // first, figure out who should fork a daemon on this node
-    int i;
     int pid;
     if (_commrank == _daemon_rank) {
         usleep(1000);
@@ -64,7 +75,6 @@ extern "C" void fork_exec_sosd_shutdown(void) {
 }
 
 extern "C" void send_shutdown_message(SOS_runtime *_runtime) {
-    int i;
     SOS_buffer     *buffer;
     SOS_msg_header  header;
     int offset;
@@ -157,9 +167,9 @@ extern "C" void fork_exec_sosd(void) {
                             int off = atoi(offset);
                             listener_rank = listener_rank + off;
                         }
-                        std::stringstream ss;
-                        ss << listener_rank;
-                        custom_command.replace(index,15,ss.str());
+						char ss[32];
+						sprintf(ss, "%d", listener_rank);
+                        custom_command.replace(index,15,ss);
                     }
                 }
                 std::cout << "Rank " << _commrank << " spawning SOS daemon(s): " << custom_command << std::endl;
