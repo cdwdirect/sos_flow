@@ -26,7 +26,31 @@ option(SOSD_CLOUD_SYNC_WITH_EVPATH
 
 option(SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
-    ON)
+    OFF)
+
+###########
+# RPATH OPTIONS
+###########
+
+# use, i.e. don't skip the full RPATH for the build tree
+SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+
+# when building, don't use the install RPATH already
+# (but later on when installing)
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+
+SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+# add the automatically determined parts of the RPATH
+# which point to directories outside the build tree to the install RPATH
+SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+# the RPATH to be used when installing, but only if it's not a system directory
+LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+IF("${isSystemDir}" STREQUAL "-1")
+   SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+ENDIF("${isSystemDir}" STREQUAL "-1")
+
 
 ###########
 ###########
@@ -68,9 +92,12 @@ endif()
 
 
 project(${PROJECT_NAME} C CXX)
-set(CMAKE_C_FLAGS "-std=gnu99 -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
-set(CMAKE_PREFIX_PATH $ENV{HOME}/local/include $CMAKE_PREFIX_PATH)
-set(CMAKE_LIBRARY_PATH $ENV{HOME}/local/lib $CMAKE_LIBRARY_PATH)
+
+if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
+
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
 if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
   set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
   set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
@@ -82,7 +109,7 @@ if(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
   set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
 endif(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 
 if(ENABLE_TAU_WRAPPER)
   message(STATUS ">>> TAU:")
@@ -93,8 +120,6 @@ if(ENABLE_TAU_WRAPPER)
   include_directories(/usr/local/tau-2.24.1/include)
   link_directories(/usr/local/tau-2.24.1/x86_64/lib)
 endif()
-
-include_directories($ENV{HOME}/local/include)
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
@@ -112,10 +137,18 @@ message(STATUS ">>> MPI:  Locating package...")
 #
 #  The "standard" way of finding MPI:
 #
-find_package("MPI" REQUIRED QUIET)
+if(NOT MPI_C_NO_INTERROGATE)
+	find_package("MPI" QUIET)
+else()
+	set(MPI_FOUND ON) 
+endif(NOT MPI_C_NO_INTERROGATE)
+
+set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
+set(POSITION_INDEPENDENT_CODE TRUE)
+
 #
 if(MPI_FOUND)
-message(STATUS ">>> MPI:  Found!")
+	message(STATUS ">>> MPI:  Found!")
 endif(MPI_FOUND)
 
 
@@ -136,13 +169,9 @@ endif()
 
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
-  #
-  #  NOTE: This needs to get uncommented for systems that have EVPath
-  #        installed in a common location.
-  #
-  #find_package("evpath" REQUIRED)
-  #pkg_search_module(EVPATH REQUIRED libenet QUIET)
-  #pkg_search_module(FABRIC REQUIRED libfabric)
+  pkg_search_module(EVPATH REQUIRED libenet QUIET)
+  # could be needed on some platforms
+  pkg_search_module(FABRIC libfabric QUIET)
   message(STATUS ">>> EVPATH:  Found!")
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
@@ -159,8 +188,12 @@ endif()
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+find_package(Threads)
+if(Threads_FOUND)
+    set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+else()
+	set(LIBS ${LIBS} -lpthread)
+endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 	find_library(DYNAMICLIB dl)

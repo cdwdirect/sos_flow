@@ -15,10 +15,12 @@ ffibuilder.set_source(
     sources=[
        "../ssos.c"
     ],
-    libraries=["ssos", "sos", "sosa", "munge"],
+    #libraries=["ssos", "sos", "sosa", "munge"],
+    libraries=["ssos", "sos", "sosa"],
     library_dirs=[os.environ.get("SOS_BUILD_DIR") + "/lib"],
     include_dirs=[os.environ.get("SOS_BUILD_DIR") + "/include", ".."],
-    extra_compile_args=["-Wno-unused-variable", "-DUSE_MUNGE=1"])
+    extra_compile_args=["-Wno-unused-variable"])
+    #extra_compile_args=["-Wno-unused-variable", "-DUSE_MUNGE=1"])
 
 ffibuilder.cdef("""    
 

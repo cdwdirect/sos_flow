@@ -129,16 +129,16 @@ char *sql_create_view_combined = ""                           \
     "       tblData.val_type    AS value_type, "                            \
     "       tblVals.val         AS value "                                  \
     "   FROM "                                                              \
-    "       tblVals "                                                       \
-    "       LEFT JOIN tblData ON tblVals.guid       = tblData.guid "        \
-    "       LEFT JOIN tblPubs ON tblData.pub_guid   = tblPubs.guid "        \
+    "       tblPubs "                                                       \
+    "       LEFT OUTER JOIN tblData ON tblPubs.guid   = tblData.pub_guid "  \
+    "       LEFT OUTER JOIN tblVals ON tblData.guid   = tblVals.guid "      \
     "   ; "                                                                 \
     "";                       
 
 
-char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals.guid;";
-char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData.guid;";
-char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs.guid;";
+char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals (guid,frame);";
+char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData (guid,pub_guid,name);";
+char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs (guid,prog_name,comm_rank);";
 
 
 char *sql_insert_pub = ""                                               \
