@@ -26,7 +26,7 @@ option(SOSD_CLOUD_SYNC_WITH_EVPATH
 
 option(SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
-    OFF)
+    ON)
 
 ###########
 # RPATH OPTIONS
