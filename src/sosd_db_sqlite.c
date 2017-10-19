@@ -398,6 +398,8 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     char *sosa_query = query->query_sql;
 
     dlog(6, "Processing query task...\n");
+    dlog(6, "   ...reply_guid: %" SOS_GUID_FMT "\n",
+            query->reply_guid);
     dlog(6, "   ...reply_host: \"%s\"\n",
             query->reply_host);
     dlog(6, "   ...reply_port: \"%d\"\n",
@@ -431,10 +433,7 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
         rc = sqlite3_prepare_v2(database, sosa_query,
                 strlen(sosa_query) + 1, &sosa_statement, NULL);
         if (rc != SQLITE_OK) {
-            //fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
-            //        SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
-            //        query->reply_to_guid, rc, sqlite3_errstr(rc), sosa_query);
-            fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
+            fprintf(stderr, "ERROR: Invalid query sent to daemon from %"
                     SOS_GUID_FMT "\n", query->reply_to_guid);
             OK_to_execute = false;
         }
@@ -511,12 +510,10 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
 
     pthread_mutex_lock( pub->lock );
 
-    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n",
+            pub->guid, SOSD.db.file);
 
-    /*
-     *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
-     */
-
+    //NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
     SOS_guid       guid              = pub->guid;
     char          *title             = pub->title;
     int            process_id        = pub->process_id;
@@ -540,13 +537,13 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     dlog(6, "     ... pragma     = \"%s\"\n", pragma);
 
     CALL_SQLITE (bind_int64  (stmt_insert_pub, 1,  guid         ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title, -1 , SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 3,  process_id   ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 4,  thread_id    ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 5,  comm_rank    ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id,          -1 , SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name,        -1 , SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver,         -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id, -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name, -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver, -1 , SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 9,  meta_channel ));
     __BIND_ENUM (stmt_insert_pub, 10, meta_nature  );
     __BIND_ENUM (stmt_insert_pub, 11, meta_layer   );
@@ -554,15 +551,18 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     __BIND_ENUM (stmt_insert_pub, 13, meta_scope_hint );
     __BIND_ENUM (stmt_insert_pub, 14, meta_retain_hint );
     if (pragma_len > 0) {
-        /* Only bind the pragma if there actually is something to insert... */
-        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma,           pub->pragma_len, SQLITE_STATIC  ));
+        // Only bind the pragma if there actually is something to insert...
+        CALL_SQLITE (bind_text (stmt_insert_pub, 15,
+                    (char const *) pragma, pub->pragma_len, SQLITE_STATIC  ));
     } else {
-        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma_empty,    2, SQLITE_STATIC  ));
+        CALL_SQLITE (bind_text (stmt_insert_pub, 15,
+                    (char const *) pragma_empty, 0, SQLITE_STATIC  ));
     }
 
     dlog(5, "  ... executing the query\n");
-
-    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  /* Execute the query. */
+    
+    // Execute the query.
+    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  
 
     dlog(5, "  ... success!  resetting the statement.\n");
 
@@ -575,8 +575,7 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     return;
 }
 
-/* tblVals : The snap_queue of a pub handle. */
-/* NOTE: re_queue can be NULL, and snaps are then free()'ed. */
+// NOTE: re_queue can be NULL, and snaps are then free()'ed.
 void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_vals");
     SOS_val_snap **snap_list;
@@ -597,9 +596,10 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOSD_countof(db_insert_val_snaps++);
 
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
-    dlog(5, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
+    dlog(5, "  ... grabbing %d snaps from the queue.\n", snap_count);
     count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
-    dlog(5, "      [bbb] %d snaps were returned from the queue on request for %d.\n", count, snap_count);
+    dlog(5, "      %d snaps were returned from the queue on request for %d.\n",
+            count, snap_count);
     queue->elem_count -= count;
     snap_count = count;
 
@@ -647,12 +647,21 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
 
         switch (val_type) {
-        case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%.17lf", snap_list[snap_index]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; break; 
+        case SOS_VAL_TYPE_INT:
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val);
+            break;
+        case SOS_VAL_TYPE_LONG:
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val);
+            break;
+        case SOS_VAL_TYPE_DOUBLE:
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%.17lf", snap_list[snap_index]->val.d_val);
+            break;
+        case SOS_VAL_TYPE_STRING:
+            val = snap_list[snap_index]->val.c_val;
+            break; 
         default:
-            dlog(5, "     ... error: invalid value type.  (%d)\n", val_type); break;
+            dlog(5, "     ... error: invalid value type.  (%d)\n", val_type);
+            break;
         }
 
         dlog(5, "     ... (%d) binding values\n", val_insert_count);
@@ -673,7 +682,8 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
         dlog(5, "     ... executing the query\n");
 
-        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  /* Execute the query. */
+        // Execute the query.
+        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  
         
         dlog(5, "     ... success!  resetting the statement.\n");
 
@@ -725,49 +735,61 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     pthread_mutex_lock( pub->lock );
     pub->sync_pending = 0;
 
-    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n",
+            pub->guid, SOSD.db.file);
 
     inserted_count = 0;
     for (i = 0; i < pub->elem_count; i++) {
 
         if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
-            dlog(1, "Skipping pub->data[%d]->sync == %s\n", i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
+            dlog(1, "Skipping pub->data[%d]->sync == %s\n",
+                    i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
             continue;
         } else {
             inserted_count++;
         }
 
 
-        /*
-         *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
-         */
-        SOS_guid      pub_guid          = pub->guid;
-        SOS_guid      guid              = pub->data[i]->guid;
-        const char   *name              = pub->data[i]->name;
+        //NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
+        SOS_guid      pub_guid      = pub->guid;
+        SOS_guid      guid          = pub->data[i]->guid;
+        const char   *name          = pub->data[i]->name;
         char         *val;
-        __ENUM_C_TYPE val_type          = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
-        __ENUM_C_TYPE meta_freq         = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
-        __ENUM_C_TYPE meta_class        = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
-        __ENUM_C_TYPE meta_pattern      = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
-        __ENUM_C_TYPE meta_compare      = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
+        __ENUM_C_TYPE val_type      = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
+        __ENUM_C_TYPE meta_freq     = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
+        __ENUM_C_TYPE meta_class    = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
+        __ENUM_C_TYPE meta_pattern  = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
+        __ENUM_C_TYPE meta_compare  = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
 
         char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
         memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
 
         switch (pub->data[i]->type) {
-        case SOS_VAL_TYPE_INT:    val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:   val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val; break;
-        default:
-            dlog(5, "ERROR: Attempting to insert an invalid data type.  (%d)  Continuing...\n", pub->data[i]->type);
+        case SOS_VAL_TYPE_INT:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val);
             break;
+        case SOS_VAL_TYPE_LONG:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val);
+            break;
+        case SOS_VAL_TYPE_DOUBLE:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val);
+            break;
+        case SOS_VAL_TYPE_STRING:
+            val = pub->data[i]->val.c_val;
+            break;
+        default:
+            dlog(5, "ERROR: Attempting to insert an invalid"
+                    " data type.  pub[%s]->data[%d]->type == %d  (Skipping...)\n",
+                    pub->title, i, pub->data[i]->type);
             continue;
         }
 
         CALL_SQLITE (bind_int64  (stmt_insert_data, 1,  pub_guid     ));
         CALL_SQLITE (bind_int64  (stmt_insert_data, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             -1 , SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name, -1 , SQLITE_STATIC     ));
         __BIND_ENUM (stmt_insert_data, 4,  val_type     );
         __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
         __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
