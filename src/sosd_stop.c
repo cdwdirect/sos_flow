@@ -20,7 +20,7 @@
 
 #include "sos_debug.h"
 
-#define USAGE "USAGE: stopd [--cmd_port <port>]\n"
+#define USAGE "USAGE: sosd_stop [--hard stop] [--cmd_port <custom_port>]\n"
 
 /**
  * Command-line tool for triggering voluntary daemon shutdown.
@@ -43,6 +43,8 @@ int main(int argc, char *argv[]) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
 
+    int stop_hard = 0;    
+
     // Process command line arguments
     int i, j;
     for (i = 2; i < argc; ) {
@@ -61,14 +63,10 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
-    printf("sosd_stop(%d): Signaling SOS daemon on %s to shut down.\n",
-            rank, getenv("HOSTNAME"));
-    fflush(stdout);
-
     my_SOS = NULL;
     SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
-        fprintf(stderr, "sosd_stop: Failed to connect to the SOS daemon.\n");
+        fprintf(stderr, "ERROR: sosd_stop(%d) failed to connect to the SOS daemon.\n", rank);
         exit(EXIT_FAILURE);
     }
 

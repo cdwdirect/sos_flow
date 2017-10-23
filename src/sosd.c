@@ -1206,7 +1206,7 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
 
 void
 SOSD_handle_unregister(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_");
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_unregister");
     
     SOS_msg_header header;
     int rc;
