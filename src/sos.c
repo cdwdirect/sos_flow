@@ -358,6 +358,10 @@ SOS_init_existing_runtime(
             SOS_VERSION_MAJOR,
             SOS_VERSION_MINOR);
 
+        int client_uid = getuid();
+        SOS_buffer_pack(buffer, &offset, "i",
+                client_uid);
+
         header.msg_size = offset;
         offset = 0;
         SOS_msg_zip(buffer, header, 0, &offset);
@@ -411,6 +415,21 @@ SOS_init_existing_runtime(
         SOS_buffer_unpack(buffer, &offset, "ii",
                 &server_version_major,
                 &server_version_minor);
+
+        int server_uid = -1;
+
+        SOS_buffer_unpack(buffer, &offset, "i",
+                &server_uid);
+
+        if (server_uid != client_uid) {
+            fprintf(stderr, "ERROR: SOS daemon's UID (%d) does not"
+                    " match yours (%d)!  Connection refused.\n",
+                    server_uid, client_uid);
+            SOS_target_destroy(SOS->daemon);
+            free(*sos_runtime);
+            *sos_runtime = NULL;
+            return;
+        }
 
         if ((server_version_major != SOS_VERSION_MAJOR)
             || (server_version_minor != SOS_VERSION_MINOR)) {

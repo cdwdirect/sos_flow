@@ -50,7 +50,7 @@ def demonstrateSOS():
     #if (len(sys.argv) > 1):
     #    sql_string = "SELECT * FROM viewCombined WHERE frame = " + sys.argv[1] + ";"
     #else:
-    sql_string = "SELECT * FROM viewCombined LIMIT 10000;"
+    sql_string = "SELECT * FROM viewCombined LIMIT 100000;"
  
     #sql_string = os.environ.get("SOS_SQL")
 
