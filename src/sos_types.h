@@ -49,12 +49,12 @@
     MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
     MSG_TYPE(SOS_MSG_TYPE_CHECK_IN)             \
     MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
+    MSG_TYPE(SOS_MSG_TYPE_PEEK)                 \
     MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
     MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
     MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
-    MSG_TYPE(SOS_MSG_TYPE_PEEK)                 \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 #define FOREACH_RECEIVES(RECEIVES)              \
