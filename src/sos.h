@@ -87,11 +87,8 @@ extern "C" {
     int SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type pack_type, void *pack_val_var);
 
-    int SOS_pack_bytes(SOS_pub *pub, const char *name,
-        int byte_count, void *pack_source);
-
-    int SOS_event(SOS_pub *pub, const char *name,
-        SOS_val_semantic semantic);
+    int SOS_pack_frame(SOS_pub *pub, long frame, const char *name,
+        SOS_val_type pack_type, void *pack_val_var);
 
     void SOS_announce(SOS_pub *pub);
 
