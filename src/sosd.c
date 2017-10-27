@@ -1633,6 +1633,10 @@ void SOSD_handle_register(SOS_buffer *buffer) {
             &client_version_major,
             &client_version_minor);
 
+    int client_uid = -1;
+    SOS_buffer_unpack(buffer, &offset, "i",
+            &client_uid);
+
     if ((client_version_major != SOS_VERSION_MAJOR)
         || (client_version_minor != SOS_VERSION_MINOR)) {
         fprintf(stderr, "CRITICAL WARNING: SOS client library (%d.%d) and"
@@ -1644,6 +1648,29 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         fprintf(stderr, "                  ** DAEMON ** Attempting"
                 " service anyway...\n");
         fflush(stderr);
+    }
+
+    int server_uid = getuid();
+    if (client_uid != server_uid) {
+        fprintf(stderr, "CRITICAL WARNING: Client UID (%d) does not match daemon's"
+                " (%d).  Refusing connection.\n",
+                client_uid, server_uid);
+        // We're refusing this connection, don't give them GUIDs.
+        guid_block_from = 0;
+        guid_block_to   = 0;
+        // Assemble message so client knows to error-out.
+        offset = 0;
+        SOS_msg_zip(reply, header, 0, &offset);
+        SOS_buffer_pack(reply, &offset, "ggiii",
+            guid_block_from,
+            guid_block_to,
+            SOS_VERSION_MAJOR,
+            SOS_VERSION_MINOR,
+            server_uid);
+        // Reapply the header now that we know the message size.
+        header.msg_size = offset;
+        offset = 0;
+        SOS_msg_zip(reply, header, 0, &offset);
     }
 
     if (header.msg_from == 0) {
@@ -1671,6 +1698,9 @@ void SOSD_handle_register(SOS_buffer *buffer) {
         SOS_buffer_pack(reply, &offset, "ii",
                 SOS_VERSION_MAJOR,
                 SOS_VERSION_MINOR);
+
+        SOS_buffer_pack(reply, &offset, "i",
+                server_uid);
 
         header.msg_size = offset;
         offset = 0;

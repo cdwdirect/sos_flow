@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 98 
+#define SOS_VERSION_MINOR 9901 
 
 // ...
 
@@ -87,11 +87,8 @@ extern "C" {
     int SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type pack_type, void *pack_val_var);
 
-    int SOS_pack_bytes(SOS_pub *pub, const char *name,
-        int byte_count, void *pack_source);
-
-    int SOS_event(SOS_pub *pub, const char *name,
-        SOS_val_semantic semantic);
+    int SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
+        SOS_val_type pack_type, const void *pack_val_var);
 
     void SOS_announce(SOS_pub *pub);
 
