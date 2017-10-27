@@ -13,7 +13,7 @@ import csv
 from ssos_python import ffi, lib
 
 class SSOS:
-    INT    = lib.SSOS_TYPE_INT 
+    INT    = lib.SSOS_TYPE_INT
     LONG   = lib.SSOS_TYPE_LONG
     DOUBLE = lib.SSOS_TYPE_DOUBLE
     STRING = lib.SSOS_TYPE_STRING
@@ -30,7 +30,7 @@ class SSOS:
             print "   ... waiting to connect to SOS"
             time.sleep(0.5)
             connect_delay += 1
-        
+
         if (is_online_flag[0] < 1):
             print "ERROR: Unable to connect to the SOS daemon."
             exit()
@@ -69,8 +69,8 @@ class SSOS:
         res_host = ffi.new("char[]", host)
         res_port = ffi.new("int*", int(port))
         lib.SSOS_query_exec_blocking(res_sql, res_obj, res_host, res_port[0])
-        
-        results = [] 
+
+        results = []
         for row in range(res_obj.row_count):
             thisrow = []
             for col in range(res_obj.col_count):
@@ -87,23 +87,23 @@ class SSOS:
         return (results, col_names)
 
 
-    def queryAllAggregators(self, sql)
-        sosPort = os.getenv("SOS_CMD_PORT")
-        sosKeyPath = os.getenv("SOS_EVPATH_MEETUP")
-        sosKeyFiles = glob.glob(sosKeyPath + "/*.key")
-        
-        if len(sosKeyFiles) == 0:
-            print "ERROR: No .key files found in " + sosKeyPath
-            print "       Query will not be run."
-            return ([[]], [])
+    # def queryAllAggregators(self, sql)
+    #     sosPort = os.getenv("SOS_CMD_PORT")
+    #     sosKeyPath = os.getenv("SOS_EVPATH_MEETUP")
+    #     sosKeyFiles = glob.glob(sosKeyPath + "/*.key")
+    #
+    #     if len(sosKeyFiles) == 0:
+    #         print "ERROR: No .key files found in " + sosKeyPath
+    #         print "       Query will not be run."
+    #         return ([[]], [])
 
-        for key in sosKeyFiles:
+    #     for key in sosKeyFiles:
 
 
-        # Wait for all results:
-        # Append all results together:
+    #     # Wait for all results:
+    #     # Append all results together:
 
-        return (results, col_names) 
+    #     return (results, col_names)
 
 #    def queryFile(self, sql, filename):
 #        tmpresultfile = str(os.getpid()) + ".tmpsql.csv"
@@ -130,7 +130,7 @@ class SSOS:
 #
 #        for time_iter, start_time, start_sec, stop_time, stop_sec in data:
 #            print time_iter + ' : ' + str(int(stop_sec) - int(start_sec))
-  
+
 
 
 
