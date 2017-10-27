@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 98 
+#define SOS_VERSION_MINOR 9901 
 
 // ...
 
@@ -88,7 +88,7 @@ extern "C" {
         SOS_val_type pack_type, void *pack_val_var);
 
     int SOS_pack_frame(SOS_pub *pub, long frame, const char *name,
-        SOS_val_type pack_type, void *pack_val_var);
+        SOS_val_type pack_type, const void *pack_val_var);
 
     void SOS_announce(SOS_pub *pub);
 

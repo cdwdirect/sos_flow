@@ -1764,13 +1764,12 @@ SOS_pub_create_sized(SOS_runtime *sos_context,
             new_pub->data[i]->time.send = 0.0;
             new_pub->data[i]->time.recv = 0.0;
 
-            new_pub->data[i]->meta.freq       = SOS_VAL_FREQ_DEFAULT;
-            new_pub->data[i]->meta.classifier = SOS_VAL_CLASS_DATA;
-            new_pub->data[i]->meta.semantic   = SOS_VAL_SEMANTIC_DEFAULT;
-            new_pub->data[i]->meta.pattern    = SOS_VAL_PATTERN_DEFAULT;
-            new_pub->data[i]->meta.compare    = SOS_VAL_COMPARE_SELF;
-            new_pub->data[i]->meta.mood       = SOS_MOOD_GOOD;
-
+            new_pub->data[i]->meta.freq        = SOS_VAL_FREQ_DEFAULT;
+            new_pub->data[i]->meta.classifier  = SOS_VAL_CLASS_DATA;
+            new_pub->data[i]->meta.semantic    = SOS_VAL_SEMANTIC_DEFAULT;
+            new_pub->data[i]->meta.pattern     = SOS_VAL_PATTERN_DEFAULT;
+            new_pub->data[i]->meta.compare     = SOS_VAL_COMPARE_SELF;
+            new_pub->data[i]->meta.relation_id = 0;
     }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
@@ -1862,12 +1861,12 @@ char* SOS_uint64_to_str(uint64_t val, char *result, int result_len) {
 }
 
 
-int SOS_pack_frame(
+int SOS_pack_related(
         SOS_pub *pub,
-        long frame,
+        long relation_id,
         const char *name,
         SOS_val_type pack_type,
-        void *pack_val_var)
+        const void *pack_val_var)
 {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_frame");
     SOS_buffer *byte_buffer;
@@ -1882,7 +1881,7 @@ int SOS_pack_frame(
     case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = *(double *)pack_val_var; break;
     case SOS_VAL_TYPE_STRING: pack_val.c_val = (char *)pack_val_var; break;
     case SOS_VAL_TYPE_BYTES:
-        fprintf(stderr, "WARNING: SOS_pack(...) used to pack SOS_VAL_TYPE_BYTES."
+        fprintf(stderr, "WARNING: SOS_pack_related(...) used to pack SOS_VAL_TYPE_BYTES."
                 " This is unsupported.\n");
         fprintf(stderr, "WARNING: Please use SOS_pack_bytes(...) instead!\n");
         fprintf(stderr, "WARNING: Doing nothing and returning....\n");
@@ -1996,6 +1995,7 @@ int SOS_pack_frame(
 
     }
 
+    data->meta.relation_id = relation_id;
     data->state = SOS_VAL_STATE_DIRTY;
     SOS_TIME( data->time.pack );
 
@@ -2003,13 +2003,13 @@ int SOS_pack_frame(
     SOS_val_snap *snap;
     snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
     
-    snap->elem     = pos;
-    snap->guid     = data->guid;
-    snap->mood     = data->meta.mood;
-    snap->semantic = data->meta.semantic;
-    snap->type     = data->type;
-    snap->time     = data->time;
-    snap->frame    = frame;
+    snap->elem        = pos;
+    snap->guid        = data->guid;
+    snap->relation_id = relation_id;
+    snap->semantic    = data->meta.semantic;
+    snap->type        = data->type;
+    snap->time        = data->time;
+    snap->frame       = pub->frame;
 
     snap->val_len = data->val_len;
     
@@ -2196,13 +2196,13 @@ int SOS_pack(
     SOS_val_snap *snap;
     snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
     
-    snap->elem     = pos;
-    snap->guid     = data->guid;
-    snap->mood     = data->meta.mood;
-    snap->semantic = data->meta.semantic;
-    snap->type     = data->type;
-    snap->time     = data->time;
-    snap->frame    = pub->frame;
+    snap->elem        = pos;
+    snap->guid        = data->guid;
+    snap->relation_id = data->meta.relation_id;
+    snap->semantic    = data->meta.semantic;
+    snap->type        = data->type;
+    snap->time        = data->time;
+    snap->frame       = pub->frame;
 
     snap->val_len = data->val_len;
     
@@ -2393,10 +2393,10 @@ SOS_val_snap_queue_to_buffer(
 
         SOS_TIME(snap->time.send);
 
-        SOS_buffer_pack(buffer, &offset, "igiiiidddl",
+        SOS_buffer_pack(buffer, &offset, "iggiiidddl",
                         snap->elem,
                         snap->guid,
-                        snap->mood,
+                        snap->relation_id,
                         snap->semantic,
                         snap->type,
                         snap->val_len,
@@ -2514,10 +2514,10 @@ SOS_val_snap_queue_from_buffer(
                 = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
         snap = snap_list[snap_index];
 
-        SOS_buffer_unpack(buffer, &offset, "igiiiidddl",
+        SOS_buffer_unpack(buffer, &offset, "iggiiidddl",
                           &snap->elem,
                           &snap->guid,
-                          &snap->mood,
+                          &snap->relation_id,
                           &snap->semantic,
                           &snap->type,
                           &snap->val_len,
@@ -2631,7 +2631,7 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 
     // Data definitions.
     for (elem = 0; elem < pub->elem_count; elem++) {
-        SOS_buffer_pack(buffer, &offset, "gsiiiiiii",
+        SOS_buffer_pack(buffer, &offset, "gsiiiiiig",
                         pub->data[elem]->guid,
                         pub->data[elem]->name,
                         pub->data[elem]->type,
@@ -2640,7 +2640,7 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
                         pub->data[elem]->meta.classifier,
                         pub->data[elem]->meta.pattern,
                         pub->data[elem]->meta.compare,
-                        pub->data[elem]->meta.mood );
+                        pub->data[elem]->meta.relation_id );
     }
 
     // TODO: { PUB } Come up with better ENUM for announce status. 
@@ -2702,13 +2702,13 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
              elem, pub->data[elem]->time.pack,
              elem, pub->data[elem]->time.send);
 
-        SOS_buffer_pack(buffer, &offset, "iddill",
+        SOS_buffer_pack(buffer, &offset, "iddilg",
                         elem,
                         pub->data[elem]->time.pack,
                         pub->data[elem]->time.send,
                         pub->data[elem]->val_len,
                         pub->data[elem]->meta.semantic,
-                        pub->data[elem]->meta.mood);
+                        pub->data[elem]->meta.relation_id);
 
         switch (pub->data[elem]->type) {
         case SOS_VAL_TYPE_INT:
@@ -2839,7 +2839,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     for (elem = 0; elem < pub->elem_count; elem++) {
         memset(&upd_elem, 0, sizeof(SOS_data));
 
-        SOS_buffer_unpack(buffer, &offset, "gsiiiiiii",
+        SOS_buffer_unpack(buffer, &offset, "gsiiiiiig",
             &upd_elem.guid,
             upd_elem.name,
             &upd_elem.type,
@@ -2848,16 +2848,16 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
             &upd_elem.meta.classifier,
             &upd_elem.meta.pattern,
             &upd_elem.meta.compare,
-            &upd_elem.meta.mood );
+            &upd_elem.meta.relation_id );
 
-        if ((   pub->data[elem]->guid            != upd_elem.guid )
-            || (pub->data[elem]->type            != upd_elem.type )
-            || (pub->data[elem]->meta.freq       != upd_elem.meta.freq )
-            || (pub->data[elem]->meta.semantic   != upd_elem.meta.semantic )
-            || (pub->data[elem]->meta.classifier != upd_elem.meta.classifier )
-            || (pub->data[elem]->meta.pattern    != upd_elem.meta.pattern )
-            || (pub->data[elem]->meta.compare    != upd_elem.meta.compare )
-            || (pub->data[elem]->meta.mood       != upd_elem.meta.mood )) {
+        if ((   pub->data[elem]->guid             != upd_elem.guid )
+            || (pub->data[elem]->type             != upd_elem.type )
+            || (pub->data[elem]->meta.freq        != upd_elem.meta.freq )
+            || (pub->data[elem]->meta.semantic    != upd_elem.meta.semantic )
+            || (pub->data[elem]->meta.classifier  != upd_elem.meta.classifier )
+            || (pub->data[elem]->meta.pattern     != upd_elem.meta.pattern )
+            || (pub->data[elem]->meta.compare     != upd_elem.meta.compare )
+            || (pub->data[elem]->meta.relation_id != upd_elem.meta.relation_id )) {
         
             // This is a value we have not seen before, or that has
             // changed.  Update the fields and set the sync flag to
@@ -2872,14 +2872,14 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
             pub->name_table->put(pub->name_table, pub->data[elem]->name,
                     (void *) ((long)(elem + 1)));
 
-            pub->data[elem]->guid            = upd_elem.guid;
-            pub->data[elem]->type            = upd_elem.type;
-            pub->data[elem]->meta.freq       = upd_elem.meta.freq;
-            pub->data[elem]->meta.semantic   = upd_elem.meta.semantic;
-            pub->data[elem]->meta.classifier = upd_elem.meta.classifier;
-            pub->data[elem]->meta.pattern    = upd_elem.meta.pattern;
-            pub->data[elem]->meta.compare    = upd_elem.meta.compare;
-            pub->data[elem]->meta.mood       = upd_elem.meta.mood;
+            pub->data[elem]->guid             = upd_elem.guid;
+            pub->data[elem]->type             = upd_elem.type;
+            pub->data[elem]->meta.freq        = upd_elem.meta.freq;
+            pub->data[elem]->meta.semantic    = upd_elem.meta.semantic;
+            pub->data[elem]->meta.classifier  = upd_elem.meta.classifier;
+            pub->data[elem]->meta.pattern     = upd_elem.meta.pattern;
+            pub->data[elem]->meta.compare     = upd_elem.meta.compare;
+            pub->data[elem]->meta.relation_id = upd_elem.meta.relation_id;
 
             dlog(8, "  ... pub->data[%d]->guid = %" SOS_GUID_FMT "\n",
                     elem, pub->data[elem]->guid);
@@ -2953,12 +2953,12 @@ SOS_publish_from_buffer(
         SOS_buffer_unpack(buffer, &offset, "i", &elem);
         data = pub->data[elem];
 
-        SOS_buffer_unpack(buffer, &offset, "ddill",
+        SOS_buffer_unpack(buffer, &offset, "ddilg",
                           &data->time.pack,
                           &data->time.send,
                           &data->val_len,
                           &data->meta.semantic,
-                          &data->meta.mood);
+                          &data->meta.relation_id);
 
         dlog(7, "pub->data[%d]->time.pack == %lf"
                 "   pub->data[%d]->time.send == %lf\n",
