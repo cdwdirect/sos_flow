@@ -332,6 +332,7 @@ endif()
 INSTALL(FILES ../scripts/showdb 
               ../scripts/evp.start.2 
               ../scripts/evp.kill.2
+              ../scripts/evp.cleanall
               ../scripts/wipedb
               DESTINATION bin
               PERMISSIONS OWNER_READ OWNER_EXECUTE OWNER_WRITE
