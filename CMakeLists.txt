@@ -169,7 +169,7 @@ endif()
 
 if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Locating package...")
-  find_package(EVPath)
+  find_package(EVPath QUIET)
   if(NOT EVPath_FOUND)
       pkg_search_module(EVPATH REQUIRED libenet QUIET)
   endif()
