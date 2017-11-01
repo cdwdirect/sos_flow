@@ -136,9 +136,9 @@ char *sql_create_view_combined = ""                           \
     "";                       
 
 
-char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals (guid,frame);";
-char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData (guid,pub_guid,name);";
-char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs (guid,prog_name,comm_rank);";
+char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals(guid,frame);";
+char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData(pub_guid,guid,name);";
+char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs(prog_name,comm_rank);";
 
 
 char *sql_insert_pub = ""                                               \
