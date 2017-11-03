@@ -301,13 +301,13 @@ endif()
 
 #TARGET ---> demo_app
 #            (demonstration / example)
-add_executable("demo_app" "demo_app_silent" "sosd_spawn.cpp" "sos_error.c" "demo_app.c" "demo_app_silent.c")
-target_link_libraries("demo_app" "demo_app_silent" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
+add_executable("demo_app_silent" "sosd_spawn.cpp" "sos_error.c" "demo_app_silent.c")
+target_link_libraries("demo_app_silent" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
 if(MPI_CXX_COMPILE_FLAGS)
- 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+ 	set_target_properties("demo_app_silent" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
 if(MPI_CXX_LINK_FLAGS)
-	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+	set_target_properties("demo_app_silent" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
 
@@ -335,7 +335,7 @@ INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
   WORLD_EXECUTE WORLD_READ)
 INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
 INSTALL(TARGETS 
-  sosd_stop sosd_probe demo_app demo_app_silent proc_app sosd sosd_trigger 
+  sosd_stop sosd_probe demo_app_silent proc_app sosd sosd_trigger 
   sos sosa sos_buffer sos_pipe sos_qhashtbl ssos
   RUNTIME DESTINATION bin 
   LIBRARY DESTINATION lib 
