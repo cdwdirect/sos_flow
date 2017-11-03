@@ -305,11 +305,9 @@ add_executable("demo_app" "demo_app_silent" "sosd_spawn.cpp" "sos_error.c" "demo
 target_link_libraries("demo_app" "demo_app_silent" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
 if(MPI_CXX_COMPILE_FLAGS)
  	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
- 	set_target_properties("demo_app_silent" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
 if(MPI_CXX_LINK_FLAGS)
 	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
-	set_target_properties("demo_app_silent" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
 
