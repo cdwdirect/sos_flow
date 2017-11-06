@@ -73,6 +73,11 @@ void SSOS_feedback_handler(
     entry->next = g_result_pool_head;
     g_result_pool_head = entry;
     g_result_pool_size++;
+
+    printf("Adding result #%d of length %d to the result pool...\n",
+            g_result_pool_size, entry->buffer->len);
+    fflush(stdout);
+
     pthread_mutex_unlock(g_result_pool_lock);
 
     //Done.  (Results are claimed with SSOS_result_claim() function.)
