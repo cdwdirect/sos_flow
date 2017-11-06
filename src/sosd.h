@@ -35,7 +35,9 @@
 #define SOSD_DEFAULT_LOG_FILE        "sosd.log"
 #define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
 
+//TODO: Remove unused define's...
 #define SOSD_DEFAULT_K_MEAN_CENTERS  24
+#define SOSD_DEFAULT_CENTROID_COUNT  12
 
 #define SOSD_PUB_ANN_DIRTY           66
 #define SOSD_PUB_ANN_LOCAL           77
@@ -53,7 +55,6 @@
 #define SOSD_DB_SYNC_WAIT_NSEC       1
 #define SOSD_FEEDBACK_SYNC_WAIT_NSEC 1
 
-#define SOSD_DEFAULT_CENTROID_COUNT  12
 
 
 typedef struct {

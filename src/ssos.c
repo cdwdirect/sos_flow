@@ -17,11 +17,19 @@
 #include "sos_types.h"
 #include "ssos.h"
 
-int                 g_sos_is_online = 0;
-int                 g_results_are_ready = 0;
-SSOS_query_results *g_results = NULL;
-SOS_runtime        *g_sos = NULL;
-SOS_pub            *g_pub = NULL;
+typedef struct {
+    SOS_buffer  *buffer;
+    void        *next;
+} SSOS_result_pool_entry;
+
+int                      g_sos_is_online = 0;
+
+pthread_mutex_t         *g_result_pool_lock;
+int                      g_result_pool_size;
+SSOS_result_pool_entry  *g_result_pool_head;
+
+SOS_runtime             *g_sos = NULL;
+SOS_pub                 *g_pub = NULL;
 
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
@@ -34,92 +42,113 @@ SOS_pub            *g_pub = NULL;
     };                                                      \
 };
 
-void SSOS_feedback_handler(int payload_type,
-        int payload_size, void *payload_data);
 
-
-void
-SSOS_sense_trigger(
-        char  *sense_handle,
-        int    payload_size,
-        void  *payload_data)
+void SSOS_feedback_handler(
+        int   payload_type,
+        int   payload_size,
+        void *payload_data)
 {
-    SSOS_CONFIRM_ONLINE("SSOS_sense_trigger");
-    SOS_SET_CONTEXT(g_sos, "SSOS_sense_trigger");
+    SOS_SET_CONTEXT(g_sos, "SSOS_feedback_handler");
+    if (payload_type != SOS_FEEDBACK_TYPE_QUERY) {
+        fprintf(stderr, "SSOS (PID:%d) --\n"
+                "\tFeedback was received by the SSOS library that\n"
+                "\twas marked (%d) as non-query results. Only SQL\n"
+                "\tresults are supported in the current version of\n"
+                "\tSSOS. For more options, please see the features\n"
+                "\tprovided by the full SOS API.\n",
+                getpid(), payload_type);
+        fflush(stderr);
+        return;
+    }
 
-    SOS_sense_trigger(g_sos, sense_handle,
-            payload_data, payload_size);
-    
+    //Create an entry for the result pool.
+    SSOS_result_pool_entry *entry =
+        (SSOS_result_pool_entry *) calloc(1, sizeof(SSOS_result_pool_entry));
+    entry->buffer = NULL;
+    SOS_buffer_init_sized_locking(g_sos, &entry->buffer, payload_size + 1, false);
+    memcpy(entry->buffer->data, payload_data, payload_size);
+    entry->buffer->len = payload_size;
+    //Add the entry to the result pool. 
+    pthread_mutex_lock(g_result_pool_lock);
+    entry->next = g_result_pool_head;
+    g_result_pool_head = entry;
+    g_result_pool_size++;
+    pthread_mutex_unlock(g_result_pool_lock);
+
+    //Done.  (Results are claimed with SSOS_result_claim() function.)
+
     return;
 }
 
 
-void SSOS_set_option(int option_key, char *option_value) {
-    SSOS_CONFIRM_ONLINE("SSOS_set_option");
-    SOS_SET_CONTEXT(g_sos, "SSOS_set_option");
 
-    switch (option_key) {
-
-        case SSOS_OPT_PROG_VERSION:
-            strncpy(g_pub->prog_ver, option_value, SOS_DEFAULT_STRING_LEN);
-            break;
-
-        case SSOS_OPT_COMM_RANK:
-            g_pub->comm_rank = atoi(option_value);
-            g_sos->config.comm_rank = g_pub->comm_rank;
-            break;
+void SSOS_result_pool_size(int *addr_of_counter_int) {
+    *addr_of_counter_int = g_result_pool_size;
+    return;
+}
 
 
-        default:
-            fprintf(stderr, "SSOS (PID:%d) -- Invalid option_key (%d) used to set"
-                    " option (%s).\n", getpid(), option_key, option_value);
-            fflush(stderr);
-            break;
+
+void
+SSOS_result_claim(SSOS_query_results *results)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_query_claim_results");
+    SOS_SET_CONTEXT(g_sos, "SSOS_query_claim_results");
+
+    //This function 'soft-blocks' until results are available.
+
+    while (g_sos_is_online) {
+        if (g_result_pool_size < 1) {
+            usleep(10000);
+            continue;
+        }
+        //Grab the lock
+        pthread_mutex_lock(g_result_pool_lock);
+        //Check to make sure that our test for results
+        //existing is still valid, to avoid race between
+        //the test and having grabbed the lock...
+        //...this allows good behavior AND correctness.
+        if (g_result_pool_size < 1) {
+            pthread_mutex_unlock(g_result_pool_lock);
+            continue;
+        }
+
+        printf("Processing the results...\n");
+        fflush(stdout);
+
+        //If we're here, we hold the lock AND there are results.
+        //Grab the head of the result pool and release the lock:
+        SSOS_result_pool_entry *entry = g_result_pool_head;
+        g_result_pool_head = entry->next;
+        g_result_pool_size--;
+        pthread_mutex_unlock(g_result_pool_lock);
+
+        //The pool is now open for other threads and we can
+        //process this entry.
+        printf("Initializing the results object...\n");
+        fflush(stdout);
+        SOSA_results_init(g_sos, (SOSA_results **) &results);
+
+        printf("Building results from buffer...\n");
+        fflush(stdout);
+        SOSA_results_from_buffer((SOSA_results *) results, entry->buffer);
+
+        printf("Destroying the buffer object...\n");
+        fflush(stdout);
+        SOS_buffer_destroy(entry->buffer);
+
+        printf("Free'ing the entry...\n");
+        fflush(stdout);
+        free(entry);
+
+        //Leave the loop and return to the client.
+        break;
     }
 
     return;
 }
 
-
-void
-SSOS_query_exec(char *sql, SSOS_query_results *results,
-       char *target_host, int target_port)
-{
-    SSOS_CONFIRM_ONLINE("SSOS_query_exec");
-    SOS_SET_CONTEXT(g_sos, "SSOS_query_exec");
-
-    SOSA_results_init(g_sos, (SOSA_results **) &results);
-    g_results = results;
-    g_results_are_ready = 0;
-    
-    SOSA_exec_query(g_sos, sql, target_host, target_port);
-
-    fflush(stdout);
-
-    return;
-}
-
-void SSOS_is_query_done(int *addr_of_YN_int_flag) {
-    *addr_of_YN_int_flag = g_results_are_ready;
-    return;
-}
-
-
-
-void
-SSOS_query_exec_blocking(char *sql, SSOS_query_results *results,
-       char *target_host, int target_port) {
-    SSOS_CONFIRM_ONLINE("SSOS_query_exec_blocking");
-    SOS_SET_CONTEXT(g_sos, "SSOS_query_exec_blocking");
-    SSOS_query_exec(sql, results, target_host, target_port);
-    while (g_results_are_ready != 1) {
-        usleep(10000);
-    }
-    return;
-}
-
-
-void SSOS_results_destroy(SSOS_query_results *results) {
+void SSOS_result_destroy(SSOS_query_results *results) {
     SSOS_CONFIRM_ONLINE("SSOS_results_destroy");
     SOS_SET_CONTEXT(g_sos, "SSOS_results_destroy");
 
@@ -146,34 +175,31 @@ void SSOS_results_destroy(SSOS_query_results *results) {
     return;
 }
 
-void SSOS_feedback_handler(
-        int   payload_type,
-        int   payload_size,
-        void *payload_data)
+
+
+void
+SSOS_query_exec(char *sql, char *target_host, int target_port)
 {
-    SOS_SET_CONTEXT(g_sos, "SSOS_feedback_handler");
-    if (payload_type != SOS_FEEDBACK_TYPE_QUERY) {
-        fprintf(stderr, "SSOS (PID:%d) --\n"
-                "\tFeedback was received by the SSOS library that\n"
-                "\twas marked (%d) as non-query results. Only SQL\n"
-                "\tresults are supported in the current version of\n"
-                "\tSSOS. For more options, please see the features\n"
-                "\tprovided by the full SOS API.\n",
-                getpid(), payload_type);
-        fflush(stderr);
-        g_results_are_ready = 0;
-        return;
-    }
-    SOSA_results_from_buffer((SOSA_results *)g_results, payload_data);
-    g_results_are_ready = 1;
- 
+    SSOS_CONFIRM_ONLINE("SSOS_query_exec");
+    SOS_SET_CONTEXT(g_sos, "SSOS_query_exec");
+
+    //New way, supporting parallel submission of queries:
+    //  1. Submit the query and return
+    //  2. Results come back in and go into the pool.
+    //  3. Client/lib wrapper claims them w/indeterminate order.
+    
+    //Send the query to the daemon:
+    SOSA_exec_query(g_sos, sql, target_host, target_port);
+
+    fflush(stdout);
+
     return;
 }
 
 
+
 void SSOS_init(char *prog_name) {
     g_sos_is_online = 0;
-    g_results_are_ready = 0;
     int attempt = 0;
 
     g_sos = NULL;
@@ -191,6 +217,12 @@ void SSOS_init(char *prog_name) {
             return;
         }
     }
+
+    g_result_pool_lock = (pthread_mutex_t *) calloc(1, sizeof(pthread_mutex_t));
+    g_result_pool_size = 0;
+    g_result_pool_head = NULL;
+
+    pthread_mutex_init(g_result_pool_lock, NULL); 
 
     g_pub = NULL;
     SOS_pub_create(g_sos, &g_pub, "ssos.client", SOS_NATURE_DEFAULT);
@@ -247,8 +279,64 @@ void SSOS_publish(void) {
 void SSOS_finalize(void) {
     SSOS_CONFIRM_ONLINE("SSOS_finalize");
     g_sos_is_online = 0;
+
+    //Drain the result pool:
+    pthread_mutex_lock(g_result_pool_lock);
+    g_result_pool_size = 0;
+    SSOS_result_pool_entry *entry = g_result_pool_head;
+    SSOS_result_pool_entry *next_entry = NULL;
+    g_result_pool_head = NULL;
+    while(entry != NULL) {
+        SOS_buffer_destroy(entry->buffer);
+        next_entry = entry->next;
+        free(entry);
+        entry = next_entry;
+    }
+    pthread_mutex_destroy(g_result_pool_lock);
+
     SOS_finalize(g_sos);
     return;
 }
 
+void
+SSOS_sense_trigger(
+        char  *sense_handle,
+        int    payload_size,
+        void  *payload_data)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_sense_trigger");
+    SOS_SET_CONTEXT(g_sos, "SSOS_sense_trigger");
+
+    SOS_sense_trigger(g_sos, sense_handle,
+            payload_data, payload_size);
+    
+    return;
+}
+
+
+void SSOS_set_option(int option_key, char *option_value) {
+    SSOS_CONFIRM_ONLINE("SSOS_set_option");
+    SOS_SET_CONTEXT(g_sos, "SSOS_set_option");
+
+    switch (option_key) {
+
+        case SSOS_OPT_PROG_VERSION:
+            strncpy(g_pub->prog_ver, option_value, SOS_DEFAULT_STRING_LEN);
+            break;
+
+        case SSOS_OPT_COMM_RANK:
+            g_pub->comm_rank = atoi(option_value);
+            g_sos->config.comm_rank = g_pub->comm_rank;
+            break;
+
+
+        default:
+            fprintf(stderr, "SSOS (PID:%d) -- Invalid option_key (%d) used to set"
+                    " option (%s).\n", getpid(), option_key, option_value);
+            fflush(stderr);
+            break;
+    }
+
+    return;
+}
 

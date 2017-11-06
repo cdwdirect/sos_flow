@@ -21,6 +21,9 @@ from ssos import SSOS
 def demonstrateSOS():
     SOS = SSOS()
 
+    sos_host = "localhost"
+    sos_port = os.environ.get("SOS_CMD_PORT")
+
     print "Initializing SOS..."
     SOS.init()
 
@@ -50,13 +53,12 @@ def demonstrateSOS():
     #if (len(sys.argv) > 1):
     #    sql_string = "SELECT * FROM viewCombined WHERE frame = " + sys.argv[1] + ";"
     #else:
+    
     sql_string = "SELECT * FROM viewCombined LIMIT 100000;"
  
-    #sql_string = os.environ.get("SOS_SQL")
-
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
-    results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
+    results, col_names = SOS.query(sql_string, sos_host, sos_port)
     print "Results:"
     print "    Output rows....: " + str(len(results))
     print "    Output values..: " + str(results)

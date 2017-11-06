@@ -36,7 +36,7 @@ sqlite3_stmt *stmt_insert_data;
 sqlite3_stmt *stmt_insert_val;
 sqlite3_stmt *stmt_insert_enum;
 sqlite3_stmt *stmt_insert_sosd;
-
+sqlite3_stmt *stmt_update_pub_frame;
 
 #if (SOS_CONFIG_DB_ENUM_STRINGS > 0)
     #define __ENUM_DB_TYPE " STRING "
@@ -94,7 +94,8 @@ char *sql_create_table_vals = ""                                        \
     " meta_relation_id "" UNSIGNED BIG INT, "                           \
     " time_pack "       " DOUBLE, "                                     \
     " time_send "       " DOUBLE, "                                     \
-    " time_recv "       " DOUBLE); ";
+    " time_recv "       " DOUBLE, "                                     \
+    " time_pack_int "   " UNSIGNED BIG INT); ";
 
 
 char *sql_create_table_enum = ""                                        \
@@ -157,8 +158,9 @@ char *sql_insert_pub = ""                                               \
     " meta_pri_hint,"                                                   \
     " meta_scope_hint,"                                                 \
     " meta_retain_hint,"                                                \
-    " pragma "                                                          \
-    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
+    " pragma, "                                                         \
+    " latest_frame "                                                    \
+    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_data = ""                                        \
     "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " ("                         \
@@ -181,9 +183,14 @@ const char *sql_insert_val = ""                                         \
     " meta_relation_id, "                                               \
     " time_pack,"                                                       \
     " time_send,"                                                       \
-    " time_recv "                                                       \
-    ") VALUES (?,?,?,?,?,?,?,?); ";
+    " time_recv, "                                                      \
+    " time_pack_int "                                                   \
+    ") VALUES (?,?,?,?,?,?,?,?,?); ";
 
+const char *sql_update_pub_frame = ""                                   \
+    "UPDATE " SOSD_DB_PUBS_TABLE_NAME " "                               \
+    " SET latest_frame = ? "                                            \
+    " WHERE guid = ? ; ";
 
 const char *sql_insert_enum = ""                \
     "INSERT INTO " SOSD_DB_ENUM_TABLE_NAME " (" \
@@ -293,7 +300,11 @@ void SOSD_db_init_database() {
             strlen(sql_insert_sosd_config) + 1, &stmt_insert_sosd, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
-
+    dlog(2, "  --> \"%.50s...\"\n", sql_update_pub_frame);
+    retval = sqlite3_prepare_v2(database, sql_update_pub_frame,
+            strlen(sql_update_pub_frame) + 1, &stmt_update_pub_frame, NULL);
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
+    
     SOSD.db.ready = 1;
     pthread_mutex_unlock(SOSD.db.lock);
 
