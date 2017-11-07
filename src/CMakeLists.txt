@@ -297,9 +297,18 @@ if(MPI_C_LINK_FLAGS)
 endif()
 
 
-
-
 #TARGET ---> demo_app
+#            (demonstration / example)
+add_executable("demo_app" "sosd_spawn.cpp" "sos_error.c" "demo_app.c")
+target_link_libraries("demo_app" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
+if(MPI_CXX_COMPILE_FLAGS)
+ 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+endif()
+if(MPI_CXX_LINK_FLAGS)
+	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+endif()
+
+#TARGET ---> demo_app_silent
 #            (demonstration / example)
 add_executable("demo_app_silent" "sosd_spawn.cpp" "sos_error.c" "demo_app_silent.c")
 target_link_libraries("demo_app_silent" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
