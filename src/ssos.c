@@ -11,6 +11,7 @@
 #include <string.h>
 #include <unistd.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "sos.h"
 #include "sosa.h"
@@ -61,22 +62,25 @@ void SSOS_feedback_handler(
         return;
     }
 
+    //What was passed in is a SOS_buffer*, not buf->data pointer.
+    SOS_buffer *incoming_buffer = (SOS_buffer *) payload_data;
+
     //Create an entry for the result pool.
     SSOS_result_pool_entry *entry =
         (SSOS_result_pool_entry *) calloc(1, sizeof(SSOS_result_pool_entry));
     entry->buffer = NULL;
     SOS_buffer_init_sized_locking(g_sos, &entry->buffer, payload_size + 1, false);
-    memcpy(entry->buffer->data, payload_data, payload_size);
+    memcpy(entry->buffer->data, incoming_buffer->data, payload_size);
     entry->buffer->len = payload_size;
+
     //Add the entry to the result pool. 
     pthread_mutex_lock(g_result_pool_lock);
     entry->next = g_result_pool_head;
     g_result_pool_head = entry;
     g_result_pool_size++;
 
-    printf("Adding result #%d of length %d to the result pool...\n",
-            g_result_pool_size, entry->buffer->len);
-    fflush(stdout);
+    //printf( "Adding result #%d of length %d to the result pool...\n",
+    //        g_result_pool_size, entry->buffer->len);
 
     pthread_mutex_unlock(g_result_pool_lock);
 
@@ -118,8 +122,7 @@ SSOS_result_claim(SSOS_query_results *results)
             continue;
         }
 
-        printf("Processing the results...\n");
-        fflush(stdout);
+        printf( "Processing the results...\n");
 
         //If we're here, we hold the lock AND there are results.
         //Grab the head of the result pool and release the lock:
@@ -130,20 +133,16 @@ SSOS_result_claim(SSOS_query_results *results)
 
         //The pool is now open for other threads and we can
         //process this entry.
-        printf("Initializing the results object...\n");
-        fflush(stdout);
+        printf( "Initializing the results object...\n");
         SOSA_results_init(g_sos, (SOSA_results **) &results);
 
-        printf("Building results from buffer...\n");
-        fflush(stdout);
+        printf( "Building results from buffer...\n");
         SOSA_results_from_buffer((SOSA_results *) results, entry->buffer);
 
-        printf("Destroying the buffer object...\n");
-        fflush(stdout);
+        printf( "Destroying the buffer object...\n");
         SOS_buffer_destroy(entry->buffer);
 
-        printf("Free'ing the entry...\n");
-        fflush(stdout);
+        printf( "Free'ing the entry...\n");
         free(entry);
 
         //Leave the loop and return to the client.
@@ -195,8 +194,6 @@ SSOS_query_exec(char *sql, char *target_host, int target_port)
     
     //Send the query to the daemon:
     SOSA_exec_query(g_sos, sql, target_host, target_port);
-
-    fflush(stdout);
 
     return;
 }

@@ -62,16 +62,17 @@ char *sql_create_table_pubs = ""                                        \
     " process_id "      " INTEGER, "                                    \
     " thread_id "       " INTEGER, "                                    \
     " comm_rank "       " INTEGER, "                                    \
-    " node_id "         " TEXT, "                                     \
-    " prog_name "       " TEXT, "                                     \
-    " prog_ver "        " TEXT, "                                     \
+    " node_id "         " TEXT, "                                       \
+    " prog_name "       " TEXT, "                                       \
+    " prog_ver "        " TEXT, "                                       \
     " meta_channel "    " INTEGER, "                                    \
-    " meta_nature "     __ENUM_DB_TYPE ", "                                \
-    " meta_layer "      __ENUM_DB_TYPE ", "                                \
-    " meta_pri_hint "   __ENUM_DB_TYPE ", "                                \
-    " meta_scope_hint " __ENUM_DB_TYPE ", "                                \
-    " meta_retain_hint "__ENUM_DB_TYPE ", "                                \
-    " pragma "          " TEXT); ";
+    " meta_nature "     __ENUM_DB_TYPE ", "                             \
+    " meta_layer "      __ENUM_DB_TYPE ", "                             \
+    " meta_pri_hint "   __ENUM_DB_TYPE ", "                             \
+    " meta_scope_hint " __ENUM_DB_TYPE ", "                             \
+    " meta_retain_hint "__ENUM_DB_TYPE ", "                             \
+    " pragma "          " TEXT, "                                       \
+    " latest_frame "    " INTEGER); ";
 
 char *sql_create_table_data = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "         \
@@ -142,7 +143,7 @@ char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData(pub_guid,
 char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs(prog_name,comm_rank);";
 
 
-char *sql_insert_pub = ""                                               \
+const char *sql_insert_pub = ""                                         \
     "INSERT INTO " SOSD_DB_PUBS_TABLE_NAME " ("                         \
     " guid,"                                                            \
     " title,"                                                           \
@@ -158,9 +159,8 @@ char *sql_insert_pub = ""                                               \
     " meta_pri_hint,"                                                   \
     " meta_scope_hint,"                                                 \
     " meta_retain_hint,"                                                \
-    " pragma, "                                                         \
-    " latest_frame "                                                    \
-    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
+    " pragma "                                                          \
+    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_data = ""                                        \
     "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " ("                         \
@@ -409,13 +409,15 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
 
     dlog(6, "Processing query task...\n");
     dlog(6, "   ...reply_guid: %" SOS_GUID_FMT "\n",
-            query->reply_guid);
+            query->reply_to_guid);
     dlog(6, "   ...reply_host: \"%s\"\n",
             query->reply_host);
     dlog(6, "   ...reply_port: \"%d\"\n",
             query->reply_port);
     dlog(6, "   ...query_sql: \"%s\"\n",
             query->query_sql);
+    dlog(6, "   ...query_guid: %" SOS_GUID_FMT "\n",
+            query->query_guid);
 
     bool OK_to_execute = true;
 
@@ -630,6 +632,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     long          frame;
     __ENUM_C_TYPE semantic;
     SOS_guid      relation_id;
+    unsigned long int time_pack_int;
 
     SOS_val_type      val_type;
     int           val_insert_count = 0;
@@ -646,6 +649,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         frame             = snap_list[snap_index]->frame;
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
         relation_id       = snap_list[snap_index]->relation_id;
+        time_pack_int     = (unsigned long int) time_pack * 1000000;
 
         val_type = snap_list[snap_index]->type;
         SOS_TIME( time_recv );
@@ -689,6 +693,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         CALL_SQLITE (bind_double (stmt_insert_val, 6,  time_pack    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 7,  time_send    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 8,  time_recv    ));
+        CALL_SQLITE (bind_int64  (stmt_insert_val, 9,  time_pack_int));
 
         dlog(5, "     ... executing the query\n");
 

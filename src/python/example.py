@@ -26,35 +26,8 @@ def demonstrateSOS():
 
     print "Initializing SOS..."
     SOS.init()
-
-    if (len(sys.argv) > 1):
-        print "Packing, announcing, publishing..."
-        SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
-        SOS.announce()
-        SOS.publish()
-
-        count = int(0)
-        count_max = int(sys.argv[1])
-
-        print "   Packing " + sys.argv[1] + " integer values in a loop..."
-        count = count + 1
-        SOS.pack("loop_val", SOS.INT, count)
-        SOS.announce()
-        SOS.publish()
-
-        while (count < count_max):
-            count = count + 1
-            SOS.pack("loop_val", SOS.INT, count)
-
-        print "   Publishing the values..."
-        SOS.publish()
-        print "      ...OK!"
-
-    #if (len(sys.argv) > 1):
-    #    sql_string = "SELECT * FROM viewCombined WHERE frame = " + sys.argv[1] + ";"
-    #else:
     
-    sql_string = "SELECT * FROM viewCombined LIMIT 100000;"
+    sql_string = "SELECT * FROM viewCombined;"
  
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string

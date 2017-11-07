@@ -65,6 +65,19 @@ DEMO_feedback_handler(
 
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
+
+    //TEMP-remove:
+    int i;
+    printf("SSOS_results_claim:\n");
+    printf("-----\n");
+    unsigned char *redir = (unsigned char *) payload_data;
+    for (i = 0; i < 40; i++) {
+        printf("byte %d:  [%d\t\t]\n", i, (int) *(redir + i));
+    }
+    printf("-----\n");
+    fflush(stdout);
+
+
         SOSA_results_from_buffer(results, payload_data);
         SOSA_results_output_to(stdout, results,
                 "Query Results", SOSA_OUTPUT_W_HEADER);

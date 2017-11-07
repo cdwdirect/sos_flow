@@ -664,6 +664,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                 //search for value name
                 //if found add to results along with pub metadata
             //send results to requestor
+            break;
             
 
         case SOS_FEEDBACK_TYPE_QUERY: 
@@ -701,7 +702,6 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
             SOS_buffer_wipe(results_reply_msg);
             SOSA_results_to_buffer(results_reply_msg, query->results);
-            SOSA_results_destroy(query->results);
 
             rc = SOS_target_send_msg(target, results_reply_msg);
             if (rc < 0) {
@@ -718,6 +718,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             }
            
             //Done delivering query results.
+            SOSA_results_destroy(query->results);
             free(query);
             break;
 

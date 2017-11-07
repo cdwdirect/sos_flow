@@ -253,7 +253,11 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     if (results->query_sql == NULL) {
         dlog(1, "WARNING: Encoding query results that have not been labelled.\n");
     }
-    
+
+    if (strlen(results->query_sql) < 1) {
+        results->query_sql = strdup("<none>");
+    }
+ 
     SOS_buffer_pack(buffer, &offset, "sg",
                     results->query_sql,
                     results->query_guid);
@@ -306,22 +310,22 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     SOS_msg_header header;
     int offset = 0;
 
-    // Strip out the header...
+    dlog(9, "Stripping out the header...\n");
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
+    dlog(9, "Unpacking the query's SQL and guid...\n");
     results->query_sql = NULL;
     SOS_buffer_unpack_safestr(buffer, &offset, &results->query_sql);
+    dlog(9, "   ... SQL: %s\n", results->query_sql);
     SOS_buffer_unpack(buffer, &offset, "g", &results->query_guid);
-    dlog(9, "Unpacking results for query_guid=%" SOS_GUID_FMT ", query_sql=\"%s\"\n",
-            results->query_guid,
-            results->query_sql);
+    dlog(9, "   ... guid: %" SOS_GUID_FMT "\n", results->query_guid);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
                       &col_incoming,
                       &row_incoming);
 
-    dlog(9, "Unpacking a buffer with query results that contains %d rows and %d columns...\n",
+    dlog(9, "Query contains %d rows and %d columns...\n",
         row_incoming, col_incoming);
     dlog(9, "results_befor (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
     SOSA_results_grow_to(results, col_incoming, row_incoming);
@@ -525,7 +529,7 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
     // These get set manually w/in the daemons:
     results->query_guid  = -1;
-    results->query_sql   = NULL;
+    results->query_sql   = NULL;   //strdup("NONE");
 
     results->col_count   = 0;
     results->row_count   = 0;
