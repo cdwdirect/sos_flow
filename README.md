@@ -270,6 +270,9 @@ from ssos import SSOS
 def demonstrateSOS():
     SOS = SSOS()
 
+    sos_host = "localhost"
+    sos_port = os.environ.get("SOS_CMD_PORT")
+
     SOS.init()
     SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
     SOS.announce()
@@ -277,7 +280,7 @@ def demonstrateSOS():
 
     sql_string = "SELECT * FROM tblVals LIMIT 10000;"
     
-    results, col_names = SOS.query(sql_string, "localhost", os.environ.get("SOS_CMD_PORT"))
+    results, col_names = SOS.query(sql_string, sos_host, sos_port)
     
     print "Results:"
     print "    Output rows....: " + str(len(results))
