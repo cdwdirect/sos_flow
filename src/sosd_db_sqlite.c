@@ -78,20 +78,20 @@ char *sql_create_table_data = ""                                        \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " pub_guid "        " UNSIGNED BIG INT, "                           \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " name "            " TEXT, "                                     \
-    " val_type "        __ENUM_DB_TYPE ", "                                \
-    " meta_freq "       __ENUM_DB_TYPE ", "                                \
-    " meta_class "      __ENUM_DB_TYPE ", "                                \
-    " meta_pattern "    __ENUM_DB_TYPE ", "                                \
+    " name "            " TEXT, "                                       \
+    " val_type "        __ENUM_DB_TYPE ", "                             \
+    " meta_freq "       __ENUM_DB_TYPE ", "                             \
+    " meta_class "      __ENUM_DB_TYPE ", "                             \
+    " meta_pattern "    __ENUM_DB_TYPE ", "                             \
     " meta_compare "    __ENUM_DB_TYPE ");";
 
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " val "             " TEXT, "                                     \
+    " val "             " TEXT, "                                       \
     " frame "           " INTEGER, "                                    \
-    " meta_semantic "   __ENUM_DB_TYPE ", "                                \
-    " meta_mood "       __ENUM_DB_TYPE ", "                                \
+    " meta_semantic "          __ENUM_DB_TYPE ", "                      \
+    " meta_relation_id "" UNSIGNED BIG INT, "                           \
     " time_pack "       " DOUBLE, "                                     \
     " time_send "       " DOUBLE, "                                     \
     " time_recv "       " DOUBLE); ";
@@ -100,23 +100,23 @@ char *sql_create_table_vals = ""                                        \
 char *sql_create_table_enum = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_ENUM_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
-    " type "            " TEXT, "                                     \
-    " text "            " TEXT, "                                     \
+    " type "            " TEXT, "                                       \
+    " text "            " TEXT, "                                       \
     " enum_val "        " INTEGER); ";
 
-char *sql_create_table_sosd_config = ""                \
-    "CREATE TABLE IF NOT EXISTS " SOSD_DB_SOSD_TABLE_NAME " ( " \
-    " row_id "          " INTEGER PRIMARY KEY, "                \
-    " daemon_id "       " TEXT, "                             \
-    " key "             " TEXT, "                             \
+char *sql_create_table_sosd_config = ""                                 \
+    "CREATE TABLE IF NOT EXISTS " SOSD_DB_SOSD_TABLE_NAME " ( "         \
+    " row_id "          " INTEGER PRIMARY KEY, "                        \
+    " daemon_id "       " TEXT, "                                       \
+    " key "             " TEXT, "                                       \
     " value "           " TEXT); ";
 
 
-char *sql_create_view_combined = ""                           \
-    "CREATE VIEW IF NOT EXISTS " SOSD_DB_VIEW_COMBINED_NAME " AS "          \
-    "   SELECT "                                                            \
-    "       tblPubs.process_id  AS process_id, "                            \
-    "       tblPubs.node_id     AS node_id, "                               \
+char *sql_create_view_combined = ""                                     \
+    "CREATE VIEW IF NOT EXISTS " SOSD_DB_VIEW_COMBINED_NAME " AS "      \
+    "   SELECT "                                                        \
+    "       tblPubs.process_id  AS process_id, "                        \
+    "       tblPubs.node_id     AS node_id, "                           \
     "       tblPubs.title       AS pub_title, "                             \
     "       tblPubs.guid        AS pub_guid, "                              \
     "       tblPubs.comm_rank   AS comm_rank, "                             \
@@ -136,9 +136,9 @@ char *sql_create_view_combined = ""                           \
     "";                       
 
 
-char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals (guid,frame);";
-char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData (guid,pub_guid,name);";
-char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs (guid,prog_name,comm_rank);";
+char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals(guid,frame);";
+char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData(pub_guid,guid,name);";
+char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs(prog_name,comm_rank);";
 
 
 char *sql_insert_pub = ""                                               \
@@ -178,7 +178,7 @@ const char *sql_insert_val = ""                                         \
     " val, "                                                            \
     " frame, "                                                          \
     " meta_semantic, "                                                  \
-    " meta_mood, "                                                      \
+    " meta_relation_id, "                                               \
     " time_pack,"                                                       \
     " time_send,"                                                       \
     " time_recv "                                                       \
@@ -313,7 +313,6 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("VAL_PATTERN",   SOS_VAL_PATTERN_string,   SOS_VAL_PATTERN___MAX   );
     SOSD_db_insert_enum("VAL_COMPARE",   SOS_VAL_COMPARE_string,   SOS_VAL_COMPARE___MAX   );
     SOSD_db_insert_enum("VAL_CLASS",     SOS_VAL_CLASS_string,     SOS_VAL_CLASS___MAX     );
-    SOSD_db_insert_enum("MOOD",          SOS_MOOD_string,          SOS_MOOD___MAX          );
     SOSD_db_insert_enum("SCOPE",         SOS_SCOPE_string,         SOS_SCOPE___MAX         );
     SOSD_db_insert_enum("LAYER",         SOS_LAYER_string,         SOS_LAYER___MAX         );
     SOSD_db_insert_enum("NATURE",        SOS_NATURE_string,        SOS_NATURE___MAX        );
@@ -619,7 +618,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     double        time_recv;
     long          frame;
     __ENUM_C_TYPE semantic;
-    __ENUM_C_TYPE mood;
+    SOS_guid      relation_id;
 
     SOS_val_type      val_type;
     int           val_insert_count = 0;
@@ -635,7 +634,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         time_recv         = snap_list[snap_index]->time.recv;
         frame             = snap_list[snap_index]->frame;
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
-        mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
+        relation_id       = snap_list[snap_index]->relation_id;
 
         val_type = snap_list[snap_index]->type;
         SOS_TIME( time_recv );
@@ -675,7 +674,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         }
         CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
         __BIND_ENUM (stmt_insert_val, 4,  semantic     );
-        __BIND_ENUM (stmt_insert_val, 5,  mood         );
+        CALL_SQLITE (bind_int64  (stmt_insert_val, 5,  relation_id  ));
         CALL_SQLITE (bind_double (stmt_insert_val, 6,  time_pack    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 7,  time_send    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 8,  time_recv    ));

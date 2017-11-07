@@ -491,6 +491,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         dlog(0, "done.\n");
 
         FILE *contact_file;
+		// set the node id before we use it.
+		SOSD.sos_context->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
+		gethostname( SOSD.sos_context->config.node_id, SOS_DEFAULT_STRING_LEN );
         contact_file = fopen(contact_filename, "w");
         fprintf(contact_file, "%s\n%s\n",
                 evp->recv.contact_string,
