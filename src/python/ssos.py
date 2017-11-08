@@ -93,7 +93,7 @@ class SSOS:
         for col in range(0, res_obj.col_count):
            col_names.append(ffi.string(res_obj.col_names[col]))
 
-        lib.SSOS_results_destroy(res_obj)
+        lib.SSOS_result_destroy(res_obj)
         return (results, col_names)
 
 
