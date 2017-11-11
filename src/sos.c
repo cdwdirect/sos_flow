@@ -1881,13 +1881,18 @@ int SOS_pack_related(
     case SOS_VAL_TYPE_DOUBLE: pack_val.d_val = *(double *)pack_val_var; break;
     case SOS_VAL_TYPE_STRING: pack_val.c_val = (char *)pack_val_var; break;
     case SOS_VAL_TYPE_BYTES:
+<<<<<<< HEAD
         fprintf(stderr, "WARNING: SOS_pack_related(...) used to pack SOS_VAL_TYPE_BYTES."
+=======
+        fprintf(stderr, "WARNING: SOS_pack(...) used to pack SOS_VAL_TYPE_BYTES."
+>>>>>>> de027bac46092d4bbcdcfd207f67f17982f95fba
                 " This is unsupported.\n");
         fprintf(stderr, "WARNING: Please use SOS_pack_bytes(...) instead!\n");
         fprintf(stderr, "WARNING: Doing nothing and returning....\n");
         fflush(stderr);
         return -1;
         break;
+<<<<<<< HEAD
 
     default:
         dlog(0, "ERROR: Invalid pack_type sent to SOS_pack."
@@ -1899,6 +1904,19 @@ int SOS_pack_related(
 
     pthread_mutex_lock(pub->lock);
 
+=======
+
+    default:
+        dlog(0, "ERROR: Invalid pack_type sent to SOS_pack."
+                " (%d)\n", (int) pack_type);
+        return -1;
+        break;
+    }
+
+
+    pthread_mutex_lock(pub->lock);
+
+>>>>>>> de027bac46092d4bbcdcfd207f67f17982f95fba
     // NOTE: Regarding indexing...
     // The hash table will return NULL if a value is not present.
     // The pub->data[elem] index is zero-indexed, so indices are stored +1, to
@@ -1939,6 +1957,7 @@ int SOS_pack_related(
     } else {
         // Name ALREADY EXISTS in the pub...
         data = pub->data[pos];
+<<<<<<< HEAD
     }
 
     // Update the value in the pub->data[elem] position.
@@ -2048,6 +2067,116 @@ int SOS_pack_related(
     pub->snap_queue->elem_count++;
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
 
+=======
+    }
+
+    // Update the value in the pub->data[elem] position.
+    switch(data->type) {
+        
+    case SOS_VAL_TYPE_STRING:
+        if (data->val.c_val != NULL) {
+            free(data->val.c_val);
+        }
+        if (pack_val.c_val != NULL) {
+            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+            data->val_len   = strlen(pack_val.c_val);
+        } else {
+            dlog(0, "WARNING: You packed a null value for pub(%s)->data[%d]!\n",
+                 pub->title, pos);
+            data->val.c_val = (char *) malloc(1 * sizeof(unsigned char));
+            *data->val.c_val = '\0';
+            data->val_len = 0;
+        }
+        break;
+
+    case SOS_VAL_TYPE_BYTES:
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n"
+                "ERROR: Please use SOS_pack_bytes(...) instead.\n"
+                "ERROR: Somehow libsos passed beyond its safety"
+                " guard and has\n"
+                "ERROR: modified the state of the publication handle.\n"
+                "ERROR: Since safety/consistency can no longer be guaranteed,\n"
+                "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+        break;
+        
+    case SOS_VAL_TYPE_INT:
+        data->val.i_val = pack_val.i_val;
+        data->val_len   = sizeof(int);
+        break;
+
+    case SOS_VAL_TYPE_LONG:
+        data->val.l_val = pack_val.l_val;
+        data->val_len   = sizeof(long);
+        break;
+
+    case SOS_VAL_TYPE_DOUBLE:
+        data->val.d_val = pack_val.d_val;
+        data->val_len   = sizeof(double);
+        break;
+
+    default:
+        dlog(0, "ERROR: Invalid data type was specified.   (%d)\n", data->type);
+        exit(EXIT_FAILURE);
+
+    }
+
+    data->state = SOS_VAL_STATE_DIRTY;
+    SOS_TIME( data->time.pack );
+
+    // Place the packed value into the snap_queue...
+    SOS_val_snap *snap;
+    snap = (SOS_val_snap *) malloc(sizeof(SOS_val_snap));
+    
+    snap->elem     = pos;
+    snap->guid     = data->guid;
+    snap->mood     = data->meta.mood;
+    snap->semantic = data->meta.semantic;
+    snap->type     = data->type;
+    snap->time     = data->time;
+    snap->frame    = frame;
+
+    snap->val_len = data->val_len;
+    
+    switch(snap->type) {
+    case SOS_VAL_TYPE_BYTES:
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n"
+                "ERROR: Please use SOS_pack_bytes(...) instead.\n"
+                "ERROR: Somehow libsos passed beyond its safety"
+                " guard and has\n"
+                "ERROR: modified the state of the publication handle.\n"
+                "ERROR: Since safety/consistency can no longer be guaranteed,\n"
+                "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+        break;
+
+    case SOS_VAL_TYPE_STRING:
+        snap->val.c_val = strndup(data->val.c_val, SOS_DEFAULT_STRING_LEN);
+        break;
+
+    case SOS_VAL_TYPE_INT:
+    case SOS_VAL_TYPE_LONG:
+    case SOS_VAL_TYPE_DOUBLE:
+        snap->val = data->val;
+        break;
+
+    default:
+        dlog(0, "Invalid data->type at pos == %d   (%d)\n", pos, snap->type);
+        exit(EXIT_FAILURE);
+    }
+    
+    pthread_mutex_lock(pub->snap_queue->sync_lock);
+    pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
+    pub->snap_queue->elem_count++;
+    pthread_mutex_unlock(pub->snap_queue->sync_lock);
+
+>>>>>>> de027bac46092d4bbcdcfd207f67f17982f95fba
     // Done. 
     pthread_mutex_unlock(pub->lock);
 
