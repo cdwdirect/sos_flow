@@ -1,5 +1,5 @@
 cmake/
-ssos.pyc
+*.pyc
 ssos_python.so
 tau_adios_titan.zip
 data_set.0.vtk

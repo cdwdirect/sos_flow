@@ -73,7 +73,7 @@ void SOS_receiver_init(SOS_runtime *sos_context);
  * @return 1 == file exists, 0 == file does not exist.
  */
 int SOS_file_exists(char *filepath) {
-    struct stat   buffer;   
+    struct stat   buffer;
     return (stat(filepath, &buffer) == 0);
 }
 
@@ -88,7 +88,7 @@ int SOS_process_options_file(
         char           *special_settings_key)
 {
 
-    //Initialize the options 
+    //Initialize the options
     *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
     SOS_options *opt = *sos_options_ptr_ref;
 
@@ -318,7 +318,7 @@ SOS_init_existing_runtime(
     if ((SOS->role == SOS_ROLE_CLIENT )
         || (SOS->role == SOS_ROLE_ANALYTICS))
     {
-        // 
+        //
         //
         //  CLIENT
         //
@@ -444,7 +444,7 @@ SOS_init_existing_runtime(
             fflush(stderr);
         }
 
- 
+
 
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
@@ -480,7 +480,7 @@ SOS_init_existing_runtime(
     if (SOS->role == SOS_ROLE_CLIENT) {
         SOS->config.locale = SOS_LOCALE_DEFAULT;
 
-        if (SOS->config.runtime_utility == false) { 
+        if (SOS->config.runtime_utility == false) {
             SOS_receiver_init(SOS);
         }
     }
@@ -581,7 +581,7 @@ void
 SOS_sense_register(SOS_runtime *sos_context, char *handle)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
-    
+
     SOS_msg_header header;
     SOS_buffer *msg = NULL;
     SOS_buffer *reply = NULL;
@@ -599,7 +599,7 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
 
     offset = 0;
     SOS_msg_zip(msg, header, 0, &offset);
-    
+
     SOS_buffer_pack(msg, &offset, "ssi",
             handle,
             SOS->config.node_id,
@@ -633,7 +633,7 @@ SOS_sense_trigger(SOS_runtime *sos_context,
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
     header.msg_from = SOS->my_guid;
-    header.ref_guid = 0; 
+    header.ref_guid = 0;
 
     int offset = 0;
     SOS_msg_zip(msg, header, 0, &offset);
@@ -673,7 +673,7 @@ SOS_msg_zip(
         int *offset_after_header)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_message_zip");
-    
+
     if (msg->is_locking) {
         pthread_mutex_lock(msg->lock);
     }
@@ -695,7 +695,7 @@ SOS_msg_zip(
         fflush(stderr);
     }
 #endif
-    
+
     *offset_after_header = offset;
     msg->is_zipped = true;
 
@@ -820,7 +820,7 @@ SOS_target_recv_msg(
         dlog(0, "WARNING: Attempting to receive message into uninitialzied"
                 " buffer.  Attempting to init/proceed...\n");
         SOS_buffer_init_sized_locking(SOS, &reply,
-                SOS_DEFAULT_BUFFER_MAX, false); 
+                SOS_DEFAULT_BUFFER_MAX, false);
     }
     
     int offset = 0;
@@ -3075,5 +3075,3 @@ SOS_publish( SOS_pub *pub ) {
 
     return;
 }
-
-

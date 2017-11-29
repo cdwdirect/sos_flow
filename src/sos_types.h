@@ -218,34 +218,35 @@ typedef enum { FOREACH_NATURE(GENERATE_ENUM)        } SOS_nature;
 typedef enum { FOREACH_RETAIN(GENERATE_ENUM)        } SOS_retain;
 typedef enum { FOREACH_LOCALE(GENERATE_ENUM)        } SOS_locale;
 
-static const char *SOS_ROLE_string[] =           { FOREACH_ROLE(GENERATE_STRING)         };
-static const char *SOS_STATUS_string[] =         { FOREACH_STATUS(GENERATE_STRING)       };
-static const char *SOS_MSG_TYPE_string[] =       { FOREACH_MSG_TYPE(GENERATE_STRING)     };
-static const char *SOS_RECEIVES_string[] =       { FOREACH_RECEIVES(GENERATE_STRING)     };
-static const char *SOS_FEEDBACK_TYPE_string[] =  { FOREACH_FEEDBACK_TYPE(GENERATE_STRING)};
-static const char *SOS_QUERY_STATE_string[] =    { FOREACH_QUERY_STATE(GENERATE_STRING)  };
-static const char *SOS_PRI_string[] =            { FOREACH_PRI(GENERATE_STRING)          };
-static const char *SOS_GEOMETRY_string[] =       { FOREACH_GEOMETRY(GENERATE_STRING)     };
-static const char *SOS_VAL_TYPE_string[] =       { FOREACH_VAL_TYPE(GENERATE_STRING)     };
-static const char *SOS_VAL_STATE_string[] =      { FOREACH_VAL_STATE(GENERATE_STRING)    };
-static const char *SOS_VAL_SYNC_string[] =       { FOREACH_VAL_SYNC(GENERATE_STRING)     };
-static const char *SOS_VAL_FREQ_string[] =       { FOREACH_VAL_FREQ(GENERATE_STRING)     };
-static const char *SOS_VAL_SEMANTIC_string[] =   { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
-static const char *SOS_VAL_PATTERN_string[] =    { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
-static const char *SOS_VAL_COMPARE_string[] =    { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
-static const char *SOS_VAL_CLASS_string[] =      { FOREACH_VAL_CLASS(GENERATE_STRING)    };
-static const char *SOS_SCOPE_string[] =          { FOREACH_SCOPE(GENERATE_STRING)        };
-static const char *SOS_LAYER_string[] =          { FOREACH_LAYER(GENERATE_STRING)        };
-static const char *SOS_NATURE_string[] =         { FOREACH_NATURE(GENERATE_STRING)       };
-static const char *SOS_RETAIN_string[] =         { FOREACH_RETAIN(GENERATE_STRING)       };
-static const char *SOS_LOCALE_string[] =         { FOREACH_LOCALE(GENERATE_STRING)       };
+static const char *SOS_ROLE_str[] =          { FOREACH_ROLE(GENERATE_STRING)         };
+static const char *SOS_STATUS_str[] =        { FOREACH_STATUS(GENERATE_STRING)       };
+static const char *SOS_MSG_TYPE_str[] =      { FOREACH_MSG_TYPE(GENERATE_STRING)     };
+static const char *SOS_RECEIVES_str[] =      { FOREACH_RECEIVES(GENERATE_STRING)     };
+static const char *SOS_FEEDBACK_TYPE_str[] = { FOREACH_FEEDBACK_TYPE(GENERATE_STRING)};
+static const char *SOS_QUERY_STATE_str[] =   { FOREACH_QUERY_STATE(GENERATE_STRING)  };
+static const char *SOS_PRI_str[] =           { FOREACH_PRI(GENERATE_STRING)          };
+static const char *SOS_GEOMETRY_str[] =      { FOREACH_GEOMETRY(GENERATE_STRING)     };
+static const char *SOS_VAL_TYPE_str[] =      { FOREACH_VAL_TYPE(GENERATE_STRING)     };
+static const char *SOS_VAL_STATE_str[] =     { FOREACH_VAL_STATE(GENERATE_STRING)    };
+static const char *SOS_VAL_SYNC_str[] =      { FOREACH_VAL_SYNC(GENERATE_STRING)     };
+static const char *SOS_VAL_FREQ_str[] =      { FOREACH_VAL_FREQ(GENERATE_STRING)     };
+static const char *SOS_VAL_SEMANTIC_str[] =  { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
+static const char *SOS_VAL_PATTERN_str[] =   { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
+static const char *SOS_VAL_COMPARE_str[] =   { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
+static const char *SOS_VAL_CLASS_str[] =     { FOREACH_VAL_CLASS(GENERATE_STRING)    };
+static const char *SOS_SCOPE_str[] =         { FOREACH_SCOPE(GENERATE_STRING)        };
+static const char *SOS_LAYER_str[] =         { FOREACH_LAYER(GENERATE_STRING)        };
+static const char *SOS_NATURE_str[] =        { FOREACH_NATURE(GENERATE_STRING)       };
+static const char *SOS_RETAIN_str[] =        { FOREACH_RETAIN(GENERATE_STRING)       };
+static const char *SOS_LOCALE_str[] =        { FOREACH_LOCALE(GENERATE_STRING)       };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
-#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
-/*  Examples:   char *pub_layer     = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
- *              char *data_type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
- *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
- */
+#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _str[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
+// Examples:
+//      char *layer    = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
+//      char *type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
+//      char *semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
+//
 
 
 typedef     uint64_t SOS_guid;

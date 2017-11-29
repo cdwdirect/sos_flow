@@ -15,7 +15,7 @@
         "\n" \
         "                 -k, --rank <rank within ALL sosd instances>\n" \
         "\n"
- 
+
 #endif
 
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
@@ -30,7 +30,7 @@
         "                 NOTE: Aggregator ranks [-k #] need to be contiguous"\
                 " from 0 to n-1 aggregators.\n" \
         "\n" \
-        "\n" 
+        "\n"
 #else
     #define OPT_PARAMS "\n"
 #endif
@@ -98,7 +98,7 @@ int main(int argc, char *argv[])  {
         pthread_mutex_init(SOSD.daemon.countof.lock_stats, NULL);
     }
 
-    SOSD.daemon.work_dir    = (char *) calloc(sizeof(char), PATH_MAX); 
+    SOSD.daemon.work_dir    = (char *) calloc(sizeof(char), PATH_MAX);
     SOSD.daemon.name        = (char *) calloc(sizeof(char), PATH_MAX);
     SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), PATH_MAX);
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), PATH_MAX);
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])  {
 
     //NOTE: This is duplicated from SOS_target_init() since we're starting
     // up by initializing all this stuff manually before even SOS_init()
-    SOS_socket *tgt = (SOS_socket *) calloc(1, sizeof(SOS_socket)); 
+    SOS_socket *tgt = (SOS_socket *) calloc(1, sizeof(SOS_socket));
     SOSD.net = tgt;
 
     tgt->send_lock = (pthread_mutex_t *) calloc(1, sizeof(pthread_mutex_t));
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])  {
     tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
-    pthread_mutex_unlock(tgt->send_lock); 
+    pthread_mutex_unlock(tgt->send_lock);
     // --- end duplication of SOS_target_init();
 
     /* Process command-line arguments */
@@ -304,7 +304,7 @@ int main(int argc, char *argv[])  {
 
     SOSD_sync_context_init(SOS, &SOSD.sync.db,
             sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
-    
+ 
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud_send,
@@ -1372,7 +1372,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
 
     if (pub == NULL) {
         dlog(0, "ERROR: No pub exists for header.ref_guid"
-                " == %" SOS_GUID_FMT "\n", header.ref_guid); 
+                " == %" SOS_GUID_FMT "\n", header.ref_guid);
         dlog(0, "ERROR: Destroying message and returning.\n");
         SOS_buffer_destroy(buffer);
         return;
@@ -1391,7 +1391,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
 
 
 
-void SOSD_handle_peek(SOS_buffer *buffer) { 
+void SOSD_handle_peek(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_peek");
     SOS_msg_header header;
     int            offset;
@@ -1401,7 +1401,7 @@ void SOSD_handle_peek(SOS_buffer *buffer) {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
-    
+
     SOSD_peek_handle *peek = calloc(1, sizeof(SOSD_peek_handle));
 
     peek->reply_to_guid = header.msg_from;
@@ -1410,7 +1410,7 @@ void SOSD_handle_peek(SOS_buffer *buffer) {
     peek->reply_host  = NULL;
     peek->reply_port  = 0;
     peek->results     = NULL;
-    
+
     dlog(6, "   ...extracting peek request...\n");
     SOS_buffer_unpack_safestr(buffer, &offset, &peek->reply_host);
     SOS_buffer_unpack(buffer, &offset, "i",    &peek->reply_port);
@@ -1445,13 +1445,13 @@ void SOSD_handle_peek(SOS_buffer *buffer) {
     } else {
         SOSD_countof(socket_bytes_sent += rc);
     }
-    SOS_buffer_destroy(reply); 
-    
+    SOS_buffer_destroy(reply);
+
     dlog(6, "Done.\n");
     return;
 }
 
-void SOSD_handle_query(SOS_buffer *buffer) { 
+void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_sosa_query");
     SOS_msg_header header;
     int            offset;
@@ -1461,7 +1461,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
-    
+
     SOSD_query_handle *query_handle = NULL;
     query_handle = (SOSD_query_handle *)
             calloc(1, sizeof(SOSD_query_handle));
@@ -1515,12 +1515,12 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
 
 
-void SOSD_handle_echo(SOS_buffer *buffer) { 
+void SOSD_handle_echo(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_echo");
-    int            rc;
     dlog(5, "header.msg_type = SOS_MSG_TYPE_ECHO\n");
-    
+
     SOS_msg_header header;
+    int            rc;
     
     int offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
@@ -1534,7 +1534,7 @@ void SOSD_handle_echo(SOS_buffer *buffer) {
     } else {
         SOSD_countof(socket_bytes_sent += rc);
     }
-       
+
     return;
 }
 
@@ -1552,7 +1552,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
-    
+
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
@@ -1560,7 +1560,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
 
     if (pub == NULL) {
         dlog(0, "ERROR: No pub exists for header.ref_guid"
-                " == %" SOS_GUID_FMT "\n", header.ref_guid); 
+                " == %" SOS_GUID_FMT "\n", header.ref_guid);
         dlog(0, "ERROR: Destroying message and returning.\n");
         SOS_buffer_destroy(buffer);
         return;
@@ -1589,7 +1589,7 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
         dlog(4, "Re-queing the k-means task for processing...\n");
         SOS_buffer *copy;
         // Make a copy of this buffer.
-        SOS_buffer_clone(&copy, buffer); 
+        SOS_buffer_clone(&copy, buffer);
         // Set it to be the KMEAN type of data:
         offset = 0;
         header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
@@ -1786,7 +1786,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     SOS_msg_header  header;
     SOS_buffer     *reply;
     SOS_pub        *pub;
-    
+
     char           pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
     int             offset;
     int             i;
@@ -1798,7 +1798,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
-    
+
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%"
             SOS_GUID_FMT, header.ref_guid);
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
@@ -1825,7 +1825,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     SOSD_apply_announce(pub, buffer);
     pub->announced = SOSD_PUB_ANN_DIRTY;
-   
+
     if (firstAnnouncement == true) {
         task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
         task->ref = (void *) pub;
@@ -1861,7 +1861,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
-    
+ 
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
     // Check the table for this pub ...
@@ -1909,7 +1909,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
         dlog(4, "Re-queing the k-means task for processing...\n");
         SOS_buffer *copy;
         // Make a copy of this buffer.
-        SOS_buffer_clone(&copy, buffer); 
+        SOS_buffer_clone(&copy, buffer);
         // Set it to be the KMEAN type of data:
         offset = 0;
         header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
@@ -2033,10 +2033,10 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         if (i == -1) {
             dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
         } else {
-            dlog(5, "  ... send() returned the following bytecount: %d\n", i); 
+            dlog(5, "  ... send() returned the following bytecount: %d\n", i);
             SOSD_countof(socket_bytes_sent += i);
         }
-        
+ 
 
     }
 
@@ -2252,7 +2252,7 @@ void SOSD_setup_socket() {
         if ( setsockopt( SOSD.net->local_socket_fd, SOL_SOCKET,
                     SO_REUSEADDR, &yes, sizeof(int)) == -1)
         {
-            dlog(0, "  ... could not set socket options.  (%s)\n", 
+            dlog(0, "  ... could not set socket options.  (%s)\n",
                     strerror(errno));
             continue;
         }
@@ -2265,7 +2265,7 @@ void SOSD_setup_socket() {
                     strerror(errno));
             close( SOSD.net->local_socket_fd );
             continue;
-        } 
+        }
         // If we get here, we're good to stop looking.
         break;
     }
@@ -2288,7 +2288,7 @@ void SOSD_setup_socket() {
                 " local_socket_fd to get its options.  Carrying on.  (%s)\n",
                 strerror(errno));
     }
- 
+
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(SOSD.net->local_socket_fd, F_SETFL, opts);
     if (i < 0) {
@@ -2303,7 +2303,7 @@ void SOSD_setup_socket() {
 
     return;
 }
- 
+
 
 
 void SOSD_init() {
@@ -2369,11 +2369,11 @@ void SOSD_init() {
     snprintf(SOSD.daemon.log_file, SOS_DEFAULT_STRING_LEN,
             "%s/%s.local.log", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) { 
+    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) {
         printf("Opening log file: %s\n", SOSD.daemon.log_file);
         fflush(stdout);
     }
-    sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w"); 
+    sos_daemon_log_fptr = fopen(SOSD.daemon.log_file, "w");
     if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) {
         printf("  ... done.\n"); fflush(stdout);
     }
@@ -2394,20 +2394,20 @@ void SOSD_init() {
         // [fork]
         ppid = getpid();
         pid  = fork();
-        
+ 
         if (pid < 0) {
             dlog(0, "ERROR! Unable to start daemon (%s): Could not fork()"
                     " off parent process.\n", SOSD.daemon.name);
             exit(EXIT_FAILURE);
         }
         if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
-        
+ 
         // [child session]
         umask(0);
         sid = setsid();
         if (sid < 0) {
             dlog(0, "ERROR!  Unable to start daemon (%s): Could not acquire"
-                    " a session id.\n", SOSD_DAEMON_NAME); 
+                    " a session id.\n", SOSD_DAEMON_NAME);
             exit(EXIT_FAILURE);
         }
         if ((chdir(SOSD.daemon.work_dir)) < 0) {
@@ -2416,7 +2416,7 @@ void SOSD_init() {
                     SOSD.daemon.work_dir);
             exit(EXIT_FAILURE);
         }
-        
+ 
         dlog(1, "  ... session(%d) successfully split off from parent(%d).\n",
                 getpid(), ppid);
     }
@@ -2468,7 +2468,7 @@ void SOSD_init() {
 
 void
 SOSD_sync_context_init(
-        SOS_runtime *sos_context, 
+        SOS_runtime *sos_context,
         SOSD_sync_context *sync_context,
         size_t elem_size, void* (*thread_func)(void *thread_param))
 {
@@ -2505,7 +2505,7 @@ SOSD_claim_guid_block(
     pthread_mutex_lock( id->lock );
 
     if ((id->next + size) > id->last) {
-        // This is basically a failure case if any more GUIDs are requested. 
+        // This is basically a failure case if any more GUIDs are requested.
         *pool_from = id->next;
         *pool_to   = id->last;
         id->next   = id->last + 1;
@@ -2574,7 +2574,7 @@ void SOSD_display_logo(void) {
         printf(SOS_CLR SOS_DIM_WHT);
         for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
         printf(SOS_CLR "\n\n");
-    
+ 
         printf(SOS_BOLD_GRN);
     }
 
@@ -2647,15 +2647,15 @@ void SOSD_display_logo(void) {
         printf("       _/_/_/      _/_/    _/_/_/      \n");
         printf("\n");
         printf("    ||[]||[]}))))}]|[]|||| Scalable\n");
-        printf("    |||||[][{(((({[]|[]||| Observation\n");               
+        printf("    |||||[][{(((({[]|[]||| Observation\n");
         printf("    |[][]|[]}))))}][]|||[] System\n");
-        printf("    []|||[][{(((({[]|[]||| for Scientific\n");  
-        printf("    ||[]||[]}))))}][]||[]| Workflows\n");      
+        printf("    []|||[][{(((({[]|[]||| for Scientific\n");
+        printf("    ||[]||[]}))))}][]||[]| Workflows\n");
         break;
 
     }
 
-    
+
     if (getenv("SOS_BATCH_ENVIRONMENT") == NULL) {
         printf(SOS_CLR);
         printf(SOS_GRN);
@@ -2709,8 +2709,8 @@ void SOSD_display_logo(void) {
                "-----------------------------------------\n");
         printf("========================================="
                "=========================================\n");
-        
-    } 
+
+    }
 
     return;
 }
