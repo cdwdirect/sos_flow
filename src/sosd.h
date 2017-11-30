@@ -104,29 +104,29 @@ typedef struct {
 } SOSD_sensitivity_entry;
 
 typedef struct {
-    pthread_mutex_t    *lock_stats;   
-    uint64_t            thread_local_wakeup;   
-    uint64_t            thread_cloud_wakeup;   
+    pthread_mutex_t    *lock_stats;
+    uint64_t            thread_local_wakeup;
+    uint64_t            thread_cloud_wakeup;
     uint64_t            thread_db_wakeup;
     uint64_t            thread_feedback_wakeup;
-    uint64_t            feedback_checkin_messages;   
-    uint64_t            socket_messages;       
-    uint64_t            socket_bytes_recv;         
-    uint64_t            socket_bytes_sent;        
-    uint64_t            mpi_sends;            
-    uint64_t            mpi_bytes;           
-    uint64_t            db_transactions;      
-    uint64_t            db_insert_announce;     
+    uint64_t            feedback_checkin_messages;
+    uint64_t            socket_messages;
+    uint64_t            socket_bytes_recv;
+    uint64_t            socket_bytes_sent;
+    uint64_t            mpi_sends;
+    uint64_t            mpi_bytes;
+    uint64_t            db_transactions;
+    uint64_t            db_insert_announce;
     uint64_t            db_insert_announce_nop;
-    uint64_t            db_insert_publish;      
-    uint64_t            db_insert_publish_nop;  
-    uint64_t            db_insert_val_snaps;     
-    uint64_t            db_insert_val_snaps_nop;  
-    uint64_t            buffer_creates;      
-    uint64_t            buffer_bytes_on_heap;   
-    uint64_t            buffer_destroys;      
-    uint64_t            pipe_creates;        
-    uint64_t            pub_handles;          
+    uint64_t            db_insert_publish;
+    uint64_t            db_insert_publish_nop;
+    uint64_t            db_insert_val_snaps;
+    uint64_t            db_insert_val_snaps_nop;
+    uint64_t            buffer_creates;
+    uint64_t            buffer_bytes_on_heap;
+    uint64_t            buffer_destroys;
+    uint64_t            pipe_creates;
+    uint64_t            pub_handles;
 } SOSD_counts;
 
 
@@ -303,7 +303,7 @@ extern "C" {
     extern void SOS_uid_init( SOS_runtime *sos_context,
             SOS_uid **uid, SOS_guid from, SOS_guid to);
 
-    
+
     /* Functions for monitoring system health */
     void SOSD_setup_system_data(void);
     void SOSD_read_system_data(void);

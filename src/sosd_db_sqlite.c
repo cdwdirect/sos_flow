@@ -135,7 +135,7 @@ char *sql_create_view_combined = ""                                     \
     "       LEFT OUTER JOIN tblData ON tblPubs.guid   = tblData.pub_guid "  \
     "       LEFT OUTER JOIN tblVals ON tblData.guid   = tblVals.guid "      \
     "   ; "                                                                 \
-    "";                       
+    "";
 
 
 char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals(guid,frame);";
@@ -304,30 +304,30 @@ void SOSD_db_init_database() {
     retval = sqlite3_prepare_v2(database, sql_update_pub_frame,
             strlen(sql_update_pub_frame) + 1, &stmt_update_pub_frame, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
-    
+
     SOSD.db.ready = 1;
     pthread_mutex_unlock(SOSD.db.lock);
 
     SOSD_db_transaction_begin();
     dlog(2, "  Inserting the enumeration table...\n");
 
-    SOSD_db_insert_enum("ROLE",          SOS_ROLE_string,          SOS_ROLE___MAX          );
-    SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
-    SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );
-    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_string, SOS_FEEDBACK_TYPE___MAX );
-    SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
-    SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
-    SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
-    SOSD_db_insert_enum("VAL_SYNC",      SOS_VAL_SYNC_string,      SOS_VAL_SYNC___MAX      );
-    SOSD_db_insert_enum("VAL_FREQ",      SOS_VAL_FREQ_string,      SOS_VAL_FREQ___MAX      );
-    SOSD_db_insert_enum("VAL_SEMANTIC",  SOS_VAL_SEMANTIC_string,  SOS_VAL_SEMANTIC___MAX  );
-    SOSD_db_insert_enum("VAL_PATTERN",   SOS_VAL_PATTERN_string,   SOS_VAL_PATTERN___MAX   );
-    SOSD_db_insert_enum("VAL_COMPARE",   SOS_VAL_COMPARE_string,   SOS_VAL_COMPARE___MAX   );
-    SOSD_db_insert_enum("VAL_CLASS",     SOS_VAL_CLASS_string,     SOS_VAL_CLASS___MAX     );
-    SOSD_db_insert_enum("SCOPE",         SOS_SCOPE_string,         SOS_SCOPE___MAX         );
-    SOSD_db_insert_enum("LAYER",         SOS_LAYER_string,         SOS_LAYER___MAX         );
-    SOSD_db_insert_enum("NATURE",        SOS_NATURE_string,        SOS_NATURE___MAX        );
-    SOSD_db_insert_enum("RETAIN",        SOS_RETAIN_string,        SOS_RETAIN___MAX        );
+    SOSD_db_insert_enum("ROLE",          SOS_ROLE_str,          SOS_ROLE___MAX          );
+    SOSD_db_insert_enum("STATUS",        SOS_STATUS_str,        SOS_STATUS___MAX        );
+    SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_str,      SOS_MSG_TYPE___MAX      );
+    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_str, SOS_FEEDBACK_TYPE___MAX );
+    SOSD_db_insert_enum("PRI",           SOS_PRI_str,           SOS_PRI___MAX           );
+    SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_str,      SOS_VAL_TYPE___MAX      );
+    SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_str,     SOS_VAL_STATE___MAX     );
+    SOSD_db_insert_enum("VAL_SYNC",      SOS_VAL_SYNC_str,      SOS_VAL_SYNC___MAX      );
+    SOSD_db_insert_enum("VAL_FREQ",      SOS_VAL_FREQ_str,      SOS_VAL_FREQ___MAX      );
+    SOSD_db_insert_enum("VAL_SEMANTIC",  SOS_VAL_SEMANTIC_str,  SOS_VAL_SEMANTIC___MAX  );
+    SOSD_db_insert_enum("VAL_PATTERN",   SOS_VAL_PATTERN_str,   SOS_VAL_PATTERN___MAX   );
+    SOSD_db_insert_enum("VAL_COMPARE",   SOS_VAL_COMPARE_str,   SOS_VAL_COMPARE___MAX   );
+    SOSD_db_insert_enum("VAL_CLASS",     SOS_VAL_CLASS_str,     SOS_VAL_CLASS___MAX     );
+    SOSD_db_insert_enum("SCOPE",         SOS_SCOPE_str,         SOS_SCOPE___MAX         );
+    SOSD_db_insert_enum("LAYER",         SOS_LAYER_str,         SOS_LAYER___MAX         );
+    SOSD_db_insert_enum("NATURE",        SOS_NATURE_str,        SOS_NATURE___MAX        );
+    SOSD_db_insert_enum("RETAIN",        SOS_RETAIN_str,        SOS_RETAIN___MAX        );
 
     SOSD_db_transaction_commit();
 
@@ -435,9 +435,9 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     if (sosa_query == NULL) {
         dlog(0, "WARNING: Empty (NULL) query submitted."
                 " Doing nothing and returning.\n");
-        OK_to_execute = false; 
+        OK_to_execute = false;
     } else {
-    
+
         dlog(6, "Flushing the database.  (BEFORE query)\n");
         rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
         rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
@@ -572,9 +572,9 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     }
 
     dlog(5, "  ... executing the query\n");
-    
+
     // Execute the query.
-    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  
+    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);
 
     dlog(5, "  ... success!  resetting the statement.\n");
 
@@ -615,7 +615,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     queue->elem_count -= count;
     snap_count = count;
 
-    if (queue->elem_count == 0) { 
+    if (queue->elem_count == 0) {
       queue->sync_pending = 0;
     }
     dlog(5, "  ... [bbb] releasing queue->lock\n");
@@ -672,7 +672,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
             break;
         case SOS_VAL_TYPE_STRING:
             val = snap_list[snap_index]->val.c_val;
-            break; 
+            break;
         default:
             dlog(5, "     ... error: invalid value type.  (%d)\n", val_type);
             break;
@@ -698,8 +698,8 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         dlog(5, "     ... executing the query\n");
 
         // Execute the query.
-        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  
-        
+        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);
+
         dlog(5, "     ... success!  resetting the statement.\n");
 
         CALL_SQLITE (reset (stmt_insert_val));
@@ -821,7 +821,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
 
         pub->data[i]->sync = SOS_VAL_SYNC_LOCAL;
     }
-    
+
     dlog(5, "  ... done.  returning to loop.\n");
 
     if (inserted_count > 0) {

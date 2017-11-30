@@ -24,9 +24,9 @@
  *     -1 = disable logging entirely  <--- Faster, but HIDES ALL sosd/sosa logs, too!
  */
 #ifndef SOS_DEBUG
-#define SOS_DEBUG                 99 
+#define SOS_DEBUG                 99
 #endif
-#define SOS_DEBUG_SHOW_LOCATION   0 
+#define SOS_DEBUG_SHOW_LOCATION   1
 
 /* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
 #define SOSD_DAEMON_LOG           10
@@ -46,7 +46,7 @@ FILE   *sos_daemon_log_fptr;
 #if (SOS_DEBUG < 0)
 
     /* Nullify the variadic debugging macros wherever they are in code: */
-    #define dlog(level, ...)   
+    #define dlog(level, ...)
 
 #else
     /* Set the behavior of the debugging macros: */

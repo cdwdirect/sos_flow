@@ -304,7 +304,7 @@ int main(int argc, char *argv[])  {
 
     SOSD_sync_context_init(SOS, &SOSD.sync.db,
             sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
- 
+
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud_send,
@@ -358,9 +358,9 @@ int main(int argc, char *argv[])  {
     //
     //
 
-    
+
     dlog(0, "Closing the sync queues:\n");
-    
+
     if (SOSD.sync.local.queue != NULL) {
         dlog(0, "  .. SOSD.sync.local.queue\n");
         pipe_producer_free(SOSD.sync.local.queue->intake);
@@ -455,7 +455,7 @@ void SOSD_listen_loop() {
             SOS_DEFAULT_BUFFER_MAX, false);
     SOS_buffer_init_sized_locking(SOS, &rapid_reply,
             SOS_DEFAULT_BUFFER_MAX, false);
-    
+
     dlog(5, "Assembling rapid_reply for val_snaps...\n");
     SOSD_PACK_ACK(rapid_reply);
 
@@ -535,7 +535,7 @@ void SOSD_listen_loop() {
                 dlog(5, "  ... send() returned the following"
                         " bytecount: %d\n", i);
                 SOSD_countof(socket_bytes_sent += i);
-            }    
+            }
             dlog(5, "  ... Done.\n");
             break;
 
@@ -635,7 +635,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
     wait.tv_nsec = SOSD_FEEDBACK_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_cond_timedwait(my->cond, my->lock, &wait);
-        
+
         SOSD_feedback_task   *task;
 
         SOSD_countof(thread_feedback_wakeup++);
@@ -665,9 +665,9 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                 //if found add to results along with pub metadata
             //send results to requestor
             break;
-            
 
-        case SOS_FEEDBACK_TYPE_QUERY: 
+
+        case SOS_FEEDBACK_TYPE_QUERY:
             query = (SOSD_query_handle *) task->ref;
             SOS_socket *target = NULL;
             rc = SOS_target_init(SOS, &target,
@@ -716,7 +716,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                 free(query->reply_host);
                 query->reply_host = NULL;
             }
-           
+
             //Done delivering query results.
             SOSA_results_destroy(query->results);
             free(query);
@@ -727,9 +727,9 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             // standard format that contains as content the type/size/buffer
             // payload to be extracted inside the client and sent into the
             // callback function.
-            
+
             payload = (SOSD_feedback_payload *) task->ref;
-            
+
             header.msg_size = -1;
             header.msg_type = SOS_FEEDBACK_TYPE_PAYLOAD;
             header.msg_from = SOS->config.comm_rank;
@@ -779,7 +779,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
                     /*
                      *  Uncomment in case of emergency:
-                     * 
+                     *
                     fprintf(stderr, "Message for the client at %s:%d  ...\n",
                             sense->remote_host, sense->remote_port);
                     fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
@@ -1099,7 +1099,7 @@ void* SOSD_THREAD_cloud_send(void *args) {
 
         // Embed all of the messages we've enqueued to send...
         for (msg_index = 0; msg_index < count; msg_index++) {
- 
+
             msg_offset = 0;
             msg = msg_list[msg_index];
 
@@ -1160,7 +1160,7 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     dlog(1, "Preparing to send a message to our own listening socket...\n");
     dlog(1, "  ... Initializing...\n");
     SOS_socket *my_own_listen_port = NULL;
-    SOS_target_init(SOS, &my_own_listen_port, "localhost", 
+    SOS_target_init(SOS, &my_own_listen_port, "localhost",
             atoi(getenv("SOS_CMD_PORT")));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
@@ -1180,18 +1180,18 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
 void
 SOSD_handle_desensitize(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_");
-    
+
     SOS_msg_header header;
     int rc;
-    
+
     // 1. Remove the specific sensitivity GUID+handle combo
-    
+
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
     SOSD_PACK_ACK(reply);
 
     rc = SOS_target_send_msg(SOSD.net, reply);
-    
+
     dlog(5, "Replying with reply->len == %d bytes, rc == %d\n",
             reply->len, rc);
     if (rc == -1) {
@@ -1208,21 +1208,21 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
 void
 SOSD_handle_unregister(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_unregister");
-    
+
     SOS_msg_header header;
     int rc;
-    
+
     // -- This message is sent when a client calls SOS_finalize();
     // TODO: Verify that all process-related tasks are concluded here
     // 1. Stop collecting PID information
     // 2. Inject a timestamp in the database
     // 3. Destroy all pubs that belong to this GUID
     // 4. Remove all sensitivities for this GUID
-    
+
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
     SOSD_PACK_ACK(reply);
-    
+
     rc = SOS_target_send_msg(SOSD.net, reply);
 
     dlog(5, "Replying with reply->len == %d bytes, rc == %d\n",
@@ -1244,12 +1244,12 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_sensitivity");
 
     dlog(5, "Registering a client sensitivity.\n");
-    
+
     SOS_msg_header header;
-    
+
     int offset = 0;
     SOS_msg_unzip(msg, &header, 0, &offset);
-   
+
     SOSD_sensitivity_entry *sense =
         calloc(1, sizeof(SOSD_sensitivity_entry));
 
@@ -1257,7 +1257,7 @@ SOSD_handle_sensitivity(SOS_buffer *msg) {
     sense->client_guid = header.msg_from;
     sense->remote_host = NULL;
     sense->remote_port = -1;
-    
+
     SOS_buffer_unpack_safestr(msg, &offset, &sense->sense_handle);
     SOS_buffer_unpack_safestr(msg, &offset, &sense->remote_host);
     SOS_buffer_unpack(msg, &offset, "i", &sense->remote_port);
@@ -1359,7 +1359,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     // For unpacking / using the contents:
     SOS_guid         guid;
     SOSD_km2d_point  point;
-        
+
     dlog(5, "header.msg_type = SOS_MSG_TYPE_KMEAN_DATA\n");
 
     offset = 0;
@@ -1521,7 +1521,7 @@ void SOSD_handle_echo(SOS_buffer *buffer) {
 
     SOS_msg_header header;
     int            rc;
-    
+
     int offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
@@ -1861,7 +1861,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
- 
+
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
     // Check the table for this pub ...
@@ -2036,7 +2036,7 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
             dlog(5, "  ... send() returned the following bytecount: %d\n", i);
             SOSD_countof(socket_bytes_sent += i);
         }
- 
+
 
     }
 
@@ -2394,14 +2394,14 @@ void SOSD_init() {
         // [fork]
         ppid = getpid();
         pid  = fork();
- 
+
         if (pid < 0) {
             dlog(0, "ERROR! Unable to start daemon (%s): Could not fork()"
                     " off parent process.\n", SOSD.daemon.name);
             exit(EXIT_FAILURE);
         }
         if (pid > 0) { exit(EXIT_SUCCESS); } //close the parent
- 
+
         // [child session]
         umask(0);
         sid = setsid();
@@ -2416,7 +2416,7 @@ void SOSD_init() {
                     SOSD.daemon.work_dir);
             exit(EXIT_FAILURE);
         }
- 
+
         dlog(1, "  ... session(%d) successfully split off from parent(%d).\n",
                 getpid(), ppid);
     }
@@ -2574,7 +2574,7 @@ void SOSD_display_logo(void) {
         printf(SOS_CLR SOS_DIM_WHT);
         for (col = 0; col < 79; col++) { printf(SOS_SYM_GREY_BLOCK); }
         printf(SOS_CLR "\n\n");
- 
+
         printf(SOS_BOLD_GRN);
     }
 

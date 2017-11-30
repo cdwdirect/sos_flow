@@ -2,7 +2,7 @@
 #define SOS_H
 
 /*
- * sos.h              Core API for SOS_flow project. 
+ * sos.h              Core API for SOS_flow project.
  *
  *                    (see also:  sos_types.h)
  *
@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 9901 
+#define SOS_VERSION_MINOR 9901
 
 // ...
 
@@ -22,7 +22,7 @@
 #define SOS_QUOTE_DEF_STR(x) SOS_Q(x)
 
 #ifndef SOS_BUILDER
-#define SOS_BUILDER "----------" 
+#define SOS_BUILDER "----------"
 #endif
 
 #ifndef SOS_BUILT_FOR
@@ -150,7 +150,7 @@ extern "C" {
 
     // Communication wrapper functions:
 
-    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, 
+    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header,
             int starting_offset, int *offset_after_header);
 
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
@@ -274,7 +274,7 @@ extern "C" {
 #define SOS_SYM_LU "\e(0\x76\e(B " /* -^- */
 #define SOS_SYM_LD "\e(0\x77\e(B " /* -.- */
 #define SOS_SYM_LV "\e(0\x78\e(B " /*  |  */
- 
+
 // Symbols:
 #define SOS_SYM_GREY_BLOCK "\xE2\x96\x92"
 

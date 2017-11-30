@@ -248,6 +248,13 @@ static const char *SOS_LOCALE_str[] =        { FOREACH_LOCALE(GENERATE_STRING)  
 //      char *semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
 //
 
+// Define our magic values for testing struct initialization...
+//  Ex: 0x5afec0de
+//      0x5afeca11
+//      0x5afeda7a
+#define SOS_VAR_INITIALIZED  0xca11ab1e
+#define SOS_VAR_DESTROYED    0xdeadb10c
+
 
 typedef     uint64_t SOS_guid;
 #define SOS_GUID_FMT PRIu64
