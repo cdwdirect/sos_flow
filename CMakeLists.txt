@@ -37,7 +37,7 @@ SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
 # when building, don't use the install RPATH already
 # (but later on when installing)
-SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
 SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
@@ -94,7 +94,7 @@ endif()
 project(${PROJECT_NAME} C CXX)
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
@@ -138,9 +138,9 @@ message(STATUS ">>> MPI:  Locating package...")
 #  The "standard" way of finding MPI:
 #
 if(NOT MPI_C_NO_INTERROGATE)
-	find_package("MPI" QUIET)
+    find_package("MPI" QUIET)
 else()
-	set(MPI_FOUND ON) 
+    set(MPI_FOUND ON)
 endif(NOT MPI_C_NO_INTERROGATE)
 
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -148,7 +148,7 @@ set(POSITION_INDEPENDENT_CODE TRUE)
 
 #
 if(MPI_FOUND)
-	message(STATUS ">>> MPI:  Found!")
+    message(STATUS ">>> MPI:  Found!")
 endif(MPI_FOUND)
 
 
@@ -195,12 +195,12 @@ find_package(Threads)
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
 else()
-	set(LIBS ${LIBS} -lpthread)
+    set(LIBS ${LIBS} -lpthread)
 endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
-	find_library(DYNAMICLIB dl)
-	set(LIBS ${LIBS} ${DYNAMICLIB})
+    find_library(DYNAMICLIB dl)
+    set(LIBS ${LIBS} ${DYNAMICLIB})
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")

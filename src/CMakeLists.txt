@@ -2,7 +2,7 @@ set(CMAKE_POSITION_INDEPENDENT_CODE True)
 set(POSITION_INDEPENDENT_CODE True)
 
 if(DEFINED MPI_INCLUDE_PATH)
-	include_directories("${MPI_INCLUDE_PATH}")
+    include_directories("${MPI_INCLUDE_PATH}")
 endif()
 
 include_directories("${sos_flow_SOURCE_DIR}/src")
@@ -111,10 +111,10 @@ endif()
 #            (library)
 add_library("sosa" "sosa.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
 if(CMAKE_THREAD_LIBS_INIT)
-  target_link_libraries("sosa" 
-  "sos_buffer" 
-  "sos_qhashtbl" 
-  "sos_pipe" 
+  target_link_libraries("sosa"
+  "sos_buffer"
+  "sos_qhashtbl"
+  "sos_pipe"
   "${CMAKE_THREAD_LIBS_INIT}"
   "${MPI_C_LIBRARIES}")
 endif()
@@ -132,7 +132,7 @@ export(TARGETS sos_qhashtbl  APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake
 export(TARGETS sos           APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
 export(TARGETS ssos          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
 export(TARGETS sosa          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
- 
+
 
 #TARGET ---> sosd
 #            (daemon)
@@ -162,7 +162,7 @@ if(SOSD_CLOUD_SYNC)
       "sosa"
       "${MPI_C_LIBRARIES}"
       "${SQLITE3_LIBRARY}"
-	  "${DYNAMICLIB}" stdc++)
+      "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does not support the '-lrt' compiler option.
     else()
@@ -201,7 +201,7 @@ if(SOSD_CLOUD_SYNC)
       "ffs"
       "atl"
       "${SQLITE3_LIBRARY}"
-	  "${DYNAMICLIB}" stdc++)
+      "${DYNAMICLIB}" stdc++)
     if(APPLE)
         # Apple does no support the '-lrt' compiler option.
     else()
@@ -209,7 +209,7 @@ if(SOSD_CLOUD_SYNC)
     endif()
 
   else()
-    message(FATAL_ERROR "You have specified that cloud_sync is activated, but not specified a supported method.")  
+    message(FATAL_ERROR "You have specified that cloud_sync is activated, but not specified a supported method.")
   endif()
 else()
   message(STATUS ">>> CLOUD_SYNC:  Building the daemon with NO SUPPORT for cloud_sync operations.")
@@ -233,7 +233,7 @@ else()
     "sos_pipe"
     "sosa"
     "${SQLITE3_LIBRARY}"
-	"${DYNAMICLIB}" stdc++)
+    "${DYNAMICLIB}" stdc++)
   if(APPLE)
     # Apple does no support the '-lrt' compiler option.
   else()
@@ -269,9 +269,9 @@ endif()
 #            (trigger feedback from aggregator to listeners)
 add_executable("sosd_trigger" "sosd_trigger.c")
 if(MPI_C_LIBRARIES)
-	target_link_libraries("sosd_trigger" "sos" "${MPI_C_LIBRARIES}")
+    target_link_libraries("sosd_trigger" "sos" "${MPI_C_LIBRARIES}")
 else()
-	target_link_libraries("sosd_trigger" "sos")
+    target_link_libraries("sosd_trigger" "sos")
 endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("sosd_trigger" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
@@ -285,9 +285,9 @@ endif()
 #            (get daemon satus and display it)
 add_executable("sosd_probe" "sosd_probe.c")
 if(MPI_C_LIBRARIES)
-	target_link_libraries("sosd_probe" "sos" "${MPI_C_LIBRARIES}")
+    target_link_libraries("sosd_probe" "sos" "${MPI_C_LIBRARIES}")
 else()
-	target_link_libraries("sosd_probe" "sos")
+    target_link_libraries("sosd_probe" "sos")
 endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("sosd_probe" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
@@ -304,10 +304,10 @@ endif()
 add_executable("demo_app" "sosd_spawn.cpp" "sos_error.c" "demo_app.c")
 target_link_libraries("demo_app" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
 if(MPI_CXX_COMPILE_FLAGS)
- 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+    set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
 if(MPI_CXX_LINK_FLAGS)
-	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+    set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
 
@@ -316,9 +316,9 @@ endif()
 #            (demonstration / example)
 add_executable("proc_app" "proc_app.c")
 if(MPI_C_LIBRARIES)
-	target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
+    target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
 else()
-	target_link_libraries("proc_app" "sos")
+    target_link_libraries("proc_app" "sos")
 endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
   set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
@@ -329,8 +329,8 @@ endif()
 
 
 
-INSTALL(FILES ../scripts/showdb 
-              ../scripts/evp.start.2 
+INSTALL(FILES ../scripts/showdb
+              ../scripts/evp.start.2
               ../scripts/evp.kill.2
               ../scripts/evp.cleanall
               ../scripts/wipedb
@@ -338,15 +338,15 @@ INSTALL(FILES ../scripts/showdb
               PERMISSIONS OWNER_READ OWNER_EXECUTE OWNER_WRITE
                           GROUP_READ GROUP_EXECUTE
                           WORLD_READ WORLD_EXECUTE)
-INSTALL(FILES sos.h 
-              sos_types.h 
-              sos_qhashtbl.h 
-              sos_pipe.h 
-              sos_buffer.h 
+INSTALL(FILES sos.h
+              sos_types.h
+              sos_qhashtbl.h
+              sos_pipe.h
+              sos_buffer.h
               DESTINATION include)
-INSTALL(TARGETS 
-  sosd_stop 
-  sosd_probe 
+INSTALL(TARGETS
+  sosd_stop
+  sosd_probe
   demo_app
   proc_app
   sosd
@@ -357,6 +357,6 @@ INSTALL(TARGETS
   sos_pipe
   sos_qhashtbl
   ssos
-  RUNTIME DESTINATION bin 
-  LIBRARY DESTINATION lib 
-  ARCHIVE DESTINATION lib) 
+  RUNTIME DESTINATION bin
+  LIBRARY DESTINATION lib
+  ARCHIVE DESTINATION lib)
