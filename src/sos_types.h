@@ -148,13 +148,6 @@
     COMPARE(SOS_VAL_COMPARE_RELATIONS)          \
     COMPARE(SOS_VAL_COMPARE___MAX)
 
-#define FOREACH_MOOD(MOOD)                      \
-    MOOD(SOS_MOOD_DEFAULT)                      \
-    MOOD(SOS_MOOD_GOOD)                         \
-    MOOD(SOS_MOOD_BAD)                          \
-    MOOD(SOS_MOOD_UGLY)                         \
-    MOOD(SOS_MOOD___MAX)
-
 #define FOREACH_SCOPE(SCOPE)                    \
     SCOPE(SOS_SCOPE_DEFAULT)                    \
     SCOPE(SOS_SCOPE_SELF)                       \
@@ -219,7 +212,6 @@ typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)      } SOS_val_freq;
 typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)   } SOS_val_pattern;
 typedef enum { FOREACH_VAL_COMPARE(GENERATE_ENUM)   } SOS_val_compare;
 typedef enum { FOREACH_VAL_CLASS(GENERATE_ENUM)     } SOS_val_class;
-typedef enum { FOREACH_MOOD(GENERATE_ENUM)          } SOS_mood;
 typedef enum { FOREACH_SCOPE(GENERATE_ENUM)         } SOS_scope;
 typedef enum { FOREACH_LAYER(GENERATE_ENUM)         } SOS_layer;
 typedef enum { FOREACH_NATURE(GENERATE_ENUM)        } SOS_nature;
@@ -242,7 +234,6 @@ static const char *SOS_VAL_SEMANTIC_string[] =   { FOREACH_VAL_SEMANTIC(GENERATE
 static const char *SOS_VAL_PATTERN_string[] =    { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
 static const char *SOS_VAL_COMPARE_string[] =    { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
 static const char *SOS_VAL_CLASS_string[] =      { FOREACH_VAL_CLASS(GENERATE_STRING)    };
-static const char *SOS_MOOD_string[] =           { FOREACH_MOOD(GENERATE_STRING)         };
 static const char *SOS_SCOPE_string[] =          { FOREACH_SCOPE(GENERATE_STRING)        };
 static const char *SOS_LAYER_string[] =          { FOREACH_LAYER(GENERATE_STRING)        };
 static const char *SOS_NATURE_string[] =         { FOREACH_NATURE(GENERATE_STRING)       };
@@ -316,19 +307,19 @@ typedef struct {
     SOS_val_class       classifier;
     SOS_val_pattern     pattern;
     SOS_val_compare     compare;
-    SOS_mood            mood;
+    SOS_guid            relation_id;
 } SOS_val_meta;
 
 typedef struct {
     int                 elem;
     SOS_guid            guid;
-    SOS_val             val;
-    int                 val_len;
-    SOS_val_type        type;
-    SOS_time            time;
+    SOS_guid            relation_id;
     long                frame;
+    SOS_time            time;
     SOS_val_semantic    semantic;
-    SOS_mood            mood;
+    SOS_val_type        type;
+    int                 val_len;
+    SOS_val             val;
 } SOS_val_snap;
 
 typedef struct {

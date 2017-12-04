@@ -297,8 +297,6 @@ if(MPI_C_LINK_FLAGS)
 endif()
 
 
-
-
 #TARGET ---> demo_app
 #            (demonstration / example)
 add_executable("demo_app" "sosd_spawn.cpp" "sos_error.c" "demo_app.c")
@@ -308,6 +306,17 @@ if(MPI_CXX_COMPILE_FLAGS)
 endif()
 if(MPI_CXX_LINK_FLAGS)
 	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+endif()
+
+#TARGET ---> demo_app_silent
+#            (demonstration / example)
+add_executable("demo_app_silent" "sosd_spawn.cpp" "sos_error.c" "demo_app_silent.c")
+target_link_libraries("demo_app_silent" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
+if(MPI_CXX_COMPILE_FLAGS)
+ 	set_target_properties("demo_app_silent" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+endif()
+if(MPI_CXX_LINK_FLAGS)
+	set_target_properties("demo_app_silent" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
 
@@ -329,14 +338,26 @@ endif()
 
 
 
-INSTALL(FILES ../scripts/showdb DESTINATION ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}
-  PERMISSIONS OWNER_EXECUTE OWNER_WRITE 
-  OWNER_READ GROUP_EXECUTE GROUP_READ
-  WORLD_EXECUTE WORLD_READ)
-INSTALL(FILES sos.h sos_types.h sos_qhashtbl.h sos_pipe.h sos_buffer.h DESTINATION include)
+INSTALL(FILES ../scripts/showdb 
+              ../scripts/evp.start.2 
+              ../scripts/evp.kill.2
+              ../scripts/evp.cleanall
+              ../scripts/wipedb
+              DESTINATION bin
+              PERMISSIONS OWNER_READ OWNER_EXECUTE OWNER_WRITE
+                          GROUP_READ GROUP_EXECUTE
+                          WORLD_READ WORLD_EXECUTE)
+INSTALL(FILES sos.h 
+              sos_types.h 
+              sos_qhashtbl.h 
+              sos_pipe.h 
+              sos_buffer.h 
+              DESTINATION include)
 INSTALL(TARGETS 
-  sosd_stop sosd_probe demo_app proc_app sosd sosd_trigger 
+
+  sosd_stop sosd_probe demo_app_silent proc_app sosd sosd_trigger 
   sos sosa sos_buffer sos_pipe sos_qhashtbl ssos
+
   RUNTIME DESTINATION bin 
   LIBRARY DESTINATION lib 
   ARCHIVE DESTINATION lib) 
