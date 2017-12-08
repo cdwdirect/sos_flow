@@ -1,70 +1,36 @@
 cmake_minimum_required (VERSION 2.8)
 
-option(ENABLE_ADIOS_EXAMPLES
-    "Build the examples that require the presence of ADIOS?"
-    OFF)
-
-option(ENABLE_TAU_WRAPPER
-    "Compile the codes with tau_cc.sh?"
-    OFF)
-
-option(SOSD_DAEMON_DETACH
-    "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
-    OFF)
-
-option(SOSD_CLOUD_SYNC
-    "Activate cloud_sync operations for the daemon?"
+option(SOS_FORCE_RPATH
+    "Add the rpath to the libraries when linking examples?"
     ON)
 
-option(SOSD_CLOUD_SYNC_WITH_MPI
+option(SOS_CLOUD_SYNC_WITH_MPI
     "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
     OFF)
 
-option(SOSD_CLOUD_SYNC_WITH_EVPATH
+option(SOS_CLOUD_SYNC_WITH_EVPATH
     "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
     ON)
 
-option(SECURE_WITH_MUNGE
+option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
     OFF)
 
-###########
-# RPATH OPTIONS
-###########
+option(SOS_ENABLE_ADIOS_EXAMPLES
+    "Build the examples that require the presence of ADIOS?"
+    OFF)
 
-if(SOS_FORCE_RPATH)
-	# use, i.e. don't skip the full RPATH for the build tree
-	SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+option(SOS_DAEMON_DETACH
+    "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
+    OFF)
 
-	# when building, don't use the install RPATH already
-	# (but later on when installing)
-	SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
-
-	SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-
-	# add the automatically determined parts of the RPATH
-	# which point to directories outside the build tree to the install RPATH
-	SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
-	# the RPATH to be used when installing, but only if it's not a system directory
-	LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-	IF("${isSystemDir}" STREQUAL "-1")
-   		SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-	ENDIF("${isSystemDir}" STREQUAL "-1")
-endif(SOS_FORCE_RPATH)
+option(SOS_CLOUD_SYNC
+    "Activate cloud_sync operations for the daemon?"
+    ON)
 
 ###########
+# Set some general project CMake settings
 ###########
-
-if(SOSD_CLOUD_SYNC_WITH_MPI AND SOSD_CLOUD_SYNC_WITH_EVPATH)
-  message(FATAL_ERROR
-  "You cannot use both MPI and EVPATH for daemon cloud_sync operations!  Please select only one.")
-endif()
-
-if((SOSD_CLOUD_SYNC_WITH_MPI OR SOSD_CLOUD_SYNC_WITH_EVPATH) AND NOT SOSD_CLOUD_SYNC)
-  message(FATAL_ERROR
-  "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
-endif()
 
 #set(RULE_MESSAGES OFF)
 set(CMAKE_COLOR_MAKEFILE ON)
@@ -76,21 +42,6 @@ set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")
-add_definitions("-DUSE_MPI=1")
-
-if(SECURE_WITH_MUNGE)
-    add_definitions("-DUSE_MUNGE=1")
-    message(STATUS ">>> MUNGE:")
-    message(STATUS ">>> MUNGE:  Munge is ENABLED!")
-    message(STATUS ">>> MUNGE:")
-endif()
-
-if(SOSD_CLOUD_SYNC_WITH_EVPATH)
-    message(STATUS ">>> EVPATH:")
-    message(STATUS ">>> EVPATH:  EVPath is ENABLED!")
-    message(STATUS ">>> EVPATH:")
-endif()
-
 
 project(${PROJECT_NAME} C CXX)
 
@@ -116,63 +67,69 @@ else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 endif()
 
-if(ENABLE_TAU_WRAPPER)
-  message(STATUS ">>> TAU:")
-  message(STATUS ">>> TAU:  Building SOS components with TAU instrumentation (...of SOS itself).")
-  message(STATUS ">>> TAU:")
-  set (CMAKE_C_COMPILER /usr/local/tau-2.24.1/x86_64/bin/tau_cc.sh)
-  add_definitions(-optMemDbg -optTrackPthread -optMpi -optTrackIO -optPDTInst)
-  include_directories(/usr/local/tau-2.24.1/include)
-  link_directories(/usr/local/tau-2.24.1/x86_64/lib)
-endif()
-
-message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
-
-find_package(PkgConfig REQUIRED)
-find_package("Sqlite3" REQUIRED)
-
-
-
-#  Always include the MPI stuff, some components reference it
-#  and not including it will cause the project not to build.
-#  Despite the fact that we are including it, if you specify
-#  EVPath as the communications framework, the SOS daemon
-#  will not conduct any of its business using MPI.
-message(STATUS ">>> MPI:  Locating package...")
-#
-#  The "standard" way of finding MPI:
-#
-if(NOT MPI_C_NO_INTERROGATE)
-	find_package("MPI" QUIET)
-else()
-	set(MPI_FOUND ON) 
-endif(NOT MPI_C_NO_INTERROGATE)
-
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
 
-#
-if(MPI_FOUND)
-	message(STATUS ">>> MPI:  Found!")
-endif(MPI_FOUND)
+message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
+# Required packages
+find_package(PkgConfig REQUIRED)
+find_package("Sqlite3" REQUIRED)
 
+###########
+# SOS_FORCE_RPATH OPTIONS
+###########
 
-if(ENABLE_PYTHON)
-    #pkg_search_module(PYTHON REQUIRED python QUIET)
-    message(STATUS ">>> PYTHON:  Locating package...")
-    if(PYTHON_FOUND)
-    message(STATUS ">>> PYTHON:  Found!")
-    endif(PYTHON_FOUND)
-endif(ENABLE_PYTHON)
+if(SOS_FORCE_RPATH)
+	# use, i.e. don't skip the full RPATH for the build tree
+	SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
-if(SOSD_CLOUD_SYNC_WITH_MPI)
-  add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
+	# when building, don't use the install RPATH already
+	# (but later on when installing)
+	SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+
+	SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+	# add the automatically determined parts of the RPATH
+	# which point to directories outside the build tree to the install RPATH
+	SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+	# the RPATH to be used when installing, but only if it's not a system directory
+	LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+	IF("${isSystemDir}" STREQUAL "-1")
+   		SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+	ENDIF("${isSystemDir}" STREQUAL "-1")
+endif(SOS_FORCE_RPATH)
+
+###########
+# SOS_CLOUD_SYNC_WITH_MPI OPTIONS
+###########
+
+if(SOS_CLOUD_SYNC_WITH_MPI AND SOS_CLOUD_SYNC_WITH_EVPATH)
+  message(FATAL_ERROR
+  "You cannot use both MPI and EVPATH for daemon cloud_sync operations!  Please select only one.")
 endif()
 
+if((SOS_CLOUD_SYNC_WITH_MPI OR SOS_CLOUD_SYNC_WITH_EVPATH) AND NOT SOS_CLOUD_SYNC)
+  message(FATAL_ERROR
+  "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
+endif()
 
+###########
+# SOS_SECURE_WITH_MUNGE OPTIONS
+###########
 
-if(SOSD_CLOUD_SYNC_WITH_EVPATH)
+if(SOS_SECURE_WITH_MUNGE)
+    add_definitions("-DUSE_MUNGE=1")
+    message(STATUS ">>> MUNGE:  Munge is ENABLED!")
+endif()
+
+###########
+# SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
+###########
+
+if(SOS_CLOUD_SYNC_WITH_EVPATH)
+  message(STATUS ">>> EVPATH:  Sync with EVPath is ENABLED")
   message(STATUS ">>> EVPATH:  Locating package...")
   find_package(EVPath)
   if(NOT EVPath_FOUND)
@@ -180,18 +137,46 @@ if(SOSD_CLOUD_SYNC_WITH_EVPATH)
   endif()
   # could be needed on some platforms
   pkg_search_module(FABRIC libfabric QUIET)
-  message(STATUS ">>> EVPATH:  Found!")
+  if(EVPath_FOUND)
+    message(STATUS ">>> EVPATH:  Found!")
+  endif()
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
+###########
+# SOS_CLOUD_SYNC_WITH_MPI OPTIONS
+###########
 
-#message(STATUS ">>> LUA:  Locating package...")
-#find_package(Lua52 REQUIRED QUIET)
-#if(DEFINED LUA_LIBRARY)
-#    message(STATUS ">>> LUA:  Found!")
-#else()
-#    message(STATUS ">>> LUA:  WARNING -- Could NOT locate the LUA package!")
-#endif()
+if(SOS_CLOUD_SYNC_WITH_MPI)
+  message(STATUS ">>> MPI:  Locating package...")
+  if(NOT MPI_C_NO_INTERROGATE)
+	find_package("MPI" QUIET)
+  else()
+	set(MPI_FOUND ON) 
+  endif(NOT MPI_C_NO_INTERROGATE)
+
+  if(MPI_FOUND)
+    add_definitions("-DUSE_MPI=1")
+	message(STATUS ">>> MPI:  Found!")
+  endif(MPI_FOUND)
+  add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
+endif(SOS_CLOUD_SYNC_WITH_MPI)
+
+###########
+# SOS_ENABLE_PYTHON OPTIONS
+###########
+
+if(SOS_ENABLE_PYTHON)
+    #pkg_search_module(PYTHON REQUIRED python QUIET)
+    message(STATUS ">>> PYTHON:  Locating package...")
+    if(PYTHON_FOUND)
+    message(STATUS ">>> PYTHON:  Found!")
+    endif(PYTHON_FOUND)
+endif(SOS_ENABLE_PYTHON)
+
+###########
+# Enable threading
+###########
 
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
@@ -202,11 +187,20 @@ if(Threads_FOUND)
 else()
 	set(LIBS ${LIBS} -lpthread)
 endif()
+
+###########
+# Special cases handled here
+###########
+
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 	find_library(DYNAMICLIB dl)
 	set(LIBS ${LIBS} ${DYNAMICLIB})
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
+
+###########
+# Other boilerplate CMake stuff
+###########
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
