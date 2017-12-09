@@ -30,14 +30,15 @@ else()
     endif()
 endif()
 
-if(DEFINED EVPATH_FOUND)
-    include_directories(${EVPATH_INCLUDE_DIRS})
-    link_directories(${EVPATH_LIBRARY_DIRS})
-    #link_libraries(${EVPATH_LIBRARIES} ffs dill cercs_env atl evpath ibverbs)
-    link_libraries(${EVPATH_LIBRARIES} ${SOS_EVPATH_EXTRA_LIBS})
-    link_directories(${FABRIC_LIBRARY_DIRS})
-    link_libraries(${FABRIC_LIBRARIES})
+if(DEFINED EVPath_INCLUDE_DIR)
+    include_directories(${EVPath_INCLUDE_DIR})
 endif()
+if(DEFINED EVPath_LIBRARIES)
+    link_libraries(${EVPath_LIBRARIES})
+endif()
+    #link_directories(${EVPath_LIBRARY_DIRS})
+    #link_directories(${FABRIC_LIBRARY_DIRS})
+    #link_libraries(${FABRIC_LIBRARIES})
 
 #
 #  NOTE: Deprecated ....
@@ -136,11 +137,11 @@ export(TARGETS sosa          APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake
 
 #TARGET ---> sosd
 #            (daemon)
-if(SOSD_CLOUD_SYNC)
+if(SOS_CLOUD_SYNC)
   add_definitions("-DSOSD_CLOUD_SYNC")
 
-  if(SOSD_CLOUD_SYNC_WITH_MPI)
-    message(STATUS ">>> CLOUD_SYNC:  Building the daemon using SOSD_CLOUD_SYNC_WITH_MPI enabled...")
+  if(SOS_CLOUD_SYNC_WITH_MPI)
+    message(STATUS ">>> CLOUD_SYNC:  Building the daemon using SOS_CLOUD_SYNC_WITH_MPI enabled...")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_mpi.c"
@@ -177,8 +178,8 @@ if(SOSD_CLOUD_SYNC)
     endif()
 
 
-  elseif(SOSD_CLOUD_SYNC_WITH_EVPATH)
-    message(STATUS ">>> CLOUD_SYNC:  SOSD_CLOUD_SYNC_WITH_EVPATH was requested...")
+  elseif(SOS_CLOUD_SYNC_WITH_EVPATH)
+    message(STATUS ">>> CLOUD_SYNC:  SOS_CLOUD_SYNC_WITH_EVPATH was requested...")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_evpath.c"
