@@ -10,7 +10,7 @@ option(SOS_CLOUD_SYNC_WITH_MPI
 
 option(SOS_CLOUD_SYNC_WITH_EVPATH
     "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
-    ON)
+    OFF)
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
