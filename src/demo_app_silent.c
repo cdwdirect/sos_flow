@@ -10,7 +10,9 @@
 #include <string.h>
 #include <pthread.h>
 
+#if defined(USE_MPI)
 #include <mpi.h>
+#endif
 
 #define USAGE "USAGE:\n"        \
     "\t./demo_app"              \
@@ -109,9 +111,11 @@ int main(int argc, char *argv[]) {
     char  *SQL_QUERY;
     double DELAY_IN_USEC;
 
+    int rank = 0;
+#if defined(USE_MPI)
     MPI_Init(&argc, &argv);
-    int rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
+#endif
 
     /* Process command-line arguments */
 
@@ -288,7 +292,9 @@ int main(int argc, char *argv[]) {
     }
 
     SOS_finalize(my_sos);
+#if defined(USE_MPI)
     MPI_Finalize(); 
+#endif
 
     //printf("demo_app : Done.\n");
 

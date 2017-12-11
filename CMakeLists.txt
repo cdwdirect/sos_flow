@@ -131,7 +131,7 @@ endif()
 if(SOS_CLOUD_SYNC_WITH_EVPATH)
   message(STATUS ">>> EVPATH:  Sync with EVPath is ENABLED")
   message(STATUS ">>> EVPATH:  Locating package...")
-  find_package(EVPath)
+  find_package(EVPath REQUIRED)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
@@ -142,7 +142,7 @@ endif()
 if(SOS_CLOUD_SYNC_WITH_MPI)
   message(STATUS ">>> MPI:  Locating package...")
   if(NOT MPI_C_NO_INTERROGATE)
-	find_package("MPI" QUIET)
+	find_package("MPI" QUIET REQUIRED)
   else()
 	set(MPI_FOUND ON) 
   endif(NOT MPI_C_NO_INTERROGATE)
@@ -194,9 +194,9 @@ endif()
 # Other boilerplate CMake stuff
 ###########
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 
 subdirs (src tests)
 

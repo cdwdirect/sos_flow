@@ -2,10 +2,26 @@
 # file "build_ssos_python.py"
 
 import os
+import sys
 from cffi import FFI
 ffibuilder = FFI()
 
-ffibuilder.set_source(
+
+#
+# ----------
+#
+if __name__ == "__main__":
+    sos_include_dir=""
+    sos_lib_dir=""
+    if len(sys.argv) > 1:
+        sos_include_dir = sys.argv[1]
+        sos_lib_dir = sys.argv[2]
+    else:
+        sos_build_dir = os.environ.get("SOS_BUILD_DIR")
+        sos_include_dir = sos_build_dir + "/include"
+        sos_lib_dir = sos_build_dir + "/lib"
+    
+    ffibuilder.set_source(
     "ssos_python", """ 
 
     #include "ssos.h"
@@ -17,12 +33,12 @@ ffibuilder.set_source(
     ],
     #libraries=["ssos", "sos", "sosa", "munge"],
     libraries=["ssos", "sos", "sosa"],
-    library_dirs=[os.environ.get("SOS_BUILD_DIR") + "/lib"],
-    include_dirs=[os.environ.get("SOS_BUILD_DIR") + "/include", ".."],
+    library_dirs=[sos_lib_dir],
+    include_dirs=[sos_include_dir],
     extra_compile_args=["-Wno-unused-variable"])
     #extra_compile_args=["-Wno-unused-variable", "-DUSE_MUNGE=1"])
 
-ffibuilder.cdef("""    
+    ffibuilder.cdef("""    
 
     typedef struct {
         void        *sos_context;
@@ -85,8 +101,6 @@ ffibuilder.cdef("""
     // --------------------
 """)
 
-#
-# ----------
-#
-if __name__ == "__main__":
     ffibuilder.compile(verbose=True)
+
+

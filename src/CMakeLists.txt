@@ -198,9 +198,6 @@ if(SOS_CLOUD_SYNC)
       "sos_buffer"
       "sos_pipe"
       "sosa"
-      "evpath"
-      "ffs"
-      "atl"
       "${SQLITE3_LIBRARY}"
 	  "${DYNAMICLIB}" stdc++)
     if(APPLE)
@@ -297,47 +294,46 @@ if(MPI_C_LINK_FLAGS)
   set_target_properties("sosd_probe" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
 
+if(MPI_FOUND)
+    SET(MPI_SOURCE_FILES "sosd_spawn.cpp")
+endif(MPI_FOUND)
 
 #TARGET ---> demo_app
 #            (demonstration / example)
-add_executable("demo_app" "sosd_spawn.cpp" "sos_error.c" "demo_app.c")
+add_executable("demo_app" ${MPI_SOURCE_FILES} "sos_error.c" "demo_app.c")
 target_link_libraries("demo_app" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
 if(MPI_CXX_COMPILE_FLAGS)
- 	set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+  set_target_properties("demo_app" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
 if(MPI_CXX_LINK_FLAGS)
-	set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+ set_target_properties("demo_app" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
 
 #TARGET ---> demo_app_silent
 #            (demonstration / example)
-add_executable("demo_app_silent" "sosd_spawn.cpp" "sos_error.c" "demo_app_silent.c")
+add_executable("demo_app_silent" ${MPI_SOURCE_FILES} "sos_error.c" "demo_app_silent.c")
 target_link_libraries("demo_app_silent" "sos" "sosa" "${MPI_CXX_LIBRARIES}")
 if(MPI_CXX_COMPILE_FLAGS)
- 	set_target_properties("demo_app_silent" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+  set_target_properties("demo_app_silent" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
 endif()
 if(MPI_CXX_LINK_FLAGS)
-	set_target_properties("demo_app_silent" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+ set_target_properties("demo_app_silent" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
 endif()
-
-
 
 #TARGET ---> proc_app
 #            (demonstration / example)
 add_executable("proc_app" "proc_app.c")
 if(MPI_C_LIBRARIES)
-	target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
+ target_link_libraries("proc_app" "sos" "${MPI_C_LIBRARIES}")
 else()
-	target_link_libraries("proc_app" "sos")
+ target_link_libraries("proc_app" "sos")
 endif(MPI_C_LIBRARIES)
 if(MPI_C_COMPILE_FLAGS)
-  set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
+set_target_properties("proc_app" PROPERTIES COMPILE_FLAGS "${MPI_C_COMPILE_FLAGS}")
 endif()
 if(MPI_C_LINK_FLAGS)
-  set_target_properties("proc_app" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
+set_target_properties("proc_app" PROPERTIES LINK_FLAGS "${MPI_C_LINK_FLAGS}")
 endif()
-
-
 
 INSTALL(FILES ../scripts/showdb 
               ../scripts/evp.start.2 
@@ -354,11 +350,14 @@ INSTALL(FILES sos.h
               sos_pipe.h 
               sos_buffer.h 
               DESTINATION include)
-INSTALL(TARGETS 
 
+INSTALL(TARGETS 
   sosd_stop sosd_probe demo_app_silent proc_app sosd sosd_trigger 
   sos sosa sos_buffer sos_pipe sos_qhashtbl ssos
-
   RUNTIME DESTINATION bin 
   LIBRARY DESTINATION lib 
   ARCHIVE DESTINATION lib) 
+
+if(SOS_ENABLE_PYTHON)
+    subdirs (python)
+endif(SOS_ENABLE_PYTHON)
