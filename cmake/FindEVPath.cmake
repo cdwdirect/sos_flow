@@ -11,7 +11,9 @@
 #    EVPath_INCLUDE_DIR
 #    EVPath_LIBRARIES
 
-# First, look in only one variable, EVPath_DIR.
+# First, look in only one variable, EVPath_DIR.  This script will accept any of:
+# EVPATH_DIR, EVPATH_ROOT, EVPath_DIR, EVPath_ROOT, or environment variables
+# using the same set of names.
 
 if (NOT DEFINED EVPath_DIR)
 
@@ -20,13 +22,13 @@ if (NOT DEFINED EVPath_DIR)
         set(EVPath_DIR ${EVPATH_DIR} CACHE STRING "Path to EVPath installation")
     endif (DEFINED EVPATH_DIR)
     if (DEFINED EVPATH_ROOT)
-        set(EVPATH_DIR ${EVPATH_ROOT} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR ${EVPATH_ROOT} CACHE STRING "Path to EVPath installation")
     endif (DEFINED EVPATH_ROOT)
     if (DEFINED ENV{EVPATH_DIR})
-        set(EVPATH_DIR $ENV{EVPATH_DIR} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR $ENV{EVPATH_DIR} CACHE STRING "Path to EVPath installation")
     endif (DEFINED ENV{EVPATH_DIR})
     if (DEFINED ENV{EVPATH_ROOT})
-        set(EVPATH_DIR $ENV{EVPATH_ROOT} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR $ENV{EVPATH_ROOT} CACHE STRING "Path to EVPath installation")
     endif (DEFINED ENV{EVPATH_ROOT})
 
     # Mixed case options
@@ -44,24 +46,32 @@ endif (NOT DEFINED EVPath_DIR)
 # First, see if the evpath_config program is in our path.  
 # If so, use it.
 
-message("FindEVPath: looking for evpath_config")
+IF (NOT EVPath_FIND_QUIETLY)
+    message("FindEVPath: looking for evpath_config")
+ENDIF (NOT EVPath_FIND_QUIETLY)
 find_program (EVPath_CONFIG NAMES evpath_config 
               PATHS 
               "${EVPath_DIR}/bin"
               NO_DEFAULT_PATH)
 
   if(EVPath_CONFIG)
-    message("FindEVPath: run evpath_config")
+    IF (NOT EVPath_FIND_QUIETLY)
+        message("FindEVPath: run ${EVPath_CONFIG}")
+    ENDIF (NOT EVPath_FIND_QUIETLY)
     execute_process(COMMAND ${EVPath_CONFIG} "-l"
         OUTPUT_VARIABLE evpath_config_out
         RESULT_VARIABLE evpath_config_ret
         OUTPUT_STRIP_TRAILING_WHITESPACE
     )
-    message("FindEVPath: return value = ${evpath_config_ret}")
-    message("FindEVPath: output = ${evpath_config_out}")
+    IF (NOT EVPath_FIND_QUIETLY)
+        message("FindEVPath: return value = ${evpath_config_ret}")
+        message("FindEVPath: output = ${evpath_config_out}")
+    ENDIF (NOT EVPath_FIND_QUIETLY)
     if(evpath_config_ret EQUAL 0)
         string(REPLACE " " ";" evpath_config_list ${evpath_config_out})
-    message("FindEVPath: list = ${evpath_config_list}")
+        IF (NOT EVPath_FIND_QUIETLY)
+            message("FindEVPath: list = ${evpath_config_list}")
+        ENDIF (NOT EVPath_FIND_QUIETLY)
         set(evpath_libs)
         set(evpath_lib_hints)
         set(evpath_lib_flags)
@@ -76,9 +86,11 @@ find_program (EVPath_CONFIG NAMES evpath_config
         endforeach()
         set(HAVE_EVPath 1)
     endif()
-    message("FindEVPath: hints = ${evpath_lib_hints}")
-    message("FindEVPath: libs = ${evpath_libs}")
-    message("FindEVPath: flags = ${evpath_lib_flags}")
+    IF (NOT EVPath_FIND_QUIETLY)
+        message("FindEVPath: hints = ${evpath_lib_hints}")
+        message("FindEVPath: libs = ${evpath_libs}")
+        message("FindEVPath: flags = ${evpath_lib_flags}")
+    ENDIF (NOT EVPath_FIND_QUIETLY)
     set(EVPath_LIBRARIES)
     foreach(lib IN LISTS evpath_libs)
       find_library(evpath_${lib}_LIBRARY NAME ${lib} HINTS ${evpath_lib_hints})
@@ -126,7 +138,7 @@ ENDIF (EVPath_INCLUDE_DIR AND EVPath_LIBRARIES)
 IF (EVPath_FOUND)
 
    IF (NOT EVPath_FIND_QUIETLY)
-      MESSAGE(STATUS "Found EVPath: ${EVPath_LIBRARY}")
+      MESSAGE(STATUS "Found EVPath: ${EVPath_LIBRARIES}")
    ENDIF (NOT EVPath_FIND_QUIETLY)
 
 ELSE (EVPath_FOUND)

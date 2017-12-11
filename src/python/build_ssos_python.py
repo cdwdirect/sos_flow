@@ -101,6 +101,7 @@ if __name__ == "__main__":
     // --------------------
 """)
 
-    ffibuilder.compile(verbose=True)
+    #ffibuilder.compile(verbose=True)
+    ffibuilder.compile(verbose=False)
 
 

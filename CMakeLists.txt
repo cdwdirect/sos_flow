@@ -121,7 +121,7 @@ endif()
 
 if(SOS_SECURE_WITH_MUNGE)
     add_definitions("-DUSE_MUNGE=1")
-    message(STATUS ">>> MUNGE:  Munge is ENABLED!")
+    message(STATUS "MUNGE:  Munge is ENABLED!")
 endif()
 
 ###########
@@ -129,9 +129,9 @@ endif()
 ###########
 
 if(SOS_CLOUD_SYNC_WITH_EVPATH)
-  message(STATUS ">>> EVPATH:  Sync with EVPath is ENABLED")
-  message(STATUS ">>> EVPATH:  Locating package...")
-  find_package(EVPath REQUIRED)
+  message(STATUS "EVPATH:  Sync with EVPath is ENABLED")
+  message(STATUS "EVPATH:  Locating package...")
+  find_package(EVPath REQUIRED QUIET)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
@@ -140,7 +140,7 @@ endif()
 ###########
 
 if(SOS_CLOUD_SYNC_WITH_MPI)
-  message(STATUS ">>> MPI:  Locating package...")
+  message(STATUS "MPI:  Locating package...")
   if(NOT MPI_C_NO_INTERROGATE)
 	find_package("MPI" QUIET REQUIRED)
   else()
@@ -149,7 +149,7 @@ if(SOS_CLOUD_SYNC_WITH_MPI)
 
   if(MPI_FOUND)
     add_definitions("-DUSE_MPI=1")
-	message(STATUS ">>> MPI:  Found!")
+	message(STATUS "MPI:  Found!")
   endif(MPI_FOUND)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif(SOS_CLOUD_SYNC_WITH_MPI)
@@ -160,9 +160,9 @@ endif(SOS_CLOUD_SYNC_WITH_MPI)
 
 if(SOS_ENABLE_PYTHON)
     #pkg_search_module(PYTHON REQUIRED python QUIET)
-    message(STATUS ">>> PYTHON:  Locating package...")
+    message(STATUS "PYTHON:  Locating package...")
     if(PYTHON_FOUND)
-    message(STATUS ">>> PYTHON:  Found!")
+    message(STATUS "PYTHON:  Found!")
     endif(PYTHON_FOUND)
 endif(SOS_ENABLE_PYTHON)
 
@@ -200,3 +200,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 
 subdirs (src tests)
 
+if(SOS_ENABLE_PYTHON)
+    subdirs (src/python)
+endif(SOS_ENABLE_PYTHON)

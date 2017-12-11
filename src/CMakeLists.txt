@@ -50,10 +50,10 @@ endif()
 #endif()
 
 if(SOSD_DAEMON_DETACH)
-  message(STATUS ">>> DAEMON_DETACH:  Daemon is set to DETACH and run in the background...")
+  message(STATUS "DAEMON_DETACH:  Daemon is set to DETACH and run in the background...")
   add_definitions("-DSOSD_DAEMON_MODE=1")
 else()
-  message(STATUS ">>> DAEMON_DETACH:  Daemon is set to run INTERACTIVELY...")
+  message(STATUS "DAEMON_DETACH:  Daemon is set to run INTERACTIVELY...")
   add_definitions("-DSOSD_DAEMON_MODE=0")
 endif()
 
@@ -141,7 +141,7 @@ if(SOS_CLOUD_SYNC)
   add_definitions("-DSOSD_CLOUD_SYNC")
 
   if(SOS_CLOUD_SYNC_WITH_MPI)
-    message(STATUS ">>> CLOUD_SYNC:  Building the daemon using SOS_CLOUD_SYNC_WITH_MPI enabled...")
+    message(STATUS "CLOUD_SYNC:  Building the daemon using SOS_CLOUD_SYNC_WITH_MPI enabled...")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_mpi.c"
@@ -179,7 +179,7 @@ if(SOS_CLOUD_SYNC)
 
 
   elseif(SOS_CLOUD_SYNC_WITH_EVPATH)
-    message(STATUS ">>> CLOUD_SYNC:  SOS_CLOUD_SYNC_WITH_EVPATH was requested...")
+    message(STATUS "CLOUD_SYNC:  SOS_CLOUD_SYNC_WITH_EVPATH was requested...")
     add_executable("sosd"
       "sosd.c"
       "sosd_cloud_evpath.c"
@@ -210,8 +210,8 @@ if(SOS_CLOUD_SYNC)
     message(FATAL_ERROR "You have specified that cloud_sync is activated, but not specified a supported method.")  
   endif()
 else()
-  message(STATUS ">>> CLOUD_SYNC:  Building the daemon with NO SUPPORT for cloud_sync operations.")
-  message(STATUS ">>> CLOUD_SYNC:  Nothing will be sent off-node.  Functions are stubbed out, but not called.")
+  message(STATUS "CLOUD_SYNC:  Building the daemon with NO SUPPORT for cloud_sync operations.")
+  message(STATUS "CLOUD_SYNC:  Nothing will be sent off-node.  Functions are stubbed out, but not called.")
   add_executable("sosd"
     "sosd.c"
     "sosd_cloud_stubs.c"
@@ -358,6 +358,3 @@ INSTALL(TARGETS
   LIBRARY DESTINATION lib 
   ARCHIVE DESTINATION lib) 
 
-if(SOS_ENABLE_PYTHON)
-    subdirs (python)
-endif(SOS_ENABLE_PYTHON)
