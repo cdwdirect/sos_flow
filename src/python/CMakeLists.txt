@@ -5,7 +5,7 @@ add_custom_target(ssos_python ALL python ${CMAKE_CURRENT_SOURCE_DIR}/build_ssos_
     COMMAND rm -f ${CMAKE_CURRENT_SOURCE_DIR}/ssos_python.o
     DEPENDS ssos sosa
     WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../ssos.c ssos_python.c
+    SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../ssos.c
     )
 
 INSTALL(FILES 
