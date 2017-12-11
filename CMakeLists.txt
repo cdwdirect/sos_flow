@@ -28,53 +28,71 @@ option(SOS_CLOUD_SYNC
     "Activate cloud_sync operations for the daemon?"
     ON)
 
+option(BUILD_SHARED_LIBS
+    "Build Shared libraries? (set to OFF/FALSE/NO for static build)"
+    ON)
+
 ###########
 # Set some general project CMake settings
 ###########
 
+set(PROJECT_NAME sos_flow)
+project(${PROJECT_NAME} C CXX)
+
 #set(RULE_MESSAGES OFF)
 set(CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
-set(PROJECT_NAME sos_flow)
 
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
+# Pull in the GIT repo information
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
 add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 
-project(${PROJECT_NAME} C CXX)
+# Set some host information
+
+execute_process(COMMAND uname -n OUTPUT_VARIABLE SOS_HOST_NODE_NAME)
+string(STRIP ${SOS_HOST_NODE_NAME} SOS_HOST_NODE_NAME)
+execute_process(COMMAND uname -o OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
+string(STRIP ${SOS_HOST_DETAILED_O} SOS_HOST_DETAILED_O)
+execute_process(COMMAND uname -r OUTPUT_VARIABLE SOS_HOST_DETAILED_R)
+string(STRIP ${SOS_HOST_DETAILED_R} SOS_HOST_DETAILED_R)
+execute_process(COMMAND uname -m OUTPUT_VARIABLE SOS_HOST_DETAILED_M)
+string(STRIP ${SOS_HOST_DETAILED_M} SOS_HOST_DETAILED_M)
+
+SET(SOS_HOST_KNOWN_AS ${SOS_HOST_NODE_NAME})
+SET(SOS_HOST_DETAILED "\"${SOS_HOST_DETAILED_O} ${SOS_HOST_DETAILED_R} ${SOS_HOST_DETAILED_M}\"")
+message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
+
+# Set general Compiler flags
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=$ENV{SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=$ENV{SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=$ENV{SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=${SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=${SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=${SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
+
 if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
 endif(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
+
 if(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
-  set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
-  set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
-  set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
+    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
+    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
 endif(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
 
 if(MAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
-
-message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
-
-# Required packages
-find_package(PkgConfig REQUIRED)
-find_package("Sqlite3" REQUIRED)
 
 ###########
 # SOS_FORCE_RPATH OPTIONS
@@ -102,7 +120,13 @@ if(SOS_FORCE_RPATH)
 endif(SOS_FORCE_RPATH)
 
 ###########
-# SOS_CLOUD_SYNC_WITH_MPI OPTIONS
+# Required packages
+###########
+
+find_package("Sqlite3" REQUIRED)
+
+###########
+# SOS_CLOUD_SYNC OPTIONS - validate some settings
 ###########
 
 if(SOS_CLOUD_SYNC_WITH_MPI AND SOS_CLOUD_SYNC_WITH_EVPATH)
@@ -113,15 +137,6 @@ endif()
 if((SOS_CLOUD_SYNC_WITH_MPI OR SOS_CLOUD_SYNC_WITH_EVPATH) AND NOT SOS_CLOUD_SYNC)
   message(FATAL_ERROR
   "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
-endif()
-
-###########
-# SOS_SECURE_WITH_MUNGE OPTIONS
-###########
-
-if(SOS_SECURE_WITH_MUNGE)
-    add_definitions("-DUSE_MUNGE=1")
-    message(STATUS "MUNGE:  Munge is ENABLED!")
 endif()
 
 ###########
@@ -153,6 +168,17 @@ if(SOS_CLOUD_SYNC_WITH_MPI)
   endif(MPI_FOUND)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif(SOS_CLOUD_SYNC_WITH_MPI)
+
+###########
+# SOS_SECURE_WITH_MUNGE OPTIONS
+###########
+
+if(SOS_SECURE_WITH_MUNGE)
+    find_package(PkgConfig REQUIRED)
+	find_package(Munge QUIET REQUIRED)
+    add_definitions("-DUSE_MUNGE=1")
+    message(STATUS "MUNGE:  Munge is ENABLED!")
+endif()
 
 ###########
 # SOS_ENABLE_PYTHON OPTIONS

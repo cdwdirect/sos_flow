@@ -31,8 +31,7 @@ if __name__ == "__main__":
     sources=[
        "../ssos.c"
     ],
-    #libraries=["ssos", "sos", "sosa", "munge"],
-    libraries=["ssos", "sos", "sosa"],
+    libraries=["sos"],
     library_dirs=[sos_lib_dir],
     include_dirs=[sos_include_dir],
     extra_compile_args=["-Wno-unused-variable"])
