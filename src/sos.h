@@ -13,8 +13,8 @@
 //       as they are treated as ints when exchanged between
 //       client and server.
 
-#define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 9901
+#define SOS_VERSION_MAJOR 1
+#define SOS_VERSION_MINOR 10001
 
 // ...
 
@@ -77,11 +77,11 @@ extern "C" {
 
     // ---------- primary functions --------------------
 
-    void SOS_init(int *argc, char ***argv,
+    void SOS_init(
         SOS_runtime **runtime, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
-    void SOS_pub_create(SOS_runtime *sos_context,
+    void SOS_pub_init(SOS_runtime *sos_context,
         SOS_pub **pub_handle, char *pub_title, SOS_nature nature);
 
     int SOS_pack(SOS_pub *pub, const char *name,
@@ -106,16 +106,18 @@ extern "C" {
 
     // ---------- internal / utility functions -----------------
 
-    void SOS_init_existing_runtime(int *argc, char ***argv,
+    void SOS_existing_runtime_init(
         SOS_runtime **runtime, SOS_options *options, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
-    int SOS_process_options_file(SOS_options **sos_options_ptr_ref,
+    int SOS_options_init(SOS_options **sos_options_ptr_ref,
             SOS_role role, char *filepath, char *special_settings_key);
+
+    void SOS_options_destroy(SOS_options *sos_options_obj);
 
     int SOS_file_exists(char *path);
 
-    void SOS_pub_create_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
+    void SOS_pub_sized_init(SOS_runtime *sos_context, SOS_pub **pub_handle,
         char *pub_title, SOS_nature nature, int new_size);
 
     int SOS_pub_search(SOS_pub *pub, const char *name);

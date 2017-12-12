@@ -1,3 +1,4 @@
+
 /*
  *  sosd.c (daemon)
  *
@@ -173,7 +174,7 @@ int main(int argc, char *argv[])  {
         else if ( (strcmp(argv[elem], "--work_dir"        ) == 0)
         ||        (strcmp(argv[elem], "-w"                ) == 0)) {
             free(SOSD.daemon.work_dir); // Default getcwd() string.
-            SOSD.daemon.work_dir    = argv[next_elem];
+            SOSD.daemon.work_dir    = argv[next_elem]; //TODO: Use env.var?
         }
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
         else if ( (strcmp(argv[elem], "--rank"            ) == 0)

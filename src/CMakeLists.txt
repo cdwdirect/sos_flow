@@ -76,16 +76,26 @@ endif()
 add_library("sos_qhashtbl" "sos_qhashtbl.c")
 
 
+#TARGET ---> sos_json
+#            (library)
+add_library("sos_json" "sos_json.c")
+
 #TARGET ---> sos
 #            (library)
 #add_library("sos" SHARED "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
-add_library("sos" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
+add_library("sos"
+    "sos.c"
+    "sos_buffer.c"
+    "sos_qhashtbl.c"
+    "sos_pipe.c"
+    "sos_json.c")
 # add_library("sos_static" STATIC "sos.c" "sos_pack_buffer.c" "sos_qhashtbl.c" "sos_pipe.c")
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("sos"
     "sos_buffer"
     "sos_qhashtbl"
     "sos_pipe"
+    "sos_json"
     "${CMAKE_THREAD_LIBS_INIT}")
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
@@ -96,13 +106,20 @@ endif()
 
 #TARGET ---> ssos
 #            (library)
-add_library("ssos" "ssos.c" "sos.c" "sos_buffer.c" "sos_qhashtbl.c" "sos_pipe.c" )
+add_library("ssos"
+    "ssos.c"
+    "sos.c"
+    "sos_buffer.c"
+    "sos_qhashtbl.c"
+    "sos_pipe.c"
+    "sos_json.c")
 if(CMAKE_THREAD_LIBS_INIT)
   target_link_libraries("ssos"
     "sos"
     "sos_buffer"
     "sos_qhashtbl"
     "sos_pipe"
+    "sos_json"
     "${CMAKE_THREAD_LIBS_INIT}")
   # target_link_libraries("sos_static" "${CMAKE_THREAD_LIBS_INIT}")
 endif()
@@ -147,18 +164,22 @@ if(SOSD_CLOUD_SYNC)
       "sosd_db_sqlite.c"
       "sosd_system.cpp"
       "sos_error.c"
+      "sos_args.c"
       "sos_qhashtbl.c"
       "sos_buffer.c"
       "sos_pipe.c"
-      "sosa.c")
+      "sosa.c"
+      "sos_json.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_MPI")
     target_link_libraries("sosd"
       "sos"
+      "sos_args"
       "sos_qhashtbl"
       "sos_buffer"
       "sos_pipe"
+      "sos_json"
       "sosa"
       "${MPI_C_LIBRARIES}"
       "${SQLITE3_LIBRARY}"
@@ -185,17 +206,21 @@ if(SOSD_CLOUD_SYNC)
       "sosd_db_sqlite.c"
       "sosd_system.cpp"
       "sos_error.c"
+      "sos_args.c"
       "sos_qhashtbl.c"
       "sos_buffer.c"
       "sos_pipe.c"
-      "sosa.c")
+      "sosa.c"
+      "sos_json.c")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC -fsanitize=threads")
     set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC")
     target_link_libraries("sosd"
       "sos"
+      "sos_args"
       "sos_qhashtbl"
       "sos_buffer"
       "sos_pipe"
+      "sos_json"
       "sosa"
       "evpath"
       "ffs"
@@ -220,17 +245,21 @@ else()
     "sosd_db_sqlite.c"
     "sosd_system.cpp"
     "sos_error.c"
+    "sos_args.c"
     "sos_qhashtbl.c"
     "sos_buffer.c"
     "sos_pipe.c"
+    "sos_json.c"
     "sosa.c")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
   set_target_properties("sosd" PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_STUBS")
   target_link_libraries("sosd"
     "sos"
+    "sos_args"
     "sos_qhashtbl"
     "sos_buffer"
     "sos_pipe"
+    "sos_json"
     "sosa"
     "${SQLITE3_LIBRARY}"
     "${DYNAMICLIB}" stdc++)
@@ -342,6 +371,7 @@ INSTALL(FILES sos.h
               sos_types.h
               sos_qhashtbl.h
               sos_pipe.h
+              sos_json.h
               sos_buffer.h
               DESTINATION include)
 INSTALL(TARGETS
@@ -356,6 +386,7 @@ INSTALL(TARGETS
   sos_buffer
   sos_pipe
   sos_qhashtbl
+  sos_json
   ssos
   RUNTIME DESTINATION bin
   LIBRARY DESTINATION lib

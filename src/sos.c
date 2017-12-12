@@ -1,4 +1,3 @@
-
 /**
  * @file sos.c
  * @author Chad Wood
@@ -77,11 +76,8 @@ int SOS_file_exists(char *filepath) {
     return (stat(filepath, &buffer) == 0);
 }
 
-/**
- * @brief Run the SOS options LUA script that defines this environment.
- *
- */
-int SOS_process_options_file(
+
+int SOS_options_init(
         SOS_options   **sos_options_ptr_ref,
         SOS_role        role,
         char           *filepath,
@@ -92,7 +88,7 @@ int SOS_process_options_file(
     *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
     SOS_options *opt = *sos_options_ptr_ref;
 
-    //TODO: Actually process an options file...
+    //Set default 'sentinel' values.
     opt->listener_port    = -999;
     opt->listener_count   = -999;
     opt->aggregator_count = -999;
@@ -102,6 +98,13 @@ int SOS_process_options_file(
     opt->project_dir      = NULL;
     opt->work_dir         = NULL;
     opt->discovery_dir    = NULL;
+
+    // TODO: Process what is available...
+    //
+    //  -argv/argc
+    //  -environment
+    //  -actual file
+
 
     return 0;
 }
@@ -135,17 +138,17 @@ int SOS_process_options_file(
  * @warning The SOS daemon needs to be up and running before calling.
  */
 void
-SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
+SOS_init(SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
 
     SOS_options *sos_options = NULL;
-    SOS_process_options_file(&sos_options, role,
+    SOS_options_init(&sos_options, role,
             getenv("SOS_OPTIONS_FILE"), NULL);
 
-    SOS_init_existing_runtime(argc, argv, sos_runtime, sos_options,
+    SOS_existing_runtime_init(sos_runtime, sos_options,
             role, receives, handler);
     return;
 }
@@ -176,9 +179,7 @@ SOS_init(int *argc, char ***argv, SOS_runtime **sos_runtime,
  * @warning The SOS daemon needs to be up and running before calling.
  */
 void
-SOS_init_existing_runtime(
-        int *argc,
-        char ***argv,
+SOS_existing_runtime_init(
         SOS_runtime **sos_runtime,
         SOS_options *sos_options_ptr,
         SOS_role role,
@@ -225,17 +226,6 @@ SOS_init_existing_runtime(
     dlog(1, "Initializing SOS ...\n");
     dlog(4, "  ... setting argc / argv\n");
 
-    if (argc == NULL || argv == NULL) {
-        dlog(4, "NOTE: argc == NULL || argv == NULL, using"
-                " safe but meaningles values.\n");
-        SOS->config.argc = 2;
-        SOS->config.argv = (char **) malloc(2 * sizeof(char *));
-        SOS->config.argv[0] = strdup("[NULL]");
-        SOS->config.argv[1] = strdup("[NULL]");
-    } else {
-        SOS->config.argc = *argc;
-        SOS->config.argv = *argv;
-    }
 
 #ifdef USE_MUNGE
     //Optionally grab a Munge credential:
@@ -1685,7 +1675,7 @@ void
 SOS_pub_create(SOS_runtime *sos_context,
     SOS_pub **pub_handle, char *title, SOS_nature nature)
 {
-     SOS_pub_create_sized(sos_context, pub_handle, title,
+     SOS_pub_sized_init(sos_context, pub_handle, title,
              nature, SOS_DEFAULT_ELEM_MAX);
      return;
 }

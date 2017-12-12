@@ -1,0 +1,103 @@
+
+//Startup sequence...
+
+main(...)
+|                                               SOSD.daemon.listener_count
+|                                               SOSD.daemon.aggregator_count
+|                                               SOSD.daemon.work_dir              // argv[]
+|                                               SOSD.net->port_number
+|                                               my_rank
+|                                               my_role
+|                                               SOSD.daemon.evpath.instance_role
+|                                               SOSD.daemon.pid_str
+|                                               SOSD.sos_context
+|                                               SOSD.sos_context->role
+|                                               SOSD.sos_context->config.comm_rank
+|-SOSD_cloud_init
+| |                                             SOSD_evpath_ready_to_listen   =   false
+| |                                             evp   =  SOSD.daemon.evpath
+| |                                             evp->meetup_path
+| |                                             SOSD.sos_context->config.comm_size
+| |                             ####            SOSD.daemon.cloud_sync_target_count
+| |                             ####            SOSD.daemon.cloud_sync_target
+| |                                             evp->recv.cm
+| |                                             SOSD_evpath_ready_to_listen   =   true
+| |                                             evp->recv.out_stone
+| |                                             evp->send.cm
+| |                                             evp->recv.contact_string
+| |                             ####        Agg evp->node[]
+| :...   (loop)                 ####        Agg //Allocates space for node contact data
+| |                                         Agg SOSD.sos_context->config.node_id
+| |                                         Agg contact_file
+| |                                         Lis evp->send.contact_string
+| |                                         Lis evp->send.contact_list
+| |                                         Lis evp->send.out_stone
+| |                                         Lis evp->send.rmt_stone
+|/                                          Lis evp->send.src
+|-SOSD_sync_context_init                        SOSD.sync.cloud_recv
+|-SOS_process_options_file                      sos_options                     //Unused right now.
+|-SOS_init_existing_runtime
+|-SOSD_init
+| |                                             SOSD.daemon.name
+| |                                             SOSD.daemon.lock_file
+| |                                             SOSD.daemon.log_file
+| |                                             SOSD.daemon.pid_str
+| |                                             SOSD.guid
+| |                                             SOSD.pub_table
+|/                                              SOSD.daemon.running   =   true
+|-SOSD_display_logo
+|-SOSD_setup_socket                             SOSD.net->sos_context
+| |                                             SOSD.net->result_list
+| |                                             SOSD.net->local_port
+| |                                             SOSD.net->local_addr
+|/                                              SOSD.net->local_socket_fd
+|-SOSD_db_init_database                          
+|-SOSD_sync_context_init                        SOSD.sync.db
+|-SOSD_sync_context_init                        SOSD.sync.cloud_send
+|-SOSD_sync_context_init                        SOSD.sync.local
+|-SOSD_sync_context_init                        SOSD.sync.system_monitor
+|/                                              SOSD.system_monitoring
+|-SOSD_sync_context_init                        SOSD.sync.feedback
+| |                                             SOSD.sync.sense_list_lock
+|/                                              SOS->config.locale
+|-SOSD_listen_loop  >>>>
+| |
+| :...
+:...
+
+
+//Shutdown...
+...
+: ...
+| :
+| |  (SOSD_listen_loop)
+|/
+|-pthread_join                                  SOSD.sync.db.handler
+|-pipe_producer_free                            SOSD.sync.local.queue->intake
+|-pipe_producer_free                            SOSD.sync.cloud_send.queue->intake
+|-pipe_producer_free                            SOSD.sync.cloud_recv.queue->intake
+|-pipe_producer_free                            SOSD.db.queue->intake
+|-pipe_producer_free                            SOSD.sync.feedback.queue->intake
+|-pthread_mutex_lock                            SOSD.sync.sense_list_lock
+|-free   //pop through stack                    SOSD.sync.sense_list_head
+|                                               SOS->status     =   SOS_STATUS_HALTING 
+|                                               SOSD.db.ready   =   -1
+|-SOS_uid_destroy                               SOSD.guid
+|-SOSD_db_close_database
+|-shutdown                                      SOSD.net->local_socket_fd
+|-SOSD_cloud_finalize
+|-SOS_finalize                                  SOSD.sos_context
+|-fclose                                        sos_daemon_log_fptr
+|-free                                          SOSD.daemon.log_file
+|-close                                         sos_daemon_lock_fptr
+|-remove                                        SOSD.daemon.lock_file
+|-free                                          SOSD.daemon.name
+|-free                                          SOSD.daemon.lock_file
+|
+|
+*** exit()
+
+
+
+
+

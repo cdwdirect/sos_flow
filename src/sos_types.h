@@ -18,6 +18,7 @@
 #include "sos_pipe.h"
 #include "sos_buffer.h"
 
+
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_UNASSIGNED)                   \
     ROLE(SOS_ROLE_CLIENT)                       \
@@ -248,16 +249,27 @@ static const char *SOS_LOCALE_str[] =        { FOREACH_LOCALE(GENERATE_STRING)  
 //      char *semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
 //
 
-// Define our magic values for testing struct initialization...
+// Define our magic values for testing object initialization.
 //  Ex: 0x5afec0de
 //      0x5afeca11
 //      0x5afeda7a
+//      0x10ad1e55
+//      0x5e1ec7ed
+#define SOS_VAR_UNDEFINED    0x5e77ab1e
 #define SOS_VAR_INITIALIZED  0xca11ab1e
 #define SOS_VAR_DESTROYED    0xdeadb10c
 
+// This allows pointers to be used as return values and explicitly tested for
+// these semantics, rather than relying on less stable or specific 'NULL's.
+char global_placeholder_RETURN_FAIL;
+char global_placeholder_RETURN_BUSY;
+#define SOS_RET_FAIL      &global_placeholder_RETURN_FAIL
+#define SOS_RET_BUSY      &global_placeholder_RETURN_BUSY
 
 typedef     uint64_t SOS_guid;
-#define SOS_GUID_FMT PRIu64
+#define SOS_GUID_FMT      PRIu64
+
+
 
 
 typedef union {
@@ -447,8 +459,6 @@ typedef struct {
 } SOS_msg_header;
 
 typedef struct {
-    int                 argc;
-    char              **argv;
     char               *node_id;
     int                 comm_rank;
     int                 comm_size;

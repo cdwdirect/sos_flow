@@ -21,13 +21,9 @@
 #include "sos_types.h"
 #include "sosa.h"
 
-/*********************/
-/* [SOSD_DAEMON_MODE]
- *    1 = Fork into a new ID/SESSION...
- *    0 = Run interactively, as launched. (Good for most MPI+MPMD setups)
- *
+// 1 = Fork a new ID/SESSION.     (DEPRECATED)
+// 0 = Run interactively, as launched
 #define SOSD_DAEMON_MODE             0
- *********************/
 
 #define SOSD_DAEMON_NAME             "sosd"
 #define SOSD_DEFAULT_DIR             "/tmp"
@@ -35,7 +31,6 @@
 #define SOSD_DEFAULT_LOG_FILE        "sosd.log"
 #define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
 
-//TODO: Remove unused define's...
 #define SOSD_DEFAULT_K_MEAN_CENTERS  24
 #define SOSD_DEFAULT_CENTROID_COUNT  12
 
