@@ -9,10 +9,6 @@
 #include <string.h>
 #include <sys/time.h>
 
-#ifdef USE_MPI
-#include <mpi.h>
-#endif
-
 #include "sos.h"
 //#include "sosd.h"
 #include "sosa.h"

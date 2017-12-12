@@ -1144,10 +1144,12 @@ void SOS_finalize(SOS_runtime *sos_context) {
         }
 
         dlog(1, "  ... Removing send lock...\n");
-        pthread_mutex_lock(SOS->daemon->send_lock);
-        pthread_mutex_destroy(SOS->daemon->send_lock);
-        free(SOS->daemon->send_lock);
-
+        if (SOS->daemon != NULL) {
+            pthread_mutex_lock(SOS->daemon->send_lock);
+            pthread_mutex_destroy(SOS->daemon->send_lock);
+            free(SOS->daemon->send_lock);
+        }
+        
         dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);

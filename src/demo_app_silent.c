@@ -67,19 +67,6 @@ DEMO_feedback_handler(
 
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
-
-    //TEMP-remove:
-    int i;
-    printf("SSOS_results_claim:\n");
-    printf("-----\n");
-    unsigned char *redir = (unsigned char *) payload_data;
-    for (i = 0; i < 40; i++) {
-        printf("byte %d:  [%d\t\t]\n", i, (int) *(redir + i));
-    }
-    printf("-----\n");
-    fflush(stdout);
-
-
         SOSA_results_from_buffer(results, payload_data);
         SOSA_results_output_to(stdout, results,
                 "Query Results", SOSA_OUTPUT_W_HEADER);
@@ -178,7 +165,7 @@ int main(int argc, char *argv[]) {
              { fprintf(stderr, "%s\n", USAGE); exit(1); }
     }
 
-    printf("demo_app : Starting...\n");
+    //printf("demo_app : Starting...\n");
 
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
@@ -228,10 +215,10 @@ int main(int argc, char *argv[]) {
     srandom(my_sos->my_guid);
 
     if (WAIT_FOR_FEEDBACK) {
-        printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
+        //printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
         SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(getenv("SOS_CMD_PORT")));
 
-        printf("demo_app : Waiting for feedback.\n");
+        //printf("demo_app : Waiting for feedback.\n");
         while(!g_done) {
             usleep(100000);
         }
@@ -309,7 +296,7 @@ int main(int argc, char *argv[]) {
     MPI_Finalize(); 
 #endif
 
-    printf("demo_app : Done.\n");
+    //printf("demo_app : Done.\n");
 
     return (EXIT_SUCCESS);
 }
