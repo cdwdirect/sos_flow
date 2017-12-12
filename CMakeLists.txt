@@ -4,6 +4,10 @@ option(SOS_FORCE_RPATH
     "Add the rpath to the libraries when linking examples?"
     ON)
 
+option(SQLite3_ROOT
+    "Path to SQLite3 installation (if not system install)"
+    "")
+
 option(SOS_CLOUD_SYNC_WITH_MPI
     "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
     OFF)
@@ -12,13 +16,17 @@ option(SOS_CLOUD_SYNC_WITH_EVPATH
     "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
     OFF)
 
+option(EVPath_ROOT
+    "Path to EVPath (ADIOS chaos libraries) installation"
+    "")
+
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
     OFF)
 
-option(SOS_ENABLE_ADIOS_EXAMPLES
-    "Build the examples that require the presence of ADIOS?"
-    OFF)
+option(Munge_ROOT
+    "Path to Munge installation (lightweight edge authentication for HPC)"
+    "")
 
 option(SOS_DAEMON_DETACH
     "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
@@ -123,7 +131,7 @@ endif(SOS_FORCE_RPATH)
 # Required packages
 ###########
 
-find_package("Sqlite3" REQUIRED)
+find_package("SQLite3" REQUIRED QUIET)
 
 ###########
 # SOS_CLOUD_SYNC OPTIONS - validate some settings
@@ -199,11 +207,13 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads)
+find_package(Threads REQUIRED)
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
+    link_libraries(${CMAKE_THREAD_LIBS_INIT})
 else()
 	set(LIBS ${LIBS} -lpthread)
+    link_libraries(pthread)
 endif()
 
 ###########
@@ -213,7 +223,7 @@ endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 	find_library(DYNAMICLIB dl)
-	set(LIBS ${LIBS} ${DYNAMICLIB})
+	set(LIBS "${LIBS} ${DYNAMICLIB}")
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
 ###########

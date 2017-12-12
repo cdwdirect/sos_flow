@@ -3,10 +3,10 @@ set(POSITION_INDEPENDENT_CODE True)
 
 include_directories("${sos_flow_SOURCE_DIR}/src")
 
-if(SQLITE3_FOUND)
-    include_directories(${SQLITE3_INCLUDE_DIR})
-    link_libraries(${SQLITE3_LIBRARY})
-endif(SQLITE3_FOUND)
+if(SQLite3_FOUND)
+    include_directories(${SQLite3_INCLUDE_DIR})
+    link_libraries(${SQLite3_LIBRARY})
+endif(SQLite3_FOUND)
 
 if(EVPath_FOUND)
     include_directories(${EVPath_INCLUDE_DIR})

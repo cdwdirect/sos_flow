@@ -1,10 +1,10 @@
 include_directories(${sos_flow_SOURCE_DIR}/src)
 
 # If using SQLite3, add include files - it's required
-if(SQLITE3_FOUND)
-    include_directories(${SQLITE3_INCLUDE_DIR})
-    link_libraries(${SQLITE3_LIBRARY})
-endif(SQLITE3_FOUND)
+if(SQLite3_FOUND)
+    include_directories(${SQLite3_INCLUDE_DIR})
+    link_libraries(${SQLite3_LIBRARY})
+endif(SQLite3_FOUND)
 
 # If using MPI, add the include files
 if(MPI_FOUND)
@@ -17,12 +17,12 @@ endif(MPI_FOUND)
 if(EVPath_FOUND)
     include_directories(${EVPath_INCLUDE_DIR})
     link_libraries(${EVPath_LIBRARIES})
-endif()
+endif(EVPath_FOUND)
 
 if(Munge_FOUND)
     include_directories(${Munge_INCLUDE_DIR})
     link_libraries(${Munge_LIBRARIES})
-endif()
+endif(Munge_FOUND)
 
 if(SOSD_DAEMON_DETACH)
   message(STATUS "DAEMON_DETACH:  Daemon is set to DETACH and run in the background...")
