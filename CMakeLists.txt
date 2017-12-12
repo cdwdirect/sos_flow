@@ -4,10 +4,6 @@ cmake_minimum_required (VERSION 2.8)
 # User-configurable options.
 ########### ########### ########### ########### ########### ########### ###########
 
-option(SOS_FORCE_RPATH
-    "Add the rpath to the libraries when linking examples?"
-    ON)
-
 set(SQLite3_DIR "" CACHE STRING
     "Path to SQLite3 installation (if not system install)")
 
@@ -37,9 +33,27 @@ option(SOS_CLOUD_SYNC
     "Activate cloud_sync operations for the daemon?"
     ON)
 
+option(SOS_ENABLE_PYTHON
+    "Build python analysis interface for client querying of aggregators/listeners"
+    OFF)
+
 option(BUILD_SHARED_LIBS
     "Build Shared libraries? (set to OFF/FALSE/NO for static build)"
     ON)
+
+# advanced options
+
+option(SOS_FORCE_RPATH
+    "Add the rpath to the libraries when linking examples?"
+    ON)
+
+option(SOS_SANITIZE_ADDRESS
+    "Enable address sanitizer compiler flags"
+    OFF)
+
+option(SOS_SANITIZE_THREAD
+    "Enable thread sanitizer compiler flags"
+    OFF)
 
 ########### ########### ########### ########### ########### ########### ###########
 
@@ -84,17 +98,25 @@ endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=${SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=${SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=${SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
 
-if(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=address")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=address")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=address")
-endif(DEFINED SOS_SANITIZE_ADDRESS AND SOS_SANITIZE_ADDRESS)
+if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
+    if(CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
+        if(SOS_SANITIZE_ADDRESS OR SOS_SANITIZE_THREAD)
+            message("Sorry, Cannot enable sanitizer options for gcc compiler version < 5.0")
+        endif(SOS_SANITIZE_ADDRESS OR SOS_SANITIZE_THREAD)
+    else(CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
+        if(SOS_SANITIZE_ADDRESS)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+        endif(SOS_SANITIZE_ADDRESS)
 
-if(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
-    set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fsanitize=thread")
-    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -fsanitize=thread")
-    set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fsanitize=thread")
-endif(DEFINED SOS_SANITIZE_THREAD AND SOS_SANITIZE_THREAD)
+        if(SOS_SANITIZE_THREAD)
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=thread")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=thread")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=thread")
+        endif(SOS_SANITIZE_THREAD)
+    endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
+endif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 
 if(MAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
