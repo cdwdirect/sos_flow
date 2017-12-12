@@ -1,12 +1,15 @@
 cmake_minimum_required (VERSION 2.8)
 
+########### ########### ########### ########### ########### ########### ###########
+# User-configurable options.
+########### ########### ########### ########### ########### ########### ###########
+
 option(SOS_FORCE_RPATH
     "Add the rpath to the libraries when linking examples?"
     ON)
 
-option(SQLite3_ROOT
-    "Path to SQLite3 installation (if not system install)"
-    "")
+set(SQLite3_DIR "" CACHE STRING
+    "Path to SQLite3 installation (if not system install)")
 
 option(SOS_CLOUD_SYNC_WITH_MPI
     "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
@@ -16,17 +19,15 @@ option(SOS_CLOUD_SYNC_WITH_EVPATH
     "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
     OFF)
 
-option(EVPath_ROOT
-    "Path to EVPath (ADIOS chaos libraries) installation"
-    "")
+set(EVPath_DIR "" CACHE STRING
+    "Path to EVPath (ADIOS chaos libraries) installation")
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
     OFF)
 
-option(Munge_ROOT
-    "Path to Munge installation (lightweight edge authentication for HPC)"
-    "")
+set(Munge_DIR "" CACHE STRING
+    "Path to Munge installation (lightweight edge authentication for HPC)")
 
 option(SOS_DAEMON_DETACH
     "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
@@ -39,6 +40,8 @@ option(SOS_CLOUD_SYNC
 option(BUILD_SHARED_LIBS
     "Build Shared libraries? (set to OFF/FALSE/NO for static build)"
     ON)
+
+########### ########### ########### ########### ########### ########### ###########
 
 ###########
 # Set some general project CMake settings
