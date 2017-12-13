@@ -55,6 +55,9 @@
     MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
     MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
+    MSG_TYPE(SOS_FEEDBACK_TYPE_PAYLOAD)    \
+    MSG_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
+    MSG_TYPE(SOS_FEEDBACK_TYPE_PEEK)       \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 #define FOREACH_RECEIVES(RECEIVES)              \
@@ -64,12 +67,6 @@
     RECEIVES(SOS_RECEIVES_NO_FEEDBACK)          \
     RECEIVES(SOS_RECEIVES_DAEMON_MODE)          \
     RECEIVES(SOS_RECEIVES___MAX)
-
-#define FOREACH_FEEDBACK_TYPE(FEEDBACK_TYPE)    \
-    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_PAYLOAD)    \
-    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
-    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_PEEK)       \
-    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE___MAX)
 
 #define FOREACH_QUERY_STATE(QUERY_STATE)        \
     QUERY_STATE(SOS_QUERY_STATE_INCOMING)       \
@@ -200,7 +197,6 @@ typedef enum { FOREACH_ROLE(GENERATE_ENUM)          } SOS_role;
 typedef enum { FOREACH_STATUS(GENERATE_ENUM)        } SOS_status;
 typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)      } SOS_msg_type;
 typedef enum { FOREACH_RECEIVES(GENERATE_ENUM)      } SOS_receives;
-typedef enum { FOREACH_FEEDBACK_TYPE(GENERATE_ENUM) } SOS_feedback_type;
 typedef enum { FOREACH_QUERY_STATE(GENERATE_ENUM)   } SOS_query_state;
 typedef enum { FOREACH_PRI(GENERATE_ENUM)           } SOS_pri;
 typedef enum { FOREACH_GEOMETRY(GENERATE_ENUM)      } SOS_geometry;
@@ -222,7 +218,6 @@ static const char *SOS_ROLE_string[] =           { FOREACH_ROLE(GENERATE_STRING)
 static const char *SOS_STATUS_string[] =         { FOREACH_STATUS(GENERATE_STRING)       };
 static const char *SOS_MSG_TYPE_string[] =       { FOREACH_MSG_TYPE(GENERATE_STRING)     };
 static const char *SOS_RECEIVES_string[] =       { FOREACH_RECEIVES(GENERATE_STRING)     };
-static const char *SOS_FEEDBACK_TYPE_string[] =  { FOREACH_FEEDBACK_TYPE(GENERATE_STRING)};
 static const char *SOS_QUERY_STATE_string[] =    { FOREACH_QUERY_STATE(GENERATE_STRING)  };
 static const char *SOS_PRI_string[] =            { FOREACH_PRI(GENERATE_STRING)          };
 static const char *SOS_GEOMETRY_string[] =       { FOREACH_GEOMETRY(GENERATE_STRING)     };

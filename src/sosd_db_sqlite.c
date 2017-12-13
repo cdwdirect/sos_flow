@@ -303,7 +303,6 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("ROLE",          SOS_ROLE_string,          SOS_ROLE___MAX          );
     SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
     SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );
-    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_TYPE_string, SOS_FEEDBACK_TYPE___MAX );
     SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
     SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
     SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
