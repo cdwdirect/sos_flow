@@ -13,6 +13,7 @@
 
 using namespace std;
 
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wwrite-strings"
 
 #define SOS_HAVE_POWERCAP_POWER

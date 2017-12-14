@@ -8,7 +8,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#if defined(USE_MPI)
 #include <mpi.h>
+#endif
 
 #include "sos.h"
 #include "sos_buffer.h"
@@ -37,11 +39,13 @@ int main(int argc, char *argv[]) {
     SOS_runtime    *my_SOS;
     int             offset;
 
+    int rank = 0; 
+    int size = 0;
+#if defined(USE_MPI)
     MPI_Init(&argc, &argv);
-
-    int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+#endif
 
     int stop_hard = 0;    
 
@@ -72,11 +76,13 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
+#if defined(USE_MPI)
     char  mpi_hostname[ MPI_MAX_PROCESSOR_NAME] = {0};
     int   mpi_hostname_len;
     MPI_Get_processor_name(mpi_hostname, &mpi_hostname_len);
 
     dlog(1, "Connected to sosd (daemon) on port %s ...\n", mpi_hostname);
+#endif
 
     setenv("SOS_SHUTDOWN", "1", 1);
 
@@ -104,7 +110,9 @@ int main(int argc, char *argv[]) {
     dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
+#if defined(USE_MPI)
     MPI_Finalize();
+#endif
     return (EXIT_SUCCESS);
 }
 
