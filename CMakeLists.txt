@@ -1,5 +1,9 @@
 cmake_minimum_required (VERSION 2.8)
 
+if (${CMAKE_MAJOR_VERSION} GREATER 2)
+  cmake_policy(SET CMP0042 NEW)
+endif()
+
 ########### ########### ########### ########### ########### ########### ###########
 # User-configurable options.
 ########### ########### ########### ########### ########### ########### ###########
@@ -79,7 +83,11 @@ add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 
 execute_process(COMMAND uname -n OUTPUT_VARIABLE SOS_HOST_NODE_NAME)
 string(STRIP ${SOS_HOST_NODE_NAME} SOS_HOST_NODE_NAME)
-execute_process(COMMAND uname -o OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
+if(APPLE)
+    execute_process(COMMAND uname OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
+else(APPLE)
+    execute_process(COMMAND uname -o OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
+endif(APPLE)
 string(STRIP ${SOS_HOST_DETAILED_O} SOS_HOST_DETAILED_O)
 execute_process(COMMAND uname -r OUTPUT_VARIABLE SOS_HOST_DETAILED_R)
 string(STRIP ${SOS_HOST_DETAILED_R} SOS_HOST_DETAILED_R)

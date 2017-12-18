@@ -1403,7 +1403,7 @@ void* SOS_THREAD_receives_timed(void *args) {
     SOS_msg_header       header;
     SOS_buffer          *check_in_buffer;
     SOS_buffer          *feedback_buffer;
-    SOS_feedback_type    feedback;
+    SOS_msg_type         feedback;
 
     if ( SOS->config.offline_test_mode == true ) { return NULL; }
 
