@@ -11,32 +11,32 @@
 #    SQLite3_INCLUDE_DIR
 #    SQLite3_LIBRARY
 
-if (NOT DEFINED SQLite3_DIR)
+if (SQLite3_DIR MATCHES "^not set$")
     # All upper case options
     if (DEFINED SQLITE3_DIR)
-        set(SQLite3_DIR ${SQLITE3_DIR} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR ${SQLITE3_DIR})
     endif (DEFINED SQLITE3_DIR)
     if (DEFINED SQLITE3_ROOT)
-        set(SQLite3_DIR ${SQLITE3_ROOT} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR ${SQLITE3_ROOT})
     endif (DEFINED SQLITE3_ROOT)
     if (DEFINED ENV{SQLITE3_DIR})
-        set(SQLite3_DIR $ENV{SQLITE3_DIR} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR $ENV{SQLITE3_DIR})
     endif (DEFINED ENV{SQLITE3_DIR})
     if (DEFINED ENV{SQLITE3_ROOT})
-        set(SQLite3_DIR $ENV{SQLITE3_ROOT} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR $ENV{SQLITE3_ROOT})
     endif (DEFINED ENV{SQLITE3_ROOT})
 
     # Mixed case options
     if (DEFINED SQLite3_ROOT)
-        set(SQLite3_DIR ${SQLite3_ROOT} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR ${SQLite3_ROOT})
     endif (DEFINED SQLite3_ROOT)
     if (DEFINED ENV{SQLite3_DIR})
-        set(SQLite3_DIR $ENV{SQLite3_DIR} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR $ENV{SQLite3_DIR})
     endif (DEFINED ENV{SQLite3_DIR})
     if (DEFINED ENV{SQLite3_ROOT})
-        set(SQLite3_DIR $ENV{SQLite3_ROOT} CACHE STRING "Path to SQLite3 installation")
+        set(SQLite3_DIR $ENV{SQLite3_ROOT})
     endif (DEFINED ENV{SQLite3_ROOT})
-endif (NOT DEFINED SQLite3_DIR)
+endif (SQLite3_DIR MATCHES "^not set$")
 
 # FIND_PATH and FIND_LIBRARY normally search standard locations
 # before the specified paths. To search non-standard paths first,
