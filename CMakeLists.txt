@@ -256,7 +256,6 @@ endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 	find_library(DYNAMICLIB dl)
-	message("Using libdl: ${DYNAMICLIB}")
 	set(LIBS "${LIBS} ${DYNAMICLIB}")
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
