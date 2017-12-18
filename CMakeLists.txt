@@ -139,7 +139,7 @@ set(POSITION_INDEPENDENT_CODE TRUE)
 # SOS_FORCE_RPATH OPTIONS
 ###########
 
-if(SOS_FORCE_RPATH)
+if(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 	# use, i.e. don't skip the full RPATH for the build tree
 	SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
@@ -158,7 +158,7 @@ if(SOS_FORCE_RPATH)
 	IF("${isSystemDir}" STREQUAL "-1")
    		SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 	ENDIF("${isSystemDir}" STREQUAL "-1")
-endif(SOS_FORCE_RPATH)
+endif(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 
 ###########
 # Required packages
@@ -240,7 +240,7 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+find_package(Threads)
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})
@@ -256,6 +256,7 @@ endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 	find_library(DYNAMICLIB dl)
+	message("Using libdl: ${DYNAMICLIB}")
 	set(LIBS "${LIBS} ${DYNAMICLIB}")
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
@@ -266,6 +267,9 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+
+# remove leading, trailing spaces from libraries
+string(STRIP "${LIBS}" LIBS)
 
 subdirs (src tests)
 
