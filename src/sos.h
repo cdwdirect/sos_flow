@@ -307,5 +307,10 @@ extern "C" {
 // Example of colors:
 // printf(SOS_RED "red\n" SOS_CLR);
 
+#define SOS_TODO(__msg_str)                                     \
+        fprintf(stderr, SOS_GRN ">>>" SOS_CLR                   \
+                " " SOS_BOLD_GRN "TODO" SOS_CLR ": %s",         \
+                __msg_str);
+
 
 #endif

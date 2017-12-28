@@ -25,11 +25,11 @@
         "                 The following parameters are REQUIRED for"\
                 " EVPath:\n" \
         "\n" \
-        "                 -k, --rank <rank within ALL sosd instances>\n" \
         "                 -r, --role <listener | aggregator>\n" \
+        "                 -k, --rank <rank within ALL sosd instances>\n" \
         "\n" \
-        "                 NOTE: Aggregator ranks [-k #] need to be contiguous"\
-                " from 0 to n-1 aggregators.\n" \
+        "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
+        "                       from 0 to n-1 aggregators.\n" \
         "\n" \
         "\n"
 #else
@@ -1180,12 +1180,13 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
 
 void
 SOSD_handle_desensitize(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_");
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_desensitize");
 
     SOS_msg_header header;
     int rc;
 
-    // 1. Remove the specific sensitivity GUID+handle combo
+    // TODO: Remove the specific sensitivity GUID+handle combo.
+    //       This is currently handled
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);

@@ -35,7 +35,7 @@
     STATUS(SOS_STATUS_HALTING)                  \
     STATUS(SOS_STATUS_SHUTDOWN)                 \
     STATUS(SOS_STATUS___MAX)
-    
+
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
     MSG_TYPE(SOS_MSG_TYPE_NULLMSG)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
@@ -179,7 +179,7 @@
     NATURE(SOS_NATURE_KMEAN_2D)                 \
     NATURE(SOS_NATURE_SOS)                      \
     NATURE(SOS_NATURE___MAX)
-        
+
 #define FOREACH_RETAIN(RETAIN)                  \
     RETAIN(SOS_RETAIN_DEFAULT)                  \
     RETAIN(SOS_RETAIN_SESSION)                  \
@@ -421,13 +421,13 @@ typedef struct {
 typedef void (*SOS_feedback_handler_f)
     (int   payload_type,
      int   payload_size,
-     void *payload_data); 
- 
+     void *payload_data);
+
 typedef struct {
     void               *sos_context;
     char                local_host[NI_MAXHOST];
     char                local_port[NI_MAXSERV];
-    int                 local_socket_fd; 
+    int                 local_socket_fd;
     struct addrinfo    *local_addr;
     struct addrinfo     local_hint;
     struct addrinfo    *result_list;

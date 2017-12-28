@@ -55,7 +55,7 @@ void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
 /**
  * @brief Process the feedback messages, by whatever means they came in.
  */
-void SOS_process_feedback(SOS_buffer *buffer);
+void         SOS_process_feedback(SOS_buffer *buffer);
 
 /**
  * @brief An internal utility function for growing a pub to hold more data.
@@ -410,6 +410,9 @@ SOS_existing_runtime_init(
 
         SOS_buffer_unpack(buffer, &offset, "i",
                 &server_uid);
+
+        //TODO: Make UID validation a runtime setting.
+        //      If it is disabled, emit a non-scary notification anyway.
 
         if (server_uid != client_uid) {
             fprintf(stderr, "ERROR: SOS daemon's UID (%d) does not"
@@ -1149,7 +1152,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             pthread_mutex_destroy(SOS->daemon->send_lock);
             free(SOS->daemon->send_lock);
         }
-        
+
         dlog(1, "  ... Releasing uid objects...\n");
         SOS_uid_destroy(SOS->uid.local_serial);
         SOS_uid_destroy(SOS->uid.my_guid_pool);
