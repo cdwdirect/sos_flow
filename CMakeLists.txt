@@ -13,7 +13,7 @@ option(SOS_CLOUD_SYNC_WITH_MPI
 
 option(SOS_CLOUD_SYNC_WITH_EVPATH
     "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
-    OFF)
+    ON)
 
 set(EVPath_DIR "" CACHE STRING
     "Path to EVPath (ADIOS chaos libraries) installation")
@@ -157,6 +157,7 @@ endif(SOS_FORCE_RPATH)
 ###########
 
 find_package("SQLite3" REQUIRED QUIET)
+find_package("PkgConfig" REQUIRED QUIET)
 
 ###########
 # SOS_CLOUD_SYNC OPTIONS - validate some settings
