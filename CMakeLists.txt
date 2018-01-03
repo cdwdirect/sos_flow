@@ -132,6 +132,7 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
 endif()
 
+
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
 
@@ -153,12 +154,15 @@ if(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 	# which point to directories outside the build tree to the install RPATH
 	SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
+
 	# the RPATH to be used when installing, but only if it's not a system directory
 	LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
 	IF("${isSystemDir}" STREQUAL "-1")
    		SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 	ENDIF("${isSystemDir}" STREQUAL "-1")
+
 endif(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
+
 
 ###########
 # Required packages
@@ -240,7 +244,7 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads)
+find_package(Threads REQUIRED)
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})
@@ -269,6 +273,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 
 # remove leading, trailing spaces from libraries
 string(STRIP "${LIBS}" LIBS)
+
 
 subdirs (src tests)
 

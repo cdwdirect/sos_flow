@@ -15,6 +15,7 @@
 # MUNGE_DIR, MUNGE_ROOT, Munge_DIR, Munge_ROOT, or environment variables
 # using the same set of names.
 
+
 if (Munge_DIR STREQUAL "not set")
 
     # All upper case options
@@ -29,6 +30,7 @@ if (Munge_DIR STREQUAL "not set")
     endif (DEFINED ENV{MUNGE_DIR})
     if (DEFINED ENV{MUNGE_ROOT})
         set(Munge_DIR $ENV{MUNGE_ROOT})
+
     endif (DEFINED ENV{MUNGE_ROOT})
 
     # Mixed case options
@@ -42,6 +44,7 @@ if (Munge_DIR STREQUAL "not set")
         set(Munge_DIR $ENV{Munge_ROOT})
     endif (DEFINED ENV{Munge_ROOT})
 endif (Munge_DIR STREQUAL "not set")
+
 
 # FIND_PATH and FIND_LIBRARY normally search standard locations
 # before the specified paths. To search non-standard paths first,

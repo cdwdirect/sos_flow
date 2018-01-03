@@ -15,6 +15,7 @@
 # EVPATH_DIR, EVPATH_ROOT, EVPath_DIR, EVPath_ROOT, or environment variables
 # using the same set of names.
 
+
 if ("${EVPath_DIR} " STREQUAL " ")
     IF (NOT EVPath_FIND_QUIETLY)
         message("EVPath_DIR not set, trying alternatives...")
@@ -52,6 +53,7 @@ endif ("${EVPath_DIR} " STREQUAL " ")
 IF (NOT EVPath_FIND_QUIETLY)
 MESSAGE(STATUS "EVPath_DIR set to: '${EVPath_DIR}'")
 ENDIF (NOT EVPath_FIND_QUIETLY)
+
 
 # First, see if the evpath_config program is in our path.  
 # If so, use it.
@@ -116,7 +118,9 @@ find_program (EVPath_CONFIG NAMES evpath_config
 
 else(EVPath_CONFIG)
 
+
     find_package(PkgConfig REQUIRED)
+
     pkg_search_module(EVPath REQUIRED libenet QUIET)
     # could be needed on some platforms
     pkg_search_module(FABRIC libfabric QUIET)

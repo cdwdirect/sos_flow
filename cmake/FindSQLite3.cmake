@@ -11,6 +11,7 @@
 #    SQLite3_INCLUDE_DIR
 #    SQLite3_LIBRARY
 
+
 if (SQLite3_DIR MATCHES "^not set$")
     # All upper case options
     if (DEFINED SQLITE3_DIR)
@@ -37,6 +38,7 @@ if (SQLite3_DIR MATCHES "^not set$")
         set(SQLite3_DIR $ENV{SQLite3_ROOT})
     endif (DEFINED ENV{SQLite3_ROOT})
 endif (SQLite3_DIR MATCHES "^not set$")
+
 
 # FIND_PATH and FIND_LIBRARY normally search standard locations
 # before the specified paths. To search non-standard paths first,
