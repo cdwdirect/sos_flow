@@ -1,3 +1,4 @@
+
 cmake_minimum_required (VERSION 2.8)
 
 ########### ########### ########### ########### ########### ########### ###########
@@ -182,6 +183,13 @@ if(SOS_CLOUD_SYNC_WITH_EVPATH)
     message(STATUS "EVPATH:  Locating package...")
     find_package(EVPath REQUIRED QUIET)
     add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
+    if (NOT EVPath_FOUND)
+        message(STATIS "EVPATH:  WARNING!  Could NOT find EVPath!")
+    else()
+        message(STATUS "EVPATH:  --EVPath_DIR         = ${EVPath_DIR}")
+        message(STATUS "EVPATH:  --EVPath_INCLUDE_DIR = ${EVPath_INCLUDE_DIR}")
+        message(STATUS "EVPATH:  --EVPath_LIBRARIES   = ${EVPath_LIBRARIES}")
+    endif()
 endif()
 
 ###########

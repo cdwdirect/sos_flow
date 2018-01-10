@@ -68,7 +68,7 @@ int main(int argc, char *argv[]) {
     }
 
     my_SOS = NULL;
-    SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    SOS_init(&my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
         fprintf(stderr, "ERROR: sosd_stop(%d) failed to connect to the SOS daemon.\n", rank);
         exit(EXIT_FAILURE);

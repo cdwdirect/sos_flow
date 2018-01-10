@@ -220,8 +220,12 @@ SOS_existing_runtime_init(
     NEW_SOS->config.receives_port = -1;
     NEW_SOS->config.receives_ready = -1;
     NEW_SOS->config.process_id = (int) getpid();
-    SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
+
+    NEW_SOS->config.program_name = (char *) calloc(PATH_MAX, sizeof(char));
+    readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
+
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
+    SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
 
     dlog(1, "Initializing SOS ...\n");
     dlog(4, "  ... setting argc / argv\n");
@@ -1677,7 +1681,7 @@ SOS_uid_next( SOS_uid *id ) {
 
 
 void
-SOS_pub_create(SOS_runtime *sos_context,
+SOS_pub_init(SOS_runtime *sos_context,
     SOS_pub **pub_handle, char *title, SOS_nature nature)
 {
      SOS_pub_sized_init(sos_context, pub_handle, title,
@@ -1686,7 +1690,7 @@ SOS_pub_create(SOS_runtime *sos_context,
 }
 
 void
-SOS_pub_create_sized(SOS_runtime *sos_context,
+SOS_pub_sized_init(SOS_runtime *sos_context,
     SOS_pub **pub_handle, char *title, SOS_nature nature, int new_size)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_pub_create_sized");
@@ -1738,7 +1742,7 @@ SOS_pub_create_sized(SOS_runtime *sos_context,
 
     strncpy(new_pub->node_id, SOS->config.node_id, SOS_DEFAULT_STRING_LEN);
     new_pub->process_id = SOS->config.process_id;
-    strncpy(new_pub->prog_name, SOS->config.argv[0], SOS_DEFAULT_STRING_LEN);
+    strncpy(new_pub->prog_name, SOS->config.program_name, SOS_DEFAULT_STRING_LEN);
 
     dlog(6, "  ... allocating space for data elements.\n");
     new_pub->data                = malloc(sizeof(SOS_data *) * new_size);

@@ -189,7 +189,7 @@ int main(int argc, char *argv[]) {
     int      send_shutdown = 0;
     
     my_sos = NULL;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
+    SOS_init(&my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
 
     /*
@@ -243,7 +243,7 @@ int main(int argc, char *argv[]) {
 
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
-        SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
+        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
         
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
@@ -295,10 +295,10 @@ int main(int argc, char *argv[]) {
             SOS_publish(pub);
         }
 
-        if (send_shutdown) {
-            fork_exec_sosd_shutdown();
-            //send_shutdown_message(my_sos);
-        }
+        //if (send_shutdown) {
+        //    fork_exec_sosd_shutdown();
+        //    //send_shutdown_message(my_sos);
+        //}
 
         SOS_publish(pub);
 

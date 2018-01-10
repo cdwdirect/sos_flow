@@ -273,14 +273,14 @@ int main(int argc, char *argv[])  {
 
     dlog(0, "Initializing SOSD:\n");
 
-    dlog(0, "   ... loading options file...\n");
+    dlog(0, "   ... loading options...\n");
     SOS_options *sos_options = NULL;
-    SOS_process_options_file(&sos_options, my_role,
+    SOS_options_init(&sos_options, my_role,
             getenv("SOS_OPTIONS_FILE"), NULL);
 
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
             " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
-    SOS_init_existing_runtime( &argc, &argv, &SOSD.sos_context,
+    SOS_existing_runtime_init(&SOSD.sos_context,
             sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(0, "   ... calling SOSD_init()...\n");
@@ -1810,7 +1810,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
         /* If it's not in the table, add it. */
-        SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_init(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;
@@ -1876,7 +1876,7 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
             ") NOT FOUND! (WEIRD!)\n", header.ref_guid);
         dlog(0, "ERROR: .... ADDING previously unknown pub to the table..."
             " (this is bogus, man)\n");
-        SOS_pub_create(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
+        SOS_pub_init(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;

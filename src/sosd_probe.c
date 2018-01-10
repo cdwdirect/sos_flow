@@ -77,8 +77,8 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-    SOS_runtime *my_sos;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_RUNTIME_UTILITY,
+    SOS_runtime *my_sos = NULL;
+    SOS_init(&my_sos, SOS_ROLE_RUNTIME_UTILITY,
             SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     if (my_sos == NULL) {

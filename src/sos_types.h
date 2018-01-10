@@ -463,6 +463,7 @@ typedef struct {
     int                 comm_rank;
     int                 comm_size;
     int                 comm_support;
+    char               *program_name;
     int                 process_id;
     int                 thread_id;
     SOS_layer           layer;

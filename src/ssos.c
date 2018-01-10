@@ -207,8 +207,7 @@ void SSOS_init(char *prog_name) {
     g_sos = NULL;
     while (g_sos == NULL) {
 
-        SOS_init(NULL, NULL,
-            &g_sos,
+        SOS_init(&g_sos,
             SOS_ROLE_CLIENT,
             SOS_RECEIVES_DIRECT_MESSAGES,
             SSOS_feedback_handler);
@@ -227,7 +226,7 @@ void SSOS_init(char *prog_name) {
     pthread_mutex_init(g_result_pool_lock, NULL); 
 
     g_pub = NULL;
-    SOS_pub_create(g_sos, &g_pub, "ssos.client", SOS_NATURE_DEFAULT);
+    SOS_pub_init(g_sos, &g_pub, "ssos.client", SOS_NATURE_DEFAULT);
 
     if (g_pub == NULL) {
         fprintf(stderr, "SSOS (PID:%d) -- Failed to create pub handle.\n",
