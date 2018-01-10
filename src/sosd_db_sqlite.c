@@ -397,7 +397,7 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
 
     dlog(6, "Processing query task...\n");
     dlog(6, "   ...reply_guid: %" SOS_GUID_FMT "\n",
-            query->reply_guid);
+            query->reply_to_guid);
     dlog(6, "   ...reply_host: \"%s\"\n",
             query->reply_host);
     dlog(6, "   ...reply_port: \"%d\"\n",
