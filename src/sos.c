@@ -962,7 +962,12 @@ SOS_target_connect(SOS_socket *target) {
         
         retval = connect(new_fd, target->remote_addr->ai_addr,
             target->remote_addr->ai_addrlen);
-        if (retval != -1) break;
+        if (retval != -1) {
+            break;
+        } else {
+            dlog(0, "WARNING: Could not connect to target."
+                    " (%s)\n", strerror(errno));
+        }
         
         close(new_fd);
         new_fd = -1;

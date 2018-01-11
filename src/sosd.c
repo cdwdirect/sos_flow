@@ -2237,6 +2237,7 @@ void SOSD_setup_socket() {
             SOSD.net->local_addr = SOSD.net->local_addr->ai_next )
     {
         dlog(1, "Trying an address...\n");
+        dlog(1, "Using port %s...\n", SOSD.net->local_port);
 
         SOSD.net->local_socket_fd =
             socket(SOSD.net->local_addr->ai_family,
