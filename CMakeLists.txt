@@ -71,6 +71,7 @@ project(${PROJECT_NAME} C CXX)
 #set(RULE_MESSAGES OFF)
 set(CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+include(PreventInSourceBuilds)
 
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
