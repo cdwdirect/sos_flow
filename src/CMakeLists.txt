@@ -14,10 +14,10 @@ if(MPI_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_C_LINK_FLAGS}")
 endif(MPI_FOUND)
 
-if(EVPath_FOUND)
+#if(EVPath_FOUND)
     include_directories(${EVPath_INCLUDE_DIR})
     link_libraries(${EVPath_LIBRARIES})
-endif(EVPath_FOUND)
+#endif(EVPath_FOUND)
 
 if(Munge_FOUND)
     include_directories(${Munge_INCLUDE_DIR})
@@ -34,6 +34,7 @@ endif()
 
 #TARGET ---> sos (library)
 add_library(sos sos.c ssos.c sosa.c sos_buffer.c sos_qhashtbl.c sos_pipe.c sos_error.c)
+set_property(TARGET sos PROPERTY C_STANDARD 99)
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
 export(TARGETS sos APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
