@@ -74,6 +74,8 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
 
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
+# Pull in macros
+include(SOSProjectMacros)
 # Pull in the GIT repo information
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
@@ -244,7 +246,9 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+# Actually, required, but on Titan it will fail. 
+# Therefore, we have the "else" clause for that system.
+find_package(Threads) 
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})
@@ -273,7 +277,6 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 
 # remove leading, trailing spaces from libraries
 string(STRIP "${LIBS}" LIBS)
-
 
 subdirs (src tests)
 

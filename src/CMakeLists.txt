@@ -1,3 +1,6 @@
+# Enable c99 support.
+use_c99()
+
 include_directories(${sos_flow_SOURCE_DIR}/src)
 
 # If using SQLite3, add include files - it's required
@@ -34,7 +37,6 @@ endif()
 
 #TARGET ---> sos (library)
 add_library(sos sos.c ssos.c sosa.c sos_buffer.c sos_qhashtbl.c sos_pipe.c sos_error.c)
-set_property(TARGET sos PROPERTY C_STANDARD 99)
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
 export(TARGETS sos APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
