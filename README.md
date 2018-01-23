@@ -3,9 +3,7 @@
 SOSflow provides a flexible, scalable, and programmable framework for
 observation, introspection, feedback, and control of HPC applications.
 
-## :books: Documentation: [SOSflow Wiki](https://github.com/cdwdirect/sos_flow/wiki)
-
----
+## :books: Documentation available in the [SOSflow Wiki](https://github.com/cdwdirect/sos_flow/wiki)
 
 The Scalable Observation System (SOS) performance model used by
 SOSflow allows a broad set of online and in situ capabilities including
