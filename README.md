@@ -3,7 +3,7 @@
 SOSflow provides a flexible, scalable, and programmable framework for
 observation, introspection, feedback, and control of HPC applications.
 
-# :greenbook: Documentation: [SOSflow Wiki](https://github.com/cdwdirect/sos_flow/wiki)
+# :green_book: Documentation: [SOSflow Wiki](https://github.com/cdwdirect/sos_flow/wiki)
 
 ---
 
