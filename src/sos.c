@@ -237,20 +237,20 @@ SOS_existing_runtime_init(
     munge_err_t munge_err;
     if (!(munge_ctx = munge_ctx_create ())) {
         fprintf (stderr, "ERROR: Unable to create MUNGE context\n");
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     char munge_socket[] = "/var/run/munge/moab.socket.2";
     munge_err = munge_ctx_set (munge_ctx, MUNGE_OPT_SOCKET, &munge_socket);
     if (munge_err != EMUNGE_SUCCESS) {
         fprintf (stderr, "ERROR: %s\n", munge_ctx_strerror (munge_ctx));
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     SOS->my_cred = NULL;
     dlog(1, "Obtaining MUNGE credential...\n");
     munge_err = munge_encode(&SOS->my_cred, munge_ctx, NULL, 0);
     if (munge_err != EMUNGE_SUCCESS) {
         fprintf (stderr, "ERROR: %s\n", munge_ctx_strerror (munge_ctx));
-        exit (1);
+        exit (EXIT_FAILURE);
     }
     dlog(1, "   credential == \"%s\"\n", SOS->my_cred);
 #endif
