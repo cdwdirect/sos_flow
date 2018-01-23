@@ -3,7 +3,7 @@
 SOSflow provides a flexible, scalable, and programmable framework for
 observation, introspection, feedback, and control of HPC applications.
 
-# [ :green_book: ] Documentation: [SOSflow Wiki](https://github.com/cdwdirect/sos_flow/wiki)
+## :green_book: Documentation: [SOSflow Wiki](https://github.com/cdwdirect/sos_flow/wiki)
 
 ---
 
@@ -20,7 +20,7 @@ is not performing compute-intensive work.
 
 ---
 
-# [ :sos: ] Example Code
+## :sos: Example Code
 
 The following C source provides a minimal example of using
 the SOSflow runtime to capture values:
