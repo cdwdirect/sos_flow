@@ -16,6 +16,7 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer);
 void  SOSD_cloud_fflush(void);
 void  SOSD_cloud_shutdown_notice(void);
 int   SOSD_cloud_finalize(void);
+void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
 
 
 /* For the SOS_ROLE_AGGREGATOR reading from cloud_sync: */

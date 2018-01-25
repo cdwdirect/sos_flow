@@ -57,7 +57,6 @@ SOSD_evpath_message_handler(
 
         offset -= displaced;
 
-
         //Create a new message buffer:
         SOS_buffer *msg;
         SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
@@ -101,7 +100,7 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_TRIGGERPULL:
-                SOSD_evpath_handle_triggerpull(msg);
+                SOSD_cloud_handle_triggerpull(msg);
                 break;
 
             case SOS_MSG_TYPE_ACK:
@@ -211,8 +210,8 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 // NOTE: Trigger pulls do not flow out beyond the node where
 //       they are pulled (at this time).  They go "downstream"
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
-void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
+void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull(MPI)");
 
     dlog(4, "Message received... unzipping.\n");
 

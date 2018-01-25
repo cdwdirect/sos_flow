@@ -17,9 +17,9 @@ void  SOSD_cloud_fflush(void);
 int   SOSD_cloud_finalize(void);
 void  SOSD_cloud_shutdown_notice(void);
 void  SOSD_cloud_listen_loop(void);
+void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
 
 void  SOSD_evpath_register_connection(SOS_buffer *msg);
-void  SOSD_evpath_handle_triggerpull(SOS_buffer *msg);
 
 typedef struct _buffer_rec {
         int            size;

@@ -10,11 +10,11 @@ set(SQLite3_DIR "" CACHE STRING
 
 option(SOS_CLOUD_SYNC_WITH_MPI
     "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
-    OFF)
+    ON)
 
 option(SOS_CLOUD_SYNC_WITH_EVPATH
     "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
-    ON)
+    OFF)
 
 set(EVPath_DIR "" CACHE STRING
     "Path to EVPath (ADIOS chaos libraries) installation")

@@ -826,7 +826,7 @@ SOS_target_recv_msg(
     if (reply->len < 0) {
         //fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
                 //strerror(errno));
-        return -1;
+        return reply->len;
     }
 
     memset(&header, '\0', sizeof(SOS_msg_header));

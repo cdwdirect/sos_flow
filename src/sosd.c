@@ -123,7 +123,6 @@ int main(int argc, char *argv[])  {
     pthread_mutex_lock(tgt->send_lock);
 
     // Grab the port from the environment variable SOS_CMD_PORT
-    strncpy(tgt->local_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     char* tmp_port = getenv("SOS_CMD_PORT");
     if ((tmp_port == NULL) || (strlen(tmp_port)) < 2) {
         fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
@@ -174,7 +173,7 @@ int main(int argc, char *argv[])  {
         else if ( (strcmp(argv[elem], "--work_dir"        ) == 0)
         ||        (strcmp(argv[elem], "-w"                ) == 0)) {
             free(SOSD.daemon.work_dir); // Default getcwd() string.
-            SOSD.daemon.work_dir    = argv[next_elem]; //TODO: Use env.var?
+            SOSD.daemon.work_dir    = argv[next_elem];
         }
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
         else if ( (strcmp(argv[elem], "--rank"            ) == 0)
@@ -479,7 +478,19 @@ void SOSD_listen_loop() {
         //    break;
         //}
 
-        SOS_target_accept_connection(SOSD.net);
+        i = SOS_target_accept_connection(SOSD.net);
+        while (i < 0) {
+            dlog(0, "WARNING: Unable to accept a connection on port %d!\n",
+                    SOSD.net->port_number);
+            SOSD.net->port_number += 1;
+            snprintf(SOSD.net->local_port, NI_MAXSERV, "%d",
+                    SOSD.net->port_number);
+            dlog(0, "WARNING: Automatically moving to the next port: %d ...\n",
+                    SOSD.net->port_number);
+            SOSD_setup_socket();
+            i = SOS_target_accept_connection(SOSD.net);
+        }
+
 
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
         i = SOS_target_recv_msg(SOSD.net, buffer);
