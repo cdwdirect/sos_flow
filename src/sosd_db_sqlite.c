@@ -233,6 +233,11 @@ void SOSD_db_init_database() {
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
+    // ** NOTE: Uncomment this to have LISTENERS NOT CREATE DBs on the filesystem.
+    //if (SOSD.sos_context->role == SOS_ROLE_LISTENER) {
+    //    snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
+    //}
+
     if (SOS_file_exists(SOSD.db.file)) {
         fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
                 SOSD.db.file);
