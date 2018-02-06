@@ -33,7 +33,7 @@ else()
 endif()
 
 #TARGET ---> sos (library)
-add_library(sos sos.c ssos.c sosa.c sos_buffer.c sos_qhashtbl.c sos_pipe.c sos_error.c)
+add_library(sos sos.c ssos.c sosa.c sos_buffer.c sos_qhashtbl.c sos_pipe.c sos_re.c sos_error.c)
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
 export(TARGETS sos APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
