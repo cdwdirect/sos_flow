@@ -15,13 +15,34 @@
 #include "sos_types.h"
 #include "sos_debug.h"
 
-SOS_guid
-SOSA_peek(SOS_runtime *sos_context, char *peek_val_name,
-            char *target_host, int target_port)
-{
-    SOS_SET_CONTEXT(sos_context, "SOSA_peek");
 
-    dlog(7, "Submitting peek request for values named \"%s\" ...\n", peek_val_name);
+void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
+            SOSA_results **results, char *regex_pattern)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_pubs");
+
+    
+    return;
+}
+
+
+
+void SOSA_compile_matching_vals(SOS_runtime *sos_context,
+            SOSA_results **results, char *regex_pattern)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_vals");
+
+    return;
+}
+
+
+SOS_guid
+SOSA_request_matching_pubs(SOS_runtime *sos_context,
+        char *regex_pattern, char *target_host, int target_port)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_request_matching_pubs");
+
+    dlog(7, "Submitting request for current values of pubs named \"%s\" ...\n", regex_pattern);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
@@ -30,7 +51,7 @@ SOSA_peek(SOS_runtime *sos_context, char *peek_val_name,
 
     SOS_msg_header header;
     header.msg_size = -1;
-    header.msg_type = SOS_MSG_TYPE_PEEK;
+    header.msg_type = SOS_MSG_TYPE_MATCH_PUBS;
     header.msg_from = SOS->config.comm_rank;
     header.ref_guid = 0;
 
@@ -39,34 +60,34 @@ SOSA_peek(SOS_runtime *sos_context, char *peek_val_name,
     int offset = 0;
     SOS_msg_zip(msg, header, 0, &offset);
     
-    SOS_guid peek_guid;
+    SOS_guid request_guid;
     if (SOS->role == SOS_ROLE_CLIENT) {
         // NOTE: This guid is returned by the function so it can
         // be tracked by clients.  They can blast out a bunch
         // of queries to different daemons that get returned
         // asynchronously, and can do some internal bookkeeping by
         // uniting the results with the original query submission.
-        peek_guid = SOS_uid_next(SOS->uid.my_guid_pool);
+        request_guid = SOS_uid_next(SOS->uid.my_guid_pool);
     } else {
         // Or...
         // this generally should not happen unless the daemon is
         // submitting queries internally, which is downright
         // funky and shouldn't be happening, IMO.  -CW
-        peek_guid = -99999;
+        request_guid = -99999;
     }
-    dlog(7, "   ... assigning peek_guid = %" SOS_GUID_FMT "\n",
-            peek_guid);
+    dlog(7, "   ... assigning request_guid = %" SOS_GUID_FMT "\n",
+            request_guid);
     
     SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
     SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    SOS_buffer_pack(msg, &offset, "s", peek_val_name);
-    SOS_buffer_pack(msg, &offset, "g", peek_guid);
+    SOS_buffer_pack(msg, &offset, "s", regex_pattern);
+    SOS_buffer_pack(msg, &offset, "g", request_guid);
 
     header.msg_size = offset;
     offset = 0;
     SOS_msg_zip(msg, header, 0, &offset);
 
-    dlog(7, "   ... sending peek request to daemon.\n");
+    dlog(7, "   ... sending match request to daemon.\n");
     SOS_socket *target = NULL;
     SOS_target_init(SOS, &target, target_host, target_port);
     SOS_target_connect(target);
@@ -79,7 +100,74 @@ SOSA_peek(SOS_runtime *sos_context, char *peek_val_name,
     SOS_buffer_destroy(reply);
 
     dlog(7, "   ... done.\n");
-    return peek_guid;
+    return request_guid;
+}
+
+SOS_guid
+SOSA_request_matching_vals(SOS_runtime *sos_context,
+        char *regex_pattern, char *target_host, int target_port)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_request_matching_vals");
+
+    dlog(7, "Submitting request for current values named \"%s\" ...\n", regex_pattern);
+
+    SOS_buffer *msg;
+    SOS_buffer *reply;
+    SOS_buffer_init_sized_locking(SOS, &msg,   4096, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_MATCH_VALS;
+    header.msg_from = SOS->config.comm_rank;
+    header.ref_guid = 0;
+
+    dlog(7, "   ... creating msg.\n");
+
+    int offset = 0;
+    SOS_msg_zip(msg, header, 0, &offset);
+    
+    SOS_guid request_guid;
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        // NOTE: This guid is returned by the function so it can
+        // be tracked by clients.  They can blast out a bunch
+        // of queries to different daemons that get returned
+        // asynchronously, and can do some internal bookkeeping by
+        // uniting the results with the original query submission.
+        request_guid = SOS_uid_next(SOS->uid.my_guid_pool);
+    } else {
+        // Or...
+        // this generally should not happen unless the daemon is
+        // submitting queries internally, which is downright
+        // funky and shouldn't be happening, IMO.  -CW
+        request_guid = -99999;
+    }
+    dlog(7, "   ... assigning request_guid = %" SOS_GUID_FMT "\n",
+            request_guid);
+    
+    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
+    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
+    SOS_buffer_pack(msg, &offset, "s", regex_pattern);
+    SOS_buffer_pack(msg, &offset, "g", request_guid);
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_msg_zip(msg, header, 0, &offset);
+
+    dlog(7, "   ... sending match request to daemon.\n");
+    SOS_socket *target = NULL;
+    SOS_target_init(SOS, &target, target_host, target_port);
+    SOS_target_connect(target);
+    SOS_target_send_msg(target, msg);
+    SOS_target_recv_msg(target, reply);
+    SOS_target_disconnect(target);
+    SOS_target_destroy(target);
+
+    SOS_buffer_destroy(msg);
+    SOS_buffer_destroy(reply);
+
+    dlog(7, "   ... done.\n");
+    return request_guid;
 }
 
 

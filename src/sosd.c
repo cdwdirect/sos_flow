@@ -551,16 +551,17 @@ void SOSD_listen_loop() {
             dlog(5, "  ... Done.\n");
             break;
 
-        case SOS_MSG_TYPE_ECHO:        SOSD_handle_echo        (buffer); break;
-        case SOS_MSG_TYPE_SHUTDOWN:    SOSD_handle_shutdown    (buffer); break;
-        case SOS_MSG_TYPE_CHECK_IN:    SOSD_handle_check_in    (buffer); break;
-        case SOS_MSG_TYPE_PROBE:       SOSD_handle_probe       (buffer); break;
-        case SOS_MSG_TYPE_QUERY:       SOSD_handle_query       (buffer); break;
-        case SOS_MSG_TYPE_PEEK:        SOSD_handle_peek        (buffer); break;
-        case SOS_MSG_TYPE_SENSITIVITY: SOSD_handle_sensitivity (buffer); break;
-        case SOS_MSG_TYPE_DESENSITIZE: SOSD_handle_desensitize (buffer); break;
-        case SOS_MSG_TYPE_TRIGGERPULL: SOSD_handle_triggerpull (buffer); break;
-        default:                       SOSD_handle_unknown     (buffer); break;
+        case SOS_MSG_TYPE_ECHO:         SOSD_handle_echo        (buffer); break;
+        case SOS_MSG_TYPE_SHUTDOWN:     SOSD_handle_shutdown    (buffer); break;
+        case SOS_MSG_TYPE_CHECK_IN:     SOSD_handle_check_in    (buffer); break;
+        case SOS_MSG_TYPE_PROBE:        SOSD_handle_probe       (buffer); break;
+        case SOS_MSG_TYPE_QUERY:        SOSD_handle_query       (buffer); break;
+        case SOS_MSG_TYPE_MATCH_PUBS:   SOSD_handle_match_pubs  (buffer); break;
+        case SOS_MSG_TYPE_MATCH_VALS:   SOSD_handle_match_vals  (buffer); break;
+        case SOS_MSG_TYPE_SENSITIVITY:  SOSD_handle_sensitivity (buffer); break;
+        case SOS_MSG_TYPE_DESENSITIZE:  SOSD_handle_desensitize (buffer); break;
+        case SOS_MSG_TYPE_TRIGGERPULL:  SOSD_handle_triggerpull (buffer); break;
+        default:                        SOSD_handle_unknown     (buffer); break;
         }
 
         SOS_target_disconnect(SOSD.net);
@@ -1214,6 +1215,22 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
     }
     SOS_buffer_destroy(reply);
     dlog(5, "Done.\n");
+    return;
+}
+
+void
+SOSD_handle_match_pubs(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_match_pubs");
+
+    return;
+}
+
+
+
+void
+SOSD_handle_match_vals(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_match_vals");
+
     return;
 }
 

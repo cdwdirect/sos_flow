@@ -38,16 +38,21 @@ typedef struct {
 extern "C" {
 #endif
 
-SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
-        char *sql_string,
-        char *target_host,
-        int target_port);
+    // Submit an SQL query to a SOS daemon over the socket:
+    SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
+            char *sql_string, char *target_host, int target_port);
 
-SOS_guid SOSA_peek(SOS_runtime *sos_context,
-        char *peek_val_name,
-        char *target_host,
-        int target_port);
+    // Gather the current values belonging to matching pub or value names:
+    SOS_guid SOSA_request_matching_pubs(SOS_runtime *sos_context,
+            char *regex_pattern, char *target_host, int target_port);
+    SOS_guid SOSA_request_matching_vals(SOS_runtime *sos_context,
+            char *regex_pattern, char *target_host, int target_port);
+    void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
+            SOSA_results **results, char *regex_pattern);
+    void SOSA_compile_matching_vals(SOS_runtime *sos_context,
+            SOSA_results **results, char *regex_pattern);
 
+    // Utilities for working with result sets:
     void SOSA_results_init(SOS_runtime *sos_context,
             SOSA_results **results_object_ptraddr);
     void SOSA_results_label(SOSA_results *results, SOS_guid guid, const char *sql);
@@ -61,15 +66,16 @@ SOS_guid SOSA_peek(SOS_runtime *sos_context,
     void SOSA_results_wipe(SOSA_results *results_object);
     void SOSA_results_destroy(SOSA_results *results_object);
 
-    //TODO: Allow result sets to be appended together:
-    //void SOSA_results_append(SOSA_results *to_set, *from_set);
+    //TODO: Quickly "tack on" one set of results to another, assume identical schemas: 
+    //void SOSA_results_append(SOSA_results *to_set, SOSA_results *from_set);
+    //TODO: Ensure that column names match as results are appended, adding columns as needed:
+    //void SOSA_results_merge(SOSA_results *to_set, SOSA_results *from_set);
 
-
+    // Shortcut function to send to 'our default target':
     void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply);
 
-    void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
-
-
+    //DEPRECATED:
+    //void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
 
 
 #ifdef __cplusplus

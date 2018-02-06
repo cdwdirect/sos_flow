@@ -50,7 +50,8 @@
     MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
     MSG_TYPE(SOS_MSG_TYPE_CHECK_IN)             \
     MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
-    MSG_TYPE(SOS_MSG_TYPE_PEEK)                 \
+    MSG_TYPE(SOS_MSG_TYPE_MATCH_PUBS)           \
+    MSG_TYPE(SOS_MSG_TYPE_MATCH_VALS)           \
     MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
     MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
