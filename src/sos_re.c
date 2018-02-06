@@ -71,14 +71,14 @@ static int SOS_ismetachar(char c);
 /* Public functions: */
 int SOS_re_match(const char* pattern, const char* text)
 {
-  return SOS_re_matchp(re_compile(pattern), text);
+  return SOS_re_matchp(SOS_re_compile(pattern), text);
 }
 
 int SOS_re_matchp(SOS_re_t pattern, const char* text)
 {
   if (pattern != 0)
   {
-    if (pattern[0].type == BEGIN)
+    if (pattern[0].type == SOS_REGEX_BEGIN)
     {
       return ((SOS_matchpattern(&pattern[1], text)) ? 0 : -1);
     }
@@ -215,17 +215,17 @@ SOS_re_t SOS_re_compile(const char* pattern)
   /* 'UNUSED' is a sentinel used to indicate end-of-pattern */
   re_compiled[j].type = SOS_REGEX_UNUSED;
 
-  return (re_t) re_compiled;
+  return (SOS_re_t) re_compiled;
 }
 
 void SOS_re_print(SOS_regex_t* pattern)
 {
-  const char* types[] = SOS_REGEX_string; 
+  char* types = (char *)SOS_REGEX_str; 
   
   int i;
   for (i = 0; i < MAX_REGEXP_OBJECTS; ++i)
   {
-    if (pattern[i].type == UNUSED)
+    if (pattern[i].type == SOS_REGEX_UNUSED)
     {
       break;
     }
@@ -247,7 +247,7 @@ void SOS_re_print(SOS_regex_t* pattern)
       }
       printf("]");
     }
-    else if (pattern[i].type == CHAR)
+    else if (pattern[i].type == SOS_REGEX_CHAR)
     {
       printf(" '%c'", pattern[i].ch);
     }
@@ -337,7 +337,7 @@ static int SOS_matchcharclass(char c, const char* str)
   return 0;
 }
 
-static int SOS_matchone(regex_t p, char c)
+static int SOS_matchone(SOS_regex_t p, char c)
 {
   switch (p.type)
   {
@@ -382,19 +382,19 @@ static int SOS_matchplus(SOS_regex_t p, SOS_regex_t* pattern, const char* text)
 /* Recursive matching */
 static int SOS_matchpattern(SOS_regex_t* pattern, const char* text)
 {
-  if ((pattern[0].type == UNUSED) || (pattern[1].type == QUESTIONMARK))
+  if ((pattern[0].type == SOS_REGEX_UNUSED) || (pattern[1].type == SOS_REGEX_QUESTIONMARK))
   {
     return 1;
   }
-  else if (pattern[1].type == STAR)
+  else if (pattern[1].type == SOS_REGEX_STAR)
   {
     return SOS_matchstar(pattern[0], &pattern[2], text);
   }
-  else if (pattern[1].type == PLUS)
+  else if (pattern[1].type == SOS_REGEX_PLUS)
   {
     return SOS_matchplus(pattern[0], &pattern[2], text);
   }
-  else if ((pattern[0].type == END) && pattern[1].type == UNUSED)
+  else if ((pattern[0].type == SOS_REGEX_END) && pattern[1].type == SOS_REGEX_UNUSED)
   {
     return text[0] == '\0';
   }
@@ -415,24 +415,24 @@ static int SOS_matchpattern(SOS_regex_t* pattern, const char* text)
 {
   do
   {
-    if ((pattern[0].type == UNUSED) || (pattern[1].type == QUESTIONMARK))
+    if ((pattern[0].type == SOS_REGEX_UNUSED) || (pattern[1].type == SOS_REGEX_QUESTIONMARK))
     {
       return 1;
     }
-    else if (pattern[1].type == STAR)
+    else if (pattern[1].type == SOS_REGEX_STAR)
     {
       return SOS_matchstar(pattern[0], &pattern[2], text);
     }
-    else if (pattern[1].type == PLUS)
+    else if (pattern[1].type == SOS_REGEX_PLUS)
     {
       return SOS_matchplus(pattern[0], &pattern[2], text);
     }
-    else if ((pattern[0].type == END) && pattern[1].type == UNUSED)
+    else if ((pattern[0].type == SOS_REGEX_END) && pattern[1].type == SOS_REGEX_UNUSED)
     {
       return (text[0] == '\0');
     }
 /*  Branching is not working properly
-    else if (pattern[1].type == BRANCH)
+    else if (pattern[1].type == SOS_REGEX_BRANCH)
     {
       return (SOS_matchpattern(pattern, text) || SOS_matchpattern(&pattern[2], text));
     }
