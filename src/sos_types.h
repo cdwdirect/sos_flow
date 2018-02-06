@@ -153,6 +153,25 @@
     SCOPE(SOS_SCOPE_GLOBAL)                     \
     SCOPE(SOS_SCOPE___MAX)
 
+#define FOREACH_REGEX(REGEX)                    \
+    REGEX(SOS_REGEX_UNUSED)                     \
+    REGEX(SOS_REGEX_DOT)                        \
+    REGEX(SOS_REGEX_BEGIN)                      \
+    REGEX(SOS_REGEX_END)                        \
+    REGEX(SOS_REGEX_QUESTIONMARK)               \
+    REGEX(SOS_REGEX_STAR)                       \
+    REGEX(SOS_REGEX_PLUS)                       \
+    REGEX(SOS_REGEX_CHAR)                       \
+    REGEX(SOS_REGEX_CHAR_CLASS)                 \
+    REGEX(SOS_REGEX_INV_CHAR_CLASS)             \
+    REGEX(SOS_REGEX_DIGIT)                      \
+    REGEX(SOS_REGEX_NOT_DIGIT)                  \
+    REGEX(SOS_REGEX_ALPHA)                      \
+    REGEX(SOS_REGEX_NOT_ALPHA)                  \
+    REGEX(SOS_REGEX_WHITESPACE)                 \
+    REGEX(SOS_REGEX_NOT_WHITESPACE)             \
+    REGEX(SOS_REGEX___MAX)
+
 #define FOREACH_LAYER(LAYER)                    \
     LAYER(SOS_LAYER_DEFAULT)                    \
     LAYER(SOS_LAYER_APP)                        \
@@ -208,6 +227,7 @@ typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)      } SOS_val_freq;
 typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)   } SOS_val_pattern;
 typedef enum { FOREACH_VAL_COMPARE(GENERATE_ENUM)   } SOS_val_compare;
 typedef enum { FOREACH_VAL_CLASS(GENERATE_ENUM)     } SOS_val_class;
+typedef enum { FOREACH_REGEX(GENERATE_ENUM)         } SOS_regex_rule;
 typedef enum { FOREACH_SCOPE(GENERATE_ENUM)         } SOS_scope;
 typedef enum { FOREACH_LAYER(GENERATE_ENUM)         } SOS_layer;
 typedef enum { FOREACH_NATURE(GENERATE_ENUM)        } SOS_nature;
@@ -229,6 +249,7 @@ static const char *SOS_VAL_SEMANTIC_string[] =   { FOREACH_VAL_SEMANTIC(GENERATE
 static const char *SOS_VAL_PATTERN_string[] =    { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
 static const char *SOS_VAL_COMPARE_string[] =    { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
 static const char *SOS_VAL_CLASS_string[] =      { FOREACH_VAL_CLASS(GENERATE_STRING)    };
+static const char *SOS_REGEX_string[] =          { FOREACH_REGEX(GENERATE_STRING)        };
 static const char *SOS_SCOPE_string[] =          { FOREACH_SCOPE(GENERATE_STRING)        };
 static const char *SOS_LAYER_string[] =          { FOREACH_LAYER(GENERATE_STRING)        };
 static const char *SOS_NATURE_string[] =         { FOREACH_NATURE(GENERATE_STRING)       };
