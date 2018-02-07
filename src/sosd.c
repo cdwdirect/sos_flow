@@ -669,14 +669,13 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         switch(task->type) {
 
-        case SOS_FEEDBACK_TYPE_PEEK:
-
+        case SOS_FEEDBACK_TYPE_MATCH_PUBS:
             //SLICE
+            break;
 
-            //for each pub this daemon is aware of
-                //search for value name
-                //if found add to results along with pub metadata
-            //send results to requestor
+        
+        case SOS_FEEDBACK_TYPE_MATCH_VALS:
+            //SLICE
             break;
 
 
@@ -1221,7 +1220,7 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
 void
 SOSD_handle_match_pubs(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_match_pubs");
-
+    //SLICE
     return;
 }
 
@@ -1230,7 +1229,7 @@ SOSD_handle_match_pubs(SOS_buffer *msg) {
 void
 SOSD_handle_match_vals(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_match_vals");
-
+    //SLICE
     return;
 }
 
@@ -1420,7 +1419,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
 }
 
 
-
+/*
 void SOSD_handle_peek(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_peek");
     SOS_msg_header header;
@@ -1480,6 +1479,7 @@ void SOSD_handle_peek(SOS_buffer *buffer) {
     dlog(6, "Done.\n");
     return;
 }
+*/
 
 void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_sosa_query");

@@ -85,7 +85,7 @@ typedef struct {
     char               *reply_host;
     int                 reply_port;
     void               *results;
-} SOSD_peek_handle;
+} SOSD_match_handle;
 
 
 typedef struct {

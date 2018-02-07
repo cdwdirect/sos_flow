@@ -20,8 +20,7 @@ void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
             SOSA_results **results, char *regex_pattern)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_pubs");
-
-    
+    //SLICE
     return;
 }
 
@@ -31,7 +30,7 @@ void SOSA_compile_matching_vals(SOS_runtime *sos_context,
             SOSA_results **results, char *regex_pattern)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_vals");
-
+    //SLICE
     return;
 }
 
