@@ -441,7 +441,7 @@ int main(int argc, char *argv[])  {
 //     for processing, so we can go back and grab the next
 //     socket message ASAP.
 void SOSD_listen_loop() {
-    SOS_SET_CONTEXT(SOSD.sos_context, "daemon_listen_loop");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_listen_loop");
     SOS_msg_header header;
     SOS_buffer    *buffer;
     SOS_buffer    *rapid_reply;
@@ -463,7 +463,7 @@ void SOSD_listen_loop() {
     while (SOSD.daemon.running) {
         SOS_buffer_wipe(buffer);
 
-        //dlog(5, "Listening for a message...\n");
+        dlog(5, "Listening for a message...\n");
         //SOSD.net->peer_addr_len = sizeof(SOSD.net->peer_addr);
         //SOSD.net->remote_socket_fd = accept(SOSD.net->local_socket_fd,
         //        (struct sockaddr *) &SOSD.net->peer_addr,
@@ -495,6 +495,7 @@ void SOSD_listen_loop() {
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
         i = SOS_target_recv_msg(SOSD.net, buffer);
         if (i < sizeof(SOS_msg_header)) {
+            printf(".");
             SOS_target_disconnect(SOSD.net);
             continue;
         }

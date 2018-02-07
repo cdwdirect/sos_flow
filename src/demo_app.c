@@ -179,6 +179,13 @@ int main(int argc, char *argv[]) {
     }
 
     printf("demo_app : Starting...\n");
+    printf("demo_app : Settings:\n"
+            "\tITERATION_SIZE   = %d\n"
+            "\tPUB_ELEM_COUNT   = %d\n"
+            "\tMAX_SEND_COUNT   = %d\n"
+            "\tDELAY_IN_USEC    = %lf\n",
+            ITERATION_SIZE, PUB_ELEM_COUNT, MAX_SEND_COUNT, DELAY_IN_USEC);
+    fflush(stdout);
 
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
@@ -217,7 +224,7 @@ int main(int argc, char *argv[]) {
     */
 
     if (my_sos == NULL) {
-        fprintf(stderr, "demo_app: Shutting down.\n");
+        fprintf(stderr, "demo_app: Shutting down. (my_sos == NULL)\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
