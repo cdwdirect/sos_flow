@@ -775,29 +775,16 @@ SOS_msg_seal(
 int
 SOS_target_accept_connection(SOS_socket *target)
 {
-    printf("SLICE: Entering SOS_target_accept_connection.\n");
-    if (target == NULL) {
-        printf("SLICE: I was told to monitor a NULL target!\n");
-    } else if (target->sos_context == NULL) {
-        printf("SLICE: target->sos_context is NULL!\n");
-    }
-    fflush(stdout);
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_accept_connection");
     int i = 0;
 
     dlog(5, "Listening for a message...\n");
-    printf("SLICE: Listening for a message...\n");
-    fflush(stdout);
     target->peer_addr_len = sizeof(target->peer_addr);
     dlog(6, "  ... accepting\n");
-    printf("SLICE:   ... accepting\n");
-    fflush(stdout);
     target->remote_socket_fd = accept(target->local_socket_fd,
             (struct sockaddr *) &target->peer_addr,
             &target->peer_addr_len);
     dlog(6, "  ... getting name info\n");
-    printf("SLICE   ... getting name info\n");
-    fflush(stdout);
     i = getnameinfo((struct sockaddr *) &target->peer_addr,
             target->peer_addr_len, target->remote_host,
             NI_MAXHOST, target->remote_port, NI_MAXSERV,
@@ -805,9 +792,6 @@ SOS_target_accept_connection(SOS_socket *target)
     if (i != 0) {
         dlog(0, "Error calling getnameinfo() on client connection."
                 "  (%s)\n", strerror(errno));
-        printf("SLICE: Error calling getnameinfo() on client connection."
-                "  (%s)\n", strerror(errno));
-        fflush(stdout);
     }
     
     return i;
@@ -1073,10 +1057,7 @@ SOS_target_send_msg(
     }//while
 
     dlog(6, "Send complete...\n");
-   // Done!
-
-    printf("SLICE: SOS_target_send_msg returning normally.  (%d bytes)\n",
-        total_bytes_sent); fflush(stdout);
+    // Done!
 
     return total_bytes_sent;
 }

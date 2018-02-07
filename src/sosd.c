@@ -1349,7 +1349,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
 
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
     #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
-    SOSD_evpath_handle_triggerpull(msg);
+    SOSD_cloud_handle_triggerpull(msg);
     #else
     fprintf(stderr, "WARNING: Trigger message received, but support for\n"
             "         handling this message has not been compiled into this build\n"
