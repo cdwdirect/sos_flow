@@ -1,3 +1,6 @@
+# Enable c99 support.
+use_c99()
+
 include_directories(${sos_flow_SOURCE_DIR}/src)
 
 # If using SQLite3, add include files - it's required
