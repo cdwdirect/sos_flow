@@ -5,34 +5,37 @@ cmake_minimum_required (VERSION 2.8)
 # User-configurable options.
 ########### ########### ########### ########### ########### ########### ###########
 
-set(SQLite3_DIR "" CACHE STRING
+# --- Paths to dependencies ---
+#
+# NOTE: Use 'ccmake' within build folder to set them, or set at the
+#       command like with: $ cmake -DEVPath_DIR=... rather than modifying
+#       this file.
+
+set(SQLite3_DIR    "" CACHE STRING
     "Path to SQLite3 installation (if not system install)")
-
-option(SOS_CLOUD_SYNC_WITH_MPI
-    "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
-    OFF)
-
-option(SOS_CLOUD_SYNC_WITH_EVPATH
-    "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
-    ON)
-
-set(EVPath_DIR "" CACHE STRING
+set(Munge_DIR      "" CACHE STRING
+    "Path to Munge installation (lightweight edge authentication for HPC)")
+set(EVPath_DIR     "" CACHE STRING
     "Path to EVPath (ADIOS chaos libraries) installation")
+
+# --- Inter-daemon communication method ---
+#
+# NOTE: Only ONE may be set to ON at a time.
+
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  ON)
+option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
+
+# --- Other SOS options ---
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
     OFF)
 
-set(Munge_DIR "" CACHE STRING
-    "Path to Munge installation (lightweight edge authentication for HPC)")
-
 option(SOS_DAEMON_DETACH
     "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
     OFF)
-
-option(SOS_CLOUD_SYNC
-    "Activate cloud_sync operations for the daemon?"
-    ON)
 
 option(SOS_ENABLE_PYTHON
     "Build python analysis interface for client querying of aggregators/listeners"
@@ -42,7 +45,12 @@ option(BUILD_SHARED_LIBS
     "Build Shared libraries? (set to OFF/FALSE/NO for static build)"
     ON)
 
-# advanced options
+option(SOS_CLOUD_SYNC
+    "Activate cloud_sync operations for the daemon? (DEPRECATED, ALWAYS 'ON')"
+    ON)
+
+
+# --- Advanced options ---
 
 option(SOS_FORCE_RPATH
     "Add the rpath to the libraries when linking examples?"
@@ -166,18 +174,46 @@ find_package("SQLite3" REQUIRED QUIET)
 find_package("PkgConfig" REQUIRED QUIET)
 
 ###########
-# SOS_CLOUD_SYNC OPTIONS - validate some settings
+# SOS_CLOUD_SYNC OPTIONS - validate the selected configuration
 ###########
 
-if(SOS_CLOUD_SYNC_WITH_MPI AND SOS_CLOUD_SYNC_WITH_EVPATH)
+# Verify that only one sync method has been enabled:
+
+set(SOS_A SOS_CLOUD_SYNC_WITH_MPI)
+set(SOS_B SOS_CLOUD_SYNC_WITH_EVPATH)
+set(SOS_C SOS_CLOUD_SYNC_WITH_SOCKET)
+set(SOS_D SOS_CLOUD_SYNC_WITH_ZEROMQ)
+set(SOS_OPT_USING_CLOUD (SOS_A OR SOS_B OR SOS_C OR SOS_D))
+if(    (SOS_A AND SOS_B)
+    OR (SOS_A AND SOS_C)
+    OR (SOS_A AND SOS_D)
+    OR (SOS_B AND SOS_C)
+    OR (SOS_B AND SOS_D)
+    OR (SOS_C AND SOS_D))
+    message(STATUS
+        "You have specified more than one inter-daemon synchronization method:")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_EVPATH = ${SOS_CLOUD_SYNC_WITH_EVPATH}")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_MPI    = ${SOS_CLOUD_SYNC_WITH_MPI}")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_SOCKET = ${SOS_CLOUD_SYNC_WITH_SOCKET}")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_ZEROMQ = ${SOS_CLOUD_SYNC_WITH_ZEROMQ}")
     message(FATAL_ERROR
-    "You cannot use both MPI and EVPATH for daemon cloud_sync operations!  Please select only one.")
+        "Verify your build options.")
 endif()
 
-if((SOS_CLOUD_SYNC_WITH_MPI OR SOS_CLOUD_SYNC_WITH_EVPATH) AND NOT SOS_CLOUD_SYNC)
+# Verify that the correct defines will propagate through the code:
+
+if(SOS_OPT_USING_CLOUD AND (NOT SOS_CLOUD_SYNC))
+    message(STATUS
+        "You have specified a method for cloud_sync, but disabled cloud_sync.")
+    message(STATUS
+        "It is recommended that SOS_CLOUD_SYNC always be set to 'ON'.")
     message(FATAL_ERROR
-    "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
+        "Verify your build options.")
 endif()
+
+
+
+
 
 ###########
 # SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
@@ -200,21 +236,42 @@ endif()
 ###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
 ###########
-
 if(SOS_CLOUD_SYNC_WITH_MPI)
-  message(STATUS "MPI:  Locating package...")
-  if(NOT MPI_C_NO_INTERROGATE)
-      find_package("MPI" QUIET REQUIRED)
-  else()
-      set(MPI_FOUND ON)
-  endif(NOT MPI_C_NO_INTERROGATE)
+    message(STATUS "MPI:  Sync with MPI is ENABLED")
+    message(STATUS "MPI:  Locating package...")
+    if(NOT MPI_C_NO_INTERROGATE)
+        find_package("MPI" QUIET REQUIRED)
+    else()
+        set(MPI_FOUND ON)
+    endif(NOT MPI_C_NO_INTERROGATE)
 
-  if(MPI_FOUND)
-      add_definitions("-DUSE_MPI=1")
-      message(STATUS "MPI:  Found!")
-  endif(MPI_FOUND)
-  add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
+    if(MPI_FOUND)
+        add_definitions("-DUSE_MPI=1")
+        message(STATUS "MPI:  Found!")
+    endif(MPI_FOUND)
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif(SOS_CLOUD_SYNC_WITH_MPI)
+
+###########
+# SOS_CLOUD_SYNC_WITH_SOCKET OPTIONS
+###########
+if(SOS_CLOUD_SYNC_WITH_SOCKET)
+    message(STATUS "SOCKET:  Sync with SOCKET (TCP/IP) is ENABLED")
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_SOCKET)
+endif()
+
+
+###########
+# SOS_CLOUD_SYNC_WITH_ZEROMQ OPTIONS
+###########
+if(SOS_CLOUD_SYNC_WITH_ZEROMQ)
+    message(STATUS "ZEROMQ:  Sync with ZEROMQ is ENABLED")
+    message(STATUS "ZEROMQ:  Including external submodule...")
+    subdirs(ext/libzmq)
+    subdirs(ext/czmq)
+endif()
+
+
 
 ###########
 # SOS_SECURE_WITH_MUNGE OPTIONS
