@@ -3,7 +3,7 @@
 #include "sos_debug.h"
 #include "sos_error.h"
 #include "sosd.h"
-#include "sosd_cloud_evpath.h"
+#include "sosd_cloud_socket.h"
 #include "string.h"
 
 bool SOSD_cloud_shutdown_underway = false;

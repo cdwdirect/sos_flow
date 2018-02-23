@@ -17,6 +17,9 @@ set(Munge_DIR      "" CACHE STRING
     "Path to Munge installation (lightweight edge authentication for HPC)")
 set(EVPath_DIR     "" CACHE STRING
     "Path to EVPath (ADIOS chaos libraries) installation")
+set(ZeroMQ_DIR     "" CACHE STRING
+    "Path to ZeroMQ installation")
+
 
 # --- Inter-daemon communication method ---
 #
@@ -141,6 +144,10 @@ endif()
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+
 ###########
 # SOS_FORCE_RPATH OPTIONS
 ###########
@@ -222,7 +229,7 @@ if(SOS_CLOUD_SYNC_WITH_EVPATH)
     find_package(EVPath REQUIRED QUIET)
     add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
     if (NOT EVPath_FOUND)
-        message(STATIS "EVPATH:  WARNING!  Could NOT find EVPath!")
+        message(STATUS "EVPATH:  WARNING!  Could NOT find EVPath!")
     else()
         message(STATUS "EVPATH:  --EVPath_DIR         = ${EVPath_DIR}")
         message(STATUS "EVPATH:  --EVPath_INCLUDE_DIR = ${EVPath_INCLUDE_DIR}")
@@ -263,41 +270,15 @@ endif()
 ###########
 if(SOS_CLOUD_SYNC_WITH_ZEROMQ)
     message(STATUS "ZEROMQ:  Sync with ZEROMQ is ENABLED")
-    message(STATUS "ZEROMQ:  Including external submodule...")
-
-    include(ConfigExternal)
+    message(STATUS "ZEROMQ:  Locating package...")
+    find_package(ZeroMQ REQUIRED QUIET)
+    message(STATUS "ZEROMQ:     ZeroMQ_INCLUDE_DIRS   = ${ZeroMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:     ZeroMQ_LIBRARIES      = ${ZeroMQ_LIBRARIES}")
     
-    set(SOS_ZMQ_BUILD_TYPE      ${CMAKE_BUILD_TYPE})
-    set(SOS_ZMQ_EXTRA_C_FLAGS   ${CMAKE_C_FLAGS})
-    set(SOS_ZMQ_EXTRA_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+    #Import the C API bindings for ZeroMQ:
+    #find_package(czmq REQUIRED QUIET)
 
-    list(APPEND SOS_ZMQ_CMAKE_ARGS
-        -DCMAKE_BUILD_TYPE=${SOS_ZMQ_BUILD_TYPE}
-        -DCMAKE_INSTALL_PREFIX=${PROJECT_LIBRARY_DIR}
-        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-        -DCMAKE_C_FLAGS=${SOS_ZMQ_EXTRA_C_FLAGS}
-        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-        -DCMAKE_CXX_FLAGS=${SOS_ZMQ_EXTRA_CXX_FLAGS})
-
-    # Add the ZeroMQ core library:
-
-    add_external(libzmq "${SOS_ZMQ_CMAKE_ARGS}") 
-    link_directories(
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/lib
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
-    include_directories(
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/include
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
-    
-    # Add the ZeroMQ C API bindings:
-
-    add_external(czmq   "${SOS_ZMQ_CMAKE_ARGS}")
-    link_directories(
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/lib
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
-    include_directories(
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/include
-        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_ZEROMQ)
 endif()
 
 
@@ -354,10 +335,6 @@ set(LIBS "${LIBS} ${DYNAMICLIB}")
 ###########
 # Other boilerplate CMake stuff
 ###########
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 
 subdirs (src tests)
 
