@@ -22,10 +22,10 @@ set(EVPath_DIR     "" CACHE STRING
 #
 # NOTE: Only ONE may be set to ON at a time.
 
-option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  ON)
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  OFF)
 option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
 option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF)
-option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" ON)
 
 # --- Other SOS options ---
 
@@ -179,10 +179,10 @@ find_package("PkgConfig" REQUIRED QUIET)
 
 # Verify that only one sync method has been enabled:
 
-set(SOS_A SOS_CLOUD_SYNC_WITH_MPI)
-set(SOS_B SOS_CLOUD_SYNC_WITH_EVPATH)
-set(SOS_C SOS_CLOUD_SYNC_WITH_SOCKET)
-set(SOS_D SOS_CLOUD_SYNC_WITH_ZEROMQ)
+set(SOS_A ${SOS_CLOUD_SYNC_WITH_MPI})
+set(SOS_B ${SOS_CLOUD_SYNC_WITH_EVPATH})
+set(SOS_C ${SOS_CLOUD_SYNC_WITH_SOCKET})
+set(SOS_D ${SOS_CLOUD_SYNC_WITH_ZEROMQ})
 set(SOS_OPT_USING_CLOUD (SOS_A OR SOS_B OR SOS_C OR SOS_D))
 if(    (SOS_A AND SOS_B)
     OR (SOS_A AND SOS_C)
@@ -210,9 +210,6 @@ if(SOS_OPT_USING_CLOUD AND (NOT SOS_CLOUD_SYNC))
     message(FATAL_ERROR
         "Verify your build options.")
 endif()
-
-
-
 
 
 ###########
@@ -267,8 +264,40 @@ endif()
 if(SOS_CLOUD_SYNC_WITH_ZEROMQ)
     message(STATUS "ZEROMQ:  Sync with ZEROMQ is ENABLED")
     message(STATUS "ZEROMQ:  Including external submodule...")
-    subdirs(ext/libzmq)
-    subdirs(ext/czmq)
+
+    include(ConfigExternal)
+    
+    set(SOS_ZMQ_BUILD_TYPE      ${CMAKE_BUILD_TYPE})
+    set(SOS_ZMQ_EXTRA_C_FLAGS   ${CMAKE_C_FLAGS})
+    set(SOS_ZMQ_EXTRA_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+
+    list(APPEND SOS_ZMQ_CMAKE_ARGS
+        -DCMAKE_BUILD_TYPE=${SOS_ZMQ_BUILD_TYPE}
+        -DCMAKE_INSTALL_PREFIX=${PROJECT_LIBRARY_DIR}
+        -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+        -DCMAKE_C_FLAGS=${SOS_ZMQ_EXTRA_C_FLAGS}
+        -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+        -DCMAKE_CXX_FLAGS=${SOS_ZMQ_EXTRA_CXX_FLAGS})
+
+    # Add the ZeroMQ core library:
+
+    add_external(libzmq "${SOS_ZMQ_CMAKE_ARGS}") 
+    link_directories(
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/lib
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
+    include_directories(
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/include
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
+    
+    # Add the ZeroMQ C API bindings:
+
+    add_external(czmq   "${SOS_ZMQ_CMAKE_ARGS}")
+    link_directories(
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/lib
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
+    include_directories(
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX}/include
+        ${EXTERNAL_PROJECT_INSTALL_PREFIX})
 endif()
 
 

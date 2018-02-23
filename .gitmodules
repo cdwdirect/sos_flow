@@ -1,9 +1,3 @@
-[submodule "ext/czmq"]
-	path = ext/czmq
-	url = https://github.com/zeromq/czmq.git
-[submodule "ext/libzmq"]
-	path = ext/libzmq
-	url = https://github.com/zeromq/libzmq.git
 [submodule "ext/zmqpp"]
 	path = ext/zmqpp
 	url = https://github.com/zeromq/zmqpp.git
