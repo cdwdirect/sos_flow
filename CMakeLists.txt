@@ -19,7 +19,8 @@ set(EVPath_DIR     "" CACHE STRING
     "Path to EVPath (ADIOS chaos libraries) installation")
 set(ZeroMQ_DIR     "" CACHE STRING
     "Path to ZeroMQ installation")
-
+set(CZMQ_DIR       "" CACHE STRING
+    "Path to C API bindings for ZeroMQ")
 
 # --- Inter-daemon communication method ---
 #
@@ -231,9 +232,9 @@ if(SOS_CLOUD_SYNC_WITH_EVPATH)
     if (NOT EVPath_FOUND)
         message(STATUS "EVPATH:  WARNING!  Could NOT find EVPath!")
     else()
-        message(STATUS "EVPATH:  --EVPath_DIR         = ${EVPath_DIR}")
-        message(STATUS "EVPATH:  --EVPath_INCLUDE_DIR = ${EVPath_INCLUDE_DIR}")
-        message(STATUS "EVPATH:  --EVPath_LIBRARIES   = ${EVPath_LIBRARIES}")
+        message(STATUS "EVPATH:      EVPath_DIR         = ${EVPath_DIR}")
+        message(STATUS "EVPATH:      EVPath_INCLUDE_DIR = ${EVPath_INCLUDE_DIR}")
+        message(STATUS "EVPATH:      EVPath_LIBRARIES   = ${EVPath_LIBRARIES}")
     endif()
 endif()
 
@@ -272,11 +273,12 @@ if(SOS_CLOUD_SYNC_WITH_ZEROMQ)
     message(STATUS "ZEROMQ:  Sync with ZEROMQ is ENABLED")
     message(STATUS "ZEROMQ:  Locating package...")
     find_package(ZeroMQ REQUIRED QUIET)
-    message(STATUS "ZEROMQ:     ZeroMQ_INCLUDE_DIRS   = ${ZeroMQ_INCLUDE_DIRS}")
-    message(STATUS "ZEROMQ:     ZeroMQ_LIBRARIES      = ${ZeroMQ_LIBRARIES}")
-    
-    #Import the C API bindings for ZeroMQ:
-    #find_package(czmq REQUIRED QUIET)
+    message(STATUS "ZEROMQ:      ZeroMQ_INCLUDE_DIRS   = ${ZeroMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:      ZeroMQ_LIBRARIES      = ${ZeroMQ_LIBRARIES}")
+    message(STATUS "ZEROMQ:  Locating C API bindings...")
+    find_package(CZMQ REQUIRED QUIET)
+    message(STATUS "ZEROMQ:      CZMQ_INCLUDE_DIRS     = ${CZMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:      CZMQ_LIBRARIES        = ${CZMQ_LIBRARIES}")
 
     add_definitions(-DSOSD_CLOUD_SYNC_WITH_ZEROMQ)
 endif()

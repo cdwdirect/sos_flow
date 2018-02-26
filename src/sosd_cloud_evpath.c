@@ -1,15 +1,17 @@
 
+#include <string.h>
+
 #include "sos.h"
 #include "sos_debug.h"
 #include "sos_error.h"
+#include "sos_target.h"
 #include "sosd.h"
 #include "sosd_cloud_evpath.h"
-#include "string.h"
+
 #include "evpath.h"
 
 bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway = false;
-void SOSD_evpath_register_connection(SOS_buffer *msg);
 
 // Extract the buffer from EVPath and drop it into the SOSD
 // message processing queue:
@@ -82,7 +84,7 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_REGISTER:
-                SOSD_evpath_register_connection(msg);
+                SOSD_cloud_handle_daemon_registration(msg);
                 break;
 
             case SOS_MSG_TYPE_SHUTDOWN:

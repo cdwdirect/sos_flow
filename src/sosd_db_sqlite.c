@@ -16,6 +16,7 @@
 
 #include "sos.h"
 #include "sos_debug.h"
+#include "sos_target.h"
 #include "sosd_db_sqlite.h"
 #include "sosa.h"
 

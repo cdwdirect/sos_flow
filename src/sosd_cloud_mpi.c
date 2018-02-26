@@ -15,6 +15,7 @@
 #include "sos_buffer.h"
 #include "sos_qhashtbl.h"
 #include "sos_pipe.h"
+#include "sos_target.h"
 
 pthread_t *SOSD_cloud_flush;
 bool SOSD_cloud_shutdown_underway;

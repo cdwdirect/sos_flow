@@ -78,7 +78,7 @@
 #include "sos_pipe.h"
 #include "sos_qhashtbl.h"
 #include "sos_buffer.h"
-
+#include "sos_target.h"
 
 void SOSD_display_logo(void);
 

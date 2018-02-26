@@ -5,6 +5,7 @@
 #include "sosd.h"
 #include "sosd_cloud_socket.h"
 #include "string.h"
+#include "sos_target.h"
 
 bool SOSD_cloud_shutdown_underway = false;
 

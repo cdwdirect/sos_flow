@@ -1,15 +1,17 @@
 
+#include <string.h>
+
 #include "sos.h"
 #include "sos_debug.h"
 #include "sos_error.h"
 #include "sosd.h"
-#include "sosd_cloud_socket.h"
-#include "string.h"
+#include "sos_target.h"
+
+#include "sosd_cloud_zeromq.h"
 
 bool SOSD_cloud_shutdown_underway = false;
 
-bool SOSD_sockets_ready_to_listen = false;
-void SOSD_sockets_register_connection(SOS_buffer *msg);
+bool SOSD_socket_ready_to_listen = false;
 
 void SOSD_cloud_listen_loop(void) {
     //TODO: This is a thread launched from sosd.c
@@ -90,7 +92,7 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
                 break;
 
             case SOS_MSG_TYPE_REGISTER:
-                SOSD_evpath_register_connection(msg);
+                SOSD_aggregator_register_connection(msg);
                 break;
 
             case SOS_MSG_TYPE_SHUTDOWN:
@@ -125,8 +127,8 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
 }
 
 
-void SOSD_socket_register_connection(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_socket_register_connection");
+void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_handle_daemon_registration");
 
     dlog(3, "Registering a new connection...");
 

@@ -161,21 +161,6 @@ extern "C" {
     int SOS_msg_seal(SOS_buffer *msg, SOS_msg_header header,
             int starting_offset, int *offset_after_header_size_field);
 
-    int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
-            char *host, int port);
-
-    int SOS_target_connect(SOS_socket *target);
-
-    int SOS_target_accept_connection(SOS_socket *target);
-
-    int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);
-
-    int SOS_target_recv_msg(SOS_socket *target, SOS_buffer *reply);
-
-    int SOS_target_disconnect(SOS_socket *tgt_conn);
-
-    int SOS_target_destroy(SOS_socket *target);
-
     void SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
 
 
@@ -310,7 +295,7 @@ extern "C" {
 #define SOS_TODO(__msg_str)                                     \
         fprintf(stderr, SOS_GRN ">>>" SOS_CLR                   \
                 " " SOS_BOLD_GRN "TODO" SOS_CLR ": %s",         \
-                __msg_str);
+                __msg_str); fflush(stderr);
 
 
 #endif

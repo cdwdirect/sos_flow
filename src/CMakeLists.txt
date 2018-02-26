@@ -19,6 +19,16 @@ if(EVPath_FOUND)
     link_libraries(${EVPath_LIBRARIES})
 endif(EVPath_FOUND)
 
+if(ZeroMQ_FOUND)
+    include_directories(${ZeroMQ_INCLUDE_DIR})
+    link_libraries(${ZeroMQ_LIBRARIES})
+endif(ZeroMQ_FOUND)
+
+if(CZMQ_FOUND)
+    include_directories(${CZMQ_INCLUDE_DIR})
+    link_libraries(${CZMQ_LIBRARIES})
+endif(CZMQ_FOUND)
+
 if(Munge_FOUND)
     include_directories(${Munge_INCLUDE_DIR})
     link_libraries(${Munge_LIBRARIES})
@@ -33,7 +43,18 @@ else()
 endif()
 
 #TARGET ---> sos (library)
-add_library(sos sos.c ssos.c sosa.c sos_buffer.c sos_qhashtbl.c sos_pipe.c sos_re.c sos_error.c)
+add_library(sos
+    sos.c
+    ssos.c
+    sosa.c
+    sos_buffer.c
+    sos_qhashtbl.c
+    sos_pipe.c
+    sos_target.c
+    sos_re.c
+    sos_json.c
+    sos_error.c)
+#----
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
 export(TARGETS sos APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
@@ -142,6 +163,8 @@ INSTALL(FILES sos.h
               sos_pipe.h
               sos_json.h
               sos_buffer.h
+              sos_target.h
+              sos_re.h
               DESTINATION include)
 INSTALL(TARGETS
     sos sosd_stop sosd_probe demo_app_silent proc_app sosd sosd_trigger

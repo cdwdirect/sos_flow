@@ -1,12 +1,14 @@
 #ifndef SOS_CLOUD_EVPATH_H
 #define SOS_CLOUD_EVPATH_H
 
+#include <string.h>
+
 #include "sos.h"
 #include "sos_types.h"
 #include "sos_debug.h"
 #include "sosd.h"
+
 #include "evpath.h"
-#include "string.h"
 
 
 int   SOSD_cloud_init(int *argc, char ***argv);
@@ -19,7 +21,7 @@ void  SOSD_cloud_shutdown_notice(void);
 void  SOSD_cloud_listen_loop(void);
 void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
 
-void  SOSD_evpath_register_connection(SOS_buffer *msg);
+void  SOSD_aggregator_register_listener(SOS_buffer *msg);
 
 typedef struct _buffer_rec {
         int            size;
