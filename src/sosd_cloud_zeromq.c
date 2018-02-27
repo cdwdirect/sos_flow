@@ -606,6 +606,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 int SOSD_cloud_start(void) {
     
     //TODO
+
     
     return 0;
 }
@@ -632,7 +633,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
  *              passing them off to the underlying transport API.
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.SOCKET");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
     SOS_msg_header header;
     int offset;
 
