@@ -20,7 +20,10 @@ option(SOS_CLOUD_SYNC_WITH_EVPATH
     OFF)
 
 set(EVPath_DIR "" CACHE STRING
-    "Path to EVPath (ADIOS chaos libraries) installation")
+    "Path to EVPath (chaos libraries) installation")
+
+set(ADIOS_DIR "" CACHE STRING
+    "Path to ADIOS installation")
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
@@ -128,11 +131,11 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
 endif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 
-if(MAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7)
+#if(MAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-endif()
+#else()
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+#endif()
 
 
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
@@ -198,6 +201,12 @@ if(SOS_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
 ###########
+# SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
+###########
+
+find_package(ADIOS REQUIRED)
+
+###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
 ###########
 
@@ -214,6 +223,14 @@ if(SOS_CLOUD_SYNC_WITH_MPI)
 	message(STATUS "MPI:  Found!")
   endif(MPI_FOUND)
   add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
+else(SOS_CLOUD_SYNC_WITH_MPI)
+  if(NOT MPI_C_NO_INTERROGATE)
+	find_package("MPI" )
+    message("MPI libraries: ${MPI_CXX_LIBRARIES}")
+  else()
+	set(MPI_FOUND ON) 
+  endif(NOT MPI_C_NO_INTERROGATE)
+
 endif(SOS_CLOUD_SYNC_WITH_MPI)
 
 ###########
@@ -278,7 +295,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 # remove leading, trailing spaces from libraries
 string(STRIP "${LIBS}" LIBS)
 
-subdirs (src tests)
+subdirs (src tests src/sosa_mods)
 
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)

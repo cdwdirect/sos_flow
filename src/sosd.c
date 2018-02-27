@@ -137,7 +137,7 @@ int main(int argc, char *argv[])  {
     tgt->listen_backlog = 20;
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    tgt->local_hint.ai_family     = AF_INET;     // Allow IPv4 or IPv6
     tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
@@ -1159,8 +1159,9 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     dlog(1, "Preparing to send a message to our own listening socket...\n");
     dlog(1, "  ... Initializing...\n");
     SOS_socket *my_own_listen_port = NULL;
-    SOS_target_init(SOS, &my_own_listen_port, "localhost", 
-            atoi(getenv("SOS_CMD_PORT")));
+    const char * portStr = getenv("SOS_CMD_PORT");
+    if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+    SOS_target_init(SOS, &my_own_listen_port, "localhost", atoi(portStr));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
     dlog(1, "  ... Sending...\n");
@@ -2216,7 +2217,7 @@ void SOSD_setup_socket() {
     yes = 1;
 
     memset(&SOSD.net->local_hint, '\0', sizeof(struct addrinfo));
-    SOSD.net->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    SOSD.net->local_hint.ai_family     = AF_INET;     // Allow IPv4 or IPv6
     SOSD.net->local_hint.ai_socktype   = SOCK_STREAM;   // STREAM/DGRAM/RAW
     SOSD.net->local_hint.ai_flags      = AI_PASSIVE;
     SOSD.net->local_hint.ai_protocol   = 0;

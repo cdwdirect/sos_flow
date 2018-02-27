@@ -262,7 +262,8 @@ SOS_init_existing_runtime(
 #endif
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-    gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
+    //gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
+    strncpy(SOS->config.node_id, "localhost", 10);
     dlog(4, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->config.offline_test_mode == true) {
@@ -326,14 +327,14 @@ SOS_init_existing_runtime(
         dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
         SOS->daemon = NULL;
-        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
-                atoi(getenv("SOS_CMD_PORT")));
+        const char * portStr = getenv("SOS_CMD_PORT");
+        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
         rc = SOS_target_connect(SOS->daemon);
 
         if (rc != 0) {
             fprintf(stderr, "Unable to connect to an SOSflow daemon on"
-                    " port %d.  (rc == %d)\n",
-                    atoi(getenv("SOS_CMD_PORT")), rc);
+                    " port %d.  (rc == %d)\n", atoi(portStr), rc);
             free(SOS);
             SOS = NULL;
             return;
@@ -827,8 +828,8 @@ SOS_target_recv_msg(
     reply->len = recv(target->remote_socket_fd, reply->data, 
             reply->max, 0);
     if (reply->len < 0) {
-        //fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
-                //strerror(errno));
+        fprintf(stderr, "SOS: recv() call returned an error:\n\t\"%s\"\n",
+                strerror(errno));
         return -1;
     }
 
@@ -896,7 +897,7 @@ SOS_target_init(
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    tgt->local_hint.ai_family     = AF_INET;     // Allow IPv4 or IPv6
     tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
