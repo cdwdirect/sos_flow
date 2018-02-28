@@ -21,24 +21,6 @@ if ("${ADIOS_DIR} " STREQUAL " ")
         message("ADIOS_DIR not set, trying alternatives...")
     ENDIF (NOT ADIOS_FIND_QUIETLY)
 
-    # All upper case options
-    if (DEFINED EVPATH_DIR)
-        set(ADIOS_DIR ${EVPATH_DIR})
-    endif (DEFINED EVPATH_DIR)
-    if (DEFINED EVPATH_ROOT)
-        set(ADIOS_DIR ${EVPATH_ROOT})
-    endif (DEFINED EVPATH_ROOT)
-    if (DEFINED ENV{EVPATH_DIR})
-        set(ADIOS_DIR $ENV{EVPATH_DIR})
-    endif (DEFINED ENV{EVPATH_DIR})
-    if (DEFINED ENV{EVPATH_ROOT})
-        set(ADIOS_DIR $ENV{EVPATH_ROOT})
-    endif (DEFINED ENV{EVPATH_ROOT})
-    if (DEFINED ENV{FLEXPATH_DIR})
-        set(ADIOS_DIR $ENV{FLEXPATH_DIR})
-    endif (DEFINED ENV{FLEXPATH_DIR})
-
-    # Mixed case options
     if (DEFINED ADIOS_ROOT)
         set(ADIOS_DIR ${ADIOS_ROOT})
     endif (DEFINED ADIOS_ROOT)
@@ -117,13 +99,10 @@ find_program (ADIOS_CONFIG NAMES adios_config
     FIND_PATH(ADIOS_INCLUDE_DIR adios.h "${ADIOS_DIR}/include" NO_DEFAULT_PATH)
 
 else(ADIOS_CONFIG)
-
-
+    message("FindADIOS: adios_config not found, trying pkg-config method...")
     find_package(PkgConfig REQUIRED)
 
-    pkg_search_module(ADIOS REQUIRED libadios QUIET)
-    # could be needed on some platforms
-    pkg_search_module(FABRIC libfabric QUIET)
+    pkg_search_module(ADIOS libadios QUIET)
 
     if(NOT ADIOS_FOUND)
 
@@ -158,8 +137,6 @@ IF (ADIOS_FOUND)
 
 ELSE (ADIOS_FOUND)
 
-   IF (ADIOS_FIND_REQUIRED)
-      MESSAGE(FATAL_ERROR "Could not find ADIOS")
-   ENDIF (ADIOS_FIND_REQUIRED)
+   message("FindADIOS: Could not find ADIOS")
 
 ENDIF (ADIOS_FOUND)

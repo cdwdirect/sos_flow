@@ -205,7 +205,7 @@ endif()
 # SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
 ###########
 
-find_package(ADIOS REQUIRED)
+find_package(ADIOS)
 
 ###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
