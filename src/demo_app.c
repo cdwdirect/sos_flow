@@ -46,8 +46,10 @@
 #define SOS_DEBUG 1
 */
 
+#if defined(USE_MPI)
 void fork_exec_sosd(void);
 void fork_exec_sosd_shutdown(void);
+#endif //defined(USE_MPI)
 void send_shutdown_message(SOS_runtime *runtime);
 
 #include "sos_debug.h"
@@ -182,7 +184,9 @@ int main(int argc, char *argv[]) {
     /*
     if(my_sos == NULL) {
         printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
+#if defined(USE_MPI)
         fork_exec_sosd();
+#endif //defined(USE_MPI)
         send_shutdown = 1;
     }
     int repeat = 10;
@@ -216,8 +220,9 @@ int main(int argc, char *argv[]) {
 
     if (WAIT_FOR_FEEDBACK) {
         printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
-        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(getenv("SOS_CMD_PORT")));
-
+        const char * portStr = getenv("SOS_CMD_PORT");
+        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
         printf("demo_app : Waiting for feedback.\n");
         while(!g_done) {
             usleep(100000);
@@ -283,8 +288,11 @@ int main(int argc, char *argv[]) {
         }
 
         if (send_shutdown) {
+#if defined(USE_MPI)
             fork_exec_sosd_shutdown();
-            //send_shutdown_message(my_sos);
+#else
+            send_shutdown_message(my_sos);
+#endif //defined(USE_MPI)
         }
 
         SOS_publish(pub);

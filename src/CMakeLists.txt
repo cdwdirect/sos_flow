@@ -12,9 +12,11 @@ endif(SQLite3_FOUND)
 # If using MPI, add the include files
 if(MPI_FOUND)
 	include_directories(${MPI_INCLUDE_PATH})
-    link_libraries(${MPI_C_LIBRARIES})
+    link_libraries(${MPI_CXX_LIBRARIES})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_C_LINK_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
+    # We need C++ because of sosd_spawn.cpp
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
 endif(MPI_FOUND)
 
 if(EVPath_FOUND)
@@ -100,6 +102,8 @@ target_link_libraries(sosd_probe sos)
 # sosd_spawn is used to spawn a listener if one isn't running
 if(MPI_FOUND)
     SET(MPI_SOURCE_FILES "sosd_spawn.cpp")
+else(MPI_FOUND)
+    SET(MPI_SOURCE_FILES "sosd_spawn_nompi.cpp")
 endif(MPI_FOUND)
 
 #TARGET ---> demo_app (demonstration / example)
