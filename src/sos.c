@@ -897,10 +897,14 @@ SOS_target_init(
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->local_hint.ai_family     = AF_INET;     // Allow IPv4 or IPv6
+    tgt->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
     tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
+    tgt->remote_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    tgt->remote_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
+    tgt->remote_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
+    tgt->remote_hint.ai_protocol   = 0;             // Any protocol
 
     char local_hostname[NI_MAXHOST];
     gethostname(local_hostname, NI_MAXHOST);
@@ -963,7 +967,7 @@ SOS_target_connect(SOS_socket *target) {
         
         retval = connect(new_fd, target->remote_addr->ai_addr,
             target->remote_addr->ai_addrlen);
-        if (retval != -1) {
+        if (retval == 0) {
             break;
         } else {
             dlog(0, "WARNING: Could not connect to target."
