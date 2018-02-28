@@ -970,7 +970,7 @@ SOS_target_connect(SOS_socket *target) {
         if (retval == 0) {
             break;
         } else {
-            dlog(0, "WARNING: Could not connect to target."
+            dlog(1, "WARNING: Could not connect to target."
                     " (%s)\n", strerror(errno));
         }
         
