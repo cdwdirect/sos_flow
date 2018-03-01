@@ -84,7 +84,7 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_REGISTER:
-                SOSD_cloud_handle_daemon_registration(msg);
+                SOSD_aggregator_register_listener(msg);
                 break;
 
             case SOS_MSG_TYPE_SHUTDOWN:
@@ -119,8 +119,8 @@ SOSD_evpath_message_handler(
 }
 
 
-void SOSD_evpath_register_connection(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_register_connection");
+void SOSD_aggregator_register_listener(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_aggregator_register_listener.EVPATH");
 
     dlog(3, "Registering a new connection...");
 
@@ -213,7 +213,7 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 //       they are pulled (at this time).  They go "downstream"
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull(MPI)");
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull.EVPATH");
 
     dlog(4, "Message received... unzipping.\n");
 

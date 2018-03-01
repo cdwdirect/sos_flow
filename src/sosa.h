@@ -7,7 +7,7 @@
 
 #include "sos.h"
 #include "sos_types.h"
-
+#include "sos_target.h"
 
 #define SOSA_DEFAULT_RESULT_ROW_MAX 16*1024
 #define SOSA_DEFAULT_RESULT_COL_MAX 24

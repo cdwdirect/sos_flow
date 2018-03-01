@@ -38,6 +38,7 @@ sqlite3_stmt *stmt_insert_val;
 sqlite3_stmt *stmt_insert_enum;
 sqlite3_stmt *stmt_insert_sosd;
 sqlite3_stmt *stmt_update_pub_frame;
+sqlite3_stmt *stmt_update_data_frame;
 
 #if (SOS_CONFIG_DB_ENUM_STRINGS > 0)
     #define __ENUM_DB_TYPE " STRING "
@@ -85,7 +86,8 @@ char *sql_create_table_data = ""                                        \
     " meta_freq "       __ENUM_DB_TYPE ", "                             \
     " meta_class "      __ENUM_DB_TYPE ", "                             \
     " meta_pattern "    __ENUM_DB_TYPE ", "                             \
-    " meta_compare "    __ENUM_DB_TYPE ");";
+    " meta_compare "    __ENUM_DB_TYPE ", "                             \
+    " latest_frame "    " INTEGER);";
 
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
@@ -160,8 +162,9 @@ const char *sql_insert_pub = ""                                         \
     " meta_pri_hint,"                                                   \
     " meta_scope_hint,"                                                 \
     " meta_retain_hint,"                                                \
-    " pragma "                                                          \
-    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
+    " pragma, "                                                          \
+    " latest_frame "                                                    \
+    ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_data = ""                                        \
     "INSERT INTO " SOSD_DB_DATA_TABLE_NAME " ("                         \
@@ -172,7 +175,8 @@ const char *sql_insert_data = ""                                        \
     " meta_freq,"                                                       \
     " meta_class,"                                                      \
     " meta_pattern,"                                                    \
-    " meta_compare "                                                    \
+    " meta_compare, "                                                   \
+    " latest_frame "                                                    \
     ") VALUES (?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_val = ""                                         \
@@ -192,6 +196,13 @@ const char *sql_update_pub_frame = ""                                   \
     "UPDATE " SOSD_DB_PUBS_TABLE_NAME " "                               \
     " SET latest_frame = ? "                                            \
     " WHERE guid = ? ; ";
+
+const char *sql_update_data_frame = ""                                  \
+    "UPDATE " SOSD_DB_DATA_TABLE_NAME " "                               \
+    " SET latest_frame = ? "                                            \
+    " WHERE guid = ? ; ";
+
+
 
 const char *sql_insert_enum = ""                \
     "INSERT INTO " SOSD_DB_ENUM_TABLE_NAME " (" \
@@ -309,6 +320,11 @@ void SOSD_db_init_database() {
     dlog(2, "  --> \"%.50s...\"\n", sql_update_pub_frame);
     retval = sqlite3_prepare_v2(database, sql_update_pub_frame,
             strlen(sql_update_pub_frame) + 1, &stmt_update_pub_frame, NULL);
+    if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
+
+    dlog(2, "  --> \"%.50s...\"\n", sql_update_data_frame);
+    retval = sqlite3_prepare_v2(database, sql_update_data_frame,
+            strlen(sql_update_data_frame) + 1, &stmt_update_data_frame, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     SOSD.db.ready = 1;
@@ -549,6 +565,7 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     unsigned char *pragma            = pub->pragma_msg;
     int            pragma_len        = pub->pragma_len;
     unsigned char  pragma_empty[2];    memset(pragma_empty, '\0', 2);
+    int            latest_frame      = 0;
 
     dlog(5, "  ... binding values into the statement\n");
     dlog(6, "     ... pragma_len = %d\n", pragma_len);
@@ -576,6 +593,7 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
         CALL_SQLITE (bind_text (stmt_insert_pub, 15,
                     (char const *) pragma_empty, 0, SQLITE_STATIC  ));
     }
+    CALL_SQLITE (bind_int    (stmt_insert_pub, 16, latest_frame ));
 
     dlog(5, "  ... executing the query\n");
 
@@ -592,6 +610,104 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     dlog(5, "  ... done.  returning to loop.\n");
     return;
 }
+
+
+//tblData : Data definitions / metadata that comes with a SOS_publish() call.
+void SOSD_db_insert_data( SOS_pub *pub ) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
+    int i;
+    int inserted_count = 0;
+
+    pthread_mutex_lock( pub->lock );
+    pub->sync_pending = 0;
+
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n",
+            pub->guid, SOSD.db.file);
+
+    inserted_count = 0;
+    for (i = 0; i < pub->elem_count; i++) {
+
+        if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
+            dlog(1, "Skipping pub->data[%d]->sync == %s\n",
+                    i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
+            continue;
+        } else {
+            inserted_count++;
+        }
+
+
+        //NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
+        SOS_guid      pub_guid      = pub->guid;
+        SOS_guid      guid          = pub->data[i]->guid;
+        const char   *name          = pub->data[i]->name;
+        int           latest_frame  = 0;
+        char         *val;
+        __ENUM_C_TYPE val_type      = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
+        __ENUM_C_TYPE meta_freq     = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
+        __ENUM_C_TYPE meta_class    = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
+        __ENUM_C_TYPE meta_pattern  = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
+        __ENUM_C_TYPE meta_compare  = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
+
+        char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
+        memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
+
+        switch (pub->data[i]->type) {
+        case SOS_VAL_TYPE_INT:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val);
+            break;
+        case SOS_VAL_TYPE_LONG:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val);
+            break;
+        case SOS_VAL_TYPE_DOUBLE:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val);
+            break;
+        case SOS_VAL_TYPE_STRING:
+            val = pub->data[i]->val.c_val;
+            break;
+        default:
+            dlog(5, "ERROR: Attempting to insert an invalid"
+                    " data type.  pub[%s]->data[%d]->type == %d  (Skipping...)\n",
+                    pub->title, i, pub->data[i]->type);
+            continue;
+        }
+
+        CALL_SQLITE (bind_int64  (stmt_insert_data, 1,  pub_guid     ));
+        CALL_SQLITE (bind_int64  (stmt_insert_data, 2,  guid         ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name, -1 , SQLITE_STATIC     ));
+        __BIND_ENUM (stmt_insert_data, 4,  val_type     );
+        __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
+        __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
+        __BIND_ENUM (stmt_insert_data, 7,  meta_pattern );
+        __BIND_ENUM (stmt_insert_data, 8,  meta_compare );
+        CALL_SQLITE (bind_int    (stmt_insert_data, 9,  latest_frame));
+
+        dlog(5, "  ... executing insert query   pub->data[%d].(%s)\n", i, pub->data[i]->name);
+
+        CALL_SQLITE_EXPECT (step (stmt_insert_data), DONE);
+
+        dlog(6, "  ... success!  resetting the statement.\n");
+        CALL_SQLITE (reset(stmt_insert_data));
+        CALL_SQLITE (clear_bindings (stmt_insert_data));
+
+        pub->data[i]->sync = SOS_VAL_SYNC_LOCAL;
+    }
+
+    dlog(5, "  ... done.  returning to loop.\n");
+
+    if (inserted_count > 0) {
+        SOSD_countof(db_insert_publish++);
+    } else {
+        SOSD_countof(db_insert_publish_nop++);
+    }
+
+    pthread_mutex_unlock( pub->lock );
+
+    return;
+}
+
 
 // NOTE: re_queue can be NULL, and snaps are then free()'ed.
 void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
@@ -632,10 +748,11 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     int           elem;
     char         *val, *val_alloc;
     SOS_guid      guid;
+    SOS_guid      pub_guid;
     double        time_pack;
     double        time_send;
     double        time_recv;
-    long          frame;
+    int           frame;
     __ENUM_C_TYPE semantic;
     SOS_guid      relation_id;
     unsigned long int time_pack_int;
@@ -649,6 +766,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
         elem              = snap_list[snap_index]->elem;
         guid              = snap_list[snap_index]->guid;
+        pub_guid          = snap_list[snap_index]->pub_guid;
         time_pack         = snap_list[snap_index]->time.pack;
         time_send         = snap_list[snap_index]->time.send;
         time_recv         = snap_list[snap_index]->time.recv;
@@ -711,6 +829,21 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         CALL_SQLITE (reset (stmt_insert_val));
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
+        dlog(5, "     ... updating the latest_frame fields.\n");
+        // tblPubs.latest_frame
+        CALL_SQLITE (bind_int    (stmt_update_pub_frame, 1, frame));
+        CALL_SQLITE (bind_int64  (stmt_update_pub_frame, 2, pub_guid));
+        CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
+        // tblData.latest_frame
+        CALL_SQLITE (bind_int    (stmt_update_data_frame, 1, frame));
+        CALL_SQLITE (bind_int64  (stmt_update_data_frame, 2, guid));
+        CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
+        // Clear the bindings:
+        CALL_SQLITE (reset (stmt_update_pub_frame));
+        CALL_SQLITE (reset (stmt_update_data_frame));
+        CALL_SQLITE (clear_bindings (stmt_update_pub_frame));
+        CALL_SQLITE (clear_bindings (stmt_update_data_frame));
+
         dlog(5, "     ... grabbing the next snap.\n");
     }
 
@@ -746,102 +879,6 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
     return;
 }
-
-//tblData : Data definitions / metadata that comes with a SOS_publish() call.
-void SOSD_db_insert_data( SOS_pub *pub ) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
-    int i;
-    int inserted_count = 0;
-
-    pthread_mutex_lock( pub->lock );
-    pub->sync_pending = 0;
-
-    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n",
-            pub->guid, SOSD.db.file);
-
-    inserted_count = 0;
-    for (i = 0; i < pub->elem_count; i++) {
-
-        if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
-            dlog(1, "Skipping pub->data[%d]->sync == %s\n",
-                    i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
-            continue;
-        } else {
-            inserted_count++;
-        }
-
-
-        //NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
-        SOS_guid      pub_guid      = pub->guid;
-        SOS_guid      guid          = pub->data[i]->guid;
-        const char   *name          = pub->data[i]->name;
-        char         *val;
-        __ENUM_C_TYPE val_type      = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
-        __ENUM_C_TYPE meta_freq     = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
-        __ENUM_C_TYPE meta_class    = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
-        __ENUM_C_TYPE meta_pattern  = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
-        __ENUM_C_TYPE meta_compare  = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
-
-        char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
-        memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
-
-        switch (pub->data[i]->type) {
-        case SOS_VAL_TYPE_INT:
-            val = val_num_as_str;
-            snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val);
-            break;
-        case SOS_VAL_TYPE_LONG:
-            val = val_num_as_str;
-            snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val);
-            break;
-        case SOS_VAL_TYPE_DOUBLE:
-            val = val_num_as_str;
-            snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val);
-            break;
-        case SOS_VAL_TYPE_STRING:
-            val = pub->data[i]->val.c_val;
-            break;
-        default:
-            dlog(5, "ERROR: Attempting to insert an invalid"
-                    " data type.  pub[%s]->data[%d]->type == %d  (Skipping...)\n",
-                    pub->title, i, pub->data[i]->type);
-            continue;
-        }
-
-        CALL_SQLITE (bind_int64  (stmt_insert_data, 1,  pub_guid     ));
-        CALL_SQLITE (bind_int64  (stmt_insert_data, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name, -1 , SQLITE_STATIC     ));
-        __BIND_ENUM (stmt_insert_data, 4,  val_type     );
-        __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
-        __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
-        __BIND_ENUM (stmt_insert_data, 7,  meta_pattern );
-        __BIND_ENUM (stmt_insert_data, 8,  meta_compare );
-
-        dlog(5, "  ... executing insert query   pub->data[%d].(%s)\n", i, pub->data[i]->name);
-
-        CALL_SQLITE_EXPECT (step (stmt_insert_data), DONE);
-
-        dlog(6, "  ... success!  resetting the statement.\n");
-        CALL_SQLITE (reset(stmt_insert_data));
-        CALL_SQLITE (clear_bindings (stmt_insert_data));
-
-        pub->data[i]->sync = SOS_VAL_SYNC_LOCAL;
-    }
-
-    dlog(5, "  ... done.  returning to loop.\n");
-
-    if (inserted_count > 0) {
-        SOSD_countof(db_insert_publish++);
-    } else {
-        SOSD_countof(db_insert_publish_nop++);
-    }
-
-    pthread_mutex_unlock( pub->lock );
-
-    return;
-}
-
-
 
 
 void SOSD_db_insert_enum(const char *var_type, const char **var_name, int var_max_index) {

@@ -356,6 +356,7 @@ typedef struct {
 typedef struct {
     int                 elem;
     SOS_guid            guid;
+    SOS_guid            pub_guid;
     SOS_guid            relation_id;
     long                frame;
     SOS_time            time;

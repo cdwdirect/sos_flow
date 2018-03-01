@@ -2192,6 +2192,8 @@ SOS_val_snap_queue_from_buffer(
                 = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
         snap = snap_list[snap_index];
 
+        snap->pub_guid = pub->guid;
+
         SOS_buffer_unpack(buffer, &offset, "iggiiidddl",
                           &snap->elem,
                           &snap->guid,

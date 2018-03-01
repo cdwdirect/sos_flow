@@ -10,11 +10,10 @@
 #include <sys/time.h>
 
 #include "sos.h"
-//#include "sosd.h"
 #include "sosa.h"
 #include "sos_types.h"
 #include "sos_debug.h"
-
+#include "sos_target.h"
 
 void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
             SOSA_results **results, char *regex_pattern)

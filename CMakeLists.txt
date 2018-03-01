@@ -26,10 +26,10 @@ set(CZMQ_DIR       "" CACHE STRING
 #
 # NOTE: Only ONE may be set to ON at a time.
 
-option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  OFF)
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  ON)
 option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
 option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF)
-option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" ON)
+option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
 
 # --- Other SOS options ---
 
@@ -178,7 +178,7 @@ endif(SOS_FORCE_RPATH)
 # Required packages
 ###########
 
-find_package("SQLite3" REQUIRED QUIET)
+find_package("SQLite3" REQUIRED)
 find_package("PkgConfig" REQUIRED QUIET)
 
 ###########
