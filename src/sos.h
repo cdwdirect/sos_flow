@@ -110,11 +110,6 @@ extern "C" {
         SOS_runtime **runtime, SOS_options *options, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
-    int SOS_options_init(SOS_options **sos_options_ptr_ref,
-            SOS_role role, char *filepath, char *special_settings_key);
-
-    void SOS_options_destroy(SOS_options *sos_options_obj);
-
     int SOS_file_exists(char *path);
 
     void SOS_pub_sized_init(SOS_runtime *sos_context, SOS_pub **pub_handle,

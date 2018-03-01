@@ -43,5 +43,5 @@ int SOS_options_init(
 void SOS_options_destroy(SOS_options *sos_options_ptr) {
     SOS_SET_CONTEXT(sos_options_ptr->sos_context, "SOS_options_destroy");
     
-    return 0;
+    return;
 }

@@ -53,7 +53,8 @@ add_library(sos
     sos_target.c
     sos_re.c
     sos_json.c
-    sos_error.c)
+    sos_error.c
+    sos_options.c)
 #----
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
@@ -158,6 +159,8 @@ INSTALL(FILES ${sos_flow_SOURCE_DIR}/scripts/showdb
                           GROUP_READ GROUP_EXECUTE
                           WORLD_READ WORLD_EXECUTE)
 INSTALL(FILES sos.h
+              ssos.h
+              sosa.h
               sos_types.h
               sos_qhashtbl.h
               sos_pipe.h

@@ -502,6 +502,7 @@ typedef struct {
 
 
 typedef struct {
+    void               *sos_context;
     int                 listener_port;
     int                 listener_count;
     int                 aggregator_count;

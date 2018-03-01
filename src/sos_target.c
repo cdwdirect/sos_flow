@@ -134,6 +134,10 @@ SOS_target_init(
     tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
+    tgt->remote_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
+    tgt->remote_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
+    tgt->remote_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
+    tgt->remote_hint.ai_protocol   = 0;             // Any protocol
 
     char local_hostname[NI_MAXHOST];
     gethostname(local_hostname, NI_MAXHOST);

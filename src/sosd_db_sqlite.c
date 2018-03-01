@@ -162,7 +162,7 @@ const char *sql_insert_pub = ""                                         \
     " meta_pri_hint,"                                                   \
     " meta_scope_hint,"                                                 \
     " meta_retain_hint,"                                                \
-    " pragma, "                                                          \
+    " pragma, "                                                         \
     " latest_frame "                                                    \
     ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?); ";
 
@@ -177,7 +177,7 @@ const char *sql_insert_data = ""                                        \
     " meta_pattern,"                                                    \
     " meta_compare, "                                                   \
     " latest_frame "                                                    \
-    ") VALUES (?,?,?,?,?,?,?,?); ";
+    ") VALUES (?,?,?,?,?,?,?,?,?); ";
 
 const char *sql_insert_val = ""                                         \
     "INSERT INTO " SOSD_DB_VALS_TABLE_NAME " ("                         \
@@ -682,6 +682,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
         __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
         __BIND_ENUM (stmt_insert_data, 7,  meta_pattern );
         __BIND_ENUM (stmt_insert_data, 8,  meta_compare );
+        
         CALL_SQLITE (bind_int    (stmt_insert_data, 9,  latest_frame));
 
         dlog(5, "  ... executing insert query   pub->data[%d].(%s)\n", i, pub->data[i]->name);
@@ -830,14 +831,14 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
         dlog(5, "     ... updating the latest_frame fields.\n");
-        // tblPubs.latest_frame
+        // Update tblPubs.latest_frame
         CALL_SQLITE (bind_int    (stmt_update_pub_frame, 1, frame));
         CALL_SQLITE (bind_int64  (stmt_update_pub_frame, 2, pub_guid));
         CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
-        // tblData.latest_frame
+        // Update tblData.latest_frame
         CALL_SQLITE (bind_int    (stmt_update_data_frame, 1, frame));
         CALL_SQLITE (bind_int64  (stmt_update_data_frame, 2, guid));
-        CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
+        CALL_SQLITE_EXPECT (step (stmt_update_data_frame), DONE);
         // Clear the bindings:
         CALL_SQLITE (reset (stmt_update_pub_frame));
         CALL_SQLITE (reset (stmt_update_data_frame));

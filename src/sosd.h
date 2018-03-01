@@ -20,6 +20,7 @@
 #include "sos.h"
 #include "sos_types.h"
 #include "sosa.h"
+#include "sos_options.h"
 
 // 1 = Fork a new ID/SESSION.     (DEPRECATED)
 // 0 = Run interactively, as launched
