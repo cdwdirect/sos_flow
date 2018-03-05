@@ -1,5 +1,8 @@
 #ifndef SOS_TYPES_H
 #define SOS_TYPES_H
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
+
 
 #include <stdio.h>
 #include <stdbool.h>
@@ -25,11 +28,6 @@
     ROLE(SOS_ROLE_OFFLINE_TEST_MODE)            \
     ROLE(SOS_ROLE___MAX)
 
-#define FOREACH_TARGET(TARGET)                  \
-    TARGET(SOS_TARGET_LOCAL_SYNC)               \
-    TARGET(SOS_TARGET_CLOUD_SYNC)               \
-    TARGET(SOS_TARGET___MAX)
-    
 #define FOREACH_STATUS(STATUS)                  \
     STATUS(SOS_STATUS_INIT)                     \
     STATUS(SOS_STATUS_RUNNING)                  \
@@ -40,20 +38,26 @@
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
     MSG_TYPE(SOS_MSG_TYPE_NULLMSG)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
+    MSG_TYPE(SOS_MSG_TYPE_UNREGISTER)           \
     MSG_TYPE(SOS_MSG_TYPE_GUID_BLOCK)           \
     MSG_TYPE(SOS_MSG_TYPE_ANNOUNCE)             \
     MSG_TYPE(SOS_MSG_TYPE_PUBLISH)              \
     MSG_TYPE(SOS_MSG_TYPE_VAL_SNAPS)            \
     MSG_TYPE(SOS_MSG_TYPE_ECHO)                 \
+    MSG_TYPE(SOS_MSG_TYPE_PROBE)                \
     MSG_TYPE(SOS_MSG_TYPE_SHUTDOWN)             \
     MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
     MSG_TYPE(SOS_MSG_TYPE_CHECK_IN)             \
+    MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
+    MSG_TYPE(SOS_MSG_TYPE_PEEK)                 \
     MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
+    MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
-    MSG_TYPE(SOS_MSG_TYPE_PROBE)                \
-    MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
     MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
+    MSG_TYPE(SOS_FEEDBACK_TYPE_PAYLOAD)    \
+    MSG_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
+    MSG_TYPE(SOS_FEEDBACK_TYPE_PEEK)       \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 #define FOREACH_RECEIVES(RECEIVES)              \
@@ -64,11 +68,13 @@
     RECEIVES(SOS_RECEIVES_DAEMON_MODE)          \
     RECEIVES(SOS_RECEIVES___MAX)
 
-#define FOREACH_FEEDBACK(FEEDBACK)              \
-    FEEDBACK(SOS_FEEDBACK_CONTINUE)             \
-    FEEDBACK(SOS_FEEDBACK_CUSTOM)               \
-    FEEDBACK(SOS_FEEDBACK___MAX)
-    
+#define FOREACH_QUERY_STATE(QUERY_STATE)        \
+    QUERY_STATE(SOS_QUERY_STATE_INCOMING)       \
+    QUERY_STATE(SOS_QUERY_STATE_PENDING)        \
+    QUERY_STATE(SOS_QUERY_STATE_PROCESSED)      \
+    QUERY_STATE(SOS_QUERY_STATE_REPLIED)        \
+    QUERY_STATE(SOS_QUERY_STATE___MAX)
+
 #define FOREACH_PRI(PRI)                        \
     PRI(SOS_PRI_DEFAULT)                        \
     PRI(SOS_PRI_LOW)                            \
@@ -139,13 +145,6 @@
     COMPARE(SOS_VAL_COMPARE_RELATIONS)          \
     COMPARE(SOS_VAL_COMPARE___MAX)
 
-#define FOREACH_MOOD(MOOD)                      \
-    MOOD(SOS_MOOD_DEFAULT)                      \
-    MOOD(SOS_MOOD_GOOD)                         \
-    MOOD(SOS_MOOD_BAD)                          \
-    MOOD(SOS_MOOD_UGLY)                         \
-    MOOD(SOS_MOOD___MAX)
-
 #define FOREACH_SCOPE(SCOPE)                    \
     SCOPE(SOS_SCOPE_DEFAULT)                    \
     SCOPE(SOS_SCOPE_SELF)                       \
@@ -183,61 +182,58 @@
     RETAIN(SOS_RETAIN_IMMEDIATE)                \
     RETAIN(SOS_RETAIN___MAX)
 
-#define FOREACH_LOCALE(SOS_LOCALE)              \
-    SOS_LOCALE(SOS_LOCALE_INDEPENDENT)          \
-    SOS_LOCALE(SOS_LOCALE_DAEMON_DBMS)          \
-    SOS_LOCALE(SOS_LOCALE_APPLICATION)          \
-    SOS_LOCALE(SOS_LOCALE___MAX)
+#define FOREACH_LOCALE(LOCALE)                  \
+    LOCALE(SOS_LOCALE_DEFAULT)                  \
+    LOCALE(SOS_LOCALE_INDEPENDENT)              \
+    LOCALE(SOS_LOCALE_DAEMON_DBMS)              \
+    LOCALE(SOS_LOCALE_APPLICATION)              \
+    LOCALE(SOS_LOCALE___MAX)
 
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
 
-typedef enum { FOREACH_ROLE(GENERATE_ENUM)         } SOS_role;
-typedef enum { FOREACH_TARGET(GENERATE_ENUM)       } SOS_target;
-typedef enum { FOREACH_STATUS(GENERATE_ENUM)       } SOS_status;
-typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)     } SOS_msg_type;
-typedef enum { FOREACH_RECEIVES(GENERATE_ENUM)     } SOS_receives;
-typedef enum { FOREACH_FEEDBACK(GENERATE_ENUM)     } SOS_feedback;
-typedef enum { FOREACH_PRI(GENERATE_ENUM)          } SOS_pri;
-typedef enum { FOREACH_GEOMETRY(GENERATE_ENUM)     } SOS_geometry;
-typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)     } SOS_val_type;
-typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)    } SOS_val_state;
-typedef enum { FOREACH_VAL_SYNC(GENERATE_ENUM)     } SOS_val_sync;
-typedef enum { FOREACH_VAL_SEMANTIC(GENERATE_ENUM) } SOS_val_semantic;
-typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)     } SOS_val_freq;
-typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)  } SOS_val_pattern;
-typedef enum { FOREACH_VAL_COMPARE(GENERATE_ENUM)  } SOS_val_compare;
-typedef enum { FOREACH_VAL_CLASS(GENERATE_ENUM)    } SOS_val_class;
-typedef enum { FOREACH_MOOD(GENERATE_ENUM)         } SOS_mood;
-typedef enum { FOREACH_SCOPE(GENERATE_ENUM)        } SOS_scope;
-typedef enum { FOREACH_LAYER(GENERATE_ENUM)        } SOS_layer;
-typedef enum { FOREACH_NATURE(GENERATE_ENUM)       } SOS_nature;
-typedef enum { FOREACH_RETAIN(GENERATE_ENUM)       } SOS_retain;
-typedef enum { FOREACH_LOCALE(GENERATE_ENUM)       } SOS_locale;
+typedef enum { FOREACH_ROLE(GENERATE_ENUM)          } SOS_role;
+typedef enum { FOREACH_STATUS(GENERATE_ENUM)        } SOS_status;
+typedef enum { FOREACH_MSG_TYPE(GENERATE_ENUM)      } SOS_msg_type;
+typedef enum { FOREACH_RECEIVES(GENERATE_ENUM)      } SOS_receives;
+typedef enum { FOREACH_QUERY_STATE(GENERATE_ENUM)   } SOS_query_state;
+typedef enum { FOREACH_PRI(GENERATE_ENUM)           } SOS_pri;
+typedef enum { FOREACH_GEOMETRY(GENERATE_ENUM)      } SOS_geometry;
+typedef enum { FOREACH_VAL_TYPE(GENERATE_ENUM)      } SOS_val_type;
+typedef enum { FOREACH_VAL_STATE(GENERATE_ENUM)     } SOS_val_state;
+typedef enum { FOREACH_VAL_SYNC(GENERATE_ENUM)      } SOS_val_sync;
+typedef enum { FOREACH_VAL_SEMANTIC(GENERATE_ENUM)  } SOS_val_semantic;
+typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)      } SOS_val_freq;
+typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)   } SOS_val_pattern;
+typedef enum { FOREACH_VAL_COMPARE(GENERATE_ENUM)   } SOS_val_compare;
+typedef enum { FOREACH_VAL_CLASS(GENERATE_ENUM)     } SOS_val_class;
+typedef enum { FOREACH_SCOPE(GENERATE_ENUM)         } SOS_scope;
+typedef enum { FOREACH_LAYER(GENERATE_ENUM)         } SOS_layer;
+typedef enum { FOREACH_NATURE(GENERATE_ENUM)        } SOS_nature;
+typedef enum { FOREACH_RETAIN(GENERATE_ENUM)        } SOS_retain;
+typedef enum { FOREACH_LOCALE(GENERATE_ENUM)        } SOS_locale;
 
-static const char *SOS_ROLE_string[] =         { FOREACH_ROLE(GENERATE_STRING)         };
-static const char *SOS_TARGET_string[] =       { FOREACH_TARGET(GENERATE_STRING)       };
-static const char *SOS_STATUS_string[] =       { FOREACH_STATUS(GENERATE_STRING)       };
-static const char *SOS_MSG_TYPE_string[] =     { FOREACH_MSG_TYPE(GENERATE_STRING)     };
-static const char *SOS_RECEIVES_string[] =     { FOREACH_RECEIVES(GENERATE_STRING)     };
-static const char *SOS_FEEDBACK_string[] =     { FOREACH_FEEDBACK(GENERATE_STRING)     };
-static const char *SOS_PRI_string[] =          { FOREACH_PRI(GENERATE_STRING)          };
-static const char *SOS_GEOMETRY_string[] =     { FOREACH_GEOMETRY(GENERATE_STRING)     };
-static const char *SOS_VAL_TYPE_string[] =     { FOREACH_VAL_TYPE(GENERATE_STRING)     };
-static const char *SOS_VAL_STATE_string[] =    { FOREACH_VAL_STATE(GENERATE_STRING)    };
-static const char *SOS_VAL_SYNC_string[] =     { FOREACH_VAL_SYNC(GENERATE_STRING)     };
-static const char *SOS_VAL_FREQ_string[] =     { FOREACH_VAL_FREQ(GENERATE_STRING)     };
-static const char *SOS_VAL_SEMANTIC_string[] = { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
-static const char *SOS_VAL_PATTERN_string[] =  { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
-static const char *SOS_VAL_COMPARE_string[] =  { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
-static const char *SOS_VAL_CLASS_string[] =    { FOREACH_VAL_CLASS(GENERATE_STRING)    };
-static const char *SOS_MOOD_string[] =         { FOREACH_MOOD(GENERATE_STRING)         };
-static const char *SOS_SCOPE_string[] =        { FOREACH_SCOPE(GENERATE_STRING)        };
-static const char *SOS_LAYER_string[] =        { FOREACH_LAYER(GENERATE_STRING)        };
-static const char *SOS_NATURE_string[] =       { FOREACH_NATURE(GENERATE_STRING)       };
-static const char *SOS_RETAIN_string[] =       { FOREACH_RETAIN(GENERATE_STRING)       };
-static const char *SOS_LOCALE_string[] =       { FOREACH_LOCALE(GENERATE_STRING)       };
+static const char *SOS_ROLE_string[] =           { FOREACH_ROLE(GENERATE_STRING)         };
+static const char *SOS_STATUS_string[] =         { FOREACH_STATUS(GENERATE_STRING)       };
+static const char *SOS_MSG_TYPE_string[] =       { FOREACH_MSG_TYPE(GENERATE_STRING)     };
+static const char *SOS_RECEIVES_string[] =       { FOREACH_RECEIVES(GENERATE_STRING)     };
+static const char *SOS_QUERY_STATE_string[] =    { FOREACH_QUERY_STATE(GENERATE_STRING)  };
+static const char *SOS_PRI_string[] =            { FOREACH_PRI(GENERATE_STRING)          };
+static const char *SOS_GEOMETRY_string[] =       { FOREACH_GEOMETRY(GENERATE_STRING)     };
+static const char *SOS_VAL_TYPE_string[] =       { FOREACH_VAL_TYPE(GENERATE_STRING)     };
+static const char *SOS_VAL_STATE_string[] =      { FOREACH_VAL_STATE(GENERATE_STRING)    };
+static const char *SOS_VAL_SYNC_string[] =       { FOREACH_VAL_SYNC(GENERATE_STRING)     };
+static const char *SOS_VAL_FREQ_string[] =       { FOREACH_VAL_FREQ(GENERATE_STRING)     };
+static const char *SOS_VAL_SEMANTIC_string[] =   { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
+static const char *SOS_VAL_PATTERN_string[] =    { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
+static const char *SOS_VAL_COMPARE_string[] =    { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
+static const char *SOS_VAL_CLASS_string[] =      { FOREACH_VAL_CLASS(GENERATE_STRING)    };
+static const char *SOS_SCOPE_string[] =          { FOREACH_SCOPE(GENERATE_STRING)        };
+static const char *SOS_LAYER_string[] =          { FOREACH_LAYER(GENERATE_STRING)        };
+static const char *SOS_NATURE_string[] =         { FOREACH_NATURE(GENERATE_STRING)       };
+static const char *SOS_RETAIN_string[] =         { FOREACH_RETAIN(GENERATE_STRING)       };
+static const char *SOS_LOCALE_string[] =         { FOREACH_LOCALE(GENERATE_STRING)       };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
 #define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
@@ -306,19 +302,19 @@ typedef struct {
     SOS_val_class       classifier;
     SOS_val_pattern     pattern;
     SOS_val_compare     compare;
-    SOS_mood            mood;
+    SOS_guid            relation_id;
 } SOS_val_meta;
 
 typedef struct {
     int                 elem;
     SOS_guid            guid;
-    SOS_val             val;
-    int                 val_len;
-    SOS_val_type        type;
-    SOS_time            time;
+    SOS_guid            relation_id;
     long                frame;
+    SOS_time            time;
     SOS_val_semantic    semantic;
-    SOS_mood            mood;
+    SOS_val_type        type;
+    int                 val_len;
+    SOS_val             val;
 } SOS_val_snap;
 
 typedef struct {
@@ -375,7 +371,6 @@ typedef struct {
     SOS_guid            client_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
     void               *target;
-    SOS_feedback        target_type;
     int                 daemon_trigger_count;
     int                 client_receipt_count;
 } SOS_sensitivity;
@@ -385,7 +380,6 @@ typedef struct {
     SOS_guid            guid;
     SOS_guid            source_guid;
     char                handle[SOS_DEFAULT_STRING_LEN];
-    SOS_feedback        feedback;
     void               *data;
     int                 data_len;
     int                 apply_count; /* -1 == constant */
@@ -398,43 +392,45 @@ typedef struct {
     SOS_action          action;
 } SOS_trigger;
 
-
+// NOTE: Function signature for feedback handlers
+typedef void (*SOS_feedback_handler_f)
+    (int   payload_type,
+     int   payload_size,
+     void *payload_data); 
+ 
 typedef struct {
-    char               *server_host;
-    char               *server_port;
-    struct addrinfo    *server_addr;
+    void               *sos_context;
+    char                local_host[NI_MAXHOST];
+    char                local_port[NI_MAXSERV];
+    int                 local_socket_fd; 
+    struct addrinfo    *local_addr;
+    struct addrinfo     local_hint;
     struct addrinfo    *result_list;
-    struct addrinfo     server_hint;
-    struct addrinfo    *client_addr;
+    struct addrinfo    *remote_addr;
+    int                 remote_len;
+    char                remote_host[NI_MAXHOST];
+    char                remote_port[NI_MAXSERV];
+    int                 remote_socket_fd;
+    struct addrinfo     remote_hint;
+    int                 port_number;
     int                 timeout;
     int                 buffer_len;
+    int                 listen_backlog;
     pthread_mutex_t    *send_lock;
     SOS_buffer         *recv_part;
-} SOS_socket_out;
-
-typedef struct {
-    int                 server_socket_fd;
-    int                 client_socket_fd;
-    int                 port_number;
-    char               *server_port;
-    int                 listen_backlog;
-    int                 client_len;
-    struct addrinfo     server_hint;
-    struct addrinfo    *server_addr;
-    char               *client_host;
-    char               *client_port;
-    struct addrinfo    *result;
     struct sockaddr_storage   peer_addr;
-    socklen_t           peer_addr_len;
-} SOS_socket_in;
-
+    socklen_t                 peer_addr_len;
+} SOS_socket;
 
 
 typedef struct {
     int                 msg_size;
     SOS_msg_type        msg_type;
     SOS_guid            msg_from;
-    SOS_guid            pub_guid;
+    SOS_guid            ref_guid;
+#ifdef USE_MUNGE
+    char               *ref_cred;
+#endif
 } SOS_msg_header;
 
 typedef struct {
@@ -449,11 +445,25 @@ typedef struct {
     SOS_layer           layer;
     SOS_locale          locale;
     SOS_receives        receives;
+    SOS_feedback_handler_f feedback_handler;
     int                 receives_port;
+    int                 receives_ready;
     bool                offline_test_mode;
     bool                runtime_utility;
 } SOS_config;
 
+
+typedef struct {
+    int                 listener_port;
+    int                 listener_count;
+    int                 aggregator_count;
+    char               *build_dir;
+    char               *install_dir;
+    char               *source_dir;
+    char               *project_dir;
+    char               *work_dir;
+    char               *discovery_dir;
+} SOS_options;
 
 typedef struct {
     void               *sos_context;
@@ -482,9 +492,12 @@ typedef struct {
     SOS_status          status;
     SOS_unique_set      uid;
     SOS_task_set        task;
-    SOS_socket_out      net;
+    SOS_socket         *daemon;
     SOS_guid            my_guid;
+#ifdef USE_MUNGE
+    char               *my_cred;
+#endif
 } SOS_runtime;
 
-
+#pragma GCC diagnostic pop
 #endif

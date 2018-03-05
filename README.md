@@ -1,14 +1,18 @@
 ![Alt](/ref/sosflow_masthead.png "SOSflow")
 
-The Scalable Observation System for Scientific Workflows (SOSflow)
-is a runtime service and client API designed for low-overhead
-online capture of performance data and user-defined events from
-many sources within massively parallel HPC systems.
+SOSflow provides a flexible, scalable, and programmable framework for
+observation, introspection, feedback, and control of HPC applications.
 
-Data gathered into SOSflow is annotated with context and meaning,
-and is stored in a way that can be searched in situ with dynamic queries
-in real-time, as well as being aggregated for global perspective and
-long-term archival.
+The Scalable Observation System (SOS) performance model used by
+SOSflow allows a broad set of online and in situ capabilities including
+remote method invocation, data analysis, and visualization. SOSflow can
+couple together multiple sources of data, such as application components
+and operating environment measures, with multiple software libraries and
+performance tools, efficiently creating holistic views of performance at
+runtime. SOSflow can extend the functionality of HPC applications by
+connecting and coordinating accessory components, such as in situ
+visualization tools that are activated only when the primary application
+is not performing compute-intensive work.
 
 ## Compatibility
 
@@ -255,8 +259,43 @@ int main(int argc, char **argv) {
 }
 ```
 
+SOS example of "Hello, world!" using Python:
+
+```Python
+#!/usr/bin/env python
+
+import os
+from ssos import SSOS
+
+def demonstrateSOS():
+    SOS = SSOS()
+
+    sos_host = "localhost"
+    sos_port = os.environ.get("SOS_CMD_PORT")
+
+    SOS.init()
+    SOS.pack("somevar", SOS.STRING, "Hello, SOS.  I'm a python!")
+    SOS.announce()
+    SOS.publish()
+
+    sql_string = "SELECT * FROM tblVals LIMIT 10000;"
+    
+    results, col_names = SOS.query(sql_string, sos_host, sos_port)
+    
+    print "Results:"
+    print "    Output rows....: " + str(len(results))
+    print "    Output values..: " + str(results)
+    print "    Column count...: " + str(len(col_names)) 
+    print "    Column names...: " + str(col_names)
+    print ""
+
+    SOS.finalize();
 
 
+if __name__ == "__main__":
+    demonstrateSOS()
+
+```
 
 
 

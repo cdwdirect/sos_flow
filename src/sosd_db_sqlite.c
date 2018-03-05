@@ -25,6 +25,7 @@
 #define SOSD_DB_ENUM_TABLE_NAME "tblEnums"
 #define SOSD_DB_SOSD_TABLE_NAME "tblSOSDConfig"
 
+#define SOSD_DB_VIEW_COMBINED_NAME  "viewCombined"
 
 void SOSD_db_insert_enum(const char *type, const char **var_strings, int max_index);
 
@@ -35,6 +36,7 @@ sqlite3_stmt *stmt_insert_data;
 sqlite3_stmt *stmt_insert_val;
 sqlite3_stmt *stmt_insert_enum;
 sqlite3_stmt *stmt_insert_sosd;
+
 
 #if (SOS_CONFIG_DB_ENUM_STRINGS > 0)
     #define __ENUM_DB_TYPE " STRING "
@@ -56,41 +58,40 @@ char *sql_create_table_pubs = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_PUBS_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " title "           " STRING, "                                     \
+    " title "           " TEXT, "                                       \
     " process_id "      " INTEGER, "                                    \
     " thread_id "       " INTEGER, "                                    \
     " comm_rank "       " INTEGER, "                                    \
-    " node_id "         " STRING, "                                     \
-    " prog_name "       " STRING, "                                     \
-    " prog_ver "        " STRING, "                                     \
+    " node_id "         " TEXT, "                                     \
+    " prog_name "       " TEXT, "                                     \
+    " prog_ver "        " TEXT, "                                     \
     " meta_channel "    " INTEGER, "                                    \
     " meta_nature "     __ENUM_DB_TYPE ", "                                \
     " meta_layer "      __ENUM_DB_TYPE ", "                                \
     " meta_pri_hint "   __ENUM_DB_TYPE ", "                                \
     " meta_scope_hint " __ENUM_DB_TYPE ", "                                \
     " meta_retain_hint "__ENUM_DB_TYPE ", "                                \
-    " pragma "          " STRING); ";
+    " pragma "          " TEXT); ";
 
 char *sql_create_table_data = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_DATA_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
     " pub_guid "        " UNSIGNED BIG INT, "                           \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " name "            " STRING, "                                     \
-    " val_type "        __ENUM_DB_TYPE ", "                                \
-    " meta_freq "       __ENUM_DB_TYPE ", "                                \
-    " meta_class "      __ENUM_DB_TYPE ", "                                \
-    " meta_pattern "    __ENUM_DB_TYPE ", "                                \
+    " name "            " TEXT, "                                       \
+    " val_type "        __ENUM_DB_TYPE ", "                             \
+    " meta_freq "       __ENUM_DB_TYPE ", "                             \
+    " meta_class "      __ENUM_DB_TYPE ", "                             \
+    " meta_pattern "    __ENUM_DB_TYPE ", "                             \
     " meta_compare "    __ENUM_DB_TYPE ");";
 
 char *sql_create_table_vals = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_VALS_TABLE_NAME " ( "         \
-    " row_id "          " INTEGER PRIMARY KEY, "                        \
     " guid "            " UNSIGNED BIG INT, "                           \
-    " val "             " STRING, "                                     \
+    " val "             " TEXT, "                                       \
     " frame "           " INTEGER, "                                    \
-    " meta_semantic "   __ENUM_DB_TYPE ", "                                \
-    " meta_mood "       __ENUM_DB_TYPE ", "                                \
+    " meta_semantic "          __ENUM_DB_TYPE ", "                      \
+    " meta_relation_id "" UNSIGNED BIG INT, "                           \
     " time_pack "       " DOUBLE, "                                     \
     " time_send "       " DOUBLE, "                                     \
     " time_recv "       " DOUBLE); ";
@@ -99,22 +100,45 @@ char *sql_create_table_vals = ""                                        \
 char *sql_create_table_enum = ""                                        \
     "CREATE TABLE IF NOT EXISTS " SOSD_DB_ENUM_TABLE_NAME " ( "         \
     " row_id "          " INTEGER PRIMARY KEY, "                        \
-    " type "            " STRING, "                                     \
-    " text "            " STRING, "                                     \
+    " type "            " TEXT, "                                       \
+    " text "            " TEXT, "                                       \
     " enum_val "        " INTEGER); ";
 
-char *sql_create_table_sosd_config = ""                \
-    "CREATE TABLE IF NOT EXISTS " SOSD_DB_SOSD_TABLE_NAME " ( " \
-    " row_id "          " INTEGER PRIMARY KEY, "                \
-    " daemon_id "       " STRING, "                             \
-    " key "             " STRING, "                             \
-    " value "           " STRING); ";
+char *sql_create_table_sosd_config = ""                                 \
+    "CREATE TABLE IF NOT EXISTS " SOSD_DB_SOSD_TABLE_NAME " ( "         \
+    " row_id "          " INTEGER PRIMARY KEY, "                        \
+    " daemon_id "       " TEXT, "                                       \
+    " key "             " TEXT, "                                       \
+    " value "           " TEXT); ";
 
 
+char *sql_create_view_combined = ""                                     \
+    "CREATE VIEW IF NOT EXISTS " SOSD_DB_VIEW_COMBINED_NAME " AS "      \
+    "   SELECT "                                                        \
+    "       tblPubs.process_id  AS process_id, "                        \
+    "       tblPubs.node_id     AS node_id, "                           \
+    "       tblPubs.title       AS pub_title, "                             \
+    "       tblPubs.guid        AS pub_guid, "                              \
+    "       tblPubs.comm_rank   AS comm_rank, "                             \
+    "       tblPubs.prog_name   AS prog_name, "                             \
+    "       tblVals.time_pack   AS time_pack, "                             \
+    "       tblVals.time_recv   AS time_recv, "                             \
+    "       tblVals.frame       AS frame, "                                 \
+    "       tblData.name        AS value_name, "                            \
+    "       tblData.guid        AS value_guid, "                            \
+    "       tblData.val_type    AS value_type, "                            \
+    "       tblVals.val         AS value "                                  \
+    "   FROM "                                                              \
+    "       tblPubs "                                                       \
+    "       LEFT OUTER JOIN tblData ON tblPubs.guid   = tblData.pub_guid "  \
+    "       LEFT OUTER JOIN tblVals ON tblData.guid   = tblVals.guid "      \
+    "   ; "                                                                 \
+    "";                       
 
-char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals.guid;";
-char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData.guid;";
-char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs.guid;";
+
+char *sql_create_index_tblvals = "CREATE INDEX tblVals_GUID ON tblVals(guid,frame);";
+char *sql_create_index_tbldata = "CREATE INDEX tblData_GUID ON tblData(pub_guid,guid,name);";
+char *sql_create_index_tblpubs = "CREATE INDEX tblPubs_GUID ON tblPubs(prog_name,comm_rank);";
 
 
 char *sql_insert_pub = ""                                               \
@@ -154,7 +178,7 @@ const char *sql_insert_val = ""                                         \
     " val, "                                                            \
     " frame, "                                                          \
     " meta_semantic, "                                                  \
-    " meta_mood, "                                                      \
+    " meta_relation_id, "                                               \
     " time_pack,"                                                       \
     " time_send,"                                                       \
     " time_recv "                                                       \
@@ -202,12 +226,16 @@ void SOSD_db_init_database() {
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
+    if (SOS_file_exists(SOSD.db.file)) {
+        fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
+                SOSD.db.file);
+    }
+
     /*
      *   "unix-none"     =no locking (NOP's)
      *   "unix-excl"     =single-access only
      *   "unix-dotfile"  =uses a file as the lock.
      */
-
     retval = sqlite3_open_v2(SOSD.db.file, &database, flags, "unix-none");
     if( retval ){
         dlog(0, "ERROR!  Can't open database: %s   (%s)\n", SOSD.db.file, sqlite3_errmsg(database));
@@ -222,6 +250,7 @@ void SOSD_db_init_database() {
     sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
     sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
     sqlite3_exec(database, "PRAGMA journal_mode  = DELETE;",   NULL, NULL, NULL); // Default
+  //sqlite3_exec(database, "PRAGMA encoding      = UTF-8;",    NULL, NULL, NULL); // Trim bloat if possible, unicode is rare.
   //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
   //sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
@@ -237,27 +266,31 @@ void SOSD_db_init_database() {
     sqlite3_exec(database, sql_create_index_tbldata, NULL, NULL, NULL);
     sqlite3_exec(database, sql_create_index_tblpubs, NULL, NULL, NULL);
 
-
     dlog(2, "Preparing transactions...\n");
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_pub);
-    retval = sqlite3_prepare_v2(database, sql_insert_pub, strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_pub,
+            strlen(sql_insert_pub) + 1, &stmt_insert_pub, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_data);
-    retval = sqlite3_prepare_v2(database, sql_insert_data, strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_data,
+            strlen(sql_insert_data) + 1, &stmt_insert_data, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_val);
-    retval = sqlite3_prepare_v2(database, sql_insert_val, strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_val,
+            strlen(sql_insert_val) + 1, &stmt_insert_val, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_enum);
-    retval = sqlite3_prepare_v2(database, sql_insert_enum, strlen(sql_insert_enum) + 1, &stmt_insert_enum, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_enum,
+            strlen(sql_insert_enum) + 1, &stmt_insert_enum, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
     dlog(2, "  --> \"%.50s...\"\n", sql_insert_sosd_config);
-    retval = sqlite3_prepare_v2(database, sql_insert_sosd_config, strlen(sql_insert_sosd_config) + 1, &stmt_insert_sosd, NULL);
+    retval = sqlite3_prepare_v2(database, sql_insert_sosd_config,
+            strlen(sql_insert_sosd_config) + 1, &stmt_insert_sosd, NULL);
     if (retval) { dlog(2, "  ... error (%d) was returned.\n", retval); }
 
 
@@ -267,12 +300,9 @@ void SOSD_db_init_database() {
     SOSD_db_transaction_begin();
     dlog(2, "  Inserting the enumeration table...\n");
 
-    /* TODO: {DB, ENUM}  Make this a macro expansion... */
     SOSD_db_insert_enum("ROLE",          SOS_ROLE_string,          SOS_ROLE___MAX          );
-    SOSD_db_insert_enum("TARGET",        SOS_TARGET_string,        SOS_TARGET___MAX        );
     SOSD_db_insert_enum("STATUS",        SOS_STATUS_string,        SOS_STATUS___MAX        );
     SOSD_db_insert_enum("MSG_TYPE",      SOS_MSG_TYPE_string,      SOS_MSG_TYPE___MAX      );
-    SOSD_db_insert_enum("FEEDBACK",      SOS_FEEDBACK_string,      SOS_FEEDBACK___MAX      );
     SOSD_db_insert_enum("PRI",           SOS_PRI_string,           SOS_PRI___MAX           );
     SOSD_db_insert_enum("VAL_TYPE",      SOS_VAL_TYPE_string,      SOS_VAL_TYPE___MAX      );
     SOSD_db_insert_enum("VAL_STATE",     SOS_VAL_STATE_string,     SOS_VAL_STATE___MAX     );
@@ -282,7 +312,6 @@ void SOSD_db_init_database() {
     SOSD_db_insert_enum("VAL_PATTERN",   SOS_VAL_PATTERN_string,   SOS_VAL_PATTERN___MAX   );
     SOSD_db_insert_enum("VAL_COMPARE",   SOS_VAL_COMPARE_string,   SOS_VAL_COMPARE___MAX   );
     SOSD_db_insert_enum("VAL_CLASS",     SOS_VAL_CLASS_string,     SOS_VAL_CLASS___MAX     );
-    SOSD_db_insert_enum("MOOD",          SOS_MOOD_string,          SOS_MOOD___MAX          );
     SOSD_db_insert_enum("SCOPE",         SOS_SCOPE_string,         SOS_SCOPE___MAX         );
     SOSD_db_insert_enum("LAYER",         SOS_LAYER_string,         SOS_LAYER___MAX         );
     SOSD_db_insert_enum("NATURE",        SOS_NATURE_string,        SOS_NATURE___MAX        );
@@ -360,84 +389,102 @@ void SOSD_db_transaction_commit() {
 
 
 
-void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response) {
+void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_handle_sosa_query");
 
-    // Technique 1: Open a new connection to the database, read-only...
-    // sqlite3 *sosa_conn;
-    // int flags; 
-    // flags = SQLITE_OPEN_READONLY
-     //    | SQLITE_OPEN_FULLMUTEX;
-    // sqlite3_open_v2(SOSD.db.file, &sosa_conn, flags, "unix-none");
-    
-    // Technique 2: Lock the database and query it: 
-    pthread_mutex_lock(SOSD.db.lock);
-    sqlite3 *sosa_conn = database;
+    SOSD_query_handle *query = (SOSD_query_handle *) task->ref;
+    char *sosa_query = query->query_sql;
 
-    SOS_msg_header   header;
+    dlog(6, "Processing query task...\n");
+    dlog(6, "   ...reply_guid: %" SOS_GUID_FMT "\n",
+            query->reply_to_guid);
+    dlog(6, "   ...reply_host: \"%s\"\n",
+            query->reply_host);
+    dlog(6, "   ...reply_port: \"%d\"\n",
+            query->reply_port);
+    dlog(6, "   ...query_sql: \"%s\"\n",
+            query->query_sql);
 
-    dlog(4, "Extracting the message...\n");
-
-    int offset = 0;
-    SOS_buffer_unpack(msg, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
-
-    char *sosa_query = NULL;
-    SOS_buffer_unpack_safestr(msg, &offset, &sosa_query);
-
-    dlog(7, "Query extracted: %s\n", sosa_query);
-
-    int rc = 0;
-    sqlite3_stmt *sosa_statement = NULL;
-    rc = sqlite3_prepare_v2(sosa_conn, sosa_query,
-            strlen(sosa_query) + 1, &sosa_statement, NULL);
-    if (rc != SQLITE_OK) {
-        fprintf(stderr, "ERROR: Incorrect query sent to daemon from %"
-                SOS_GUID_FMT ": %d = %s\n\n\t%s\n\n",
-                header.msg_from, rc, sqlite3_errstr(rc), sosa_query);
-        pthread_mutex_unlock(SOSD.db.lock);
-        return;
-    } 
+    bool OK_to_execute = true;
 
     dlog(4, "Building result set...\n");
-
     SOSA_results *results = NULL;
     SOSA_results_init(SOS, &results);
+    SOSA_results_grow_to(results, 1, 1);
+    SOSA_results_put_name(results, 0, "[NULL]");
+    SOSA_results_put(results, 0, 0, "[NULL]");
 
-    int col = 0;
-    int col_incoming = sqlite3_column_count( sosa_statement );
+    sqlite3_stmt *sosa_statement = NULL;
+    int rc = 0;
+    char *err = NULL;
 
-    dlog(7, "   ... col_incoming == %d\n", col_incoming);
-    results->col_count = col_incoming;
+    if (sosa_query == NULL) {
+        dlog(0, "WARNING: Empty (NULL) query submitted."
+                " Doing nothing and returning.\n");
+        OK_to_execute = false; 
+    } else {
+    
+        dlog(6, "Flushing the database.  (BEFORE query)\n");
+        rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
 
-    SOSA_results_grow_to(results, col_incoming, results->row_max);
-    for (col = 0; col < col_incoming; col++) {
-        dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col, sqlite3_column_name(sosa_statement, col));
-        SOSA_results_put_name(results, col, sqlite3_column_name(sosa_statement, col));
+        rc = sqlite3_prepare_v2(database, sosa_query,
+                strlen(sosa_query) + 1, &sosa_statement, NULL);
+        if (rc != SQLITE_OK) {
+            fprintf(stderr, "ERROR: Invalid query sent to daemon from %"
+                    SOS_GUID_FMT "\n", query->reply_to_guid);
+            OK_to_execute = false;
+        }
     }
 
-    int row_incoming = 0;
-    const char *val  = NULL;
+    if (OK_to_execute) {
+        int col = 0;
+        int col_incoming = sqlite3_column_count( sosa_statement );
 
-    while( sqlite3_step( sosa_statement ) == SQLITE_ROW ) {
-        dlog(7, "   ... results->data[%d][ | | | ... | ]\n", row_incoming);
-        SOSA_results_grow_to(results, col_incoming, row_incoming);
+        dlog(7, "   ... col_incoming == %d\n", col_incoming);
+        results->col_count = col_incoming;
+
+        SOSA_results_grow_to(results, col_incoming, results->row_max);
         for (col = 0; col < col_incoming; col++) {
-            val = (const char *) sqlite3_column_text(sosa_statement, col);
-            SOSA_results_put(results, col, row_incoming, val);
-        }//for:col
-        row_incoming++;
-        results->row_count = row_incoming;
-    }//while:rows
+            dlog(7, "   ... results->col_names[%d] == \"%s\"\n", col,
+                    sqlite3_column_name(sosa_statement, col));
+            SOSA_results_put_name(results, col, sqlite3_column_name(sosa_statement, col));
+        }
 
-    sqlite3_finalize(sosa_statement);
+        int row_incoming = 0;
+        const char *val  = NULL;
 
-    SOSA_results_to_buffer(response, results);
-    SOSA_results_destroy(results);
-    pthread_mutex_unlock(SOSD.db.lock);
+        while( sqlite3_step( sosa_statement ) == SQLITE_ROW ) {
+            dlog(7, "   ... results->data[%d][ | | | ... | ]\n", row_incoming);
+            SOSA_results_grow_to(results, col_incoming, row_incoming);
+            for (col = 0; col < col_incoming; col++) {
+                val = (const char *) sqlite3_column_text(sosa_statement, col);
+                SOSA_results_put(results, col, row_incoming, val);
+            }//for:col
+            row_incoming++;
+            results->row_count = row_incoming;
+        }//while:rows
+
+        sqlite3_finalize(sosa_statement);
+
+        dlog(6, "Flushing the database.  (AFTER query)\n");
+        rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+    } //OK_to_execute
+
+    // Even if we didn't execute the query, we need to send back the empty
+    // results in case there is a client that is blocking waiting on them.
+    SOSA_results_label(results, query->query_guid, query->query_sql);
+    query->results = results;
+
+    // Enqueue the results to send back to the client...
+    SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
+    feedback->type = SOS_FEEDBACK_TYPE_QUERY;
+    feedback->ref = query;
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
     return;
 }
@@ -461,12 +508,10 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
 
     pthread_mutex_lock( pub->lock );
 
-    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n",
+            pub->guid, SOSD.db.file);
 
-    /*
-     *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
-     */
-
+    //NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
     SOS_guid       guid              = pub->guid;
     char          *title             = pub->title;
     int            process_id        = pub->process_id;
@@ -490,13 +535,13 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     dlog(6, "     ... pragma     = \"%s\"\n", pragma);
 
     CALL_SQLITE (bind_int64  (stmt_insert_pub, 1,  guid         ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title,            1 + strlen(title), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 2,  title, -1 , SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 3,  process_id   ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 4,  thread_id    ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 5,  comm_rank    ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id,          1 + strlen(node_id), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name,        1 + strlen(prog_name), SQLITE_STATIC  ));
-    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver,         1 + strlen(prog_ver), SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 6,  node_id, -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 7,  prog_name, -1 , SQLITE_STATIC  ));
+    CALL_SQLITE (bind_text   (stmt_insert_pub, 8,  prog_ver, -1 , SQLITE_STATIC  ));
     CALL_SQLITE (bind_int    (stmt_insert_pub, 9,  meta_channel ));
     __BIND_ENUM (stmt_insert_pub, 10, meta_nature  );
     __BIND_ENUM (stmt_insert_pub, 11, meta_layer   );
@@ -504,15 +549,18 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     __BIND_ENUM (stmt_insert_pub, 13, meta_scope_hint );
     __BIND_ENUM (stmt_insert_pub, 14, meta_retain_hint );
     if (pragma_len > 0) {
-        /* Only bind the pragma if there actually is something to insert... */
-        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma,           pub->pragma_len, SQLITE_STATIC  ));
+        // Only bind the pragma if there actually is something to insert...
+        CALL_SQLITE (bind_text (stmt_insert_pub, 15,
+                    (char const *) pragma, pub->pragma_len, SQLITE_STATIC  ));
     } else {
-        CALL_SQLITE (bind_text   (stmt_insert_pub, 15, (char const *) pragma_empty,    2, SQLITE_STATIC  ));
+        CALL_SQLITE (bind_text (stmt_insert_pub, 15,
+                    (char const *) pragma_empty, 0, SQLITE_STATIC  ));
     }
 
     dlog(5, "  ... executing the query\n");
-
-    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  /* Execute the query. */
+    
+    // Execute the query.
+    CALL_SQLITE_EXPECT (step (stmt_insert_pub), DONE);  
 
     dlog(5, "  ... success!  resetting the statement.\n");
 
@@ -525,8 +573,7 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     return;
 }
 
-/* tblVals : The snap_queue of a pub handle. */
-/* NOTE: re_queue can be NULL, and snaps are then free()'ed. */
+// NOTE: re_queue can be NULL, and snaps are then free()'ed.
 void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_vals");
     SOS_val_snap **snap_list;
@@ -547,9 +594,10 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOSD_countof(db_insert_val_snaps++);
 
     snap_list = (SOS_val_snap **) malloc(snap_count * sizeof(SOS_val_snap *));
-    dlog(5, "  ... [bbb] grabbing %d snaps from the queue.\n", snap_count);
+    dlog(5, "  ... grabbing %d snaps from the queue.\n", snap_count);
     count = pipe_pop_eager(queue->outlet, (void *) snap_list, snap_count);
-    dlog(5, "      [bbb] %d snaps were returned from the queue on request for %d.\n", count, snap_count);
+    dlog(5, "      %d snaps were returned from the queue on request for %d.\n",
+            count, snap_count);
     queue->elem_count -= count;
     snap_count = count;
 
@@ -569,7 +617,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     double        time_recv;
     long          frame;
     __ENUM_C_TYPE semantic;
-    __ENUM_C_TYPE mood;
+    SOS_guid      relation_id;
 
     SOS_val_type      val_type;
     int           val_insert_count = 0;
@@ -585,7 +633,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         time_recv         = snap_list[snap_index]->time.recv;
         frame             = snap_list[snap_index]->frame;
         semantic          = __ENUM_VAL( snap_list[snap_index]->semantic, SOS_VAL_SEMANTIC );
-        mood              = __ENUM_VAL( snap_list[snap_index]->mood, SOS_MOOD );
+        relation_id       = snap_list[snap_index]->relation_id;
 
         val_type = snap_list[snap_index]->type;
         SOS_TIME( time_recv );
@@ -597,12 +645,21 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
 
         switch (val_type) {
-        case SOS_VAL_TYPE_INT:    snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:   snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: snprintf(val, SOS_DEFAULT_STRING_LEN, "%.17lf", snap_list[snap_index]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = snap_list[snap_index]->val.c_val; break; 
+        case SOS_VAL_TYPE_INT:
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  snap_list[snap_index]->val.i_val);
+            break;
+        case SOS_VAL_TYPE_LONG:
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", snap_list[snap_index]->val.l_val);
+            break;
+        case SOS_VAL_TYPE_DOUBLE:
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%.17lf", snap_list[snap_index]->val.d_val);
+            break;
+        case SOS_VAL_TYPE_STRING:
+            val = snap_list[snap_index]->val.c_val;
+            break; 
         default:
-            dlog(5, "     ... error: invalid value type.  (%d)\n", val_type); break;
+            dlog(5, "     ... error: invalid value type.  (%d)\n", val_type);
+            break;
         }
 
         dlog(5, "     ... (%d) binding values\n", val_insert_count);
@@ -610,20 +667,21 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
         CALL_SQLITE (bind_int64  (stmt_insert_val, 1,  guid         ));
         if (val != NULL) {
-            CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, 1 + strlen(val), SQLITE_STATIC ));
+            CALL_SQLITE (bind_text   (stmt_insert_val, 2,  val, -1 , SQLITE_STATIC ));
         } else {
             CALL_SQLITE (bind_text   (stmt_insert_val, 2,  "", 1, SQLITE_STATIC ));
         }
         CALL_SQLITE (bind_int    (stmt_insert_val, 3,  frame        ));
         __BIND_ENUM (stmt_insert_val, 4,  semantic     );
-        __BIND_ENUM (stmt_insert_val, 5,  mood         );
+        CALL_SQLITE (bind_int64  (stmt_insert_val, 5,  relation_id  ));
         CALL_SQLITE (bind_double (stmt_insert_val, 6,  time_pack    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 7,  time_send    ));
         CALL_SQLITE (bind_double (stmt_insert_val, 8,  time_recv    ));
 
         dlog(5, "     ... executing the query\n");
 
-        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  /* Execute the query. */
+        // Execute the query.
+        CALL_SQLITE_EXPECT (step (stmt_insert_val), DONE);  
         
         dlog(5, "     ... success!  resetting the statement.\n");
 
@@ -639,7 +697,10 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         // Roll through and free the snaps.
         for (snap_index = 0; snap_index < snap_count ; snap_index++) {
             switch(val_type) {
-            case SOS_VAL_TYPE_STRING: free(snap_list[snap_index]->val.c_val); break;
+            case SOS_VAL_TYPE_STRING:
+                dlog(0, "freeing a string!\n");
+                //free(snap_list[snap_index]->val.c_val);
+                break;
             case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
             default: break;
             }
@@ -663,7 +724,7 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     return;
 }
 
-/* tblData : Data definitions / metadata that comes with a SOS_publish() call. */
+//tblData : Data definitions / metadata that comes with a SOS_publish() call.
 void SOSD_db_insert_data( SOS_pub *pub ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_insert_data");
     int i;
@@ -672,49 +733,61 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     pthread_mutex_lock( pub->lock );
     pub->sync_pending = 0;
 
-    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n", pub->guid, SOSD.db.file);
+    dlog(5, "Inserting pub(%" SOS_GUID_FMT ")->data into database(%s).\n",
+            pub->guid, SOSD.db.file);
 
     inserted_count = 0;
     for (i = 0; i < pub->elem_count; i++) {
 
         if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
-            dlog(1, "Skipping pub->data[%d]->sync == %s\n", i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
+            dlog(1, "Skipping pub->data[%d]->sync == %s\n",
+                    i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
             continue;
         } else {
             inserted_count++;
         }
 
 
-        /*
-         *  NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
-         */
-        SOS_guid      pub_guid          = pub->guid;
-        SOS_guid      guid              = pub->data[i]->guid;
-        const char   *name              = pub->data[i]->name;
+        //NOTE: SQLite3 behaves strangely unless you pass it variables stored on the stack.
+        SOS_guid      pub_guid      = pub->guid;
+        SOS_guid      guid          = pub->data[i]->guid;
+        const char   *name          = pub->data[i]->name;
         char         *val;
-        __ENUM_C_TYPE val_type          = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
-        __ENUM_C_TYPE meta_freq         = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
-        __ENUM_C_TYPE meta_class        = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
-        __ENUM_C_TYPE meta_pattern      = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
-        __ENUM_C_TYPE meta_compare      = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
+        __ENUM_C_TYPE val_type      = __ENUM_VAL( pub->data[i]->type, SOS_VAL_TYPE );
+        __ENUM_C_TYPE meta_freq     = __ENUM_VAL( pub->data[i]->meta.freq, SOS_VAL_FREQ );
+        __ENUM_C_TYPE meta_class    = __ENUM_VAL( pub->data[i]->meta.classifier, SOS_VAL_CLASS );
+        __ENUM_C_TYPE meta_pattern  = __ENUM_VAL( pub->data[i]->meta.pattern, SOS_VAL_PATTERN );
+        __ENUM_C_TYPE meta_compare  = __ENUM_VAL( pub->data[i]->meta.compare, SOS_VAL_COMPARE );
 
         char          val_num_as_str[SOS_DEFAULT_STRING_LEN];
         memset( val_num_as_str, '\0', SOS_DEFAULT_STRING_LEN);
 
         switch (pub->data[i]->type) {
-        case SOS_VAL_TYPE_INT:    val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val); break;
-        case SOS_VAL_TYPE_LONG:   val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val); break;
-        case SOS_VAL_TYPE_DOUBLE: val = val_num_as_str; snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val); break;
-        case SOS_VAL_TYPE_STRING: val = pub->data[i]->val.c_val; break;
-        default:
-            dlog(5, "ERROR: Attempting to insert an invalid data type.  (%d)  Continuing...\n", pub->data[i]->type);
+        case SOS_VAL_TYPE_INT:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%d",  pub->data[i]->val.i_val);
             break;
+        case SOS_VAL_TYPE_LONG:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%ld", pub->data[i]->val.l_val);
+            break;
+        case SOS_VAL_TYPE_DOUBLE:
+            val = val_num_as_str;
+            snprintf(val, SOS_DEFAULT_STRING_LEN, "%lf", pub->data[i]->val.d_val);
+            break;
+        case SOS_VAL_TYPE_STRING:
+            val = pub->data[i]->val.c_val;
+            break;
+        default:
+            dlog(5, "ERROR: Attempting to insert an invalid"
+                    " data type.  pub[%s]->data[%d]->type == %d  (Skipping...)\n",
+                    pub->title, i, pub->data[i]->type);
             continue;
         }
 
         CALL_SQLITE (bind_int64  (stmt_insert_data, 1,  pub_guid     ));
         CALL_SQLITE (bind_int64  (stmt_insert_data, 2,  guid         ));
-        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name,             1 + strlen(name), SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_data, 3,  name, -1 , SQLITE_STATIC     ));
         __BIND_ENUM (stmt_insert_data, 4,  val_type     );
         __BIND_ENUM (stmt_insert_data, 5,  meta_freq    );
         __BIND_ENUM (stmt_insert_data, 6,  meta_class   );
@@ -759,8 +832,8 @@ void SOSD_db_insert_enum(const char *var_type, const char **var_name, int var_ma
         int pos = i;
         name = var_name[i];
 
-        CALL_SQLITE (bind_text   (stmt_insert_enum, 1,  type,         1 + strlen(type), SQLITE_STATIC     ));
-        CALL_SQLITE (bind_text   (stmt_insert_enum, 2,  name,         1 + strlen(name), SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_enum, 1,  type,         -1 , SQLITE_STATIC     ));
+        CALL_SQLITE (bind_text   (stmt_insert_enum, 2,  name,         -1 , SQLITE_STATIC     ));
         CALL_SQLITE (bind_int    (stmt_insert_enum, 3,  pos ));
 
         dlog(2, "  --> SOS_%s_string[%d] == \"%s\"\n", type, i, name);
@@ -786,42 +859,62 @@ void SOSD_db_create_tables(void) {
 
     rc = sqlite3_exec(database, sql_create_table_pubs, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_PUBS_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_PUBS_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_data, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_DATA_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_DATA_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_vals, NULL, NULL, &err);
     if( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_VALS_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_VALS_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_enum, NULL, NULL, &err);
     if ( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_ENUM_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_ENUM_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_ENUM_TABLE_NAME);
     }
 
     rc = sqlite3_exec(database, sql_create_table_sosd_config, NULL, NULL, &err);
     if ( err != NULL ) {
-        dlog(0, "ERROR!  Can't create " SOSD_DB_SOSD_TABLE_NAME " in the database!  (%s)\n", err);
-        sqlite3_close(database); exit(EXIT_FAILURE);
+        dlog(0, "ERROR!  Can't create " SOSD_DB_SOSD_TABLE_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
     } else {
         dlog(0, "  ... Created: %s\n", SOSD_DB_SOSD_TABLE_NAME);
+    }
+
+    rc = sqlite3_exec(database, sql_create_view_combined, NULL, NULL, &err);
+    if ( err != NULL ) {
+        dlog(0, "ERROR!  Can't create " SOSD_DB_VIEW_COMBINED_NAME
+                " in the database!  (%s)\n", err);
+        sqlite3_close(database);
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(0, "  ... Created: %s\n", SOSD_DB_VIEW_COMBINED_NAME);
     }
 
     dlog(1, "  ... done.\n");

@@ -47,17 +47,12 @@ void SOSD_cloud_shutdown_notice(void) {
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
         header.msg_from = SOS->my_guid;
-        header.pub_guid = 0;
+        header.ref_guid = 0;
 
         offset = 0;
         SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
-        msg_inset = offset;
 
-        header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
-                                          header.msg_size,
-                                          header.msg_type,
-                                          header.msg_from,
-                                          header.pub_guid);
+        header.msg_size = SOS_msg_zip(shutdown_msg, header, offset, &offset);
         offset = 0;
         SOS_buffer_pack(shutdown_msg, &offset, "ii",
                         embedded_msg_count,
@@ -99,7 +94,7 @@ void SOSD_cloud_enqueue(SOS_buffer *buffer) {
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);
+                      &header.ref_guid);
 
     dlog(6, "Enqueueing a %s message of %d bytes...\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
     if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR: buffer->len(%d) != header.msg_size(%d)", buffer->len, header.msg_size); }
@@ -225,11 +220,11 @@ void SOSD_cloud_listen_loop(void) {
                               &header.msg_size,
                               &header.msg_type,
                               &header.msg_from,
-                              &header.pub_guid);
+                              &header.ref_guid);
             dlog(1, "     ... header.msg_size == %d\n", header.msg_size);
             dlog(1, "     ... header.msg_type == %s  (%d)\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
             dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
-            dlog(1, "     ... header.pub_guid == %" SOS_GUID_FMT "\n", header.pub_guid);
+            dlog(1, "     ... header.ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
 
             offset -= displaced;
 

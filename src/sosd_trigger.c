@@ -18,7 +18,7 @@
 
 #include "sos_debug.h"
 
-#define USAGE "USAGE:  sosd_trigger -m <message>\n"
+#define USAGE "USAGE:  sosd_trigger -h <handle> -p <SOS_PAYLOAD_STRING_EVAR>\n"
 
 /**
  * Command-line tool for triggering feedback to listener roles..
@@ -35,7 +35,10 @@ int main(int argc, char *argv[]) {
     SOS_runtime    *my_SOS;
     int             offset;
 
-    char *message = NULL;
+    char *handle = NULL;
+    char *payload_data = NULL;
+    int   payload_size = -1;
+
 
     /* Process command line arguments: format for options is:   --argv[i] <argv[j]>    */
     int i, j;
@@ -44,8 +47,19 @@ int main(int argc, char *argv[]) {
             fprintf(stderr, "%s\n", USAGE);
             exit(EXIT_FAILURE);
         }
-        if (      strcmp(argv[i], "-m"        ) == 0) {
-            message = argv[j];
+        if (      strcmp(argv[i], "-h"        ) == 0) {
+            handle = argv[j];
+        } else if (      strcmp(argv[i], "-p"        ) == 0) {
+            payload_data = getenv(argv[j]);
+            if ((payload_data == NULL) ||
+            ((payload_size = strlen(payload_data)) < 1)) {
+                fprintf(stderr, "WARNING: Will not send empty payload to clients.  Set a"
+                        " value to send in the %s environment variable.\n",
+                        argv[j]);
+                fflush(stderr);
+                payload_data = calloc(1, sizeof(char));
+                payload_size = 1;
+            }
         }
         else    {
             fprintf(stderr, "ERROR: unknown flag: %s %s\n", argv[i], argv[j]);
@@ -55,10 +69,12 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
-    if (message == NULL) {
+    if ((handle == NULL)
+     || (payload_data == NULL))
+    {
             fprintf(stderr, "%s\n", USAGE);
             exit(EXIT_FAILURE);
-     }
+    }
 
     my_SOS = NULL;
     SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
@@ -69,29 +85,28 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_trigger:main()");
 
-    dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    const char * portStr = getenv("SOS_CMD_PORT");
+    if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", portStr);
 
     SOS_buffer_init(SOS, &buffer);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
     header.msg_from = SOS->my_guid;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                              header.msg_size,
-                              header.msg_type,
-                              header.msg_from,
-                              header.pub_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
-    SOS_buffer_pack(buffer, &offset, "s", message);
+    SOS_buffer_pack(buffer, &offset, "sis",
+            handle,
+            payload_size,
+            payload_data);
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
-
-    dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &reply, 128, false);
@@ -100,7 +115,7 @@ int main(int argc, char *argv[]) {
 
     SOS_buffer_destroy(buffer);
     SOS_buffer_destroy(reply);
-    dlog(0, "Done.\n");
+    dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
     return (EXIT_SUCCESS);

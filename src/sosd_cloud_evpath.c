@@ -45,15 +45,15 @@ SOSD_evpath_message_handler(
                 &header.msg_size,
                 &header.msg_type,
                 &header.msg_from,
-                &header.pub_guid);
+                &header.ref_guid);
         dlog(1, "     ... header.msg_size == %d\n",
             header.msg_size);
         dlog(1, "     ... header.msg_type == %s  (%d)\n",
             SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
         dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n",
             header.msg_from);
-        dlog(1, "     ... header.pub_guid == %" SOS_GUID_FMT "\n",
-            header.pub_guid);
+        dlog(1, "     ... header.ref_guid == %" SOS_GUID_FMT "\n",
+            header.ref_guid);
 
         offset -= displaced;
 
@@ -105,10 +105,9 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_ACK:
-                fprintf(stderr, "sosd(%d) received ACK message"
+                dlog(5, "sosd(%d) received ACK message"
                     " from rank %" SOS_GUID_FMT " !\n",
                         SOSD.sos_context->config.comm_rank, header.msg_from);
-                fflush(stdout);
                 break;
 
             default:    SOSD_handle_unknown    (msg); break;
@@ -130,9 +129,19 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
         &header.msg_size,
         &header.msg_type,
         &header.msg_from,
-        &header.pub_guid);
+        &header.ref_guid);
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
+
+    if (header.msg_from >= SOS->config.comm_size) {
+        fprintf(stderr, "ERROR: You are attempting to register a rank"
+                "(%" SOS_GUID_FMT ") outside the size (%d) that you"
+                " specified to the daemon at launch.",
+                header.msg_from,
+                SOS->config.comm_size);
+        fflush(stderr);
+    }
+
     SOSD_evpath_node *node = evp->node[header.msg_from];
 
     node->contact_string = NULL;
@@ -171,7 +180,7 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_ACK;
     header.msg_from = SOS->config.comm_rank;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     int msg_count = 1;
     offset = 0;
@@ -180,7 +189,7 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
         header.msg_size,
         header.msg_type,
         header.msg_from,
-        header.pub_guid);
+        header.ref_guid);
 
     header.msg_size = offset;
     offset = 0;
@@ -199,41 +208,63 @@ void SOSD_evpath_register_connection(SOS_buffer *msg) {
 }
 
 
-// NOTE: Right now this only supports triggers being pulled
-//   on the aggregator nodes.
+// NOTE: Trigger pulls do not flow out beyond the node where
+//       they are pulled (at this time).  They go "downstream"
+//       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_evpath_handle_triggerpull");
 
+    dlog(4, "Message received... unzipping.\n");
+
     SOS_msg_header header;
     int offset = 0;
-    SOS_buffer_unpack(msg, &offset, "iigg",
-        &header.msg_size,
-        &header.msg_type,
-        &header.msg_from,
-        &header.pub_guid);
-    
-     if (SOS->role == SOS_ROLE_AGGREGATOR) {
+    SOS_msg_unzip(msg, &header, 0, &offset);
 
-        // AGGREGATOR
+    int offset_after_original_header = offset;
+
+    dlog(4, "Done unzipping.  offset_after_original_header == %d\n", 
+            offset_after_original_header);
+
+    if ((SOS->role == SOS_ROLE_AGGREGATOR)
+     && (SOS->config.comm_size > 1)) {
         
+        dlog(4, "I am an aggregator, and I have some"
+                " listener[s] to notify.\n");
+
         SOSD_evpath *evp = &SOSD.daemon.evpath;
         buffer_rec rec;
 
         dlog(2, "Wrapping the trigger message...\n");
 
         SOS_buffer *wrapped_msg;
-        SOS_buffer_init_sized_locking(SOS, &wrapped_msg,
-                (msg->len + 128), false);
-
+        SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
+        
         int msg_count = 1;
+        header.msg_size = msg->len;
+        header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
+        header.msg_from = SOS->config.comm_rank;
+        header.ref_guid = 0;
+
         offset = 0;
         SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
-        memcpy((wrapped_msg->data + offset), msg->data, msg->len);
-
-        header.msg_size += (offset + msg->len);
-        msg_count = 1;
+        int offset_after_wrapped_header = offset;
         offset = 0;
-        SOS_buffer_pack(wrapped_msg, &offset, "ii", msg_count, header.msg_size);
+
+        SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
+        memcpy(wrapped_msg->data + offset_after_wrapped_header,
+                msg->data,
+                msg->len);
+        wrapped_msg->len = (msg->len + offset_after_wrapped_header);
+        offset = wrapped_msg->len;
+
+        header.msg_size = offset;
+        offset = 0;
+        dlog(4, "Tacking on the newly wrapped message size...\n");
+        dlog(4, "   header.msg_size == %d\n", header.msg_size);
+        SOS_buffer_pack(wrapped_msg, &offset, "ii",
+            msg_count,
+            header.msg_size);
+
 
         int id = 0;
         for (id = 0; id < SOS->config.comm_size; id++) {
@@ -244,29 +275,53 @@ void SOSD_evpath_handle_triggerpull(SOS_buffer *msg) {
                 EVsubmit(evp->node[id]->src, &rec, NULL);
             }
         }
-
-    } else if (SOS->role == SOS_ROLE_LISTENER) {
-
-        // LISTENER
-
-        int data_length = -1;
-        int data_offset = offset;
-
-        SOS_buffer_unpack(msg, &offset, "i", &data_length);
-        char *data = calloc(data_length + 1, sizeof(char));
-        offset = data_offset;
-        SOS_buffer_unpack(msg, &offset, "b", &data);
-
-        fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
-                " sosd(%" SOS_GUID_FMT "): %s\n",
-                SOS->config.comm_rank,
-                header.msg_from,
-                data);
-        fflush(stderr);
-
     }
 
-    SOS_buffer_destroy(msg);
+    // Both Aggregators and Listeners should drop the feedback into
+    // their queues in case they have local processes that have
+    // registered sensitivity...
+   
+    offset = offset_after_original_header;
+
+    char *handle = NULL;
+    char *message = NULL;
+    int message_len = -1;
+
+    SOS_buffer_unpack_safestr(msg, &offset, &handle);
+    SOS_buffer_unpack(msg, &offset, "i", &message_len);
+    SOS_buffer_unpack_safestr(msg, &offset, &message);
+
+    //fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
+    //        " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
+    //        SOS->config.comm_rank,
+    //        header.msg_from,
+    //        header.msg_size);
+    //fflush(stderr);
+
+    SOSD_feedback_task *task;
+    task = calloc(1, sizeof(SOSD_feedback_task));
+    task->type = SOS_FEEDBACK_TYPE_PAYLOAD;
+    SOSD_feedback_payload *payload = calloc(1, sizeof(SOSD_feedback_payload));
+
+    payload->handle = handle;
+    payload->size = message_len;
+    payload->data = (void *) message;
+
+    //fprintf(stderr, "sosd(%d) enquing the following task->ref:\n"
+    //        "   payload->handle == %s\n"
+    //        "   payload->size   == %d\n"
+    //        "   payload->data   == \"%s\"\n",
+    //        SOSD.sos_context->config.comm_rank,
+    //        payload->handle,
+    //        payload->size,
+    //        (char*) payload->data);
+    //fflush(stderr);
+
+    task->ref = (void *) payload;    
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &task, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
     return;
 }
@@ -326,13 +381,38 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     SOS->config.comm_support = -1; // Used for MPI only.
 
     // Do some sanity checks.
-
     if (SOSD.daemon.aggregator_count == 0) {
         fprintf(stderr, "ERROR: SOS requires an aggregator.\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
-
+    if ((SOS->config.comm_rank < 0)
+        || (SOS->config.comm_rank >= expected_node_count)) {
+        fprintf(stderr, "ERROR: SOS rank %d is outside the bounds of"
+                " ranks expected (%d).\n",
+                SOS->config.comm_rank,
+                expected_node_count);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+    if ((SOS->role == SOS_ROLE_LISTENER)
+        && (SOS->config.comm_rank < SOSD.daemon.aggregator_count)) {
+        fprintf(stderr, "ERROR: SOS listener(%d) was assigned a rank"
+                " inside the range reserved for aggregators (0-%d).\n",
+                SOS->config.comm_rank,
+                (SOSD.daemon.aggregator_count - 1));
+        fflush(stdout);
+        exit(EXIT_FAILURE);
+    }
+    if ((SOS->role == SOS_ROLE_AGGREGATOR)
+        && (SOS->config.comm_rank >= SOSD.daemon.aggregator_count)) {
+        fprintf(stderr, "ERROR: SOS aggregator(%d) was assigned a rank"
+                " outside the range reserved for aggregators (0-%d).\n",
+                SOS->config.comm_rank,
+                (SOSD.daemon.aggregator_count - 1));
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
 
     // The cloud sync stuff gets calculated after we know
     // how many targets have connected as aggregators,
@@ -383,9 +463,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     // Get the location we're listening on...
     evp->recv.contact_string =
         attr_list_to_string(CMget_contact_list(evp->recv.cm));
-    fprintf(stderr, "\n\nNOTE: sosd(%d) evp->recv.contact_string: %s\n\n\n",
-        SOSD.sos_context->config.comm_rank, evp->recv.contact_string);
-    fflush(stderr);
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
@@ -414,8 +491,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         dlog(0, "done.\n");
 
         FILE *contact_file;
+		// set the node id before we use it.
+		SOSD.sos_context->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
+		gethostname( SOSD.sos_context->config.node_id, SOS_DEFAULT_STRING_LEN );
         contact_file = fopen(contact_filename, "w");
-        fprintf(contact_file, "%s", evp->recv.contact_string);
+        fprintf(contact_file, "%s\n%s\n",
+                evp->recv.contact_string,
+                SOSD.sos_context->config.node_id);
         fflush(contact_file);
         fclose(contact_file);
 
@@ -433,7 +515,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         while(strnlen(evp->send.contact_string, 1024) < 1) {
             FILE *contact_file;
             contact_file = fopen(contact_filename, "r");
-            if (fgets(evp->send.contact_string, 1024, contact_file) == NULL) {
+            fscanf(contact_file, "%1024s\n",
+                    evp->send.contact_string);
+            if (strlen(evp->send.contact_string) < 1) {
                 dlog(0, "Error reading the contact key file. Aborting.\n");
                 exit(EXIT_FAILURE);
             }
@@ -466,7 +550,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = SOSD.sos_context->config.comm_rank;
-        header.pub_guid = 0;
+        header.ref_guid = 0;
 
         int msg_count = 1;
 
@@ -476,7 +560,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             header.msg_size,
             header.msg_type,
             header.msg_from,
-            header.pub_guid);
+            header.ref_guid);
 
         SOS_buffer_pack(buffer, &offset, "s", evp->recv.contact_string);
 
@@ -505,6 +589,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
  *    operating.
  */
 int SOSD_cloud_start(void) {
+    //NOTE: Presently unused for EVPath.
     return 0;
 }
 
@@ -536,7 +621,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
  *              is likely overkill, but nevertheless, here it is.
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.EVPATH");
     SOS_msg_header header;
     int offset;
 
@@ -553,10 +638,13 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
                       &header.msg_size,
                       &header.msg_type,
                       &header.msg_from,
-                      &header.pub_guid);
+                      &header.ref_guid);
 
-    dlog(6, "Enqueueing a %s message of %d bytes...\n", SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
-    if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR: buffer->len(%d) != header.msg_size(%d)", buffer->len, header.msg_size); }
+    dlog(6, "Enqueueing a %s message of %d bytes...\n",
+            SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_size);
+    if (buffer->len != header.msg_size) { dlog(1, "  ... ERROR:"
+            " buffer->len(%d) != header.msg_size(%d)",
+            buffer->len, header.msg_size); }
 
     pthread_mutex_lock(SOSD.sync.cloud_send.queue->sync_lock);
     pipe_push(SOSD.sync.cloud_send.queue->intake, (void *) &buffer, sizeof(SOS_buffer *));
@@ -568,10 +656,11 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
 }
 
 
-/* name.......: SOSD_cloud_fflush
- * description: Force the send-queue to flush and transmit.
- * note.......: With EVPath, this might be totally unnecessary.  (i.e. "Let EVPath handle it...")
- */
+// name.......: SOSD_cloud_fflush
+// description: Force the send-queue to flush and transmit.
+// note.......: With EVPath, this might be totally unnecessary.
+//              (i.e. "Let EVPath handle it...")
+//
 void  SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.EVPATH");
 
@@ -624,7 +713,9 @@ void  SOSD_cloud_shutdown_notice(void) {
     {
         dlog(1, "  ... preparing notice to SOS_ROLE_AGGREGATOR at"
                 " rank %d\n", SOSD.daemon.cloud_sync_target);
-        /* The first N listener ranks will notify the N aggregators... */
+        // LISTENER:
+        // The first N listener ranks will notify the N aggregators...
+        //
         SOS_msg_header header;
         SOS_buffer    *shutdown_msg;
         SOS_buffer    *reply;
@@ -639,17 +730,18 @@ void  SOSD_cloud_shutdown_notice(void) {
         header.msg_size = -1;
         header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
         header.msg_from = SOS->my_guid;
-        header.pub_guid = 0;
+        header.ref_guid = 0;
 
         offset = 0;
         SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
         msg_inset = offset;
 
+        
         header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
                                           header.msg_size,
                                           header.msg_type,
                                           header.msg_from,
-                                          header.pub_guid);
+                                          header.ref_guid);
         offset = 0;
         SOS_buffer_pack(shutdown_msg, &offset, "ii",
                         embedded_msg_count,
@@ -662,6 +754,36 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_destroy(shutdown_msg);
         SOS_buffer_destroy(reply);
 
+    } else {
+        // AGGREGATOR:
+        //     Build a dummy message to send to ourself to purge the
+        //     main listen loop's accept() call:
+        dlog(1, "Processing a self-send to flush main listen"
+                " loop's socket accept()...\n");
+
+        SOS_msg_header header;
+        int offset;
+
+        SOS_buffer *shutdown_msg = NULL;
+        SOS_buffer *shutdown_reply = NULL;
+        SOS_buffer_init(SOS, &shutdown_msg);
+        SOS_buffer_init(SOS, &shutdown_reply);
+
+        header.msg_size = -1;
+        header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
+        header.msg_from = SOS->my_guid;
+        header.ref_guid = -1;
+
+        offset = 0;
+        SOS_msg_zip(shutdown_msg, header, 0, &offset);
+
+        header.msg_size = offset;
+        offset = 0;
+        SOS_msg_zip(shutdown_msg, header, 0, &offset);
+
+        SOSD_send_to_self(shutdown_msg, shutdown_reply);
+        SOS_buffer_destroy(shutdown_msg);
+        SOS_buffer_destroy(shutdown_reply);
     }
     
     dlog(1, "  ... done\n");
@@ -677,11 +799,14 @@ void  SOSD_cloud_shutdown_notice(void) {
  *              incoming messages from other sosd daemon instances.
  */
 void  SOSD_cloud_listen_loop(void) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop.EVPATH");
 
+    // NOTE: This work is handled by EVPath's message handler.
+    dlog(2, "Entering cloud listening loop...\n");
     while(!SOSD_evpath_ready_to_listen) {
             usleep(50000);
     }
+    dlog(2, "Leaving cloud listening loop.\n");
 
     return;
 }

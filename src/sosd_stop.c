@@ -1,5 +1,5 @@
 /**
- * @file sosdstop.c
+ * @file sosd_stop.c
  *  Utility to send the daemon a shutdown message w/out using a kill signal.
  */
 
@@ -7,6 +7,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#if defined(USE_MPI)
+#include <mpi.h>
+#endif
 
 #include "sos.h"
 #include "sos_buffer.h"
@@ -18,7 +22,7 @@
 
 #include "sos_debug.h"
 
-#define USAGE "USAGE: stopd [--cmd_port <port>]\n"
+#define USAGE "USAGE: sosd_stop [--hard stop] [--cmd_port <custom_port>]\n"
 
 /**
  * Command-line tool for triggering voluntary daemon shutdown.
@@ -35,7 +39,17 @@ int main(int argc, char *argv[]) {
     SOS_runtime    *my_SOS;
     int             offset;
 
-    /* Process command line arguments: format for options is:   --argv[i] <argv[j]>    */
+    int rank = 0; 
+    int size = 0;
+#if defined(USE_MPI)
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &size);
+#endif
+
+    int stop_hard = 0;    
+
+    // Process command line arguments
     int i, j;
     for (i = 2; i < argc; ) {
         if ((j = i + 1) == argc) {
@@ -56,13 +70,19 @@ int main(int argc, char *argv[]) {
     my_SOS = NULL;
     SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
-        fprintf(stderr, "sosd_stop: Failed to connect to the SOS daemon.\n");
+        fprintf(stderr, "ERROR: sosd_stop(%d) failed to connect to the SOS daemon.\n", rank);
         exit(EXIT_FAILURE);
     }
 
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
-    dlog(0, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+#if defined(USE_MPI)
+    char  mpi_hostname[ MPI_MAX_PROCESSOR_NAME] = {0};
+    int   mpi_hostname_len;
+    MPI_Get_processor_name(mpi_hostname, &mpi_hostname_len);
+
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", mpi_hostname);
+#endif
 
     setenv("SOS_SHUTDOWN", "1", 1);
 
@@ -71,27 +91,28 @@ int main(int argc, char *argv[]) {
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
     header.msg_from = SOS->my_guid;
-    header.pub_guid = 0;
+    header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "iigg",
-                              header.msg_size,
-                              header.msg_type,
-                              header.msg_from,
-                              header.pub_guid);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(buffer, &offset, "i", header.msg_size);
+    SOS_msg_zip(buffer, header, 0, &offset);
 
-    dlog(0, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
+    dlog(1, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    SOS_send_to_daemon(buffer, buffer);
+    SOS_target_connect(SOS->daemon);
+    SOS_target_send_msg(SOS->daemon, buffer);
+    SOS_target_disconnect(SOS->daemon);
 
     SOS_buffer_destroy(buffer);
-    dlog(0, "Done.\n");
+    dlog(1, "Done.\n");
 
     SOS_finalize(SOS);
+#if defined(USE_MPI)
+    MPI_Finalize();
+#endif
     return (EXIT_SUCCESS);
 }
 
