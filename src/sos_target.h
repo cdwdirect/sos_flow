@@ -11,6 +11,8 @@ extern "C" {
 
     int SOS_target_connect(SOS_socket *target);
 
+    int SOS_target_setup_for_accept(SOS_socket *target);
+
     int SOS_target_accept_connection(SOS_socket *target);
 
     int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);

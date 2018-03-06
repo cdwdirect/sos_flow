@@ -68,17 +68,15 @@ DEMO_feedback_handler(
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
 
-    //TEMP-remove:
-    int i;
-    printf("SSOS_results_claim:\n");
-    printf("-----\n");
-    unsigned char *redir = (unsigned char *) payload_data;
-    for (i = 0; i < 40; i++) {
-        printf("byte %d:  [%d\t\t]\n", i, (int) *(redir + i));
-    }
-    printf("-----\n");
-    fflush(stdout);
-
+        //Debugging:
+        //int i;
+        //printf("-----\n");
+        //unsigned char *redir = (unsigned char *) payload_data;
+        //for (i = 0; i < 40; i++) {
+        //    printf("byte %d:  [%d\t\t]\n", i, (int) *(redir + i));
+        //}
+        //printf("-----\n");
+        //fflush(stdout);
 
         SOSA_results_from_buffer(results, payload_data);
         SOSA_results_output_to(stdout, results,
@@ -263,6 +261,8 @@ int main(int argc, char *argv[]) {
         pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
         pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
+        //SOS_pack(pub, "test_string", SOS_VAL_TYPE_STRING, "Hello!");
+        
         var_double = 0.0;
 
         SOS_TIME( time_start );

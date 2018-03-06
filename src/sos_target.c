@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 
 #include "sos.h"
 #include "sos_debug.h"
@@ -32,6 +33,122 @@ SOS_target_accept_connection(SOS_socket *target)
     }
     
     return i;
+}
+
+
+int
+SOS_target_setup_for_accept(SOS_socket *target)
+{
+    SOS_SET_CONTEXT(target->sos_context, "SOS_target_setup_for_accept");
+    int i;
+    int yes;
+    int opts;
+
+    yes = 1;
+
+    memset(&target->local_hint, '\0', sizeof(struct addrinfo));
+    memset(&target->remote_hint, '\0', sizeof(struct addrinfo));
+
+    target->listen_backlog           = 20;
+    target->buffer_len               = SOS_DEFAULT_BUFFER_MAX;
+    target->timeout                  = SOS_DEFAULT_MSG_TIMEOUT;
+
+    //Set standard SOS hints:
+    target->local_hint.ai_family     = AF_UNSPEC;   // Allow IPv4 or IPv6
+    target->local_hint.ai_socktype   = SOCK_STREAM; // _STREAM/_DGRAM/_RAW
+    target->local_hint.ai_protocol   = 0;           // 0: All   IPPROTO_TCP: TCP only
+    target->local_hint.ai_flags      = AI_PASSIVE;
+                                    // AI_PASSIVE: Be able to bind/accept connections.
+                                    // AI_NUMERICSERV: Don't invoke namserv.
+                                    //                 BUT cannot use "localhost"!
+    target->remote_hint.ai_family    = AF_UNSPEC;   // Allow IPv4 or IPv6
+    target->remote_hint.ai_socktype  = SOCK_STREAM; // _STREAM/_DGRAM/_RAW
+    target->remote_hint.ai_protocol  = 0;           // 0: All   IPPROTO_TCP: TCP only
+    target->remote_hint.ai_flags     = 0;
+                                    // AI_PASSIVE: Be able to bind/accept connections.
+                                    // AI_NUMERICSERV: Don't invoke namserv.
+                                    //                 BUT cannot use "localhost"!
+
+    //Just for fun...
+    target->local_hint.ai_canonname  = NULL;
+    target->local_hint.ai_addr       = NULL;
+    target->local_hint.ai_next       = NULL;
+
+    i = getaddrinfo(NULL, target->local_port, &target->local_hint,
+            &target->result_list);
+    if (i != 0) {
+       dlog(0, "Error!  getaddrinfo() failed. (%s)"
+            "\n", gai_strerror(errno));
+    }
+
+    for ( target->local_addr = target->result_list ;
+            target->local_addr != NULL ;
+            target->local_addr = target->local_addr->ai_next )
+    {
+        dlog(1, "Trying an address...\n");
+
+        target->local_socket_fd =
+            socket(target->local_addr->ai_family,
+                    target->local_addr->ai_socktype,
+                    target->local_addr->ai_protocol);
+        if ( target->local_socket_fd < 1) {
+            dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
+            continue;
+        }
+
+         // Allow this socket to be reused/rebound quickly by the daemon.
+        if ( setsockopt( target->local_socket_fd, SOL_SOCKET,
+                    SO_REUSEADDR, &yes, sizeof(int)) == -1)
+        {
+            dlog(0, "  ... could not set socket options.  (%s)\n",
+                    strerror(errno));
+            continue;
+        }
+
+        if ( bind(target->local_socket_fd,
+                    target->local_addr->ai_addr,
+                    target->local_addr->ai_addrlen) == -1 )
+        {
+            dlog(0, "  ... failed to bind to socket.  (%s)\n",
+                    strerror(errno));
+            close( target->local_socket_fd );
+            continue;
+        }
+        // If we get here, we're good to stop looking.
+        break;
+    }
+
+    if ( target->local_socket_fd < 0 ) {
+        dlog(0, "  ... could not socket/setsockopt/bind to anything in the"
+                " result set.  last errno = (%d:%s)\n",
+                errno, strerror(errno));
+        exit(EXIT_FAILURE);
+    } else {
+        dlog(0, "  ... got a socket, and bound to it!\n");
+    }
+
+    freeaddrinfo(target->result_list);
+
+    // Enforce that this is a BLOCKING socket:
+    opts = fcntl(target->local_socket_fd, F_GETFL);
+    if (opts < 0) {
+        dlog(0, "ERROR!  Cannot call fcntl() on the"
+                " local_socket_fd to get its options.  Carrying on.  (%s)\n",
+                strerror(errno));
+    }
+
+    opts = opts & !(O_NONBLOCK);
+    i    = fcntl(target->local_socket_fd, F_SETFL, opts);
+    if (i < 0) {
+        dlog(0, "ERROR!  Cannot use fcntl() to set the"
+                " local_socket_fd to BLOCKING more.  Carrying on.  (%s).\n",
+                strerror(errno));
+    }
+
+    listen( target->local_socket_fd, target->listen_backlog );
+    dlog(0, "Listening on socket.\n");
+
+    return 0;
 }
 
 
@@ -130,22 +247,29 @@ SOS_target_init(
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
     tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
-    tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
-    tgt->local_hint.ai_protocol   = 0;             // Any protocol
-    tgt->remote_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    tgt->remote_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
-    tgt->remote_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
-    tgt->remote_hint.ai_protocol   = 0;             // Any protocol
 
+    //Set standard SOS hints:
+    tgt->local_hint.ai_family     = AF_UNSPEC;   // Allow IPv4 or IPv6
+    tgt->local_hint.ai_socktype   = SOCK_STREAM; // _STREAM/_DGRAM/_RAW
+    tgt->local_hint.ai_protocol   = 0;           // 0: Any   IPPROTO_TCP: TCP only
+    tgt->local_hint.ai_flags      = 0;
+                                    // AI_PASSIVE: Be able to bind/accept connections.
+                                    // AI_NUMERICSERV: Don't invoke namserv.
+                                    //                 BUT cannot use "localhost"!
+    tgt->remote_hint.ai_family    = AF_UNSPEC;   // Allow IPv4 or IPv6
+    tgt->remote_hint.ai_socktype  = SOCK_STREAM; // _STREAM/_DGRAM/_RAW
+    tgt->remote_hint.ai_protocol  = 0;           // 0: Any   IPPROTO_TCP: TCP only
+    tgt->remote_hint.ai_flags     = 0;
+                                    // AI_PASSIVE: Be able to bind/accept connections.
+                                    // AI_NUMERICSERV: Don't invoke namserv.
+                                    //                 BUT cannot use "localhost"!
+    
     char local_hostname[NI_MAXHOST];
     gethostname(local_hostname, NI_MAXHOST);
 
     strncpy(tgt->local_host, local_hostname, NI_MAXHOST);
-    strncpy(tgt->local_port, "0", NI_MAXSERV);
+    snprintf(tgt->local_port, NI_MAXSERV, "0");
     tgt->port_number = 0;
-
 
     pthread_mutex_unlock(tgt->send_lock);
 
@@ -188,7 +312,7 @@ SOS_target_connect(SOS_socket *target) {
     }
 
     dlog(8, "   ...iterating possible connection techniques.\n");
-    // Iterate the possible connections and register with the SOS daemon:
+    // Iterate the possible connections:
     for (target->remote_addr = target->result_list ;
         target->remote_addr != NULL ;
         target->remote_addr = target->remote_addr->ai_next)
@@ -206,13 +330,12 @@ SOS_target_connect(SOS_socket *target) {
         new_fd = -1;
     }
 
-
     dlog(8, "   ...freeing unused results.\n");
     freeaddrinfo( target->result_list );
 
     if (new_fd <= 0) {
-        dlog(0, "Error attempting to connect to the server.  (%s:%s)\n",
-            target->remote_host, target->remote_port);
+        dlog(0, "Error attempting to connect to the server.  (%s:%s)  %s\n",
+            target->remote_host, target->remote_port, strerror(errno));
         pthread_mutex_unlock(target->send_lock);
         return -1;
     }

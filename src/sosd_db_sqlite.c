@@ -855,10 +855,12 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         for (snap_index = 0; snap_index < snap_count ; snap_index++) {
             switch(val_type) {
             case SOS_VAL_TYPE_STRING:
-                dlog(0, "freeing a string!\n");
+                // This gets handed off to SQLITE...
                 //free(snap_list[snap_index]->val.c_val);
                 break;
-            case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
+            case SOS_VAL_TYPE_BYTES:
+                //free(snap_list[snap_index]->val.bytes);
+                break;
             default: break;
             }
             free(snap_list[snap_index]);

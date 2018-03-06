@@ -872,94 +872,18 @@ SOS_THREAD_receives_direct(void *args)
     char local_hostname[NI_MAXHOST];
 
     insock = NULL;
-    SOS_target_init(SOS, &insock, "NULL_recv_only", 0);
+    SOS_target_init(SOS, &insock, SOS_DEFAULT_SERVER_HOST, 0);
+    SOS_target_setup_for_accept(insock);
 
-    gethostname(insock->local_host, NI_MAXHOST);
-    strncpy(insock->local_port, "0", NI_MAXSERV);
-    insock->port_number = 0;
-
-
-    i = getaddrinfo(insock->local_host, insock->local_port, &insock->local_hint,
-            &insock->result_list);
-
-    if (i != 0) {
-        fprintf(stderr, "ERROR: Feedback broken, client-side getaddrinfo()"
-            " failed. (%s)\n", gai_strerror(errno));
-        fflush(stderr);
-        return NULL;
-    }
-
-    for (insock->local_addr = insock->result_list ;
-        insock->local_addr != NULL ;
-        insock->local_addr = insock->local_addr->ai_next )
-    {
-        dlog(1, "Trying an address...\n");
-
-        insock->local_socket_fd = socket(insock->local_addr->ai_family,
-            insock->local_addr->ai_socktype, insock->local_addr->ai_protocol);
-
-        if (insock->local_socket_fd < 1) {
-            fprintf(stderr, "ERROR: Failed to get a socket.  (%s)\n",
-                strerror(errno));
-            fflush(stderr);
-            continue;
-        }
-
-        // Allow this socket to be reused/rebound quickly.
-        if (setsockopt(insock->local_socket_fd, SOL_SOCKET, SO_REUSEADDR,
-            &yes, sizeof(int)) == -1)
-        {
-            dlog(0, "  ... could not set socket options.  (%s)\n",
-                strerror(errno));
-            continue;
-        }
-
-        insock->local_addr->ai_addrlen = sizeof(struct sockaddr_in);
-
-        if ( bind( insock->local_socket_fd, insock->local_addr->ai_addr,
-                insock->local_addr->ai_addrlen ) == -1 ) {
-            dlog(0, "  ... failed to bind to socket.  (%s)\n", strerror(errno));
-            close( insock->local_socket_fd );
-            insock->local_socket_fd = -1;
-            continue;
-        }
-        // If we get here, we're good to stop looking.
-        break;
-    }
-
-    if ( insock->local_socket_fd <= 0 ) {
-        fprintf(stderr, "ERROR: Client could not socket/setsockopt/"
-                "bind to anything to receive feedback. (%d:%s)\n",
-                errno, strerror(errno));
-
-    } else {
-        dlog(1, "  ... got a socket, and bound to it!\n");
-    }
-
-    freeaddrinfo(insock->result_list);
-
-     // Enforce that this is a BLOCKING socket:
-    opts = fcntl(insock->local_socket_fd, F_GETFL);
-    if (opts < 0) { dlog(0, "ERROR: Cannot call fcntl() on the"
-          " remote_socket_fd to get its options.  Carrying on.  (%s)\n",
-          strerror(errno));
-    }
-
-    opts = opts & !(O_NONBLOCK);
-    i    = fcntl(insock->local_socket_fd, F_SETFL, opts);
-    if (i < 0) { dlog(0, "ERROR: Cannot use fcntl() to set the"
-        " remote_socket_fd to BLOCKING mode.  Carrying on.  (%s).\n",
-        strerror(errno));
-    }
-
-    listen( insock->local_socket_fd, insock->listen_backlog );
-    dlog(1, "Listening on socket.\n");
-
+    //Gather some information about this socket:
     struct sockaddr_in sin;
     socklen_t sin_len = sizeof(sin);
     getsockname(insock->local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     SOS->config.receives_port = ntohs(sin.sin_port);
     SOS->config.receives_ready = 1;
+
+    dlog(1, "SOS->config.receives_port == %d\n",
+            SOS->config.receives_port);
 
     //Part 3: Listening loop for feedback messages.
     SOS_buffer *buffer = NULL;

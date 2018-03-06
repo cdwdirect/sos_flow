@@ -145,7 +145,7 @@ int main(int argc, char *argv[])  {
     pthread_mutex_unlock(tgt->send_lock);
     // --- end duplication of SOS_target_init();
 
-    /* Process command-line arguments */
+    // Process command-line arguments
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     if ( argc < 9 ) {
 #else
@@ -295,8 +295,8 @@ int main(int argc, char *argv[])  {
     if (SOSD_DAEMON_LOG > -1) SOS_register_signal_handler(SOSD.sos_context);
 
     dlog(0, "Calling daemon_setup_socket()...\n");
-    SOSD_setup_socket();
     SOSD.net->sos_context = SOSD.sos_context;
+    SOSD_setup_socket();
 
     dlog(0, "Calling daemon_init_database()...\n");
     SOSD_db_init_database();
@@ -701,10 +701,9 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                 continue;
             }
 
-           // printf("SOSD: Sending query results to %s:%d ...\n",
-           //         query->reply_host,
-           //         query->reply_port);
-           // fflush(stdout);
+            dlog(5, "SOSD: Sending query results to %s:%d ...\n",
+                   query->reply_host,
+                   query->reply_port);
 
             rc = SOS_target_connect(target);
             if (rc != 0) {
@@ -2242,97 +2241,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
 
 void SOSD_setup_socket() {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_setup_socket");
-    int i;
-    int yes;
-    int opts;
-
-    yes = 1;
-
-    memset(&SOSD.net->local_hint, '\0', sizeof(struct addrinfo));
-    SOSD.net->local_hint.ai_family     = AF_UNSPEC;     // Allow IPv4 or IPv6
-    SOSD.net->local_hint.ai_socktype   = SOCK_STREAM;   // STREAM/DGRAM/RAW
-    SOSD.net->local_hint.ai_flags      = AI_PASSIVE;
-    SOSD.net->local_hint.ai_protocol   = 0;
-    SOSD.net->local_hint.ai_canonname  = NULL;
-    SOSD.net->local_hint.ai_addr       = NULL;
-    SOSD.net->local_hint.ai_next       = NULL;
-
-    i = getaddrinfo(NULL, SOSD.net->local_port, &SOSD.net->local_hint,
-            &SOSD.net->result_list);
-    if (i != 0) {
-       dlog(0, "Error!  getaddrinfo() failed. (%s)"
-            " Exiting daemon.\n", gai_strerror(errno));
-       exit(EXIT_FAILURE);
-    }
-
-    for ( SOSD.net->local_addr = SOSD.net->result_list ;
-            SOSD.net->local_addr != NULL ;
-            SOSD.net->local_addr = SOSD.net->local_addr->ai_next )
-    {
-        dlog(1, "Trying an address...\n");
-
-        SOSD.net->local_socket_fd =
-            socket(SOSD.net->local_addr->ai_family,
-                    SOSD.net->local_addr->ai_socktype,
-                    SOSD.net->local_addr->ai_protocol);
-        if ( SOSD.net->local_socket_fd < 1) {
-            dlog(0, "  ... failed to get a socket.  (%s)\n", strerror(errno));
-            continue;
-        }
-
-         // Allow this socket to be reused/rebound quickly by the daemon.
-        if ( setsockopt( SOSD.net->local_socket_fd, SOL_SOCKET,
-                    SO_REUSEADDR, &yes, sizeof(int)) == -1)
-        {
-            dlog(0, "  ... could not set socket options.  (%s)\n",
-                    strerror(errno));
-            continue;
-        }
-
-        if ( bind(SOSD.net->local_socket_fd,
-                    SOSD.net->local_addr->ai_addr,
-                    SOSD.net->local_addr->ai_addrlen) == -1 )
-        {
-            dlog(0, "  ... failed to bind to socket.  (%s)\n",
-                    strerror(errno));
-            close( SOSD.net->local_socket_fd );
-            continue;
-        }
-        // If we get here, we're good to stop looking.
-        break;
-    }
-
-    if ( SOSD.net->local_socket_fd < 0 ) {
-        dlog(0, "  ... could not socket/setsockopt/bind to anything in the"
-                " result set.  last errno = (%d:%s)\n",
-                errno, strerror(errno));
-        exit(EXIT_FAILURE);
-    } else {
-        dlog(0, "  ... got a socket, and bound to it!\n");
-    }
-
-    freeaddrinfo(SOSD.net->result_list);
-
-    // Enforce that this is a BLOCKING socket:
-    opts = fcntl(SOSD.net->local_socket_fd, F_GETFL);
-    if (opts < 0) {
-        dlog(0, "ERROR!  Cannot call fcntl() on the"
-                " local_socket_fd to get its options.  Carrying on.  (%s)\n",
-                strerror(errno));
-    }
-
-    opts = opts & !(O_NONBLOCK);
-    i    = fcntl(SOSD.net->local_socket_fd, F_SETFL, opts);
-    if (i < 0) {
-        dlog(0, "ERROR!  Cannot use fcntl() to set the"
-                " local_socket_fd to BLOCKING more.  Carrying on.  (%s).\n",
-                strerror(errno));
-    }
-
-
-    listen( SOSD.net->local_socket_fd, SOSD.net->listen_backlog );
-    dlog(0, "Listening on socket.\n");
-
+    SOS_target_setup_for_accept(SOSD.net);
     return;
 }
 
