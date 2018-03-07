@@ -1,6 +1,10 @@
 
 cmake_minimum_required (VERSION 2.8)
 
+if (${CMAKE_MAJOR_VERSION} GREATER 2)
+  cmake_policy(SET CMP0042 NEW)
+endif()
+
 ########### ########### ########### ########### ########### ########### ###########
 # User-configurable options.
 ########### ########### ########### ########### ########### ########### ###########
@@ -21,6 +25,8 @@ set(ZeroMQ_DIR     "" CACHE STRING
     "Path to ZeroMQ installation")
 set(CZMQ_DIR       "" CACHE STRING
     "Path to C API bindings for ZeroMQ")
+set(ADIOS_DIR      "" CACHE STRING
+    "Path to ADIOS installation")
 
 # --- Inter-daemon communication method ---
 #
@@ -80,9 +86,12 @@ project(${PROJECT_NAME} C CXX)
 #set(RULE_MESSAGES OFF)
 set(CMAKE_COLOR_MAKEFILE ON)
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake ${CMAKE_MODULE_PATH})
+include(PreventInSourceBuilds)
 
 set(PEDANTIC TRUE CACHE BOOL "Treat all compiler warnings as errors")
 
+# Pull in macros
+include(SOSProjectMacros)
 # Pull in the GIT repo information
 include(GetGitRevisionDescription)
 get_git_head_revision(GIT_REFSPEC GIT_SHA1)
@@ -92,13 +101,12 @@ add_definitions("-DGIT_SHA1=${GIT_SHA1}")
 
 execute_process(COMMAND uname -n OUTPUT_VARIABLE SOS_HOST_NODE_NAME)
 string(STRIP ${SOS_HOST_NODE_NAME} SOS_HOST_NODE_NAME)
-if(NOT APPLE)
+if(APPLE)
+    execute_process(COMMAND uname OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
+else(APPLE)
     execute_process(COMMAND uname -o OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
-    string(STRIP ${SOS_HOST_DETAILED_O} SOS_HOST_DETAILED_O)
-else()
-    execute_process(COMMAND uname -s OUTPUT_VARIABLE SOS_HOST_DETAILED_O)
-    string(STRIP ${SOS_HOST_DETAILED_O} SOS_HOST_DETAILED_O)
-endif()
+endif(APPLE)
+string(STRIP ${SOS_HOST_DETAILED_O} SOS_HOST_DETAILED_O)
 execute_process(COMMAND uname -r OUTPUT_VARIABLE SOS_HOST_DETAILED_R)
 string(STRIP ${SOS_HOST_DETAILED_R} SOS_HOST_DETAILED_R)
 execute_process(COMMAND uname -m OUTPUT_VARIABLE SOS_HOST_DETAILED_M)
@@ -136,11 +144,12 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
     endif(CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
 endif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 
-if(MAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7)
+#if(MAKE_CXX_COMPILER_VERSION VERSION_GREATER 4.7)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-endif()
+#else()
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
+#endif()
+
 
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
@@ -153,9 +162,9 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 # SOS_FORCE_RPATH OPTIONS
 ###########
 
-if(SOS_FORCE_RPATH)
-    # use, i.e. don't skip the full RPATH for the build tree
-    SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
+if(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
+	# use, i.e. don't skip the full RPATH for the build tree
+	SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
     # when building, don't use the install RPATH already
     # (but later on when installing)
@@ -167,12 +176,13 @@ if(SOS_FORCE_RPATH)
     # which point to directories outside the build tree to the install RPATH
     SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
-    # the RPATH to be used when installing, but only if it's not a system directory
-    LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
-    IF("${isSystemDir}" STREQUAL "-1")
-        SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
-    ENDIF("${isSystemDir}" STREQUAL "-1")
-endif(SOS_FORCE_RPATH)
+	# the RPATH to be used when installing, but only if it's not a system directory
+	LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
+	IF("${isSystemDir}" STREQUAL "-1")
+   		SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+	ENDIF("${isSystemDir}" STREQUAL "-1")
+
+endif(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 
 ###########
 # Required packages
@@ -239,21 +249,29 @@ if(SOS_CLOUD_SYNC_WITH_EVPATH)
 endif()
 
 ###########
+# SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
+###########
+
+find_package(ADIOS)
+
+###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
 ###########
+
+message(STATUS "MPI:  Locating package...")
+if(NOT MPI_C_NO_INTERROGATE)
+    find_package("MPI" QUIET REQUIRED)
+else()
+    set(MPI_FOUND ON)
+endif(NOT MPI_C_NO_INTERROGATE)
+
+if(MPI_FOUND)
+    add_definitions("-DUSE_MPI=1")
+    message(STATUS "MPI:  Found!")
+endif(MPI_FOUND)
+
 if(SOS_CLOUD_SYNC_WITH_MPI)
     message(STATUS "MPI:  Sync with MPI is ENABLED")
-    message(STATUS "MPI:  Locating package...")
-    if(NOT MPI_C_NO_INTERROGATE)
-        find_package("MPI" QUIET REQUIRED)
-    else()
-        set(MPI_FOUND ON)
-    endif(NOT MPI_C_NO_INTERROGATE)
-
-    if(MPI_FOUND)
-        add_definitions("-DUSE_MPI=1")
-        message(STATUS "MPI:  Found!")
-    endif(MPI_FOUND)
     add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif(SOS_CLOUD_SYNC_WITH_MPI)
 
@@ -315,7 +333,9 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
+# Actually, required, but on Titan it will fail. 
+# Therefore, we have the "else" clause for that system.
+find_package(Threads) 
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})
@@ -331,14 +351,18 @@ endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 find_library(DYNAMICLIB dl)
-set(LIBS "${LIBS} ${DYNAMICLIB}")
+find_library(MATHLIB m)
+set(LIBS "${LIBS} ${DYNAMICLIB} ${MATHLIB}")
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
 ###########
 # Other boilerplate CMake stuff
 ###########
 
-subdirs (src tests)
+# remove leading, trailing spaces from libraries
+string(STRIP "${LIBS}" LIBS)
+
+subdirs (src tests src/sosa_mods)
 
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)

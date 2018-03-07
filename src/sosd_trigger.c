@@ -85,7 +85,9 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_trigger:main()");
 
-    dlog(1, "Connected to sosd (daemon) on port %s ...\n", getenv("SOS_CMD_PORT"));
+    const char * portStr = getenv("SOS_CMD_PORT");
+    if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+    dlog(1, "Connected to sosd (daemon) on port %s ...\n", portStr);
 
     SOS_buffer_init(SOS, &buffer);
 

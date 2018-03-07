@@ -15,33 +15,45 @@
 # EVPATH_DIR, EVPATH_ROOT, EVPath_DIR, EVPath_ROOT, or environment variables
 # using the same set of names.
 
-if (NOT DEFINED EVPath_DIR)
+
+if ("${EVPath_DIR} " STREQUAL " ")
+    IF (NOT EVPath_FIND_QUIETLY)
+        message("EVPath_DIR not set, trying alternatives...")
+    ENDIF (NOT EVPath_FIND_QUIETLY)
 
     # All upper case options
     if (DEFINED EVPATH_DIR)
-        set(EVPath_DIR ${EVPATH_DIR} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR ${EVPATH_DIR})
     endif (DEFINED EVPATH_DIR)
     if (DEFINED EVPATH_ROOT)
-        set(EVPath_DIR ${EVPATH_ROOT} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR ${EVPATH_ROOT})
     endif (DEFINED EVPATH_ROOT)
     if (DEFINED ENV{EVPATH_DIR})
-        set(EVPath_DIR $ENV{EVPATH_DIR} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR $ENV{EVPATH_DIR})
     endif (DEFINED ENV{EVPATH_DIR})
     if (DEFINED ENV{EVPATH_ROOT})
-        set(EVPath_DIR $ENV{EVPATH_ROOT} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR $ENV{EVPATH_ROOT})
     endif (DEFINED ENV{EVPATH_ROOT})
+    if (DEFINED ENV{FLEXPATH_DIR})
+        set(EVPath_DIR $ENV{FLEXPATH_DIR})
+    endif (DEFINED ENV{FLEXPATH_DIR})
 
     # Mixed case options
     if (DEFINED EVPath_ROOT)
-        set(EVPath_DIR ${EVPath_ROOT} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR ${EVPath_ROOT})
     endif (DEFINED EVPath_ROOT)
     if (DEFINED ENV{EVPath_DIR})
-        set(EVPath_DIR $ENV{EVPath_DIR} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR $ENV{EVPath_DIR})
     endif (DEFINED ENV{EVPath_DIR})
     if (DEFINED ENV{EVPath_ROOT})
-        set(EVPath_DIR $ENV{EVPath_ROOT} CACHE STRING "Path to EVPath installation")
+        set(EVPath_DIR $ENV{EVPath_ROOT})
     endif (DEFINED ENV{EVPath_ROOT})
-endif (NOT DEFINED EVPath_DIR)
+endif ("${EVPath_DIR} " STREQUAL " ")
+
+IF (NOT EVPath_FIND_QUIETLY)
+MESSAGE(STATUS "EVPath_DIR set to: '${EVPath_DIR}'")
+ENDIF (NOT EVPath_FIND_QUIETLY)
+
 
 # First, see if the evpath_config program is in our path.  
 # If so, use it.
@@ -104,8 +116,6 @@ if(EVPath_CONFIG)
     set(EVPath_LIBRARIES "${EVPath_LIBRARIES}" CACHE STRING "")
     FIND_PATH(EVPath_INCLUDE_DIR evpath.h "${EVPath_DIR}/include" NO_DEFAULT_PATH)
 
-#else(EVPath_CONFIG)
-
 else()
     message("FindEVPath: evpath_config not available.")
     message("FindEVPath: pkg_search_module for libenet...")
@@ -131,8 +141,6 @@ else()
             "${EVPath_DIR}/lib" NO_DEFAULT_PATH)
         FIND_LIBRARY(EVPath_LIBRARIES NAMES enet)
     endif()
-    
-#endif(EVPath_CONFIG)
 endif()
 
 IF (EVPath_INCLUDE_DIR AND EVPath_LIBRARIES)

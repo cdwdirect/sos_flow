@@ -230,7 +230,7 @@ void SOS_re_print(SOS_regex_t* pattern)
       break;
     }
 
-    printf("type: %s", types[pattern[i].type]);
+    printf("type: %d", types[pattern[i].type]);
     if (pattern[i].type == SOS_REGEX_CHAR_CLASS || pattern[i].type == SOS_REGEX_INV_CHAR_CLASS)
     {
       printf(" [");

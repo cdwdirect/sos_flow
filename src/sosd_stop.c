@@ -105,7 +105,7 @@ int main(int argc, char *argv[]) {
 
     rc = SOS_target_connect(SOS->daemon);
     if (rc != 0) {
-        fprintf(stderr, "Unable to connect to an SOSflow daemon on port %d."
+        fprintf(stderr, "Unable to connect to an SOSflow daemon on port %s."
                 "  (rc == %d)\n", SOS->daemon->remote_port, rc);
         exit(EXIT_FAILURE);
     }

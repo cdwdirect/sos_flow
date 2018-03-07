@@ -59,7 +59,7 @@ typedef struct {
 } SOSD_db_task;
 
 typedef struct {
-    SOS_feedback_type   type;
+    SOS_msg_type        type;
     void               *ref;
 } SOSD_feedback_task;
 

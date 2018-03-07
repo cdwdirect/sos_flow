@@ -9,6 +9,7 @@
 #include "sosd_cloud_evpath.h"
 
 #include "evpath.h"
+#include <errno.h>
 
 bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway = false;
@@ -516,10 +517,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         while(strnlen(evp->send.contact_string, 1024) < 1) {
             FILE *contact_file;
             contact_file = fopen(contact_filename, "r");
-            fscanf(contact_file, "%1024s\n",
+            int rc = fscanf(contact_file, "%1024s\n",
                     evp->send.contact_string);
-            if (strlen(evp->send.contact_string) < 1) {
-                dlog(0, "Error reading the contact key file. Aborting.\n");
+            if (rc == EOF || strlen(evp->send.contact_string) < 1) {
+                dlog(0, "Error reading the contact key file. Aborting.\n%s\n", 
+                        strerror(errno));
                 exit(EXIT_FAILURE);
             }
             fclose(contact_file);

@@ -192,7 +192,11 @@ SOS_init_existing_runtime(
     NEW_SOS->config.process_id = (int) getpid();
 
     NEW_SOS->config.program_name = (char *) calloc(PATH_MAX, sizeof(char));
-    readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
+    rc = readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
+    if (rc < 0) {
+        //dlog(1, "Cannot read /proc/self/exe (%s)\n", strerror(errno));
+        sprintf(NEW_SOS->config.program_name, "a.out");
+    }
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
@@ -227,7 +231,8 @@ SOS_init_existing_runtime(
 #endif
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-    gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
+    //gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
+    strncpy(SOS->config.node_id, "localhost", 10);
     dlog(4, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->config.offline_test_mode == true) {
@@ -291,14 +296,14 @@ SOS_init_existing_runtime(
         dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
         SOS->daemon = NULL;
-        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
-                atoi(getenv("SOS_CMD_PORT")));
+        const char * portStr = getenv("SOS_CMD_PORT");
+        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
         rc = SOS_target_connect(SOS->daemon);
 
         if (rc != 0) {
             fprintf(stderr, "Unable to connect to an SOSflow daemon on"
-                    " port %d.  (rc == %d)\n",
-                    atoi(getenv("SOS_CMD_PORT")), rc);
+                    " port %d.  (rc == %d)\n", atoi(portStr), rc);
             free(SOS);
             SOS = NULL;
             return;
@@ -741,8 +746,6 @@ SOS_msg_seal(
     return offset;
 }
 
-
-
 void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
     SOS_SET_CONTEXT(message->sos_context, "SOS_send_to_daemon");
 
@@ -1004,7 +1007,7 @@ void* SOS_THREAD_receives_timed(void *args) {
     SOS_msg_header       header;
     SOS_buffer          *check_in_buffer;
     SOS_buffer          *feedback_buffer;
-    SOS_feedback_type    feedback;
+    SOS_msg_type         feedback;
 
     if ( SOS->config.offline_test_mode == true ) { return NULL; }
 

@@ -15,33 +15,36 @@
 # MUNGE_DIR, MUNGE_ROOT, Munge_DIR, Munge_ROOT, or environment variables
 # using the same set of names.
 
-if (NOT DEFINED Munge_DIR)
+
+if (Munge_DIR STREQUAL "not set")
 
     # All upper case options
     if (DEFINED MUNGE_DIR)
-        set(Munge_DIR ${MUNGE_DIR} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR ${MUNGE_DIR})
     endif (DEFINED MUNGE_DIR)
     if (DEFINED MUNGE_ROOT)
-        set(Munge_DIR ${MUNGE_ROOT} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR ${MUNGE_ROOT})
     endif (DEFINED MUNGE_ROOT)
     if (DEFINED ENV{MUNGE_DIR})
-        set(Munge_DIR $ENV{MUNGE_DIR} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR $ENV{MUNGE_DIR})
     endif (DEFINED ENV{MUNGE_DIR})
     if (DEFINED ENV{MUNGE_ROOT})
-        set(Munge_DIR $ENV{MUNGE_ROOT} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR $ENV{MUNGE_ROOT})
+
     endif (DEFINED ENV{MUNGE_ROOT})
 
     # Mixed case options
     if (DEFINED Munge_ROOT)
-        set(Munge_DIR ${Munge_ROOT} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR ${Munge_ROOT})
     endif (DEFINED Munge_ROOT)
     if (DEFINED ENV{Munge_DIR})
-        set(Munge_DIR $ENV{Munge_DIR} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR $ENV{Munge_DIR})
     endif (DEFINED ENV{Munge_DIR})
     if (DEFINED ENV{Munge_ROOT})
-        set(Munge_DIR $ENV{Munge_ROOT} CACHE STRING "Path to Munge installation")
+        set(Munge_DIR $ENV{Munge_ROOT})
     endif (DEFINED ENV{Munge_ROOT})
-endif (NOT DEFINED Munge_DIR)
+endif (Munge_DIR STREQUAL "not set")
+
 
 # FIND_PATH and FIND_LIBRARY normally search standard locations
 # before the specified paths. To search non-standard paths first,

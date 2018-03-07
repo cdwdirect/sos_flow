@@ -1,3 +1,6 @@
+# Enable c99 support.
+use_c99()
+
 include_directories(${sos_flow_SOURCE_DIR}/src)
 
 # If using SQLite3, add include files - it's required
@@ -8,10 +11,12 @@ endif(SQLite3_FOUND)
 
 # If using MPI, add the include files
 if(MPI_FOUND)
-    include_directories(${MPI_INCLUDE_PATH})
-    link_libraries(${MPI_C_LIBRARIES})
+	include_directories(${MPI_INCLUDE_PATH})
+    link_libraries(${MPI_CXX_LIBRARIES})
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${MPI_C_COMPILE_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_C_LINK_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${MPI_CXX_COMPILE_FLAGS}")
+    # We need C++ because of sosd_spawn.cpp
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${MPI_CXX_LINK_FLAGS}")
 endif(MPI_FOUND)
 
 if(EVPath_FOUND)
@@ -56,6 +61,7 @@ add_library(sos
     sos_error.c
     sos_options.c)
 #----
+target_link_libraries(sos ${LIBS})
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
 export(TARGETS sos APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
@@ -113,10 +119,10 @@ else()
     add_executable(sosd sosd.c sosd_cloud_stubs.c sosd_db_sqlite.c sosd_system.cpp)
     set_target_properties(sosd PROPERTIES COMPILE_FLAGS "-DSOSD_DAEMON_SRC")
     set_target_properties(sosd PROPERTIES COMPILE_FLAGS "-DSOSD_CLOUD_SYNC_WITH_STUBS")
-    target_link_libraries(sosd sos stdc++)
+    target_link_libraries(sosd sos stdc++ dl)
     if(NOT APPLE)
         # Apple does no support the '-lrt' compiler option.
-        target_link_libraries("sosd" "rt")
+        target_link_libraries(sosd rt)
     endif()
 endif()
 
@@ -135,6 +141,8 @@ target_link_libraries(sosd_probe sos)
 # sosd_spawn is used to spawn a listener if one isn't running
 if(MPI_FOUND)
     SET(MPI_SOURCE_FILES "sosd_spawn.cpp")
+else(MPI_FOUND)
+    SET(MPI_SOURCE_FILES "sosd_spawn_nompi.cpp")
 endif(MPI_FOUND)
 
 #TARGET ---> demo_app (demonstration / example)
