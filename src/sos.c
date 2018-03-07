@@ -1674,6 +1674,9 @@ int SOS_pack(
 
     SOS_val     pack_val;
 
+    // gotta have some thread safety.
+    pthread_mutex_lock(pub->lock);
+
     switch(pack_type) {
     case SOS_VAL_TYPE_INT:    pack_val.i_val = *(int *)pack_val_var; break;
     case SOS_VAL_TYPE_LONG:   pack_val.l_val = *(long *)pack_val_var; break;
@@ -1694,9 +1697,6 @@ int SOS_pack(
         return -1;
         break;
     }
-
-
-    pthread_mutex_lock(pub->lock);
 
     // NOTE: Regarding indexing...
     // The hash table will return NULL if a value is not present.
