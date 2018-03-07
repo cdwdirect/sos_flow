@@ -226,6 +226,23 @@ void SOSD_db_init_database() {
     snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, "%s/%s.local.db", SOSD.daemon.work_dir, SOSD.daemon.name);
     #endif
 
+    // Does the user want an in memory database?
+    char * tmp = getenv("SOS_IN_MEMORY_DATABASE");
+    if (tmp != NULL) {
+        // force the string to upper case
+        char * c = tmp;
+        while (c) {
+            *c = toupper((unsigned char)*c);
+            c++;
+        }
+        // check for some obvious positive values
+        if (strcmp(tmp,"1")==0 ||
+            strcmp(tmp,"TRUE")==0 ||
+            strcmp(tmp,"YES")==0) {
+            snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
+        }
+    }
+
     if (SOS_file_exists(SOSD.db.file)) {
         fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
                 SOSD.db.file);
@@ -698,11 +715,15 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         for (snap_index = 0; snap_index < snap_count ; snap_index++) {
             switch(val_type) {
             case SOS_VAL_TYPE_STRING:
-                dlog(0, "freeing a string!\n");
+                // memory controlled by SQLite
                 //free(snap_list[snap_index]->val.c_val);
                 break;
-            case SOS_VAL_TYPE_BYTES:  free(snap_list[snap_index]->val.bytes); break;
-            default: break;
+            case SOS_VAL_TYPE_BYTES:  
+                // memory controlled by SQLite
+                //free(snap_list[snap_index]->val.bytes); 
+                break;
+            default: 
+                break;
             }
             free(snap_list[snap_index]);
         }
