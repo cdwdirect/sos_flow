@@ -351,7 +351,8 @@ endif()
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 find_library(DYNAMICLIB dl)
-set(LIBS "${LIBS} ${DYNAMICLIB}")
+find_library(MATHLIB m)
+set(LIBS "${LIBS} ${DYNAMICLIB} ${MATHLIB}")
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
 ###########

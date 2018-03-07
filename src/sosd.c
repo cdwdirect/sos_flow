@@ -70,6 +70,7 @@
 #endif
 
 #include "sos.h"
+#include "sos_types.h"
 #include "sos_debug.h"
 #include "sos_error.h"
 #include "sos_options.h"

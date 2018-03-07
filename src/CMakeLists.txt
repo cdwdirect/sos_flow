@@ -61,6 +61,7 @@ add_library(sos
     sos_error.c
     sos_options.c)
 #----
+target_link_libraries(sos ${LIBS})
 
 file(MAKE_DIRECTORY ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake)
 export(TARGETS sos APPEND FILE ${CMAKE_LIBRARY_OUTPUT_DIRECTORY}/cmake/sosflow.cmake)
