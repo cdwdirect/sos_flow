@@ -9,18 +9,22 @@ endif()
     if (TAU_FOUND)
         include_directories(${TAU_INCLUDE_DIRS})
         set(LIBS ${LIBS} ${TAU_LIBRARIES})
-        set (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_RPATH} ${TAU_LIBRARY_DIR})
+        #set (CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_RPATH} ${TAU_LIBRARY_DIR})
     endif()
 #endif()
 
 # Make sure the compiler can find include files from MPI
 include_directories (.)
+if(DEFINED MPI_INCLUDE_PATH)
 include_directories("${MPI_INCLUDE_PATH}")
+endif(DEFINED MPI_INCLUDE_PATH)
 include_directories("${ADIOS_INCLUDE_DIRS}")
 include_directories("${sos_flow_SOURCE_DIR}/src")
 
 # add our executables
-add_executable (generic_node main.c mpi_reader.c mpi_writer.c flexpath_reader.c flexpath_writer.c mandelbrot.c) 
+add_executable (generic_node main.c mpi_reader.c mpi_writer.c flexpath_reader.c flexpath_writer.c exchange.c mandelbrot.c) 
+set_target_properties(generic_node PROPERTIES LINK_SEARCH_START_STATIC 1)
+set_target_properties(generic_node PROPERTIES LINK_SEARCH_END_STATIC 1)
 
 # Link the executable to the correct libraries
 target_link_libraries (generic_node ${ADIOS_LIBRARIES} ${LIBS} ${MPI_LINK_FLAGS} ${MPI_LIBRARIES} ${ENET_LDFLAGS} ${RCA_LDFLAGS} ${ADIOS_TAU_FLAGS} ${TAU_PTHREAD_WRAPPER}) 

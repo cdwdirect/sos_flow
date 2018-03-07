@@ -97,16 +97,6 @@ const char _pipe_copyright[] =
 #define PURE
 #endif
 
-#ifdef NDEBUG
-    #if defined(_MSC_VER)
-        #define assertume __assume
-    #else // _MSC_VER
-        #define assertume assert
-    #endif // _MSC_VER
-#else // NDEBUG
-    #define assertume assert
-#endif // NDEBUG
-
 // The number of spins to do before performing an expensive kernel-mode context
 // switch. This is a nice easy value to tweak for your application's needs. Set
 // it to 0 if you want the implementation to decide, a low number if you are
@@ -483,7 +473,7 @@ static inline void* offset_memcpy(void* restrict dest,
 static size_t CONSTEXPR next_pow2(size_t n)
 {
     // I don't see why we would even try. Maybe a stacktrace will help.
-    assertume(n != 0);
+    assert(n != 0);
 
     // In binary, top is equal to 10000...0:  A 1 right-padded by as many zeros
     // as needed to fill up a size_t.
@@ -529,33 +519,33 @@ static inline void check_invariants(pipe_t* p)
     // and people are still trying to push like idiots.
     if(p->buffer == NULL)
     {
-        assertume(p->consumer_refcount == 0);
+        assert(p->consumer_refcount == 0);
         return;
     }
     else
     {
-        assertume(p->consumer_refcount != 0);
+        assert(p->consumer_refcount != 0);
     }
 
     snapshot_t s = make_snapshot(p);
 
-    assertume(s.begin);
-    assertume(s.end);
-    assertume(s.bufend);
+    assert(s.begin);
+    assert(s.end);
+    assert(s.bufend);
 
-    assertume(p->elem_size != 0);
+    assert(p->elem_size != 0);
 
-    assertume(bytes_in_use(s) <= capacity(s)
+    assert(bytes_in_use(s) <= capacity(s)
             && "There are more elements in the buffer than its capacity.");
 
-    assertume(in_bounds(s.buffer, s.begin, s.bufend));
-    assertume(in_bounds(s.buffer, s.end, s.bufend));
+    assert(in_bounds(s.buffer, s.begin, s.bufend));
+    assert(in_bounds(s.buffer, s.end, s.bufend));
 
     if(s.begin == s.end)
-        assertume(bytes_in_use(s) == capacity(s));
+        assert(bytes_in_use(s) == capacity(s));
 
-    assertume(in_bounds(DEFAULT_MINCAP*p->elem_size, p->min_cap, p->max_cap));
-    assertume(in_bounds(p->min_cap, capacity(s) + p->elem_size, p->max_cap));
+    assert(in_bounds(DEFAULT_MINCAP*p->elem_size, p->min_cap, p->max_cap));
+    assert(in_bounds(p->min_cap, capacity(s) + p->elem_size, p->max_cap));
 }
 
 static inline void lock_pipe(pipe_t* p)
@@ -584,7 +574,7 @@ static inline void unlock_pipe(pipe_t* p)
 
 pipe_t* pipe_new(size_t elem_size, size_t limit)
 {
-    assertume(elem_size != 0);
+    assert(elem_size != 0);
 
     if(elem_size == 0)
         return NULL;
@@ -654,8 +644,8 @@ pipe_consumer_t* pipe_consumer_new(pipe_t* p)
 
 static void deallocate(pipe_t* p)
 {
-    assertume(p->producer_refcount == 0);
-    assertume(p->consumer_refcount == 0);
+    assert(p->producer_refcount == 0);
+    assert(p->consumer_refcount == 0);
 
     mutex_destroy(&p->begin_lock);
     mutex_destroy(&p->end_lock);
@@ -673,12 +663,12 @@ void pipe_free(pipe_t* p)
            new_consumer_refcount;
 
     mutex_lock(&p->begin_lock);
-        assertume(p->producer_refcount > 0);
+        assert(p->producer_refcount > 0);
         new_producer_refcount = --p->producer_refcount;
     mutex_unlock(&p->begin_lock);
 
     mutex_lock(&p->end_lock);
-        assertume(p->consumer_refcount > 0);
+        assert(p->consumer_refcount > 0);
         new_consumer_refcount = --p->consumer_refcount;
     mutex_unlock(&p->end_lock);
 
@@ -701,7 +691,7 @@ void pipe_producer_free(pipe_producer_t* handle)
     size_t new_producer_refcount;
 
     mutex_lock(&p->begin_lock);
-        assertume(p->producer_refcount > 0);
+        assert(p->producer_refcount > 0);
         new_producer_refcount = --p->producer_refcount;
     mutex_unlock(&p->begin_lock);
 
@@ -782,7 +772,7 @@ static snapshot_t resize_buffer(pipe_t* p, size_t new_size)
                  min_cap   = p->min_cap,
                  elem_size = __pipe_elem_size(p);
 
-    assertume(new_size >= bytes_in_use(make_snapshot(p)));
+    assert(new_size >= bytes_in_use(make_snapshot(p)));
 
     if(unlikely(new_size >= max_cap))
         new_size = max_cap;
@@ -840,11 +830,11 @@ static inline char* process_push(snapshot_t s,
                                 size_t bytes_to_copy
                                )
 {
-    assertume(bytes_to_copy != 0);
+    assert(bytes_to_copy != 0);
 
     // This shouldn't be necessary.
     //s.end = wrap_ptr_if_necessary(s.buffer, s.end, s.bufend);
-    assertume(s.end != s.bufend);
+    assert(s.end != s.bufend);
 
     // If we currently have a nowrap buffer, we may have to wrap the new
     // elements. Copy as many as we can at the end, then start copying into the
@@ -926,7 +916,7 @@ void __pipe_push(pipe_t* p,
                      pushed = min(count, max_cap - bytes_in_use(s)));
     } mutex_unlock(&p->end_lock);
 
-    assertume(pushed > 0);
+    assert(pushed > 0);
 
     // Signal if we've only pushed one element, broadcast if we've pushed more.
     if(unlikely(pushed == elem_size))
@@ -993,7 +983,7 @@ static inline snapshot_t pop_without_locking(snapshot_t s,
                                              char** begin // [out]
                                             )
 {
-    assertume(s.begin != s.bufend);
+    assert(s.begin != s.bufend);
 
     size_t elem_size = s.elem_size;
 
@@ -1108,7 +1098,7 @@ static inline size_t __pipe_pop(pipe_t* p,
         trim_buffer(p, s);
     } // p->begin_lock was unlocked by trim_buffer.
 
-    assertume(popped);
+    assert(popped);
 
     if(unlikely(popped == __pipe_elem_size(p)))
         cond_signal(&p->just_popped);

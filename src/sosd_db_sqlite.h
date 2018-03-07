@@ -26,7 +26,7 @@ void SOSD_db_insert_data(SOS_pub *pub);
 void SOSD_db_insert_vals(SOS_pipe *from_queue, SOS_pipe *optional_re_queue);
 void SOSD_db_transaction_begin(void);
 void SOSD_db_transaction_commit(void);
-void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response);
+void SOSD_db_handle_sosa_query(SOSD_db_task *task);
 
 #define CALL_SQLITE(f) {						\
     int i;								\
@@ -55,7 +55,7 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response);
             exit (1);                                                   \
         }								\
  }                                                                      \
-    
+
 
 
 
@@ -65,5 +65,5 @@ void SOSD_db_handle_sosa_query(SOS_buffer *msg, SOS_buffer *response);
 #ifdef __cplusplus
 }
 #endif
-  
+
 #endif //SOS_DB_SQLITE_H

@@ -10,6 +10,8 @@ set(CMAKE_C_FLAGS "-std=gnu99 -O3 -g")
 
 message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 
+set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
+
 # MPI
 find_package(MPI REQUIRED)
 # PTHREADS

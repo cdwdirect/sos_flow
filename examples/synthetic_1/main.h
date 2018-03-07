@@ -8,7 +8,7 @@ extern int commsize;
 extern SOS_runtime * _runtime;
 
 void SOS_init_wrapper(int* argc, char** argv[]) {
-    _runtime = SOS_init(argc, argv, SOS_ROLE_CLIENT, SOS_LAYER_LIB);
+    SOS_init(argc, argv, &_runtime, SOS_ROLE_CLIENT, SOS_RECEIVES_NO_FEEDBACK, NULL);
     char pub_name[SOS_DEFAULT_STRING_LEN] = {0};
     char app_version[SOS_DEFAULT_STRING_LEN] = {0};
     sprintf(pub_name, "EXAMPLE");
@@ -21,7 +21,7 @@ void SOS_init_wrapper(int* argc, char** argv[]) {
     _runtime->config.comm_rank = rank;
     _runtime->config.comm_size = commsize;
     // ...but it has to be done before the pub creation.
-    example_pub = SOS_pub_create(_runtime, pub_name, SOS_NATURE_DEFAULT);
+    SOS_pub_create(_runtime, &example_pub, pub_name, SOS_NATURE_DEFAULT);
     strcpy (example_pub->prog_ver, app_version);
     example_pub->meta.channel       = 1;
     example_pub->meta.nature        = SOS_NATURE_EXEC_WORK;

@@ -165,17 +165,16 @@ def execute_commands(commands, logfiles, profiledirs, data, unique_hostnames):
         f.write(i + "\n")
     f.close()
     """
-    """
     # launch the SOS daemon(s) and SOS database(s)
-    arguments = "aprun -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
-    #arguments = "aprun -pernode -np " + str(sos_num_daemons) + " " + daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -w " + sos_working_dir 
+    os.environ['SOS_CMD_PORT'] = "22599"
+    arguments = daemon + " -l " + str(sos_num_daemons-1) + " -a 1 -r aggregator -k 0 -w " + sos_working_dir 
     print arguments
     args = shlex.split(arguments.encode('ascii'))
     subprocess.Popen(args)
     time.sleep(1)
-    """
     index = 0
     openfiles = []
+    os.environ['SOS_CMD_PORT'] = sos_cmd_port
     # launch all of the nodes in the workflow
     for command,logfile,profiledir in zip(commands,logfiles,profiledirs):
         os.environ['PROFILEDIR'] = profiledir
@@ -201,13 +200,12 @@ def execute_commands(commands, logfiles, profiledirs, data, unique_hostnames):
     # shut down - wait for a bit so we can shutdown the database server cleanly.
     print "Waiting for all processes to finish..."
     time.sleep(2)
-    """
     print "Stopping the database..."
-    arguments = "aprun -np " + str(sos_num_daemons-1) + " " + data["sos_bin"] + "/sosd_stop"
+    os.environ['SOS_CMD_PORT'] = "22599"
+    arguments = data["sos_bin"] + "/sosd_stop"
     print arguments
     args = shlex.split(arguments.encode('ascii'))
     subprocess.call(args)
-    """
 
 # main, baby - main!
 def main():
@@ -225,11 +223,9 @@ def main():
         print "failed!"
         traceback.print_exc(file=sys.stderr)
         sos_num_daemons = len(unique_hostnames)
-        """
-        arguments = "aprun -np " + str(sos_num_daemons-1) + " " + sos_root + "/bin/sosd_stop"
+        arguments = data["sos_bin"] + "/sosd_stop"
         args = shlex.split(arguments.encode('ascii'))
         subprocess.call(args)
-        """
 
 if __name__ == "__main__":
     main()

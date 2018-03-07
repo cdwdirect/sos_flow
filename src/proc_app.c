@@ -81,13 +81,13 @@ int main(int argc, char *argv[]) {
     if (GLOBAL_sleep_delay < 1) { fprintf(stderr, "%s\n", USAGE); exit(1); }
 
     log("[SOS_init]\n");
-    SOS_runtime *my_sos;
-    my_sos = SOS_init( &argc, &argv, SOS_ROLE_RUNTIME_UTILITY, SOS_LAYER_ENVIRONMENT);
+    SOS_runtime *my_sos = NULL;
+    SOS_init( &my_sos, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     srandom(my_sos->my_guid);
 
     SOS_pub *pub;    
-    pub = SOS_pub_create(my_sos, "proc_app stat monitor", SOS_NATURE_SUPPORT_FLOW);
+    SOS_pub_init(my_sos, &pub, "proc_app stat monitor", SOS_NATURE_SUPPORT_FLOW);
 
     char  val_handle[SOS_DEFAULT_STRING_LEN] = {0};
     char *proc_line = NULL;

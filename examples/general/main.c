@@ -26,6 +26,7 @@ int mpi_reader(MPI_Comm adios_comm, char * source);
 int flexpath_writer(MPI_Comm adios_comm, int sink_index, bool append, bool shutdown);
 int flexpath_reader(MPI_Comm adios_comm, int source_index);
 int compute(int iteration);
+void exchange(int iteration);
 
 void validate_input(int argc, char* argv[]) {
     if (argc == 1) {
@@ -98,6 +99,7 @@ int main (int argc, char *argv[])
         fflush(stderr);
         exit(99);
     }
+    printf("MPI_Init_thread: provided = %d, MPI_THREAD_MULTIPLE=%d\n", provided, MPI_THREAD_MULTIPLE);
 
     MPI_Comm_rank(MPI_COMM_WORLD, &my_rank);
     MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -106,6 +108,7 @@ int main (int argc, char *argv[])
     MPI_Comm_dup(MPI_COMM_WORLD, &adios_comm);
 
     adios_init ("arrays.xml", adios_comm);
+    my_printf("%s %s %d Started ADIOS.\n", argv[0], my_name, getpid());
 
     /*
      * Loop and do the things
@@ -131,10 +134,17 @@ int main (int argc, char *argv[])
             TAU_STOP(tmpstr);
         }
         /*
-        * "compute"
+        * "compute", then exchange
         */
         my_printf ("%s computing.\n", my_name);
         compute(iter);
+        compute(iter);
+        my_printf ("%s exchanging.\n", my_name);
+        exchange(iter);
+        my_printf ("%s computing.\n", my_name);
+        compute(iter);
+        my_printf ("%s exchanging.\n", my_name);
+        exchange(iter);
         bool time_to_go = (num_sources == 0) ? (iter == (iterations-1)) : true;
         for (index = 0 ; index < num_sources ; index++) {
             if (return_codes[index] == 0) {

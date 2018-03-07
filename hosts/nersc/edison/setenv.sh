@@ -7,8 +7,12 @@ module load cmake
 module swap PrgEnv-pgi PrgEnv-gnu
 module load dataspaces
 
+export SOS_HOST_KNOWN_AS="\"NERSC (Edison)\""
+
+# For tracking the environment that SOS is built in:
+export SOS_HOST_NODE_NAME="\"$(uname -n)\""
+export SOS_HOST_DETAILED="\"$(uname -o) $(uname -r) $(uname -m)\""
 export SOS_CMD_PORT=22500
-export SOS_DB_PORT=22503
 export SOS_ROOT=${BASEDIR}
 export SOS_WORK=.
 export ACCOUNT=csc103
@@ -30,3 +34,14 @@ export cmake_extras="-DMPI_C_INCLUDE_PATH=${CRAY_MPICH2_DIR}/include -DMPI_C_LIB
 export PKG_CONFIG_PATH=${HOME}/src/chaos/titan-gcc/lib/pkgconfig:${PKG_CONFIG_PATH}
 
 export SOS_ENV_SET=1
+
+#echo "Reconfiguring the build scripts..."
+#cd $SOS_ROOT
+#$SOS_ROOT/scripts/configure.sh -c
+#cd $SOS_BUILD_DIR
+#make clean
+#echo "-- Compile SOSflow with the following command:"
+#echo ""
+#echo "        make -j install"
+#echo ""
+

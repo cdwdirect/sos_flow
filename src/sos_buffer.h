@@ -24,10 +24,14 @@
 typedef struct {
     void                *sos_context;
     bool                 is_locking;
+    bool                 is_zipped;
     pthread_mutex_t     *lock;
     unsigned char       *data;
     int                  len;
     int                  max;
+#ifdef USE_MUNGE
+    char                *ref_cred;
+#endif
 } SOS_buffer;
 
 
@@ -37,20 +41,29 @@ extern "C" {
 #endif
 
 void         SOS_buffer_init(void *sos_context, SOS_buffer **buffer);
-void         SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer, int max_size);
-void         SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer, int max_size, bool locking);
+void         SOS_buffer_init_sized(void *sos_context, SOS_buffer **buffer,
+                    int max_size);
+void         SOS_buffer_init_sized_locking(void *sos_context, SOS_buffer **buffer,
+                    int max_size, bool locking);
 void         SOS_buffer_clone(SOS_buffer **dest, SOS_buffer *src);
 void         SOS_buffer_lock(SOS_buffer *buffer);
 void         SOS_buffer_unlock(SOS_buffer *buffer);
 void         SOS_buffer_destroy(SOS_buffer *buffer);
+
              // The following functions do *NOT* lock the buffer...
              // (You should hold the lock already, manually)
 void         SOS_buffer_wipe(SOS_buffer *buffer);
-void         SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func);
+void         SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount,
+                    char *from_func);
 void         SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max);
+
 int          SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...);
+int          SOS_buffer_pack_bytes(SOS_buffer *buffer, int *offset,
+                    int byte_count, void *source);
+
 int          SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...);
-void         SOS_buffer_unpack_safestr(SOS_buffer *buffer, int *offset, char **dest);
+void         SOS_buffer_unpack_safestr(SOS_buffer *buffer, int *offset,
+                    char **dest);
 
 uint64_t     SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits);
 double       SOS_buffer_unpack754(uint64_t i, unsigned bits, unsigned expbits);

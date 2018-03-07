@@ -13,17 +13,18 @@
 #include "evpath.h"
 #endif
 
+#ifdef USE_MUNGE
+#include "munge.h"
+#endif
+
 #include "sos.h"
 #include "sos_types.h"
+#include "sosa.h"
+#include "sos_options.h"
 
-
-/*********************/
-/* [SOSD_DAEMON_MODE]
- *    1 = Fork into a new ID/SESSION...
- *    0 = Run interactively, as launched. (Good for most MPI+MPMD setups)
- *
+// 1 = Fork a new ID/SESSION.     (DEPRECATED)
+// 0 = Run interactively, as launched
 #define SOSD_DAEMON_MODE             0
- *********************/
 
 #define SOSD_DAEMON_NAME             "sosd"
 #define SOSD_DEFAULT_DIR             "/tmp"
@@ -32,6 +33,7 @@
 #define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
 
 #define SOSD_DEFAULT_K_MEAN_CENTERS  24
+#define SOSD_DEFAULT_CENTROID_COUNT  12
 
 #define SOSD_PUB_ANN_DIRTY           66
 #define SOSD_PUB_ANN_LOCAL           77
@@ -40,54 +42,87 @@
 #define SOSD_LOCAL_SYNC_WAIT_SEC     0
 #define SOSD_CLOUD_SYNC_WAIT_SEC     0
 #define SOSD_DB_SYNC_WAIT_SEC        0
+#define SOSD_SYSTEM_MONITOR_WAIT_SEC 1
+#define SOSD_FEEDBACK_SYNC_WAIT_SEC  0
 
 /* 0.05 seconds: 50000000, default for cloud/db=5000 */
-#define SOSD_LOCAL_SYNC_WAIT_NSEC    0
-#define SOSD_CLOUD_SYNC_WAIT_NSEC    3000
-#define SOSD_DB_SYNC_WAIT_NSEC       5000
-
-
-#define SOSD_DEFAULT_CENTROID_COUNT  12
+#define SOSD_LOCAL_SYNC_WAIT_NSEC    1
+#define SOSD_CLOUD_SYNC_WAIT_NSEC    1
+#define SOSD_DB_SYNC_WAIT_NSEC       1
+#define SOSD_FEEDBACK_SYNC_WAIT_NSEC 1
 
 
 
 typedef struct {
     SOS_msg_type        type;
-    SOS_pub            *pub;
+    void               *ref;
 } SOSD_db_task;
 
-
-/*
- *  NOTE: Some stats will be looked up directly from their memory
- *        location, such as the current depth of the DB commit queue.
- *
- *        Also, the sync_lock is only used if SOS_DEBUG is > 0.
- *
- *        Use:   SOSD_countof(buffer_bytes_on_heap -= 1024)
- */
 typedef struct {
-    pthread_mutex_t    *lock_stats;   
-    uint64_t            thread_local_wakeup;   
-    uint64_t            thread_cloud_wakeup;   
-    uint64_t            thread_db_wakeup;      
-    uint64_t            feedback_checkin_messages;   
-    uint64_t            socket_messages;       
-    uint64_t            socket_bytes_recv;         
-    uint64_t            socket_bytes_sent;        
-    uint64_t            mpi_sends;            
-    uint64_t            mpi_bytes;           
-    uint64_t            db_transactions;      
-    uint64_t            db_insert_announce;     
+    SOS_feedback_type   type;
+    void               *ref;
+} SOSD_feedback_task;
+
+typedef struct {
+    char *handle;
+    int   size;
+    void *data;
+} SOSD_feedback_payload;
+
+typedef struct {
+    SOS_query_state     state;
+    SOS_guid            reply_to_guid;
+    char               *query_sql;
+    SOS_guid            query_guid;
+    char               *reply_host;
+    int                 reply_port;
+    void               *results;
+} SOSD_query_handle;
+
+typedef struct {
+    SOS_guid            reply_to_guid;
+    char               *val_name;
+    SOS_guid            req_guid;
+    char               *reply_host;
+    int                 reply_port;
+    void               *results;
+} SOSD_match_handle;
+
+
+typedef struct {
+    SOS_guid            guid;
+    char               *sense_handle;
+    SOS_guid            client_guid;
+    char               *remote_host;
+    int                 remote_port;
+    SOS_socket         *target;
+    void               *next_entry;
+} SOSD_sensitivity_entry;
+
+typedef struct {
+    pthread_mutex_t    *lock_stats;
+    uint64_t            thread_local_wakeup;
+    uint64_t            thread_cloud_wakeup;
+    uint64_t            thread_db_wakeup;
+    uint64_t            thread_feedback_wakeup;
+    uint64_t            feedback_checkin_messages;
+    uint64_t            socket_messages;
+    uint64_t            socket_bytes_recv;
+    uint64_t            socket_bytes_sent;
+    uint64_t            mpi_sends;
+    uint64_t            mpi_bytes;
+    uint64_t            db_transactions;
+    uint64_t            db_insert_announce;
     uint64_t            db_insert_announce_nop;
-    uint64_t            db_insert_publish;      
-    uint64_t            db_insert_publish_nop;  
-    uint64_t            db_insert_val_snaps;     
-    uint64_t            db_insert_val_snaps_nop;  
-    uint64_t            buffer_creates;      
-    uint64_t            buffer_bytes_on_heap;   
-    uint64_t            buffer_destroys;      
-    uint64_t            pipe_creates;        
-    uint64_t            pub_handles;          
+    uint64_t            db_insert_publish;
+    uint64_t            db_insert_publish_nop;
+    uint64_t            db_insert_val_snaps;
+    uint64_t            db_insert_val_snaps_nop;
+    uint64_t            buffer_creates;
+    uint64_t            buffer_bytes_on_heap;
+    uint64_t            buffer_destroys;
+    uint64_t            pipe_creates;
+    uint64_t            pub_handles;
 } SOSD_counts;
 
 
@@ -99,45 +134,29 @@ typedef struct {
 } SOSD_km2d_point;
 
 
-typedef struct {
-    int                 server_socket_fd;
-    int                 client_socket_fd;
-    int                 port_number;
-    char               *server_port;
-    int                 listen_backlog;
-    int                 client_len;
-    struct addrinfo     server_hint;
-    struct addrinfo    *server_addr;
-    char               *client_host;
-    char               *client_port;
-    struct addrinfo    *result;
-    struct sockaddr_storage   peer_addr;
-    socklen_t           peer_addr_len;
-} SOSD_net;
-
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
 typedef struct {
+    bool                active;
     char                name[256];
+    CManager            cm;
     char               *contact_string;
+    attr_list           contact_list;
     EVsource            src;
     EVstone             out_stone;
     EVstone             rmt_stone;
 } SOSD_evpath_node;
 
-
-
 typedef struct {
-    CManager            cm;
     char               *instance_name;
     char               *instance_role;
+    char               *meetup_path;
     int                 is_master;
     int                 node_count;
     SOSD_evpath_node  **node;
-    char               *string_list;
+    char               *contact_string;
     attr_list           contact_list;
-    EVstone             stone;
-    EVstone             remote_stone;
-    EVsource            source;
+    SOSD_evpath_node    send;
+    SOSD_evpath_node    recv;
 } SOSD_evpath;
 #endif
 
@@ -191,17 +210,24 @@ typedef struct {
     SOSD_sync_context    cloud_send;
     SOSD_sync_context    cloud_recv;
     SOSD_sync_context    db;
+    SOSD_sync_context    system_monitor;
+    SOSD_sync_context    feedback;
     qhashtbl_t          *km2d_table;
+    pthread_mutex_t         *sense_list_lock;
+    SOSD_sensitivity_entry  *sense_list_head;
 } SOSD_sync_set;
+
+
 
 typedef struct {
     SOS_runtime        *sos_context;
     SOSD_runtime        daemon;
     SOSD_db             db;
-    SOSD_net            net;
+    SOS_socket         *net;
     SOS_uid            *guid;
     SOSD_sync_set       sync;
     qhashtbl_t         *pub_table;
+    int                 system_monitoring;
 } SOSD_global;
 
 /* ----------
@@ -232,17 +258,21 @@ extern "C" {
     void  SOSD_setup_socket(void);
 
     void  SOSD_sync_context_init(SOS_runtime *sos_context,
-                                 SOSD_sync_context *sync_context,
-                                 size_t elem_size,
-                                 void* (*thread_func)(void *thread_param));
+            SOSD_sync_context *sync_context, size_t elem_size,
+            void* (*thread_func)(void *thread_param));
 
     void* SOSD_THREAD_local_sync(void *args);
     void* SOSD_THREAD_cloud_send(void *args);
     void* SOSD_THREAD_cloud_recv(void *args);
     void* SOSD_THREAD_db_sync(void *args);
+    void* SOSD_THREAD_system_monitor(void *args);
+    void* SOSD_THREAD_feedback_sync(void *args);
 
     void  SOSD_listen_loop(void);
+    void  SOSD_send_to_self(SOS_buffer *msg, SOS_buffer *reply);
+
     void  SOSD_handle_register(SOS_buffer *buffer);
+    void  SOSD_handle_unregister(SOS_buffer *buffer);
     void  SOSD_handle_guid_block(SOS_buffer *buffer);
     void  SOSD_handle_announce(SOS_buffer *buffer);
     void  SOSD_handle_publish(SOS_buffer *buffer);
@@ -251,17 +281,31 @@ extern "C" {
     void  SOSD_handle_shutdown(SOS_buffer *buffer);
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
-    void  SOSD_handle_unknown(SOS_buffer *buffer);
-    void  SOSD_handle_sosa_query(SOS_buffer *buffer);
+    void  SOSD_handle_query(SOS_buffer *buffer);
+    void  SOSD_handle_match_pubs(SOS_buffer *buffer);
+    void  SOSD_handle_match_vals(SOS_buffer *buffer);
+    void  SOSD_handle_sensitivity(SOS_buffer *buffer);
+    void  SOSD_handle_desensitize(SOS_buffer *buffer);
+    void  SOSD_handle_triggerpull(SOS_buffer *buffer);
     void  SOSD_handle_kmean_data(SOS_buffer *buffer);
+    void  SOSD_handle_unknown(SOS_buffer *buffer);
 
-    void  SOSD_claim_guid_block( SOS_uid *uid, int size, SOS_guid *pool_from, SOS_guid *pool_to );
+    void  SOSD_claim_guid_block( SOS_uid *uid, int size,
+            SOS_guid *pool_from, SOS_guid *pool_to );
+
     void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
     void  SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer );
 
     /* Private functions... see: sos.c */
-    extern void SOS_uid_init( SOS_runtime *sos_context, SOS_uid **uid, SOS_guid from, SOS_guid to);
-    extern SOS_runtime* SOS_init_with_runtime(int *argc, char ***argv, SOS_role role, SOS_layer layer, SOS_runtime *extant_sos_runtime);
+    extern void SOS_uid_init( SOS_runtime *sos_context,
+            SOS_uid **uid, SOS_guid from, SOS_guid to);
+
+
+    /* Functions for monitoring system health */
+    void SOSD_setup_system_data(void);
+    void SOSD_read_system_data(void);
+    void SOSD_add_pid_to_track(SOS_pub* pub_pid);
+
 
 
 #ifdef __cplusplus
@@ -294,17 +338,12 @@ extern "C" {
         header.msg_size = -1;                            \
         header.msg_type = SOS_MSG_TYPE_ACK;              \
         header.msg_from = 0;                             \
-        header.pub_guid = 0;                             \
+        header.ref_guid = 0;                             \
         offset = 0;                                      \
-        SOS_buffer_pack(__buffer, &offset, "iigg",       \
-                                      header.msg_size,   \
-                                      header.msg_type,   \
-                                      header.msg_from,   \
-                                      header.pub_guid);  \
+        SOS_msg_zip(__buffer, header, 0, &offset);       \
         header.msg_size = offset;                        \
         offset = 0;                                      \
-        SOS_buffer_pack(__buffer, &offset, "i",          \
-                        header.msg_size);                \
+        SOS_msg_zip(__buffer, header, 0, &offset);       \
     }
 
 

@@ -1,9 +1,9 @@
 
-SOS is Copyright (C) 2015-2017 University of Oregon.
+SOS is Copyright (C) 2015-2018 University of Oregon.
 
 The "Software" in the following 2 paragraphs refers to all files containing
 the code to SOS, including but not limited to variations of the core SOS
-software codes, such as sos_flow.  The "Software" does NOT refer to any other
+software codes, such as SOSflow.  The "Software" does NOT refer to any other
 files which you may have received alongside these files (e.g. as part of a larger
 project that incorporates SOS, or third-party libraries included with SOS).
 

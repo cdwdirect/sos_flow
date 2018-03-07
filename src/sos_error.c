@@ -77,7 +77,7 @@ static void SOS_custom_signal_handler(int sig) {
     strings = backtrace_symbols( trace, size );
     
     dlog(0, "\n");
-    dlog(0, "BACKTRACE:\n");
+    dlog(0, "BACKTRACE:     Signal %d received.\n", sig);
     dlog(0, "\n");
     dlog(0, "\n");
     
@@ -103,14 +103,14 @@ static void SOS_custom_signal_handler(int sig) {
     dlog(0, "***************************************\n");
     dlog(0, "\n");
     dlog(0, "\n");
-    exit(99);
+    exit(EXIT_FAILURE);
 }
 
 int SOS_register_signal_handler(SOS_runtime *sos_context) {
     ERROR_sos_context = sos_context;
     SOS_SET_CONTEXT(ERROR_sos_context, "SOS_register_signal_handler");
 
-    dlog(0, "Register the signal handler.\n");
+    dlog(1, "Register the signal handler.\n");
 
     /*
      *
@@ -127,7 +127,7 @@ int SOS_register_signal_handler(SOS_runtime *sos_context) {
     /*
      *  Register the more robust back-tracing handler...
      */
-    dlog(0, "  ... choosing: custom handler w/backtrack\n");
+    dlog(1, "  ... choosing: custom handler w/backtrack\n");
     struct sigaction act;
     sigemptyset(&act.sa_mask);
     act.sa_flags = 0;

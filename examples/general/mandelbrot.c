@@ -22,8 +22,8 @@
     TAU_PROFILE_START(timer);
           /* screen ( integer) coordinate */
         int iX,iY;
-        const int iXmax = 800; 
-        const int iYmax = 800;
+        const int iXmax = 3200; 
+        const int iYmax = 3200;
         /* world ( double) coordinate = parameter plane*/
         double Cx,Cy;
         const double CxMin=-2.5;
