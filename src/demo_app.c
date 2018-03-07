@@ -69,6 +69,17 @@ DEMO_feedback_handler(
 
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
+
+        //Debugging:
+        //int i;
+        //printf("-----\n");
+        //unsigned char *redir = (unsigned char *) payload_data;
+        //for (i = 0; i < 40; i++) {
+        //    printf("byte %d:  [%d\t\t]\n", i, (int) *(redir + i));
+        //}
+        //printf("-----\n");
+        //fflush(stdout);
+
         SOSA_results_from_buffer(results, payload_data);
         SOSA_results_output_to(stdout, results,
                 "Query Results", SOSA_OUTPUT_W_HEADER);
@@ -168,6 +179,13 @@ int main(int argc, char *argv[]) {
     }
 
     printf("demo_app : Starting...\n");
+    printf("demo_app : Settings:\n"
+            "\tITERATION_SIZE   = %d\n"
+            "\tPUB_ELEM_COUNT   = %d\n"
+            "\tMAX_SEND_COUNT   = %d\n"
+            "\tDELAY_IN_USEC    = %lf\n",
+            ITERATION_SIZE, PUB_ELEM_COUNT, MAX_SEND_COUNT, DELAY_IN_USEC);
+    fflush(stdout);
 
     /* Example variables. */
     char    *str_node_id  = getenv("HOSTNAME");
@@ -178,7 +196,7 @@ int main(int argc, char *argv[]) {
     int      send_shutdown = 0;
     
     my_sos = NULL;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
+    SOS_init(&my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
 
     /*
@@ -208,7 +226,7 @@ int main(int argc, char *argv[]) {
     */
 
     if (my_sos == NULL) {
-        fprintf(stderr, "demo_app: Shutting down.\n");
+        fprintf(stderr, "demo_app: Shutting down. (my_sos == NULL)\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
@@ -235,7 +253,7 @@ int main(int argc, char *argv[]) {
 
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
-        SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
+        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
         
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
@@ -248,6 +266,8 @@ int main(int argc, char *argv[]) {
         pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
         pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
+        //SOS_pack(pub, "test_string", SOS_VAL_TYPE_STRING, "Hello!");
+        
         var_double = 0.0;
 
         SOS_TIME( time_start );
@@ -287,13 +307,10 @@ int main(int argc, char *argv[]) {
             SOS_publish(pub);
         }
 
-        if (send_shutdown) {
-#if defined(USE_MPI)
-            fork_exec_sosd_shutdown();
-#else
-            send_shutdown_message(my_sos);
-#endif //defined(USE_MPI)
-        }
+        //if (send_shutdown) {
+        //    fork_exec_sosd_shutdown();
+        //    //send_shutdown_message(my_sos);
+        //}
 
         SOS_publish(pub);
 

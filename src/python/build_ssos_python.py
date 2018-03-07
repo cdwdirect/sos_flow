@@ -86,12 +86,10 @@ if __name__ == "__main__":
     void SSOS_publish(void);
     void SSOS_finalize(void);
 
-    void SSOS_query_exec_blocking(char *sql, SSOS_query_results *results,
-            char *target_host, int target_port);
-    void SSOS_query_exec(char *sql, SSOS_query_results *results,
-            char *target_host, int target_port);
-    void SSOS_is_query_done(int *addr_of_YN_int_flag);
-    void SSOS_results_destroy(SSOS_query_results *results);
+    void SSOS_query_exec(char *sql, char *target_host, int target_port);
+    void SSOS_result_pool_size(int *addr_of_counter_int);
+    void SSOS_result_claim(SSOS_query_results *results);
+    void SSOS_result_destroy(SSOS_query_results *results);
 
     void SSOS_sense_trigger(char *sense_handle,
             int payload_size, void *payload_data); 

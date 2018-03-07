@@ -50,19 +50,6 @@ endif()
 #         section and check out the templates below.
 #
 
-file(GLOB sosa_mod_src_file_list
-     RELATIVE "${CMAKE_SOURCE_DIR}/src/sosa_mods"
-     "disabled*.c" )
-foreach(src_file_name ${sosa_mod_src_file_list})
-  if(MPI_FOUND)
-    string(REGEX REPLACE "\\.[^.]*$" "" bin_file_name ${src_file_name})
-    add_executable("sosa_${bin_file_name}" "${src_file_name}")
-    target_link_libraries("sosa_${bin_file_name}" "sos" stdc++)
-    set_target_properties("sosa_${bin_file_name}" PROPERTIES COMPILE_FLAGS "${MPI_COMPILE_FLAGS}")
-    set_target_properties("sosa_${bin_file_name}" PROPERTIES LINK_FLAGS "${MPI_LINK_FLAGS}")
-  endif()
-endforeach()
-
 if(ADIOS_FOUND)
     if(MPI_FOUND)
         add_executable("sosa_extract_to_adios" "extract_to_adios.cpp")

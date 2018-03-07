@@ -55,7 +55,7 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task);
             exit (1);                                                   \
         }								\
  }                                                                      \
-    
+
 
 
 
@@ -65,5 +65,5 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task);
 #ifdef __cplusplus
 }
 #endif
-  
+
 #endif //SOS_DB_SQLITE_H

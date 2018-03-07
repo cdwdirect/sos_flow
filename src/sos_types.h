@@ -18,6 +18,7 @@
 #include "sos_pipe.h"
 #include "sos_buffer.h"
 
+
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_UNASSIGNED)                   \
     ROLE(SOS_ROLE_CLIENT)                       \
@@ -34,7 +35,7 @@
     STATUS(SOS_STATUS_HALTING)                  \
     STATUS(SOS_STATUS_SHUTDOWN)                 \
     STATUS(SOS_STATUS___MAX)
-    
+
 #define FOREACH_MSG_TYPE(MSG_TYPE)              \
     MSG_TYPE(SOS_MSG_TYPE_NULLMSG)              \
     MSG_TYPE(SOS_MSG_TYPE_REGISTER)             \
@@ -49,7 +50,8 @@
     MSG_TYPE(SOS_MSG_TYPE_ACK)                  \
     MSG_TYPE(SOS_MSG_TYPE_CHECK_IN)             \
     MSG_TYPE(SOS_MSG_TYPE_QUERY)                \
-    MSG_TYPE(SOS_MSG_TYPE_PEEK)                 \
+    MSG_TYPE(SOS_MSG_TYPE_MATCH_PUBS)           \
+    MSG_TYPE(SOS_MSG_TYPE_MATCH_VALS)           \
     MSG_TYPE(SOS_MSG_TYPE_FEEDBACK)             \
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
     MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
@@ -67,6 +69,13 @@
     RECEIVES(SOS_RECEIVES_NO_FEEDBACK)          \
     RECEIVES(SOS_RECEIVES_DAEMON_MODE)          \
     RECEIVES(SOS_RECEIVES___MAX)
+
+#define FOREACH_FEEDBACK_TYPE(FEEDBACK_TYPE)    \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_PAYLOAD)    \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_MATCH_PUBS) \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_MATCH_VALS) \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE___MAX)
 
 #define FOREACH_QUERY_STATE(QUERY_STATE)        \
     QUERY_STATE(SOS_QUERY_STATE_INCOMING)       \
@@ -140,6 +149,25 @@
     PATTERN(SOS_VAL_PATTERN_ARC)                \
     PATTERN(SOS_VAL_PATTERN___MAX)
 
+#define FOREACH_REGEX(REGEX)                    \
+    REGEX(SOS_REGEX_UNUSED)                     \
+    REGEX(SOS_REGEX_DOT)                        \
+    REGEX(SOS_REGEX_BEGIN)                      \
+    REGEX(SOS_REGEX_END)                        \
+    REGEX(SOS_REGEX_QUESTIONMARK)               \
+    REGEX(SOS_REGEX_STAR)                       \
+    REGEX(SOS_REGEX_PLUS)                       \
+    REGEX(SOS_REGEX_CHAR)                       \
+    REGEX(SOS_REGEX_CHAR_CLASS)                 \
+    REGEX(SOS_REGEX_INV_CHAR_CLASS)             \
+    REGEX(SOS_REGEX_DIGIT)                      \
+    REGEX(SOS_REGEX_NOT_DIGIT)                  \
+    REGEX(SOS_REGEX_ALPHA)                      \
+    REGEX(SOS_REGEX_NOT_ALPHA)                  \
+    REGEX(SOS_REGEX_WHITESPACE)                 \
+    REGEX(SOS_REGEX_NOT_WHITESPACE)             \
+    REGEX(SOS_REGEX___MAX)
+
 #define FOREACH_VAL_COMPARE(COMPARE)            \
     COMPARE(SOS_VAL_COMPARE_SELF)               \
     COMPARE(SOS_VAL_COMPARE_RELATIONS)          \
@@ -175,7 +203,7 @@
     NATURE(SOS_NATURE_KMEAN_2D)                 \
     NATURE(SOS_NATURE_SOS)                      \
     NATURE(SOS_NATURE___MAX)
-        
+
 #define FOREACH_RETAIN(RETAIN)                  \
     RETAIN(SOS_RETAIN_DEFAULT)                  \
     RETAIN(SOS_RETAIN_SESSION)                  \
@@ -208,43 +236,65 @@ typedef enum { FOREACH_VAL_FREQ(GENERATE_ENUM)      } SOS_val_freq;
 typedef enum { FOREACH_VAL_PATTERN(GENERATE_ENUM)   } SOS_val_pattern;
 typedef enum { FOREACH_VAL_COMPARE(GENERATE_ENUM)   } SOS_val_compare;
 typedef enum { FOREACH_VAL_CLASS(GENERATE_ENUM)     } SOS_val_class;
+typedef enum { FOREACH_REGEX(GENERATE_ENUM)         } SOS_regex_rule;
 typedef enum { FOREACH_SCOPE(GENERATE_ENUM)         } SOS_scope;
 typedef enum { FOREACH_LAYER(GENERATE_ENUM)         } SOS_layer;
 typedef enum { FOREACH_NATURE(GENERATE_ENUM)        } SOS_nature;
 typedef enum { FOREACH_RETAIN(GENERATE_ENUM)        } SOS_retain;
 typedef enum { FOREACH_LOCALE(GENERATE_ENUM)        } SOS_locale;
 
-static const char *SOS_ROLE_string[] =           { FOREACH_ROLE(GENERATE_STRING)         };
-static const char *SOS_STATUS_string[] =         { FOREACH_STATUS(GENERATE_STRING)       };
-static const char *SOS_MSG_TYPE_string[] =       { FOREACH_MSG_TYPE(GENERATE_STRING)     };
-static const char *SOS_RECEIVES_string[] =       { FOREACH_RECEIVES(GENERATE_STRING)     };
-static const char *SOS_QUERY_STATE_string[] =    { FOREACH_QUERY_STATE(GENERATE_STRING)  };
-static const char *SOS_PRI_string[] =            { FOREACH_PRI(GENERATE_STRING)          };
-static const char *SOS_GEOMETRY_string[] =       { FOREACH_GEOMETRY(GENERATE_STRING)     };
-static const char *SOS_VAL_TYPE_string[] =       { FOREACH_VAL_TYPE(GENERATE_STRING)     };
-static const char *SOS_VAL_STATE_string[] =      { FOREACH_VAL_STATE(GENERATE_STRING)    };
-static const char *SOS_VAL_SYNC_string[] =       { FOREACH_VAL_SYNC(GENERATE_STRING)     };
-static const char *SOS_VAL_FREQ_string[] =       { FOREACH_VAL_FREQ(GENERATE_STRING)     };
-static const char *SOS_VAL_SEMANTIC_string[] =   { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
-static const char *SOS_VAL_PATTERN_string[] =    { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
-static const char *SOS_VAL_COMPARE_string[] =    { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
-static const char *SOS_VAL_CLASS_string[] =      { FOREACH_VAL_CLASS(GENERATE_STRING)    };
-static const char *SOS_SCOPE_string[] =          { FOREACH_SCOPE(GENERATE_STRING)        };
-static const char *SOS_LAYER_string[] =          { FOREACH_LAYER(GENERATE_STRING)        };
-static const char *SOS_NATURE_string[] =         { FOREACH_NATURE(GENERATE_STRING)       };
-static const char *SOS_RETAIN_string[] =         { FOREACH_RETAIN(GENERATE_STRING)       };
-static const char *SOS_LOCALE_string[] =         { FOREACH_LOCALE(GENERATE_STRING)       };
+static const char *SOS_ROLE_str[] =          { FOREACH_ROLE(GENERATE_STRING)         };
+static const char *SOS_STATUS_str[] =        { FOREACH_STATUS(GENERATE_STRING)       };
+static const char *SOS_MSG_TYPE_str[] =      { FOREACH_MSG_TYPE(GENERATE_STRING)     };
+static const char *SOS_RECEIVES_str[] =      { FOREACH_RECEIVES(GENERATE_STRING)     };
+static const char *SOS_FEEDBACK_TYPE_str[] = { FOREACH_FEEDBACK_TYPE(GENERATE_STRING)};
+static const char *SOS_QUERY_STATE_str[] =   { FOREACH_QUERY_STATE(GENERATE_STRING)  };
+static const char *SOS_PRI_str[] =           { FOREACH_PRI(GENERATE_STRING)          };
+static const char *SOS_GEOMETRY_str[] =      { FOREACH_GEOMETRY(GENERATE_STRING)     };
+static const char *SOS_VAL_TYPE_str[] =      { FOREACH_VAL_TYPE(GENERATE_STRING)     };
+static const char *SOS_VAL_STATE_str[] =     { FOREACH_VAL_STATE(GENERATE_STRING)    };
+static const char *SOS_VAL_SYNC_str[] =      { FOREACH_VAL_SYNC(GENERATE_STRING)     };
+static const char *SOS_VAL_FREQ_str[] =      { FOREACH_VAL_FREQ(GENERATE_STRING)     };
+static const char *SOS_VAL_SEMANTIC_str[] =  { FOREACH_VAL_SEMANTIC(GENERATE_STRING) };
+static const char *SOS_VAL_PATTERN_str[] =   { FOREACH_VAL_PATTERN(GENERATE_STRING)  };
+static const char *SOS_VAL_COMPARE_str[] =   { FOREACH_VAL_COMPARE(GENERATE_STRING)  };
+static const char *SOS_VAL_CLASS_str[] =     { FOREACH_VAL_CLASS(GENERATE_STRING)    };
+static const char *SOS_REGEX_str[] =         { FOREACH_REGEX(GENERATE_STRING)        };
+static const char *SOS_SCOPE_str[] =         { FOREACH_SCOPE(GENERATE_STRING)        };
+static const char *SOS_LAYER_str[] =         { FOREACH_LAYER(GENERATE_STRING)        };
+static const char *SOS_NATURE_str[] =        { FOREACH_NATURE(GENERATE_STRING)       };
+static const char *SOS_RETAIN_str[] =        { FOREACH_RETAIN(GENERATE_STRING)       };
+static const char *SOS_LOCALE_str[] =        { FOREACH_LOCALE(GENERATE_STRING)       };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
-#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _string[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
-/*  Examples:   char *pub_layer     = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
- *              char *data_type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
- *              char *data_semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
- */
+#define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _str[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
+// Examples:
+//      char *layer    = SOS_ENUM_STR( pub->meta.layer,        SOS_LAYER     );
+//      char *type     = SOS_ENUM_STR( pub->data[i]->type,     SOS_VAL_TYPE  );
+//      char *semantic = SOS_ENUM_STR( pub->data[i]->sem_hint, SOS_SEM       );
+//
 
+// Define our magic values for testing object initialization.
+//  Ex: 0x5afec0de
+//      0x5afeca11
+//      0x5afeda7a
+//      0x10ad1e55
+//      0x5e1ec7ed
+#define SOS_VAR_UNDEFINED    0x5e77ab1e
+#define SOS_VAR_INITIALIZED  0xca11ab1e
+#define SOS_VAR_DESTROYED    0xdeadb10c
+
+// This allows pointers to be used as return values and explicitly tested for
+// these semantics, rather than relying on less stable or specific 'NULL's.
+char global_placeholder_RETURN_FAIL;
+char global_placeholder_RETURN_BUSY;
+#define SOS_RET_FAIL      &global_placeholder_RETURN_FAIL
+#define SOS_RET_BUSY      &global_placeholder_RETURN_BUSY
 
 typedef     uint64_t SOS_guid;
-#define SOS_GUID_FMT PRIu64
+#define SOS_GUID_FMT      PRIu64
+
+
 
 
 typedef union {
@@ -308,6 +358,7 @@ typedef struct {
 typedef struct {
     int                 elem;
     SOS_guid            guid;
+    SOS_guid            pub_guid;
     SOS_guid            relation_id;
     long                frame;
     SOS_time            time;
@@ -396,13 +447,13 @@ typedef struct {
 typedef void (*SOS_feedback_handler_f)
     (int   payload_type,
      int   payload_size,
-     void *payload_data); 
- 
+     void *payload_data);
+
 typedef struct {
     void               *sos_context;
     char                local_host[NI_MAXHOST];
     char                local_port[NI_MAXSERV];
-    int                 local_socket_fd; 
+    int                 local_socket_fd;
     struct addrinfo    *local_addr;
     struct addrinfo     local_hint;
     struct addrinfo    *result_list;
@@ -434,12 +485,11 @@ typedef struct {
 } SOS_msg_header;
 
 typedef struct {
-    int                 argc;
-    char              **argv;
     char               *node_id;
     int                 comm_rank;
     int                 comm_size;
     int                 comm_support;
+    char               *program_name;
     int                 process_id;
     int                 thread_id;
     SOS_layer           layer;
@@ -454,6 +504,7 @@ typedef struct {
 
 
 typedef struct {
+    void               *sos_context;
     int                 listener_port;
     int                 listener_count;
     int                 aggregator_count;

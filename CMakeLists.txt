@@ -1,3 +1,4 @@
+
 cmake_minimum_required (VERSION 2.8)
 
 if (${CMAKE_MAJOR_VERSION} GREATER 2)
@@ -8,37 +9,43 @@ endif()
 # User-configurable options.
 ########### ########### ########### ########### ########### ########### ###########
 
-set(SQLite3_DIR "" CACHE STRING
+# --- Paths to dependencies ---
+#
+# NOTE: Use 'ccmake' within build folder to set them, or set at the
+#       command like with: $ cmake -DEVPath_DIR=... rather than modifying
+#       this file.
+
+set(SQLite3_DIR    "" CACHE STRING
     "Path to SQLite3 installation (if not system install)")
-
-option(SOS_CLOUD_SYNC_WITH_MPI
-    "Use MPI discover and synchronize data between daemons?  (STALE BRANCH)"
-    OFF)
-
-option(SOS_CLOUD_SYNC_WITH_EVPATH
-    "Use EVPATH synchronize data between daemons?  (RECOMMENDED)"
-    OFF)
-
-set(EVPath_DIR "" CACHE STRING
-    "Path to EVPath (chaos libraries) installation")
-
-set(ADIOS_DIR "" CACHE STRING
+set(Munge_DIR      "" CACHE STRING
+    "Path to Munge installation (lightweight edge authentication for HPC)")
+set(EVPath_DIR     "" CACHE STRING
+    "Path to EVPath (ADIOS chaos libraries) installation")
+set(ZeroMQ_DIR     "" CACHE STRING
+    "Path to ZeroMQ installation")
+set(CZMQ_DIR       "" CACHE STRING
+    "Path to C API bindings for ZeroMQ")
+set(ADIOS_DIR      "" CACHE STRING
     "Path to ADIOS installation")
+
+# --- Inter-daemon communication method ---
+#
+# NOTE: Only ONE may be set to ON at a time.
+
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  ON)
+option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
+
+# --- Other SOS options ---
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
     OFF)
 
-set(Munge_DIR "" CACHE STRING
-    "Path to Munge installation (lightweight edge authentication for HPC)")
-
 option(SOS_DAEMON_DETACH
     "Have the daemon fork, detach, and get its own session?  (EXPERIMENTAL)"
     OFF)
-
-option(SOS_CLOUD_SYNC
-    "Activate cloud_sync operations for the daemon?"
-    ON)
 
 option(SOS_ENABLE_PYTHON
     "Build python analysis interface for client querying of aggregators/listeners"
@@ -48,7 +55,12 @@ option(BUILD_SHARED_LIBS
     "Build Shared libraries? (set to OFF/FALSE/NO for static build)"
     ON)
 
-# advanced options
+option(SOS_CLOUD_SYNC
+    "Activate cloud_sync operations for the daemon? (DEPRECATED, ALWAYS 'ON')"
+    ON)
+
+
+# --- Advanced options ---
 
 option(SOS_FORCE_RPATH
     "Add the rpath to the libraries when linking examples?"
@@ -107,7 +119,7 @@ message(STATUS "Building on: ${CMAKE_SYSTEM_NAME}")
 # Set general Compiler flags
 
 if ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -std=gnu99")
 endif ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "GNU")
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DSOS_BUILDER=$ENV{USER} -DSOS_BUILT_FOR=${CMAKE_SYSTEM_NAME} -DSOS_HOST_NODE_NAME=${SOS_HOST_NODE_NAME} -DSOS_HOST_DETAILED=${SOS_HOST_DETAILED} -DSOS_HOST_KNOWN_AS=${SOS_HOST_KNOWN_AS} -DGIT_SHA1=${GIT_SHA1}")
@@ -142,6 +154,10 @@ endif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
 
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+
 ###########
 # SOS_FORCE_RPATH OPTIONS
 ###########
@@ -150,16 +166,15 @@ if(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 	# use, i.e. don't skip the full RPATH for the build tree
 	SET(CMAKE_SKIP_BUILD_RPATH  FALSE)
 
-	# when building, don't use the install RPATH already
-	# (but later on when installing)
-	SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE) 
+    # when building, don't use the install RPATH already
+    # (but later on when installing)
+    SET(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
 
-	SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+    SET(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
 
-	# add the automatically determined parts of the RPATH
-	# which point to directories outside the build tree to the install RPATH
-	SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-
+    # add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH
+    SET(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 	# the RPATH to be used when installing, but only if it's not a system directory
 	LIST(FIND CMAKE_PLATFORM_IMPLICIT_LINK_DIRECTORIES "${CMAKE_INSTALL_PREFIX}/lib" isSystemDir)
@@ -169,36 +184,68 @@ if(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 
 endif(BUILD_SHARED_LIBS AND SOS_FORCE_RPATH)
 
-
 ###########
 # Required packages
 ###########
 
-find_package("SQLite3" REQUIRED QUIET)
+find_package("SQLite3" REQUIRED)
+find_package("PkgConfig" REQUIRED QUIET)
 
 ###########
-# SOS_CLOUD_SYNC OPTIONS - validate some settings
+# SOS_CLOUD_SYNC OPTIONS - validate the selected configuration
 ###########
 
-if(SOS_CLOUD_SYNC_WITH_MPI AND SOS_CLOUD_SYNC_WITH_EVPATH)
-  message(FATAL_ERROR
-  "You cannot use both MPI and EVPATH for daemon cloud_sync operations!  Please select only one.")
+# Verify that only one sync method has been enabled:
+
+set(SOS_A ${SOS_CLOUD_SYNC_WITH_MPI})
+set(SOS_B ${SOS_CLOUD_SYNC_WITH_EVPATH})
+set(SOS_C ${SOS_CLOUD_SYNC_WITH_SOCKET})
+set(SOS_D ${SOS_CLOUD_SYNC_WITH_ZEROMQ})
+set(SOS_OPT_USING_CLOUD (SOS_A OR SOS_B OR SOS_C OR SOS_D))
+if(    (SOS_A AND SOS_B)
+    OR (SOS_A AND SOS_C)
+    OR (SOS_A AND SOS_D)
+    OR (SOS_B AND SOS_C)
+    OR (SOS_B AND SOS_D)
+    OR (SOS_C AND SOS_D))
+    message(STATUS
+        "You have specified more than one inter-daemon synchronization method:")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_EVPATH = ${SOS_CLOUD_SYNC_WITH_EVPATH}")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_MPI    = ${SOS_CLOUD_SYNC_WITH_MPI}")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_SOCKET = ${SOS_CLOUD_SYNC_WITH_SOCKET}")
+    message(STATUS "    SOS_CLOUD_SYNC_WITH_ZEROMQ = ${SOS_CLOUD_SYNC_WITH_ZEROMQ}")
+    message(FATAL_ERROR
+        "Verify your build options.")
 endif()
 
-if((SOS_CLOUD_SYNC_WITH_MPI OR SOS_CLOUD_SYNC_WITH_EVPATH) AND NOT SOS_CLOUD_SYNC)
-  message(FATAL_ERROR
-  "You have specified a method for cloud_sync, but disabled cloud_sync.  Verify your build options.")
+# Verify that the correct defines will propagate through the code:
+
+if(SOS_OPT_USING_CLOUD AND (NOT SOS_CLOUD_SYNC))
+    message(STATUS
+        "You have specified a method for cloud_sync, but disabled cloud_sync.")
+    message(STATUS
+        "It is recommended that SOS_CLOUD_SYNC always be set to 'ON'.")
+    message(FATAL_ERROR
+        "Verify your build options.")
 endif()
+
 
 ###########
 # SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
 ###########
 
 if(SOS_CLOUD_SYNC_WITH_EVPATH)
-  message(STATUS "EVPATH:  Sync with EVPath is ENABLED")
-  message(STATUS "EVPATH:  Locating package...")
-  find_package(EVPath REQUIRED QUIET)
-  add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
+    message(STATUS "EVPATH:  Sync with EVPath is ENABLED")
+    message(STATUS "EVPATH:  Locating package...")
+    find_package(EVPath REQUIRED QUIET)
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_EVPATH)
+    if (NOT EVPath_FOUND)
+        message(STATUS "EVPATH:  WARNING!  Could NOT find EVPath!")
+    else()
+        message(STATUS "EVPATH:      EVPath_DIR         = ${EVPath_DIR}")
+        message(STATUS "EVPATH:      EVPath_INCLUDE_DIR = ${EVPath_INCLUDE_DIR}")
+        message(STATUS "EVPATH:      EVPath_LIBRARIES   = ${EVPath_LIBRARIES}")
+    endif()
 endif()
 
 ###########
@@ -211,28 +258,50 @@ find_package(ADIOS)
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
 ###########
 
-if(SOS_CLOUD_SYNC_WITH_MPI)
-  message(STATUS "MPI:  Locating package...")
-  if(NOT MPI_C_NO_INTERROGATE)
-	find_package("MPI" QUIET REQUIRED)
-  else()
-	set(MPI_FOUND ON) 
-  endif(NOT MPI_C_NO_INTERROGATE)
+message(STATUS "MPI:  Locating package...")
+if(NOT MPI_C_NO_INTERROGATE)
+    find_package("MPI" QUIET REQUIRED)
+else()
+    set(MPI_FOUND ON)
+endif(NOT MPI_C_NO_INTERROGATE)
 
-  if(MPI_FOUND)
+if(MPI_FOUND)
     add_definitions("-DUSE_MPI=1")
-	message(STATUS "MPI:  Found!")
-  endif(MPI_FOUND)
-  add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
-else(SOS_CLOUD_SYNC_WITH_MPI)
-  if(NOT MPI_C_NO_INTERROGATE)
-	find_package("MPI" )
-    message("MPI libraries: ${MPI_CXX_LIBRARIES}")
-  else()
-	set(MPI_FOUND ON) 
-  endif(NOT MPI_C_NO_INTERROGATE)
+    message(STATUS "MPI:  Found!")
+endif(MPI_FOUND)
 
+if(SOS_CLOUD_SYNC_WITH_MPI)
+    message(STATUS "MPI:  Sync with MPI is ENABLED")
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_MPI)
 endif(SOS_CLOUD_SYNC_WITH_MPI)
+
+###########
+# SOS_CLOUD_SYNC_WITH_SOCKET OPTIONS
+###########
+if(SOS_CLOUD_SYNC_WITH_SOCKET)
+    message(STATUS "SOCKET:  Sync with SOCKET (TCP/IP) is ENABLED")
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_SOCKET)
+endif()
+
+
+###########
+# SOS_CLOUD_SYNC_WITH_ZEROMQ OPTIONS
+###########
+if(SOS_CLOUD_SYNC_WITH_ZEROMQ)
+    message(STATUS "ZEROMQ:  Sync with ZEROMQ is ENABLED")
+    message(STATUS "ZEROMQ:  Locating package...")
+    find_package(ZeroMQ REQUIRED QUIET)
+    message(STATUS "ZEROMQ:      ZeroMQ_INCLUDE_DIRS   = ${ZeroMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:      ZeroMQ_LIBRARIES      = ${ZeroMQ_LIBRARIES}")
+    message(STATUS "ZEROMQ:  Locating C API bindings...")
+    find_package(CZMQ REQUIRED QUIET)
+    message(STATUS "ZEROMQ:      CZMQ_INCLUDE_DIRS     = ${CZMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:      CZMQ_LIBRARIES        = ${CZMQ_LIBRARIES}")
+
+    add_definitions(-DSOSD_CLOUD_SYNC_WITH_ZEROMQ)
+endif()
+
+
 
 ###########
 # SOS_SECURE_WITH_MUNGE OPTIONS
@@ -240,7 +309,7 @@ endif(SOS_CLOUD_SYNC_WITH_MPI)
 
 if(SOS_SECURE_WITH_MUNGE)
     find_package(PkgConfig REQUIRED)
-	find_package(Munge QUIET REQUIRED)
+    find_package(Munge QUIET REQUIRED)
     add_definitions("-DUSE_MUNGE=1")
     message(STATUS "MUNGE:  Munge is ENABLED!")
 endif()
@@ -271,7 +340,7 @@ if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})
 else()
-	set(LIBS ${LIBS} -lpthread)
+    set(LIBS ${LIBS} -lpthread)
     link_libraries(pthread)
 endif()
 
@@ -281,17 +350,13 @@ endif()
 
 # check for Cray static linking
 #if (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
-	find_library(DYNAMICLIB dl)
-	set(LIBS "${LIBS} ${DYNAMICLIB}")
+find_library(DYNAMICLIB dl)
+set(LIBS "${LIBS} ${DYNAMICLIB}")
 #endif (CMAKE_C_COMPILER EQUAL "cc" AND CMAKE_CXX_COMPILER EQUAL "CC")
 
 ###########
 # Other boilerplate CMake stuff
 ###########
-
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
 
 # remove leading, trailing spaces from libraries
 string(STRIP "${LIBS}" LIBS)
@@ -301,3 +366,5 @@ subdirs (src tests src/sosa_mods)
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)
 endif(SOS_ENABLE_PYTHON)
+
+

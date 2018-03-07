@@ -32,7 +32,7 @@ int SOS_test_pub_create() {
     random_string(pub_title, 60);
 
     pub = NULL;
-    SOS_pub_create(TEST_sos, &pub, pub_title, SOS_NATURE_DEFAULT);
+    SOS_pub_init(TEST_sos, &pub, pub_title, SOS_NATURE_DEFAULT);
 
     if (pub == NULL) {
         return FAIL;
@@ -57,7 +57,7 @@ int SOS_test_pub_growth() {
     int attempt = 0;
 
     SOS_pub *pub;
-    SOS_pub_create(TEST_sos, &pub, "test_pub_growth", SOS_NATURE_DEFAULT);
+    SOS_pub_init(TEST_sos, &pub, "test_pub_growth", SOS_NATURE_DEFAULT);
 
     struct timespec ts;
     ts.tv_sec  = 0;
@@ -101,7 +101,7 @@ int SOS_test_pub_duplicates() {
     char   c_val[60] = {0};
     
 
-    SOS_pub_create(TEST_sos, &pub, "test_pub_duplicates", SOS_NATURE_DEFAULT);
+    SOS_pub_init(TEST_sos, &pub, "test_pub_duplicates", SOS_NATURE_DEFAULT);
 
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {
         i_val = (int) rand();
@@ -146,7 +146,7 @@ int SOS_test_pub_values() {
         random_string(reference_c[attempt], 60);
     }
 
-    SOS_pub_create(TEST_sos, &pub, "test_pub_values", SOS_NATURE_DEFAULT);
+    SOS_pub_init(TEST_sos, &pub, "test_pub_values", SOS_NATURE_DEFAULT);
 
     /* Push the values into the pub handle. */
     for (attempt = 0; attempt < ATTEMPT_MAX; attempt++) {

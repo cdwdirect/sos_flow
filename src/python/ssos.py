@@ -68,7 +68,17 @@ class SSOS:
         res_obj = ffi.new("SSOS_query_results*")
         res_host = ffi.new("char[]", host)
         res_port = ffi.new("int*", int(port))
-        lib.SSOS_query_exec_blocking(res_sql, res_obj, res_host, res_port[0])
+
+        # Send out the query...
+        print "Sending the query..."
+        lib.SSOS_query_exec(res_sql, res_host, res_port[0])
+        # Grab the next available result.
+        # NOTE: For queries submitted in a thread pool, this may not
+        #       be the results for the query that was submitted above!
+        #       Use of a thread pool requires that the results returned
+        #       can be processed independently, for now.
+        print "Claiming the results..."
+        lib.SSOS_result_claim(res_obj);
 
         results = []
         for row in range(res_obj.row_count):
@@ -83,54 +93,8 @@ class SSOS:
         for col in range(0, res_obj.col_count):
            col_names.append(ffi.string(res_obj.col_names[col]))
 
-        lib.SSOS_results_destroy(res_obj)
+        lib.SSOS_result_destroy(res_obj)
         return (results, col_names)
-
-
-#    def queryAllAggregators(self, sql)
-#        sosPort = os.getenv("SOS_CMD_PORT")
-#        sosKeyPath = os.getenv("SOS_EVPATH_MEETUP")
-#        sosKeyFiles = glob.glob(sosKeyPath + "/*.key")
-#
-#        if len(sosKeyFiles) == 0:
-#            print "ERROR: No .key files found in " + sosKeyPath
-#            print "       Query will not be run."
-#            return ([[]], [])
-#
-#        for key in sosKeyFiles:
-#
-#
-#        # Wait for all results:
-#        # Append all results together:
-#
-#        return (results, col_names)
-#
-#    def queryFile(self, sql, filename):
-#        tmpresultfile = str(os.getpid()) + ".tmpsql.csv"
-#        rc = subprocess.call("sqlite3", "-header -csv -column \"" + sql \
-#                + "\" > " + tmpresultfile)
-#        results = []
-#        col_names = []
-#        if rc != 0:
-#            print "Error executing query: \" + sql + "\""
-#            return (results, col_names)
-#        with io.open('times.csv', 'r', newline='') as csvfile:
-#            data = csv.reader(csvfile)
-#            row_count = len(data)
-#            for row in range(2, row_count)
-#                this_row = []
-#                col_count = len(row)
-#                for col in range(col_count)
-#                    this_row.append(data[row][col])
-#                results.append(this_row)
-#            for col in range(col_count)
-#                col_names.append(data[1][col]
-#        return (results, col_names)
-#
-#
-#        for time_iter, start_time, start_sec, stop_time, stop_sec in data:
-#            print time_iter + ' : ' + str(int(stop_sec) - int(start_sec))
-
 
 
 
