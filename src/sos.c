@@ -114,11 +114,11 @@ SOS_init(SOS_runtime **sos_runtime,
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
 
-    SOS_options *sos_options = NULL;
-    SOS_options_init(&sos_options, role,
+    SOS_options *opt = NULL;
+    SOS_options_init(&opt, role,
             getenv("SOS_OPTIONS_FILE"), NULL);
 
-    SOS_existing_runtime_init(sos_runtime, sos_options,
+    SOS_init_existing_runtime(sos_runtime, opt,
             role, receives, handler);
     return;
 }
@@ -149,9 +149,9 @@ SOS_init(SOS_runtime **sos_runtime,
  * @warning The SOS daemon needs to be up and running before calling.
  */
 void
-SOS_existing_runtime_init(
+SOS_init_existing_runtime(
         SOS_runtime **sos_runtime,
-        SOS_options *sos_options_ptr,
+        SOS_options *opt,
         SOS_role role,
         SOS_receives receives,
         SOS_feedback_handler_f handler)
@@ -198,8 +198,9 @@ SOS_existing_runtime_init(
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
 
     dlog(1, "Initializing SOS ...\n");
-    dlog(4, "  ... setting argc / argv\n");
+    dlog(4, "  ... importing options into SOS->config.\n");
 
+    NEW_SOS->config.pub_cache_depth = opt->pub_cache_depth;
 
 #ifdef USE_MUNGE
     //Optionally grab a Munge credential:
@@ -1287,16 +1288,16 @@ void
 SOS_pub_init(SOS_runtime *sos_context,
     SOS_pub **pub_handle, char *title, SOS_nature nature)
 {
-     SOS_pub_sized_init(sos_context, pub_handle, title,
+     SOS_pub_init_sized(sos_context, pub_handle, title,
              nature, SOS_DEFAULT_ELEM_MAX);
      return;
 }
 
 void
-SOS_pub_sized_init(SOS_runtime *sos_context,
+SOS_pub_init_sized(SOS_runtime *sos_context,
     SOS_pub **pub_handle, char *title, SOS_nature nature, int new_size)
 {
-    SOS_SET_CONTEXT(sos_context, "SOS_pub_create_sized");
+    SOS_SET_CONTEXT(sos_context, "SOS_pub_init_sized");
     SOS_pub   *new_pub;
     int        i;
 
@@ -1340,6 +1341,7 @@ SOS_pub_sized_init(SOS_runtime *sos_context,
     new_pub->meta.pri_hint    = SOS_PRI_DEFAULT;
     new_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
+    new_pub->cache_depth      = SOS->config.pub_cache_depth
 
     dlog(6, "  ... zero-ing out the strings.\n");
 
@@ -2179,7 +2181,33 @@ SOS_val_snap_queue_from_buffer(
             break;
         }
 
-    }//loop
+        // Daemons can Copy the snap into this pub's cache.
+        if (((sos_context->role == SOS_ROLE_AGGREGATOR)
+            || (sos_context->role == SOS_ROLE_LISTENER))
+            && pub->cache_depth > 0) {
+            // ...
+            SOS_val_snap *snap_copy = 
+                    (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
+            memcpy(snap_copy, snap, sizeof(SOS_val_snap));
+            // Strings and Bytes need to be alloc'ed and copied in.
+            switch (snap_copy->type) {
+                case SOS_VAL_TYPE_STRING: 
+                    snap_copy->val.c_str =
+                        (char *) calloc(snap_copy->val_len, sizeof(char));
+                    memcpy(snap_copy->val.c_str, snap->val.c_str, snap_copy->val_len);
+                    break;
+                case SOS_VAL_TYPE_BYTES:
+                    snap_copy->val.bytes =
+                        (void *) calloc(snap_copy->val_len, sizeof(unsigned char));
+                    memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
+                    break;
+            }
+            // We have a new snap, push it down into the pub
+            
+            
+        }
+
+    }//for:snap_index
 
 
     dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);

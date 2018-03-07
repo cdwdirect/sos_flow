@@ -364,6 +364,7 @@ typedef struct {
     SOS_val_type        type;
     int                 val_len;
     SOS_val             val;
+    void               *next_snap;
 } SOS_val_snap;
 
 typedef struct {
@@ -376,6 +377,8 @@ typedef struct {
     SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
+    SOS_val_snap       *cached_latest;
+                        //cached_latest: Used only within daemons.
 } SOS_data;
 
 typedef struct {
@@ -407,6 +410,7 @@ typedef struct {
     char                prog_name[SOS_DEFAULT_STRING_LEN];
     char                prog_ver[SOS_DEFAULT_STRING_LEN];
     char                title[SOS_DEFAULT_STRING_LEN];
+    int                 cache_depth;
     SOS_data          **data;
     qhashtbl_t         *name_table;
     SOS_pipe           *snap_queue;
@@ -498,6 +502,7 @@ typedef struct {
     int                 receives_ready;
     bool                offline_test_mode;
     bool                runtime_utility;
+    int                 pub_cache_depth;
 } SOS_config;
 
 
@@ -512,6 +517,9 @@ typedef struct {
     char               *project_dir;
     char               *work_dir;
     char               *discovery_dir;
+    bool                db_disabled;
+    int                 db_frame_limit;
+    int                 pub_cache_depth;
 } SOS_options;
 
 typedef struct {

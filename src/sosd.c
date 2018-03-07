@@ -280,7 +280,7 @@ int main(int argc, char *argv[])  {
 
     dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
             " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
-    SOS_existing_runtime_init(&SOSD.sos_context,
+    SOS_init_existing_runtime(&SOSD.sos_context,
             sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(0, "   ... calling SOSD_init()...\n");

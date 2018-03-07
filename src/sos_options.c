@@ -23,12 +23,18 @@ int SOS_options_init(
     opt->listener_port    = -999;
     opt->listener_count   = -999;
     opt->aggregator_count = -999;
+
     opt->build_dir        = NULL;
     opt->install_dir      = NULL;
     opt->source_dir       = NULL;
     opt->project_dir      = NULL;
     opt->work_dir         = NULL;
     opt->discovery_dir    = NULL;
+
+    opt->db_disabled      = false;
+    opt->db_frame_limit   = 0;    //0 == NO LIMIT
+
+    opt->pub_cache_depth  = 10;    //0 == NO CACHE
 
     // TODO: Process what is available...
     //
