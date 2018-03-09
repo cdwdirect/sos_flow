@@ -192,11 +192,7 @@ SOS_init_existing_runtime(
     NEW_SOS->config.process_id = (int) getpid();
 
     NEW_SOS->config.program_name = (char *) calloc(PATH_MAX, sizeof(char));
-    rc = readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
-    if (rc < 0) {
-        //dlog(1, "Cannot read /proc/self/exe (%s)\n", strerror(errno));
-        sprintf(NEW_SOS->config.program_name, "a.out");
-    }
+    readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
@@ -231,8 +227,7 @@ SOS_init_existing_runtime(
 #endif
 
     SOS->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
-    //gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
-    strncpy(SOS->config.node_id, "localhost", 10);
+    gethostname( SOS->config.node_id, SOS_DEFAULT_STRING_LEN );
     dlog(4, "  ... node_id: %s\n", SOS->config.node_id );
 
     if (SOS->config.offline_test_mode == true) {
@@ -296,14 +291,14 @@ SOS_init_existing_runtime(
         dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
         SOS->daemon = NULL;
-        const char * portStr = getenv("SOS_CMD_PORT");
-        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
-        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
+        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
+                atoi(getenv("SOS_CMD_PORT")));
         rc = SOS_target_connect(SOS->daemon);
 
         if (rc != 0) {
             fprintf(stderr, "Unable to connect to an SOSflow daemon on"
-                    " port %d.  (rc == %d)\n", atoi(portStr), rc);
+                    " port %d.  (rc == %d)\n",
+                    atoi(getenv("SOS_CMD_PORT")), rc);
             free(SOS);
             SOS = NULL;
             return;
@@ -746,6 +741,8 @@ SOS_msg_seal(
     return offset;
 }
 
+
+
 void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
     SOS_SET_CONTEXT(message->sos_context, "SOS_send_to_daemon");
 
@@ -1007,7 +1004,7 @@ void* SOS_THREAD_receives_timed(void *args) {
     SOS_msg_header       header;
     SOS_buffer          *check_in_buffer;
     SOS_buffer          *feedback_buffer;
-    SOS_msg_type         feedback;
+    SOS_feedback_type    feedback;
 
     if ( SOS->config.offline_test_mode == true ) { return NULL; }
 
@@ -1467,6 +1464,199 @@ char* SOS_uint64_to_str(uint64_t val, char *result, int result_len) {
     return result;
 }
 
+/*
+ *
+ *  This block represents an immediate effort to allow code re-use among
+ *  variations of the SOS_pack() API, some of which may provide more
+ *  information than others, i.e. SOS_pack_related() vs. SOS_pack().
+ *
+ *
+int SOS_pack(
+        SOS_pub       *pub,
+        const char    *name,
+        SOS_val_type   type,
+        void          *val)
+{
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack");
+
+    SOS_val_snap *snap = calloc(1, sizeof(SOS_val_snap));
+    pthread_mutex_lock(pub->lock);
+    int rc = SOS_pack_snap_situate_in_pub(pub, snap, name, type, val);
+    if (rc < 0) {
+        dlog(0, "Unable to add this value to the pub. Doing nothing.\n");
+        return rc;
+    }
+    // -----
+    // NOTE: Here is where we fill in additional information that this
+    //       SOS_pack() variant may be providing.
+    //
+    // SOS_pack() is the default, so do nothing extra...
+    //
+    // -----
+
+    rc = SOS_pack_snap_into_pub_cache(pub, snap);
+    rc = SOS_pack_snap_into_val_queue(pub, snap);
+
+    pthread_mutex_unlock(pub->lock);
+    return snap->elem;
+}
+
+
+int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
+        const char *name, SOS_val_type type, void *val)
+{
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_situate_in_pub");   
+   
+    switch(type) {
+    case SOS_VAL_TYPE_INT:    snap->val.i_val = *(int *)val;    break;
+    case SOS_VAL_TYPE_LONG:   snap->val.l_val = *(long *)val;   break;
+    case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = *(double *)val; break;
+    case SOS_VAL_TYPE_STRING: snap->val.c_val = (char *)val;
+                              snap->val_len   = strlen(snap->val.c_val);
+                              break;
+    case SOS_VAL_TYPE_BYTES:
+        fprintf(stderr, "WARNING: SOS_pack(...) used to pack SOS_VAL_TYPE_BYTES."
+                " This is unsupported.\n");
+        fprintf(stderr, "WARNING: Please use SOS_pack_bytes(...) instead!\n");
+        fprintf(stderr, "WARNING: Doing nothing and returning....\n");
+        fflush(stderr);
+        snap->elem = -1;
+        return -1;
+        break;
+
+    default:
+        dlog(0, "ERROR: Invalid type sent to SOS_pack."
+                " (%d)\n", (int) pack_type);
+        return -1;
+        break;
+    }
+
+    // NOTE: Regarding indexing...
+    // The hash table will return NULL if a value is not present.
+    // The pub->data[elem] index is zero-indexed, so indices are stored +1, to
+    //   differentiate between empty and the first position.  The value
+    //   returned by SOS_pub_search() is the actual array index to be used.
+    int pos = SOS_pub_search(pub, name);
+
+    SOS_data *data;
+
+    if (pos < 0) {
+        // Value does NOT EXIST in the pub.
+        // Check if we need to expand the pub
+        if (pub->elem_count >= pub->elem_max) {
+            SOS_expand_data(pub);
+        }
+
+        // Force a pub announce at the next SOS_publish().
+        pub->announced = 0;
+
+        // Add this new value [name] to the pub...
+        pos = pub->elem_count;
+        pub->elem_count++;
+
+        // REMINDER: (pos + 1) is correct.
+        // We're storing it's "N'th element" position
+        // rather than it's array index.
+        // See SOS_pub_search(...) for details.
+        pub->name_table->put(pub->name_table, name,
+                (void *) ((long)(pos + 1)));
+
+        data = pub->data[pos];
+
+        // Set some defaults. These will get updated later...
+        data->type  = type;
+        data->guid  = SOS_uid_next(SOS->uid.my_guid_pool);
+        data->val.c_val = NULL;
+        data->val_len = 0;
+        strncpy(data->name, name, SOS_DEFAULT_STRING_LEN);
+
+    } else {
+        // Name ALREADY EXISTS in the pub...
+        data = pub->data[pos];
+    }
+
+    snap->elem        = pos;
+    snap->guid        = data->guid;
+    snap->pub_guid    = pub->guid;
+    snap->frame       = pub->frame;
+    snap->type        = data->type;
+
+    // The value has already been put in the snap at the top of the function.
+    // We leave with the correct placement and guid of this value, and a snap
+    //     that is partially filled in, but holds the new value and type.
+
+    return snap->elem;
+} //end function: SOS_pack_snap_situate_in_pub()
+
+
+int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_into_pub_cache"); 
+    
+    // Update the value in the pub->data[elem] position.
+    
+    
+    switch(snap->type) {
+
+    case SOS_VAL_TYPE_STRING:
+        if (data->val.c_val != NULL) {
+            free(data->val.c_val);
+        }
+        if (pack_val.c_val != NULL) {
+            data->val.c_val = strndup(pack_val.c_val, SOS_DEFAULT_STRING_LEN);
+            data->val_len   = strlen(pack_val.c_val);
+        } else {
+            dlog(0, "WARNING: You packed a null value for pub(%s)->data[%d]!\n",
+                 pub->title, pos);
+            data->val.c_val = (char *) malloc(1 * sizeof(unsigned char));
+            *data->val.c_val = '\0';
+            data->val_len = 0;
+        }
+        break;
+
+    case SOS_VAL_TYPE_BYTES:
+        //Should not be able to get here...
+        fprintf(stderr, "ERROR: SOS_VAL_TYPE_BYTES was used in SOS_pack(...)."
+                " This is unsupported.\n"
+                "ERROR: Please use SOS_pack_bytes(...) instead.\n"
+                "ERROR: Somehow libsos passed beyond its safety"
+                " guard and has\n"
+                "ERROR: modified the state of the publication handle.\n"
+                "ERROR: Since safety/consistency can no longer be guaranteed,\n"
+                "ERROR: SOS will now terminate. Please update your code.\n");
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+        break;
+
+    case SOS_VAL_TYPE_INT:
+        data->val.i_val = pack_val.i_val;
+        data->val_len   = sizeof(int);
+        break;
+
+    case SOS_VAL_TYPE_LONG:
+        data->val.l_val = pack_val.l_val;
+        data->val_len   = sizeof(long);
+        break;
+
+    case SOS_VAL_TYPE_DOUBLE:
+        data->val.d_val = pack_val.d_val;
+        data->val_len   = sizeof(double);
+        break;
+
+    default:
+        dlog(0, "ERROR: Invalid data type was specified.   (%d)\n", data->type);
+        exit(EXIT_FAILURE);
+
+    }
+
+    data->state = SOS_VAL_STATE_DIRTY;
+    SOS_TIME( data->time.pack );
+
+} //end function: SOS_pack_snap_into_pub_cache
+
+
+
+int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {}
+*/
 
 int SOS_pack_related(
         SOS_pub *pub,
@@ -1475,7 +1665,7 @@ int SOS_pack_related(
         SOS_val_type pack_type,
         const void *pack_val_var)
 {
-    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_frame");
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_related");
     SOS_buffer *byte_buffer;
     SOS_data   *data;
     int         pos;
@@ -1673,8 +1863,9 @@ int SOS_pack(
     SOS_buffer *byte_buffer;
     SOS_data   *data;
     int         pos;
-
     SOS_val     pack_val;
+    
+    pthread_mutex_lock(pub->lock);
 
     switch(pack_type) {
     case SOS_VAL_TYPE_INT:    pack_val.i_val = *(int *)pack_val_var; break;
@@ -1687,25 +1878,23 @@ int SOS_pack(
         fprintf(stderr, "WARNING: Please use SOS_pack_bytes(...) instead!\n");
         fprintf(stderr, "WARNING: Doing nothing and returning....\n");
         fflush(stderr);
+        pthread_mutex_unlock(pub->lock);
         return -1;
         break;
 
     default:
         dlog(0, "ERROR: Invalid pack_type sent to SOS_pack."
                 " (%d)\n", (int) pack_type);
+        pthread_mutex_unlock(pub->lock);
         return -1;
         break;
     }
-
-
-    pthread_mutex_lock(pub->lock);
 
     // NOTE: Regarding indexing...
     // The hash table will return NULL if a value is not present.
     // The pub->data[elem] index is zero-indexed, so indices are stored +1, to
     //   differentiate between empty and the first position.  The value
     //   returned by SOS_pub_search() is the actual array index to be used.
-
     pos = SOS_pub_search(pub, name);
 
     if (pos < 0) {
@@ -2206,7 +2395,10 @@ SOS_val_snap_queue_from_buffer(
                     break;
             }
             // We have a new snap, push it down into the pub
+            pub->data[elem]->cached_
             
+            // Now trace to the end of this element's cache and
+            //     see if we need to trim it off.
             
         }
 

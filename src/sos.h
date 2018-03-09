@@ -115,6 +115,14 @@ extern "C" {
     void SOS_pub_init_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
         char *pub_title, SOS_nature nature, int new_size);
 
+    //NOTE: Sub-components of the SOS_pack() API call, allowing code
+    //      re-used among the different interactions like SOS_pack() VS.
+    //      SOS_pack_related() and additional future data inlets:
+    int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap);
+    int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap);
+    int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
+
+
     int SOS_pub_search(SOS_pub *pub, const char *name);
 
     void SOS_pub_destroy(SOS_pub *pub);
