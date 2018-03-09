@@ -193,7 +193,12 @@ SSOS_query_exec(char *sql, char *target_host, int target_port)
     //  3. Client/lib wrapper claims them w/indeterminate order.
     
     //Send the query to the daemon:
-    SOSA_exec_query(g_sos, sql, target_host, target_port);
+    int rc = SOSA_exec_query(g_sos, sql, target_host, target_port);
+    if (rc < 0 && g_sos_is_online) {
+        // bad news.
+        fprintf(stderr, "Error: the connection to the daemon has dropped. Exiting.\n");
+        exit(-1);
+    }
 
     return;
 }
