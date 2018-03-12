@@ -122,7 +122,8 @@ extern "C" {
     //NOTE: Sub-components of the SOS_pack() API call, allowing code
     //      reuse among the different interactions like SOS_pack() VS.
     //      SOS_pack_related() and additional future data inlets:
-    int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap);
+    int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
+            const char *name, SOS_val_type type, const void *val);
     int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap);
     int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
 
