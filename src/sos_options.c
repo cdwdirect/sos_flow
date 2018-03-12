@@ -42,6 +42,8 @@ int SOS_options_init(
     //  -environment
     //  -actual file
 
+    if (getenv("SOS_BATCH_ENVIRONMENT") != NULL) {
+    }
 
     return 0;
 }

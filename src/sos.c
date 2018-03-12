@@ -69,15 +69,6 @@ void         SOS_expand_data(SOS_pub *pub);
  */
 void SOS_receiver_init(SOS_runtime *sos_context);
 
-/**
- * @brief Internal utility function to see if a file exists.
- * @return 1 == file exists, 0 == file does not exist.
- */
-int SOS_file_exists(char *filepath) {
-    struct stat   buffer;
-    return (stat(filepath, &buffer) == 0);
-}
-
 
 
 /**
@@ -1427,17 +1418,48 @@ void SOS_expand_data( SOS_pub *pub ) {
 }
 
 
-void SOS_strip_str( char *str ) {
+
+/**
+ * @brief Internal utility function to see if a file exists.
+ * @return 1 == file exists, 0 == file does not exist.
+ */
+int SOS_file_exists(char *filepath) {
+    struct stat   buffer;
+    return (stat(filepath, &buffer) == 0);
+}
+
+void SOS_str_strip_ext(char *str) {
     int i, len;
     len = strlen(str);
-
     for (i = 0; i < len; i++) {
         if (str[i] == '\"') str[i] = '\'';
         if (str[i] < ' ' || str[i] > '~') str[i] = '#';
     }
-
     return;
 }
+
+void SOS_str_to_upper(char *mutable_str) {
+    char *c = mutable_str;
+    while (*c) {
+        *c = toupper((unsigned char)*c);
+        c++;
+    }
+    return;
+}
+
+bool SOS_str_opt_is_enabled(char *mutable_str) {
+    char *opt_str = mutable_str;
+    SOS_str_to_upper(opt_str);
+    if ((strcmp(opt_str, "1")    == 0) ||
+        (strcmp(opt_str, "TRUE") == 0) ||
+        (strcmp(opt_str, "YES")  == 0) ||
+        (strcmp(opt_str, "ON")   == 0)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
 
 
 char* SOS_uint64_to_str(uint64_t val, char *result, int result_len) {

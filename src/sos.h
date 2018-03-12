@@ -85,10 +85,14 @@ extern "C" {
         SOS_pub **pub_handle, char *pub_title, SOS_nature nature);
 
     int SOS_pack(SOS_pub *pub, const char *name,
-        SOS_val_type pack_type, void *pack_val_var);
+        SOS_val_type pack_type, const void *pack_val_var);
 
     int SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
         SOS_val_type pack_type, const void *pack_val_var);
+
+    // NOTE: This seems like a nice idea.  Soon.  -CDW
+    //int SOS_pack_array(SOS_pub *pub, const char **names,
+    //        int elem_count, SOS_val_type pack_type, const void *array);
 
     void SOS_announce(SOS_pub *pub);
 
@@ -116,7 +120,7 @@ extern "C" {
         char *pub_title, SOS_nature nature, int new_size);
 
     //NOTE: Sub-components of the SOS_pack() API call, allowing code
-    //      re-used among the different interactions like SOS_pack() VS.
+    //      reuse among the different interactions like SOS_pack() VS.
     //      SOS_pack_related() and additional future data inlets:
     int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap);
     int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap);
@@ -149,7 +153,10 @@ extern "C" {
     void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer,
         SOS_pipe *snap_queue, SOS_pub *pub);
 
-    void SOS_strip_str(char *str);
+    void SOS_str_strip_ext(char *str);
+    void SOS_str_to_upper(char *mutable_str);
+    bool SOS_str_opt_is_enabled(char *mutable_str);
+
 
     char* SOS_uint64_to_str(uint64_t val, char *result, int result_len);
 

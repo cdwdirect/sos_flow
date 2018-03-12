@@ -247,20 +247,9 @@ void SOSD_db_init_database() {
     #endif
 
     // Does the user want an in memory database?
-    char * tmp = getenv("SOS_IN_MEMORY_DATABASE");
-    if (tmp != NULL) {
-        // force the string to upper case
-        char * c = tmp;
-        while (c) {
-            *c = toupper((unsigned char)*c);
-            c++;
-        }
-        // check for some obvious positive values
-        if (strcmp(tmp,"1")==0 ||
-            strcmp(tmp,"TRUE")==0 ||
-            strcmp(tmp,"YES")==0) {
-            snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
-        }
+    char *tmp = getenv("SOS_IN_MEMORY_DATABASE");
+    if (SOS_str_opt_is_enabled(tmp)) {
+        snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
     }
 
     if (SOS_file_exists(SOSD.db.file)) {
