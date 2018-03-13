@@ -318,10 +318,9 @@ int main(int argc, char *argv[])  {
     #endif
     SOSD_sync_context_init(SOS, &SOSD.sync.local, sizeof(SOS_buffer *),
         SOSD_THREAD_local_sync);
-    // do system monitoring, if requested.
-    char *system_flag = getenv("SOS_READ_SYSTEM_STATUS");
-    if (SOS_str_opt_is_enabled(system_flag)) {
-    //if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
+
+    // Do system monitoring, if requested.
+    if (SOS_str_opt_is_enabled(getenv("SOS_READ_SYSTEM_STATUS"))) {
         //setup_system_monitor_pub();
         SOSD_sync_context_init(SOS, &SOSD.sync.system_monitor, 0,
              SOSD_THREAD_system_monitor);
