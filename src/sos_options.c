@@ -32,7 +32,7 @@ int SOS_options_init(
     opt->discovery_dir    = NULL;
 
     opt->db_disabled      = false;
-    opt->db_frame_limit   = 0;    //0 == NO LIMIT
+    opt->db_frame_limit   = 0;     //0 == NO LIMIT
 
     opt->pub_cache_depth  = 10;    //0 == NO CACHE
 
@@ -41,8 +41,11 @@ int SOS_options_init(
     //  -argv/argc
     //  -environment
     //  -actual file
-
-    if (getenv("SOS_BATCH_ENVIRONMENT") != NULL) {
+  
+    if (SOS_str_opt_is_enabled(getenv("SOS_BATCH_ENVIRONMENT"))) {
+        opt->batch_environment = true;
+    } else {
+        opt->batch_environment = false;
     }
 
     return 0;

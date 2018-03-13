@@ -1439,6 +1439,7 @@ void SOS_str_strip_ext(char *str) {
 }
 
 void SOS_str_to_upper(char *mutable_str) {
+    if (mutable_str == NULL) return;
     char *c = mutable_str;
     while (*c) {
         *c = toupper((unsigned char)*c);
@@ -1726,6 +1727,8 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
     //       All these copies of snaps might seem wasteful of memory but
     //       usually when this is happening, the daemon is running without
     //       a database active, which saves a lot of memory.
+    dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
+
     if (((SOS->role == SOS_ROLE_AGGREGATOR) ||
          (SOS->role == SOS_ROLE_LISTENER))
        && pub->cache_depth > 0)
@@ -1794,6 +1797,16 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
         } //end while
 
         // Cool. Cache is updated.  *high-fives-self*
+        // Let's print the whole thing while we debug.
+        tmp_snap = pub->data[snap->elem]->cached_latest;
+        snap_count = 0;
+        while (tmp_snap != NULL) {
+            snap_count++;
+            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
+                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                    snap_count, tmp_snap->val.d_val);
+            tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
+        }
 
     } //end if: (daemon && pub_cache)
 
@@ -2159,6 +2172,9 @@ SOS_val_snap_queue_from_buffer(
         //       All these copies of snaps might seem wasteful of memory but
         //       usually when this is happening, the daemon is running without
         //       a database active, which saves a lot of memory.
+
+        dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
+        
         if (((SOS->role == SOS_ROLE_AGGREGATOR) ||
              (SOS->role == SOS_ROLE_LISTENER))
                 && pub->cache_depth > 0)
@@ -2227,6 +2243,16 @@ SOS_val_snap_queue_from_buffer(
                 tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
             } //end while
 
+            // Let's print the whole thing while we debug.
+            tmp_snap = pub->data[snap->elem]->cached_latest;
+            snap_count = 0;
+            while (tmp_snap != NULL) {
+                snap_count++;
+                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
+                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                    snap_count, tmp_snap->val.d_val);
+                tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
+            }
 
         } //end if: (daemon && pub_cache)
 

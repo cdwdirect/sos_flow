@@ -320,7 +320,8 @@ int main(int argc, char *argv[])  {
         SOSD_THREAD_local_sync);
     // do system monitoring, if requested.
     char *system_flag = getenv("SOS_READ_SYSTEM_STATUS");
-    if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
+    if (SOS_str_opt_is_enabled(system_flag)) {
+    //if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
         //setup_system_monitor_pub();
         SOSD_sync_context_init(SOS, &SOSD.sync.system_monitor, 0,
              SOSD_THREAD_system_monitor);
@@ -2499,7 +2500,7 @@ void SOSD_display_logo(void) {
     srand(getpid());
     choice = rand() % 3;
 
-    if (getenv("SOS_BATCH_ENVIRONMENT") != NULL) {
+    if (SOS_str_opt_is_enabled(getenv("SOS_BATCH_ENVIRONMENT"))) {
         // Don't print colors or extended characters...
         printf("========================================="
                "=========================================\n");
@@ -2600,7 +2601,7 @@ void SOSD_display_logo(void) {
     }
 
 
-    if (getenv("SOS_BATCH_ENVIRONMENT") == NULL) {
+    if (!SOS_str_opt_is_enabled(getenv("SOS_BATCH_ENVIRONMENT"))) {
         printf(SOS_CLR);
         printf(SOS_GRN);
 

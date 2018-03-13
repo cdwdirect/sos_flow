@@ -77,16 +77,6 @@ int main(int argc, char *argv[]) {
 
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
 
-#if defined(USE_MPI)
-    char  mpi_hostname[ MPI_MAX_PROCESSOR_NAME] = {0};
-    int   mpi_hostname_len;
-    MPI_Get_processor_name(mpi_hostname, &mpi_hostname_len);
-
-    dlog(1, "Connected to sosd (daemon) on port %s ...\n", mpi_hostname);
-#endif
-
-    setenv("SOS_SHUTDOWN", "1", 1);
-
     SOS_buffer_init(SOS, &buffer);
 
     header.msg_size = -1;
@@ -106,7 +96,7 @@ int main(int argc, char *argv[]) {
     rc = SOS_target_connect(SOS->daemon);
     if (rc != 0) {
         fprintf(stderr, "Unable to connect to an SOSflow daemon on port %s."
-                "  (rc == %d)\n", SOS->daemon->remote_port, rc);
+                "  (rc == %d)\n", getenv("SOS_CMD_PORT"), rc);
         exit(EXIT_FAILURE);
     }
     

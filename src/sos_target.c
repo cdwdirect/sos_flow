@@ -124,7 +124,7 @@ SOS_target_setup_for_accept(SOS_socket *target)
                 errno, strerror(errno));
         exit(EXIT_FAILURE);
     } else {
-        dlog(0, "  ... got a socket, and bound to it!\n");
+        dlog(1, "  ... got a socket, and bound to it!\n");
     }
 
     freeaddrinfo(target->result_list);
@@ -146,7 +146,7 @@ SOS_target_setup_for_accept(SOS_socket *target)
     }
 
     listen( target->local_socket_fd, target->listen_backlog );
-    dlog(0, "Listening on socket.\n");
+    dlog(11111111111, "Listening on socket.\n");
 
     return 0;
 }

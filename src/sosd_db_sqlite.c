@@ -248,7 +248,7 @@ void SOSD_db_init_database() {
 
     // Does the user want an in memory database?
     char *tmp = getenv("SOS_IN_MEMORY_DATABASE");
-    if (SOS_str_opt_is_enabled(tmp)) {
+    if ((tmp != NULL) && (SOS_str_opt_is_enabled(tmp))) {
         snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
     }
 
