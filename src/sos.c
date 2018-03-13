@@ -173,6 +173,7 @@ SOS_init_existing_runtime(
         break;
     }
 
+    NEW_SOS->config.options = opt;
 
     NEW_SOS->status = SOS_STATUS_INIT;
     NEW_SOS->config.layer = SOS_LAYER_DEFAULT;
@@ -1450,6 +1451,7 @@ void SOS_str_to_upper(char *mutable_str) {
 
 bool SOS_str_opt_is_enabled(char *mutable_str) {
     char *opt_str = mutable_str;
+    if (opt_str == NULL) return false;
     SOS_str_to_upper(opt_str);
     if ((strcmp(opt_str, "1")    == 0) ||
         (strcmp(opt_str, "TRUE") == 0) ||

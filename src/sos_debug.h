@@ -97,7 +97,8 @@ FILE   *sos_daemon_log_fptr;
             }                                                           \
         }                                                               \
     } else {                                                            \
-        if (SOS->config.options.batch_environment) {                    \
+        if ((SOS->config.options != NULL) &&                            \
+            (SOS->config.options->batch_environment)) {                 \
             if (SOS_DEBUG >= level && SOS->role == SOS_ROLE_CLIENT) {   \
                 if (SOS_DEBUG_SHOW_LOCATION > 0) {                      \
                     printf("(%s:%d)", __FILE__, __LINE__ );             \

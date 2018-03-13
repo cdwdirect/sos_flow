@@ -34,7 +34,7 @@ int SOS_options_init(
     opt->db_disabled      = false;
     opt->db_frame_limit   = 0;     //0 == NO LIMIT
 
-    opt->pub_cache_depth  = 10;    //0 == NO CACHE
+    opt->pub_cache_depth  = 0;    //0 == NO CACHE
 
     // TODO: Process what is available...
     //
