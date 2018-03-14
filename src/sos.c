@@ -80,7 +80,7 @@ int SOS_file_exists(char *filepath) {
 
 /* Helper function to diagnose deadlocks. */
 /* set this define to enable the checks: */
-#define DEBUG_DEADLOCK
+// #define DEBUG_DEADLOCK
 
 #ifdef DEBUG_DEADLOCK
 static unsigned int pub_lock_count = 0;
