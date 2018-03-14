@@ -122,7 +122,7 @@ SSOS_result_claim(SSOS_query_results *results)
             continue;
         }
 
-        printf( "Processing the results...\n");
+        // printf( "Processing the results...\n");
 
         //If we're here, we hold the lock AND there are results.
         //Grab the head of the result pool and release the lock:
@@ -133,16 +133,16 @@ SSOS_result_claim(SSOS_query_results *results)
 
         //The pool is now open for other threads and we can
         //process this entry.
-        printf( "Initializing the results object...\n");
+        // printf( "Initializing the results object...\n");
         SOSA_results_init(g_sos, (SOSA_results **) &results);
 
-        printf( "Building results from buffer...\n");
+        // printf( "Building results from buffer...\n");
         SOSA_results_from_buffer((SOSA_results *) results, entry->buffer);
 
-        printf( "Destroying the buffer object...\n");
+        // printf( "Destroying the buffer object...\n");
         SOS_buffer_destroy(entry->buffer);
 
-        printf( "Free'ing the entry...\n");
+        // printf( "Free'ing the entry...\n");
         free(entry);
 
         //Leave the loop and return to the client.

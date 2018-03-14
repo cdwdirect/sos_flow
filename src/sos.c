@@ -78,7 +78,40 @@ int SOS_file_exists(char *filepath) {
     return (stat(filepath, &buffer) == 0);
 }
 
+/* Helper function to diagnose deadlocks. */
+/* set this define to enable the checks: */
+#define DEBUG_DEADLOCK
 
+#ifdef DEBUG_DEADLOCK
+static unsigned int pub_lock_count = 0;
+#endif
+
+static inline void _sos_lock_pub(SOS_pub * pub, const char * func) {
+#ifdef DEBUG_DEADLOCK
+    fprintf(stderr, "Locking in %s.\n", func);
+#endif
+    pthread_mutex_lock(pub->lock);
+#ifdef DEBUG_DEADLOCK
+    pub_lock_count++;
+    if (pub_lock_count > 1) {
+        fprintf(stderr, "ERROR! Locked pub multiple times.\n"); 
+        fflush(stderr);
+        abort();
+    }
+#endif
+}
+static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
+#ifdef DEBUG_DEADLOCK
+    fprintf(stderr, "Unlocking in %s.\n", func); 
+    pub_lock_count--;
+    if (pub_lock_count < 0) {
+        fprintf(stderr, "ERROR! Unlocked pub multiple times.\n"); 
+        fflush(stderr);
+        abort();
+    }
+#endif
+    pthread_mutex_unlock(pub->lock);
+}
 
 /**
  * @brief Initialize the SOS library and register with the SOS runtime.
@@ -1501,8 +1534,7 @@ int SOS_pack_related(
         break;
     }
 
-
-    pthread_mutex_lock(pub->lock);
+    _sos_lock_pub(pub,__func__);
 
     // NOTE: Regarding indexing...
     // The hash table will return NULL if a value is not present.
@@ -1654,7 +1686,7 @@ int SOS_pack_related(
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
 
     // Done.
-    pthread_mutex_unlock(pub->lock);
+    _sos_unlock_pub(pub,__func__);
 
     return pos;
 
@@ -1675,7 +1707,7 @@ int SOS_pack(
     SOS_val     pack_val;
 
     // gotta have some thread safety.
-    pthread_mutex_lock(pub->lock);
+    _sos_lock_pub(pub,__func__);
 
     switch(pack_type) {
     case SOS_VAL_TYPE_INT:    pack_val.i_val = *(int *)pack_val_var; break;
@@ -1847,7 +1879,7 @@ int SOS_pack(
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
 
     // Done.
-    pthread_mutex_unlock(pub->lock);
+    _sos_unlock_pub(pub,__func__);
 
     return pos;
 }
@@ -1890,7 +1922,7 @@ SOS_pub_destroy(SOS_pub *pub)
 
     if (pub == NULL) { return; }
 
-    pthread_mutex_lock(pub->lock);
+    _sos_lock_pub(pub,__func__);
 
     dlog(6, "Freeing pub components:\n");
     dlog(6, "  ... snapshot queue\n");
@@ -1950,13 +1982,12 @@ SOS_val_snap_queue_to_buffer(
     int offset;
     int count;
 
-    pthread_mutex_lock(pub->lock);
     pthread_mutex_lock(pub->snap_queue->sync_lock);
 
     if (pub->snap_queue->elem_count < 1) {
         dlog(4, "  ... nothing to do for pub(%s)\n", pub->guid_str);
         pthread_mutex_unlock(pub->snap_queue->sync_lock);
-        pthread_mutex_unlock(pub->lock);
+        _sos_unlock_pub(pub,__func__);
         return;
     }
 
@@ -2056,8 +2087,6 @@ SOS_val_snap_queue_to_buffer(
     SOS_msg_zip(buffer, header, 0, &offset);
 
     dlog(6, "     ... done   (buf_len == %d)\n", header.msg_size);
-
-    pthread_mutex_unlock(pub->lock);
 
     return;
 }
@@ -2215,8 +2244,6 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
 
-    pthread_mutex_lock(pub->lock);
-
     // Pub metadata.
     SOS_buffer_pack(buffer, &offset, "siiississiiiiiii",
                     pub->node_id,
@@ -2253,8 +2280,6 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     // TODO: { PUB } Come up with better ENUM for announce status.
     pub->announced = 1;
 
-    pthread_mutex_unlock(pub->lock);
-
     header.msg_size = offset;
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
@@ -2270,9 +2295,6 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     double           send_time;
     int              offset;
     int              elem;
-
-
-    pthread_mutex_lock(pub->lock);
 
     // TODO: { ASYNC CLIENT, TIME }
     //       If client-side gets async send, this wont be true.
@@ -2362,8 +2384,6 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
 
-    pthread_mutex_unlock(pub->lock);
-
     return;
 }
 
@@ -2375,7 +2395,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     int            offset;
     int            elem;
 
-    pthread_mutex_lock(pub->lock);
+    _sos_lock_pub(pub,__func__);
 
     dlog(6, "Applying an ANNOUNCE from a buffer...\n");
     dlog(6, "  ... unpacking the header.\n");
@@ -2505,7 +2525,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
 
     }//for
 
-    pthread_mutex_unlock(pub->lock);
+    _sos_unlock_pub(pub,__func__);
     dlog(6, "  ... done.\n");
 
     return;
@@ -2535,8 +2555,6 @@ SOS_publish_from_buffer(
                 " Terminating.\n");
         exit(EXIT_FAILURE);
     }
-
-    pthread_mutex_lock(pub->lock);
 
     dlog(7, "Unpacking the values from the buffer...\n");
 
@@ -2607,7 +2625,6 @@ SOS_publish_from_buffer(
 
     }//while
 
-    pthread_mutex_unlock(pub->lock);
     dlog(7, "  ... done.\n");
 
     return;
@@ -2652,6 +2669,9 @@ SOS_publish( SOS_pub *pub ) {
     SOS_buffer *pub_buf;
     SOS_buffer *rep_buf;
 
+    // gotta have some thread safety.
+    _sos_lock_pub(pub,__func__);
+
     pub_buf = NULL;
     rep_buf = NULL;
     SOS_buffer_init(SOS, &pub_buf);
@@ -2679,6 +2699,9 @@ SOS_publish( SOS_pub *pub ) {
 
     SOS_buffer_destroy(pub_buf);
     SOS_buffer_destroy(rep_buf);
+
+    // gotta have some thread safety.
+    _sos_unlock_pub(pub,__func__);
 
     return;
 }
