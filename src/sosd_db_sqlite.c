@@ -834,18 +834,18 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
         dlog(5, "     ... updating the latest_frame fields.\n");
         // Update tblPubs.latest_frame
-        CALL_SQLITE (bind_int    (stmt_update_pub_frame, 1, frame));
-        CALL_SQLITE (bind_int64  (stmt_update_pub_frame, 2, pub_guid));
-        CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
+        //CALL_SQLITE (bind_int    (stmt_update_pub_frame, 1, frame));
+        //CALL_SQLITE (bind_int64  (stmt_update_pub_frame, 2, pub_guid));
+        //CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
         // Update tblData.latest_frame
-        CALL_SQLITE (bind_int    (stmt_update_data_frame, 1, frame));
-        CALL_SQLITE (bind_int64  (stmt_update_data_frame, 2, guid));
-        CALL_SQLITE_EXPECT (step (stmt_update_data_frame), DONE);
+        //CALL_SQLITE (bind_int    (stmt_update_data_frame, 1, frame));
+        //CALL_SQLITE (bind_int64  (stmt_update_data_frame, 2, guid));
+        //CALL_SQLITE_EXPECT (step (stmt_update_data_frame), DONE);
         // Clear the bindings:
-        CALL_SQLITE (reset (stmt_update_pub_frame));
-        CALL_SQLITE (reset (stmt_update_data_frame));
-        CALL_SQLITE (clear_bindings (stmt_update_pub_frame));
-        CALL_SQLITE (clear_bindings (stmt_update_data_frame));
+        //CALL_SQLITE (reset (stmt_update_pub_frame));
+        //CALL_SQLITE (reset (stmt_update_data_frame));
+        //CALL_SQLITE (clear_bindings (stmt_update_pub_frame));
+        //CALL_SQLITE (clear_bindings (stmt_update_data_frame));
 
         dlog(5, "     ... grabbing the next snap.\n");
     }

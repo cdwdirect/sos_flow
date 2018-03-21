@@ -2284,6 +2284,8 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     int   offset;
     int   elem;
 
+    pthread_mutex_lock(pub->lock);
+    
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
     header.msg_from = SOS->my_guid;
@@ -2291,8 +2293,6 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
-
-    pthread_mutex_lock(pub->lock);
 
     // Pub metadata.
     SOS_buffer_pack(buffer, &offset, "siiississiiiiiii",
