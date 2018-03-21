@@ -249,9 +249,11 @@ void SOSD_db_init_database() {
     // Does the user want an in memory database?
     char * tmp = getenv("SOS_IN_MEMORY_DATABASE");
     if (tmp != NULL) {
+        // make sure the string is null terminated.
+        tmp[strlen(tmp)] = 0;
         // force the string to upper case
         char * c = tmp;
-        while (c) {
+        while (*c) {
             *c = toupper((unsigned char)*c);
             c++;
         }
@@ -286,9 +288,9 @@ void SOSD_db_init_database() {
     sqlite3_exec(database, "PRAGMA cache_size    = 31250;",    NULL, NULL, NULL); // x 2048 def. page size = 64MB cache
     sqlite3_exec(database, "PRAGMA cache_spill   = FALSE;",    NULL, NULL, NULL); // Spilling goes exclusive, it's wasteful.
     sqlite3_exec(database, "PRAGMA temp_store    = MEMORY;",   NULL, NULL, NULL); // If we crash, we crash.
-    sqlite3_exec(database, "PRAGMA journal_mode  = DELETE;",   NULL, NULL, NULL); // Default
+  //sqlite3_exec(database, "PRAGMA journal_mode  = DELETE;",   NULL, NULL, NULL); // Default
   //sqlite3_exec(database, "PRAGMA encoding      = UTF-8;",    NULL, NULL, NULL); // Trim bloat if possible, unicode is rare.
-  //sqlite3_exec(database, "PRAGMA journal_mode  = MEMORY;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
+    sqlite3_exec(database, "PRAGMA journal_mode  = OFF;",   NULL, NULL, NULL); // ...ditto.  Speed prevents crashes.
   //sqlite3_exec(database, "PRAGMA journal_mode  = WAL;",      NULL, NULL, NULL); // This is the fastest file-based journal option.
 
     SOS_pipe_init(SOS, &SOSD.db.snap_queue, sizeof(SOS_val_snap *));
