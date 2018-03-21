@@ -520,6 +520,7 @@ typedef struct {
     bool                offline_test_mode;
     bool                runtime_utility;
     int                 pub_cache_depth;
+    double              time_of_init;
     SOS_options        *options;
 } SOS_config;
 

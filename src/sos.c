@@ -453,6 +453,9 @@ SOS_init_existing_runtime(
 
     dlog(1, "  ... done with SOS_init().\n");
     dlog(4, "SOS->status = SOS_STATUS_RUNNING\n");
+
+    SOS_TIME(SOS->config.time_of_init);
+
     return;
 }
 

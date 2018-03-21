@@ -98,7 +98,7 @@ int main(int argc, char *argv[]) {
 
     int iteration   = 0;
     int line_number = 0;
-    while (getenv("SOS_SHUTDOWN") == NULL) {
+    while (!SOS_str_opt_is_enabled(getenv("SOS_SHUTDOWN"))) {
         sleep(GLOBAL_sleep_delay);
         log("[wake]\n");
 

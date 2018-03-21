@@ -156,7 +156,7 @@ int main(int argc, char *argv[]) {
     offset = 0;
     SOS_msg_zip(request, header, 0, &offset);
 
-    while (getenv("SOS_SHUTDOWN") == NULL) {
+    while (!SOS_str_opt_is_enabled(getenv("SOS_SHUTDOWN"))) {
 
         SOS_buffer_wipe(reply);
 
@@ -170,10 +170,10 @@ int main(int argc, char *argv[]) {
         // -----=====-----
 
         if (reply->len < sizeof(SOS_msg_header)) {
-            fprintf(stderr, "[sosd_probe]: ERROR! Received short"
-                    " (useless) message from daemon!"
-                    "   (reply->len == %d)\n",
-                    reply->len);
+            //fprintf(stderr, "[sosd_probe]: ERROR! Received short"
+            //        " (useless) message from daemon!"
+            //        "   (reply->len == %d)\n",
+            //        reply->len);
             continue;
         }
 
