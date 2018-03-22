@@ -182,10 +182,22 @@ typedef struct {
 } SOSD_runtime;
 
 typedef struct {
+    SOS_guid   guid;
+    SOS_guid   pub_guid;
+    int        frame;
+    bool       dirty;
+    void      *next_note;
+} SOSD_frame_note;
+
+typedef struct {
     char               *file;
     int                 ready;
     pthread_mutex_t    *lock;
     SOS_pipe           *snap_queue;
+    qhashtbl_t         *frame_note_pub_table;
+    SOSD_frame_note    *frame_note_pub_list_head;
+    qhashtbl_t         *frame_note_val_table;
+    SOSD_frame_note    *frame_note_val_list_head;
 } SOSD_db;
 
 typedef struct {

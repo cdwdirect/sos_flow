@@ -1602,7 +1602,6 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     dlog(5, "Injecting snaps into SOSD.db.snap_queue...\n");
     SOS_val_snap_queue_from_buffer(buffer, SOSD.db.snap_queue, pub);
 
-
     dlog(5, "Queue these val snaps up for the database...\n");
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
     task->ref = (void *) pub;

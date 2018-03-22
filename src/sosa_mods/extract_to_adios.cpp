@@ -102,7 +102,7 @@ public:
 
 SOS_runtime * initialize(int argc, char* argv[]) {
     SOS_runtime *SOS = NULL;
-    SOS_init(&argc, &argv, &SOS, SOS_ROLE_ANALYTICS, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    SOS_init(&SOS, SOS_ROLE_ANALYTICS, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (SOS == NULL) {
         fprintf(stderr, "ERROR: Could not initialize SOS.\n");
         exit (EXIT_FAILURE);
