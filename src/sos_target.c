@@ -146,7 +146,7 @@ SOS_target_setup_for_accept(SOS_socket *target)
     }
 
     listen( target->local_socket_fd, target->listen_backlog );
-    dlog(11111111111, "Listening on socket.\n");
+    dlog(1, "Listening on socket.\n");
 
     return 0;
 }
@@ -161,7 +161,7 @@ SOS_target_recv_msg(
     SOS_msg_header header;
 
     if (SOS->status == SOS_STATUS_SHUTDOWN) {
-        dlog(0, "Ignoring receive call because SOS is shutting down.\n");
+        dlog(1, "Ignoring receive call because SOS is shutting down.\n");
         return -1;
     }
 
@@ -238,7 +238,7 @@ SOS_target_init(
     if (target_host != NULL) {
         strncpy(tgt->remote_host, target_host, NI_MAXHOST);
     } else {
-        dlog(0, "WARNING: No host specified during a SOS_target_init."
+        dlog(1, "WARNING: No host specified during a SOS_target_init."
                 "  Defaulting to 'localhost'.\n");
         strncpy(tgt->remote_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     }
@@ -334,7 +334,7 @@ SOS_target_connect(SOS_socket *target) {
     freeaddrinfo( target->result_list );
 
     if (new_fd <= 0) {
-        dlog(0, "Error attempting to connect to the server.  (%s:%s)  %s\n",
+        dlog(1, "ERROR: Unable to connect to target at %s:%s  (%s)\n",
             target->remote_host, target->remote_port, strerror(errno));
         pthread_mutex_unlock(target->send_lock);
         return -1;

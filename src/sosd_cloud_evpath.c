@@ -370,9 +370,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             fflush(stderr);
             exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "STATUS: The SOS_EVPATH_MEETUP evar was not set."
-                " Using getcwd() path:\n\t%s\n", evp->meetup_path);
-        fflush(stderr);
+        if (SOSD.sos_context->config.comm_rank == 0) {
+            fprintf(stderr, "\n\nSTATUS: The SOS_EVPATH_MEETUP evar was not set.\n"
+                    "STATUS: Using getcwd() path: %s\n", evp->meetup_path);
+            fflush(stderr);
+        }
     }
 
     int expected_node_count =
@@ -422,7 +424,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     // indices...
     SOSD.daemon.cloud_sync_target_count = SOSD.daemon.aggregator_count;
 
-    dlog(0, "Initializing EVPath...\n");
+    dlog(1, "Initializing EVPath...\n");
 
     int aggregation_rank = -1;
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
@@ -433,20 +435,20 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             % SOSD.daemon.aggregator_count;
         SOSD.daemon.cloud_sync_target = aggregation_rank;
     }
-    dlog(0, "   ... aggregation_rank: %d\n", aggregation_rank);
+    dlog(1, "   ... aggregation_rank: %d\n", aggregation_rank);
 
     char *contact_filename = (char *) calloc(2048, sizeof(char));
     snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
         evp->meetup_path, aggregation_rank);
-    dlog(0, "   ... contact_filename: %s\n", contact_filename);
+    dlog(1, "   ... contact_filename: %s\n", contact_filename);
 
-    dlog(0, "   ... creating connection manager:\n");
-    dlog(0, "      ... evp->recv.cm\n");
+    dlog(1, "   ... creating connection manager:\n");
+    dlog(1, "      ... evp->recv.cm\n");
     evp->recv.cm = CManager_create();
     CMlisten(evp->recv.cm);
     SOSD_evpath_ready_to_listen = true;
     CMfork_comm_thread(evp->recv.cm);
-    dlog(0, "      ... configuring stones:\n");
+    dlog(1, "      ... configuring stones:\n");
     evp->recv.out_stone = EValloc_stone(evp->recv.cm);
     EVassoc_terminal_action(
             evp->recv.cm,
@@ -454,13 +456,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             SOSD_buffer_format_list,
             SOSD_evpath_message_handler,
             NULL);
-    dlog(0, "      ... evp->send.cm\n");
+    dlog(1, "      ... evp->send.cm\n");
     evp->send.cm = CManager_create();
     CMlisten(evp->send.cm);
     CMfork_comm_thread(evp->send.cm);
     evp->send.out_stone = EValloc_stone(evp->send.cm);
-    dlog(0, "      ... done.\n");
-    dlog(0, "  ... done.\n");
+    dlog(1, "      ... done.\n");
+    dlog(1, "  ... done.\n");
 
     // Get the location we're listening on...
     evp->recv.contact_string =
@@ -472,9 +474,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         //   ... the aggregator needs to wait on the registration messages
         //   before being able to create sending stones.
 
-        dlog(0, "   ... demon role: AGGREGATOR\n");
+        dlog(1, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
-        dlog(0, "   ... creating objects to coordinate with listeners: ");
+        dlog(1, "   ... creating objects to coordinate with listeners: ");
         evp->node = (SOSD_evpath_node **)
             malloc(expected_node_count * sizeof(SOSD_evpath_node *));
         int node_idx = 0;
@@ -490,7 +492,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             evp->node[node_idx]->out_stone         = 0;
             evp->node[node_idx]->rmt_stone         = 0;
         }
-        dlog(0, "done.\n");
+        dlog(1, "done.\n");
 
         FILE *contact_file;
         // set the node id before we use it.
@@ -507,7 +509,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         //LISTENER
 
-        dlog(0, "   ... waiting for coordinator to share contact"
+        dlog(1, "   ... waiting for coordinator to share contact"
                 " information.\n");
         while (!SOS_file_exists(contact_filename)) {
             usleep(100000);
@@ -520,7 +522,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             int rc = fscanf(contact_file, "%1024s\n",
                     evp->send.contact_string);
             if (rc == EOF || strlen(evp->send.contact_string) < 1) {
-                dlog(0, "Error reading the contact key file. Aborting.\n%s\n", 
+                dlog(1, "Error reading the contact key file. Aborting.\n%s\n", 
                         strerror(errno));
                 exit(EXIT_FAILURE);
             }
@@ -528,21 +530,21 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             usleep(500000);
         }
 
-        dlog(0, "   ... targeting aggregator at: %s\n", evp->send.contact_string);
-        dlog(0, "   ... configuring stones:\n");
+        dlog(1, "   ... targeting aggregator at: %s\n", evp->send.contact_string);
+        dlog(1, "   ... configuring stones:\n");
         evp->send.contact_list = attr_list_from_string(evp->send.contact_string);
-        dlog(0, "      ... try: bridge action.\n");
+        dlog(1, "      ... try: bridge action.\n");
         EVassoc_bridge_action(
                 evp->send.cm,
                 evp->send.out_stone,
                 evp->send.contact_list,
                 evp->send.rmt_stone);
-        dlog(0, "      ... try: submit handle.\n");
+        dlog(1, "      ... try: submit handle.\n");
         evp->send.src = EVcreate_submit_handle(
                 evp->send.cm,
                 evp->send.out_stone,
                 SOSD_buffer_format_list);
-        dlog(0, "done.\n");
+        dlog(1, "done.\n");
 
         // evp->send.src is where we drop messages to send...
         // Example:  EVsubmit(evp->source, &msg, NULL);
@@ -579,7 +581,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
 
     free(contact_filename);
-    dlog(0, "   ... done.\n");
+    dlog(1, "   ... done.\n");
 
     return 0;
 }

@@ -122,7 +122,7 @@ SSOS_result_claim(SSOS_query_results *results)
             continue;
         }
 
-        printf( "Processing the results...\n");
+        // printf( "Processing the results...\n");
 
         //If we're here, we hold the lock AND there are results.
         //Grab the head of the result pool and release the lock:
@@ -133,16 +133,16 @@ SSOS_result_claim(SSOS_query_results *results)
 
         //The pool is now open for other threads and we can
         //process this entry.
-        printf( "Initializing the results object...\n");
+        // printf( "Initializing the results object...\n");
         SOSA_results_init(g_sos, (SOSA_results **) &results);
 
-        printf( "Building results from buffer...\n");
+        // printf( "Building results from buffer...\n");
         SOSA_results_from_buffer((SOSA_results *) results, entry->buffer);
 
-        printf( "Destroying the buffer object...\n");
+        // printf( "Destroying the buffer object...\n");
         SOS_buffer_destroy(entry->buffer);
 
-        printf( "Free'ing the entry...\n");
+        // printf( "Free'ing the entry...\n");
         free(entry);
 
         //Leave the loop and return to the client.
@@ -193,7 +193,12 @@ SSOS_query_exec(char *sql, char *target_host, int target_port)
     //  3. Client/lib wrapper claims them w/indeterminate order.
     
     //Send the query to the daemon:
-    SOSA_exec_query(g_sos, sql, target_host, target_port);
+    int rc = SOSA_exec_query(g_sos, sql, target_host, target_port);
+    if (rc < 0 && g_sos_is_online) {
+        // bad news.
+        fprintf(stderr, "Error: the connection to the daemon has dropped. Exiting.\n");
+        exit(-1);
+    }
 
     return;
 }

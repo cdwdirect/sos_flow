@@ -27,7 +27,7 @@ class SSOS:
         connect_delay = 0
         while((connect_delay < 4) and (is_online_flag[0] < 1)):
             lib.SSOS_is_online(is_online_flag)
-            print "   ... waiting to connect to SOS"
+            #print "   ... waiting to connect to SOS"
             time.sleep(0.5)
             connect_delay += 1
 
@@ -70,14 +70,14 @@ class SSOS:
         res_port = ffi.new("int*", int(port))
 
         # Send out the query...
-        print "Sending the query..."
+        #print "Sending the query..."
         lib.SSOS_query_exec(res_sql, res_host, res_port[0])
         # Grab the next available result.
         # NOTE: For queries submitted in a thread pool, this may not
         #       be the results for the query that was submitted above!
         #       Use of a thread pool requires that the results returned
         #       can be processed independently, for now.
-        print "Claiming the results..."
+        #print "Claiming the results..."
         lib.SSOS_result_claim(res_obj);
 
         results = []

@@ -12,3 +12,7 @@ INSTALL(FILES
     ${sos_flow_BINARY_DIR}/tmplib/ssos_python.so
     DESTINATION lib)
 
+INSTALL(FILES 
+    ${CMAKE_CURRENT_SOURCE_DIR}/ssos.py
+    DESTINATION bin)
+

@@ -82,8 +82,7 @@ int main(int argc, char *argv[]) {
             SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     if (my_sos == NULL) {
-        fprintf(stderr, "ERROR: Unable to register successfully"
-                " with SOS daemon.\n");
+        fprintf(stderr, "sosd_probe: Unable to contact the SOS daemon. Terminating.\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }

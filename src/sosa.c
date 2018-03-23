@@ -213,10 +213,15 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
     dlog(7, "   ... assigning query_guid = %" SOS_GUID_FMT "\n",
             query_guid);
     
-    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
-    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    SOS_buffer_pack(msg, &offset, "s", query);
-    SOS_buffer_pack(msg, &offset, "g", query_guid);
+    int rc = 0;
+    rc = SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
+    if (rc <= 0) { /* simple error check */ return -99; }
+    rc = SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
+    if (rc <= 0) { /* simple error check */ return -99; }
+    rc = SOS_buffer_pack(msg, &offset, "s", query);
+    if (rc <= 0) { /* simple error check */ return -99; }
+    rc = SOS_buffer_pack(msg, &offset, "g", query_guid);
+    if (rc <= 0) { /* simple error check */ return -99; }
 
     header.msg_size = offset;
     offset = 0;
@@ -224,12 +229,18 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
 
     dlog(7, "   ... sending to daemon.\n");
     SOS_socket *target = NULL;
-    SOS_target_init(SOS, &target, target_host, target_port);
-    SOS_target_connect(target);
-    SOS_target_send_msg(target, msg);
-    SOS_target_recv_msg(target, reply);
-    SOS_target_disconnect(target);
-    SOS_target_destroy(target);
+    rc = SOS_target_init(SOS, &target, target_host, target_port);
+    if (rc < 0) { /* simple error check */ return -99; }
+    rc = SOS_target_connect(target);
+    if (rc < 0) { /* simple error check */ return -99; }
+    rc = SOS_target_send_msg(target, msg);
+    if (rc < 0) { /* simple error check */ return -99; }
+    rc = SOS_target_recv_msg(target, reply);
+    if (rc < 0) { /* simple error check */ return -99; }
+    rc = SOS_target_disconnect(target);
+    if (rc < 0) { /* simple error check */ return -99; }
+    rc = SOS_target_destroy(target);
+    if (rc < 0) { /* simple error check */ return -99; }
 
     SOS_buffer_destroy(msg);
     SOS_buffer_destroy(reply);

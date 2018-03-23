@@ -69,17 +69,6 @@ DEMO_feedback_handler(
 
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
-
-        //Debugging:
-        //int i;
-        //printf("-----\n");
-        //unsigned char *redir = (unsigned char *) payload_data;
-        //for (i = 0; i < 40; i++) {
-        //    printf("byte %d:  [%d\t\t]\n", i, (int) *(redir + i));
-        //}
-        //printf("-----\n");
-        //fflush(stdout);
-
         SOSA_results_from_buffer(results, payload_data);
         SOSA_results_output_to(stdout, results,
                 "Query Results", SOSA_OUTPUT_W_HEADER);
@@ -178,16 +167,18 @@ int main(int argc, char *argv[]) {
              { fprintf(stderr, "%s\n", USAGE); exit(1); }
     }
 
-    printf("demo_app : Starting...\n");
-    printf("demo_app : Settings:\n"
-            "\tITERATION_SIZE   = %d\n"
-            "\tPUB_ELEM_COUNT   = %d\n"
-            "\tMAX_SEND_COUNT   = %d\n"
-            "\tDELAY_IN_USEC    = %lf\n",
-            ITERATION_SIZE, PUB_ELEM_COUNT, MAX_SEND_COUNT, DELAY_IN_USEC);
-    fflush(stdout);
+    
+    //printf("demo_app : Starting...\n");
+    //printf("demo_app : Settings:\n"
+    //        "\tITERATION_SIZE   = %d\n"
+    //        "\tPUB_ELEM_COUNT   = %d\n"
+    //        "\tMAX_SEND_COUNT   = %d\n"
+    //        "\tDELAY_IN_USEC    = %lf\n",
+    //        ITERATION_SIZE, PUB_ELEM_COUNT, MAX_SEND_COUNT, DELAY_IN_USEC);
+    //fflush(stdout);
+    
 
-    /* Example variables. */
+    // Example variables.
     char    *str_node_id  = getenv("HOSTNAME");
     char    *str_prog_ver = "1.0";
     char     var_string[100] = {0};
@@ -196,37 +187,13 @@ int main(int argc, char *argv[]) {
     int      send_shutdown = 0;
     
     my_sos = NULL;
+    
     SOS_init(&my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
 
-    /*
-    if(my_sos == NULL) {
-        printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
-#if defined(USE_MPI)
-        fork_exec_sosd();
-#endif //defined(USE_MPI)
-        send_shutdown = 1;
-    }
-    int repeat = 10;
-    while(my_sos == NULL) {
-        sleep(2);
-        my_sos = NULL;
-        //printf("init() trying to connect...\n");
-        SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
-                SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
-
-        if (my_sos != NULL) {
-            printf("Connected to SOS daemon. Continuing...\n");
-            break;
-        } else if (--repeat < 0) {
-            printf("Unable to connect to SOS daemon. Failing...\n");
-            exit(1);
-        }
-    }
-    */
-
     if (my_sos == NULL) {
-        fprintf(stderr, "demo_app: Shutting down. (my_sos == NULL)\n");
+        fprintf(stderr, "demo_app: Could not connect to an SOSflow"
+                " daemon at port %s. Terminating.\n", getenv("SOS_CMD_PORT"));
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
@@ -237,11 +204,11 @@ int main(int argc, char *argv[]) {
     srandom(my_sos->my_guid);
 
     if (WAIT_FOR_FEEDBACK) {
-        printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
+        printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
         const char * portStr = getenv("SOS_CMD_PORT");
         if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
         SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
-        printf("demo_app : Waiting for feedback.\n");
+        printf("demo_app: Waiting for results.\n");
         while(!g_done) {
             usleep(100000);
         }
@@ -249,11 +216,11 @@ int main(int argc, char *argv[]) {
     } else {
 
         dlog(1, "Registering sensitivity...\n");
-        SOS_sense_register(my_sos, "example_sense");
+        SOS_sense_register(my_sos, "demo");
 
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
-        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
+        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_DEFAULT);
         
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
@@ -275,43 +242,21 @@ int main(int argc, char *argv[]) {
         int ones = 0;
         while ((ones * PUB_ELEM_COUNT) < MAX_SEND_COUNT) {
             ones += 1;
-            if ((ones%ITERATION_SIZE) == 0) {
-                SOS_TIME( time_now );
-                if (rank == 0) dlog(1, "  ... [ SOS_publish(%d vals) x %d ]"
-                        "[ %lf seconds @ %lf / value ][ total: %d values ]\n",
-                        PUB_ELEM_COUNT,
-                        ITERATION_SIZE,
-                        (time_now - time_start),
-                        ((time_now - time_start) / (double) (PUB_ELEM_COUNT * ITERATION_SIZE)),
-                        (ones * PUB_ELEM_COUNT));
-
-                if (DELAY_ENABLED) {
-                    usleep(DELAY_IN_USEC);
-                }
-                SOS_TIME( time_start);
+            if (DELAY_ENABLED && (ones % ITERATION_SIZE) == 0) {
+                // Iteration size '-i #' is how many publishes between delays.
+                usleep(DELAY_IN_USEC);
             }
-            if (((ones * PUB_ELEM_COUNT)%1000000) == 0) {
-                if (rank == 0) dlog(1, "     ... 1,000,000 value milestone ---------\n");
-            }
-
+            // Pack in a bunch of doubles, up to the element count specified with '-p #'
             for (i = 0; i < PUB_ELEM_COUNT; i++) {
                 snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
                 SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-                var_double += 0.000001;
+                var_double += 0.00000001;
             }
 
-            if (ones == 1) {
-                if (rank == 0) { dlog(1, "Announcing\n"); }
-                SOS_announce(pub);
-            }
             SOS_publish(pub);
         }
 
-        //if (send_shutdown) {
-        //    fork_exec_sosd_shutdown();
-        //    //send_shutdown_message(my_sos);
-        //}
-
+        // One last publish, for good measure.
         SOS_publish(pub);
 
     }
@@ -321,7 +266,7 @@ int main(int argc, char *argv[]) {
     MPI_Finalize(); 
 #endif
 
-    printf("demo_app : Done.\n");
+    //printf("demo_app : Done.\n");
 
     return (EXIT_SUCCESS);
 }

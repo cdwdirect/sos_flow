@@ -71,7 +71,8 @@ int main(int argc, char *argv[]) {
     my_SOS = NULL;
     SOS_init(&my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
-        fprintf(stderr, "ERROR: sosd_stop(%d) failed to connect to the SOS daemon.\n", rank);
+        fprintf(stderr, "sosd_stop: Unable to connect to an SOSflow"
+                " daemon at port %s.\n", getenv("SOS_CMD_PORT"));
         exit(EXIT_FAILURE);
     }
 
@@ -95,8 +96,8 @@ int main(int argc, char *argv[]) {
 
     rc = SOS_target_connect(SOS->daemon);
     if (rc != 0) {
-        fprintf(stderr, "Unable to connect to an SOSflow daemon on port %s."
-                "  (rc == %d)\n", getenv("SOS_CMD_PORT"), rc);
+        dlog(1, "sosd_stop: Unable to connect to an SOSflow"
+                " daemon at port %s. (after successful init)\n", getenv("SOS_CMD_PORT"));
         exit(EXIT_FAILURE);
     }
     

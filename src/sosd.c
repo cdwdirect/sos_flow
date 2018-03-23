@@ -110,7 +110,7 @@ int main(int argc, char *argv[])  {
     // Default the working directory to the current working directory,
     // can be overridden at the command line with the -w option.
     if (!getcwd(SOSD.daemon.work_dir, PATH_MAX)) {
-        fprintf(stderr, "STATUS: The getcwd() function did not succeed, make"
+        fprintf(stderr, "\n\nSTATUS: The getcwd() function did not succeed, make"
                 " sure to provide a -w <path> command line option.\n");
     }
 
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])  {
     // Grab the port from the environment variable SOS_CMD_PORT
     char* tmp_port = getenv("SOS_CMD_PORT");
     if ((tmp_port == NULL) || (strlen(tmp_port)) < 2) {
-        fprintf(stderr, "STATUS: SOS_CMD_PORT evar not set.  Using default: %s\n",
+        fprintf(stderr, "\n\nSTATUS: SOS_CMD_PORT evar not set.\nSTATUS: Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
         strncpy(tgt->local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
@@ -273,37 +273,43 @@ int main(int argc, char *argv[])  {
 
     my_role = SOS->role;
 
-    dlog(0, "Initializing SOSD:\n");
+    dlog(1, "Initializing SOSD:\n");
 
-    dlog(0, "   ... loading options...\n");
+    dlog(1, "   ... loading options...\n");
     SOS_options *sos_options = NULL;
     SOS_options_init(&sos_options, my_role,
             getenv("SOS_OPTIONS_FILE"), NULL);
 
-    dlog(0, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
+    dlog(1, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
             " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
     SOS_init_existing_runtime(&SOSD.sos_context,
             sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
 
-    dlog(0, "   ... calling SOSD_init()...\n");
+    dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();
-    dlog(0, "   ... done. (SOSD_init + SOS_init are complete)\n");
+    dlog(1, "   ... done. (SOSD_init + SOS_init are complete)\n");
 
     if (SOS->config.comm_rank == 0) {
         SOSD_display_logo();
+    
+        if (SOS_DEBUG >= 0) {
+            printf("\nSTATUS: SOSflow compiled with SOS_DEBUG"
+                    " enabled!\nSTATUS: This will negatively impact performance.\n\n");
+            fflush(stdout);
+        }
     }
 
-    dlog(0, "Calling register_signal_handler()...\n");
+    dlog(1, "Calling register_signal_handler()...\n");
     if (SOSD_DAEMON_LOG > -1) SOS_register_signal_handler(SOSD.sos_context);
 
-    dlog(0, "Calling daemon_setup_socket()...\n");
+    dlog(1, "Calling daemon_setup_socket()...\n");
     SOSD.net->sos_context = SOSD.sos_context;
     SOSD_setup_socket();
 
-    dlog(0, "Calling daemon_init_database()...\n");
+    dlog(1, "Calling daemon_init_database()...\n");
     SOSD_db_init_database();
 
-    dlog(0, "Initializing the sync framework...\n");
+    dlog(1, "Initializing the sync framework...\n");
 
     SOSD_sync_context_init(SOS, &SOSD.sync.db,
             sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
@@ -335,7 +341,7 @@ int main(int argc, char *argv[])  {
     SOSD.sync.sense_list_lock = calloc(1, sizeof(pthread_mutex_t));
     pthread_mutex_init(SOSD.sync.sense_list_lock, NULL);
 
-    dlog(0, "Entering listening loops...\n");
+    dlog(1, "Entering listening loops...\n");
 
     switch (SOS->role) {
     case SOS_ROLE_LISTENER:
@@ -362,26 +368,26 @@ int main(int argc, char *argv[])  {
     //
 
 
-    dlog(0, "Closing the sync queues:\n");
+    dlog(1, "Closing the sync queues:\n");
 
     if (SOSD.sync.local.queue != NULL) {
-        dlog(0, "  .. SOSD.sync.local.queue\n");
+        dlog(1, "  .. SOSD.sync.local.queue\n");
         pipe_producer_free(SOSD.sync.local.queue->intake);
     }
     if (SOSD.sync.cloud_send.queue != NULL) {
-        dlog(0, "  .. SOSD.sync.cloud_send.queue\n");
+        dlog(1, "  .. SOSD.sync.cloud_send.queue\n");
         pipe_producer_free(SOSD.sync.cloud_send.queue->intake);
     }
     if (SOSD.sync.cloud_recv.queue != NULL) {
-        dlog(0, "  .. SOSD.sync.cloud_recv.queue\n");
+        dlog(1, "  .. SOSD.sync.cloud_recv.queue\n");
         pipe_producer_free(SOSD.sync.cloud_recv.queue->intake);
     }
     if (SOSD.sync.db.queue != NULL) {
-        dlog(0, "  .. SOSD.sync.db.queue\n");
+        dlog(1, "  .. SOSD.sync.db.queue\n");
         pipe_producer_free(SOSD.sync.db.queue->intake);
     }
     if (SOSD.sync.feedback.queue != NULL) {
-        dlog(0, "  .. SOSD.sync.feedback.queue\n");
+        dlog(1, "  .. SOSD.sync.feedback.queue\n");
         pipe_producer_free(SOSD.sync.feedback.queue->intake);
     }
 
@@ -403,19 +409,19 @@ int main(int argc, char *argv[])  {
     SOS->status = SOS_STATUS_HALTING;
     SOSD.db.ready = -1;
 
-    dlog(0, "Destroying uid configurations.\n");
+    dlog(1, "Destroying uid configurations.\n");
     SOS_uid_destroy( SOSD.guid );
-    dlog(0, "  ... done.\n");
-    dlog(0, "Closing the database.\n");
+    dlog(1, "  ... done.\n");
+    dlog(1, "Closing the database.\n");
     SOSD_db_close_database();
-    dlog(0, "Closing the socket.\n");
+    dlog(1, "Closing the socket.\n");
     shutdown(SOSD.net->local_socket_fd, SHUT_RDWR);
     #if (SOSD_CLOUD_SYNC > 0)
-    dlog(0, "Detaching from the cloud of sosd daemons.\n");
+    dlog(1, "Detaching from the cloud of sosd daemons.\n");
     SOSD_cloud_finalize();
     #endif
 
-    dlog(0, "Shutting down SOS services.\n");
+    dlog(1, "Shutting down SOS services.\n");
     SOS_finalize(SOS);
 
     if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
@@ -462,7 +468,7 @@ void SOSD_listen_loop() {
     dlog(5, "Assembling rapid_reply for val_snaps...\n");
     SOSD_PACK_ACK(rapid_reply);
 
-    dlog(0, "Entering main loop...\n");
+    dlog(1, "Entering main loop...\n");
     while (SOSD.daemon.running) {
         SOS_buffer_wipe(buffer);
 
@@ -774,10 +780,10 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     rc = SOS_target_connect(sense->target);
                     if (rc < 0) {
                         // Remove this target.
-                        fprintf(stderr, "Removing missing target --> %s:%d\n",
-                                sense->remote_host,
-                                sense->remote_port);
-                        fflush(stderr);
+                        //fprintf(stderr, "Removing missing target --> %s:%d\n",
+                        //        sense->remote_host,
+                        //        sense->remote_port);
+                        //fflush(stderr);
                         if (sense == SOSD.sync.sense_list_head) {
                             SOSD.sync.sense_list_head = sense->next_entry;
                         } else {
@@ -1095,7 +1101,7 @@ void* SOSD_THREAD_cloud_send(void *args) {
         count = pipe_pop_eager(my->queue->outlet,
                 (void *) msg_list, queue_depth);
         if (count == 0) {
-            dlog(0, "Nothing in the queue and the intake is closed."
+            dlog(1, "Nothing in the queue and the intake is closed."
                     "  Leaving thread.\n");
             free(msg_list);
             break;
@@ -1121,13 +1127,13 @@ void* SOSD_THREAD_cloud_send(void *args) {
             SOS_msg_unzip(msg, &header, 0, &msg_offset);
 
             while ((header.msg_size + offset) > buffer->max) {
-                dlog(1, "(header.msg_size == %d   +   offset == %d)"
+                dlog(4, "(header.msg_size == %d   +   offset == %d)"
                         "  >  buffer->max == %d    (growing...)\n",
                      header.msg_size, offset, buffer->max);
                 SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
             }
 
-            dlog(1, "[ccc] (%d of %d) --> packing in "
+            dlog(4, "(%d of %d) --> packing in "
                     "msg(%15s).size == %d @ offset:%d\n",
                     (msg_index + 1),
                     count,
@@ -1142,7 +1148,7 @@ void* SOSD_THREAD_cloud_send(void *args) {
         }
 
         buffer->len = offset;
-        dlog(0, "[ccc] Sending %d messages in %d bytes"
+        dlog(4, "Sending %d messages in %d bytes"
                 " to aggregator ...\n", count, buffer->len);
 
         SOSD_cloud_send(buffer, reply);
@@ -1603,7 +1609,6 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
     dlog(5, "Injecting snaps into SOSD.db.snap_queue...\n");
     SOS_val_snap_queue_from_buffer(buffer, SOSD.db.snap_queue, pub);
 
-
     dlog(5, "Queue these val snaps up for the database...\n");
     task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
     task->ref = (void *) pub;
@@ -1722,7 +1727,7 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
-        dlog(0, "REGISTER: Providing client with GUIDs _from=%" SOS_GUID_FMT
+        dlog(3, "REGISTER: Providing client with GUIDs _from=%" SOS_GUID_FMT
                 ", _to=%" SOS_GUID_FMT "\n", guid_block_from, guid_block_to);
         //Pack in the GUID's
         SOS_buffer_pack(reply, &offset, "gg",
@@ -2457,7 +2462,7 @@ SOSD_claim_guid_block(
         *pool_from = id->next;
         *pool_to   = id->next + size;
         id->next   = id->next + size + 1;
-        dlog(0, "served GUID block: %" SOS_GUID_FMT " ----> %"
+        dlog(6, "served GUID block: %" SOS_GUID_FMT " ----> %"
                 SOS_GUID_FMT "\n",
                 *pool_from, *pool_to);
     }

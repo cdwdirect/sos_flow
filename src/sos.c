@@ -70,6 +70,40 @@ void         SOS_expand_data(SOS_pub *pub);
 void SOS_receiver_init(SOS_runtime *sos_context);
 
 
+/* Helper function to diagnose deadlocks. */
+/* set this define to enable the checks: */
+// #define DEBUG_DEADLOCK
+
+#ifdef DEBUG_DEADLOCK
+static unsigned int pub_lock_count = 0;
+#endif
+
+static inline void _sos_lock_pub(SOS_pub * pub, const char * func) {
+#ifdef DEBUG_DEADLOCK
+    fprintf(stderr, "Locking in %s.\n", func);
+#endif
+    pthread_mutex_lock(pub->lock);
+#ifdef DEBUG_DEADLOCK
+    pub_lock_count++;
+    if (pub_lock_count > 1) {
+        fprintf(stderr, "ERROR! Locked pub multiple times.\n"); 
+        fflush(stderr);
+        abort();
+    }
+#endif
+}
+static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
+#ifdef DEBUG_DEADLOCK
+    fprintf(stderr, "Unlocking in %s.\n", func); 
+    pub_lock_count--;
+    if (pub_lock_count < 0) {
+        fprintf(stderr, "ERROR! Unlocked pub multiple times.\n"); 
+        fflush(stderr);
+        abort();
+    }
+#endif
+    pthread_mutex_unlock(pub->lock);
+}
 
 /**
  * @brief Initialize the SOS library and register with the SOS runtime.
@@ -288,11 +322,13 @@ SOS_init_existing_runtime(
         rc = SOS_target_connect(SOS->daemon);
 
         if (rc != 0) {
-            fprintf(stderr, "Unable to connect to an SOSflow daemon on"
-                    " port %d.  (rc == %d)\n",
-                    atoi(getenv("SOS_CMD_PORT")), rc);
+            //fprintf(stderr, "Unable to connect to an SOSflow daemon on"
+            //        " port %d.  (rc == %d)\n",
+            //        atoi(getenv("SOS_CMD_PORT")), rc);
+            free(SOS->config.node_id);
+            free(SOS->config.program_name);
             free(SOS);
-            SOS = NULL;
+            *sos_runtime = NULL;
             return;
         }
 
@@ -335,6 +371,8 @@ SOS_init_existing_runtime(
                     "  (%s:%s)\n",
             SOS->daemon->remote_host, SOS->daemon->remote_port);
             SOS_target_destroy(SOS->daemon);
+            free(SOS->config.node_id);
+            free(SOS->config.program_name);
             free(*sos_runtime);
             *sos_runtime = NULL;
             return;
@@ -350,6 +388,8 @@ SOS_init_existing_runtime(
             fprintf(stderr, "ERROR: Daemon does not appear to be running.\n");
             SOS_target_disconnect(SOS->daemon);
             SOS_target_destroy(SOS->daemon);
+            free(SOS->config.node_id);
+            free(SOS->config.program_name);
             free(*sos_runtime);
             *sos_runtime = NULL;
             return;
@@ -386,6 +426,8 @@ SOS_init_existing_runtime(
                     " match yours (%d)!  Connection refused.\n",
                     server_uid, client_uid);
             SOS_target_destroy(SOS->daemon);
+            free(SOS->config.node_id);
+            free(SOS->config.program_name);
             free(*sos_runtime);
             *sos_runtime = NULL;
             return;
@@ -1869,7 +1911,7 @@ SOS_pub_destroy(SOS_pub *pub)
 
     if (pub == NULL) { return; }
 
-    pthread_mutex_lock(pub->lock);
+    _sos_lock_pub(pub,__func__);
 
     dlog(6, "Freeing pub components:\n");
     dlog(6, "  ... snapshot queue\n");
@@ -1929,13 +1971,12 @@ SOS_val_snap_queue_to_buffer(
     int offset;
     int count;
 
-    pthread_mutex_lock(pub->lock);
     pthread_mutex_lock(pub->snap_queue->sync_lock);
 
     if (pub->snap_queue->elem_count < 1) {
         dlog(4, "  ... nothing to do for pub(%s)\n", pub->guid_str);
         pthread_mutex_unlock(pub->snap_queue->sync_lock);
-        pthread_mutex_unlock(pub->lock);
+        _sos_unlock_pub(pub,__func__);
         return;
     }
 
@@ -2035,8 +2076,6 @@ SOS_val_snap_queue_to_buffer(
     SOS_msg_zip(buffer, header, 0, &offset);
 
     dlog(6, "     ... done   (buf_len == %d)\n", header.msg_size);
-
-    pthread_mutex_unlock(pub->lock);
 
     return;
 }
@@ -2287,7 +2326,7 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     int   offset;
     int   elem;
 
-    pthread_mutex_lock(pub->lock);
+    // CONCURRENCY: This function assumes pub->lock is already held.
     
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
@@ -2330,10 +2369,7 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
                         pub->data[elem]->meta.relation_id );
     }
 
-    // TODO: { PUB } Come up with better ENUM for announce status.
     pub->announced = 1;
-
-    pthread_mutex_unlock(pub->lock);
 
     header.msg_size = offset;
     offset = 0;
@@ -2351,13 +2387,8 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     int              offset;
     int              elem;
 
-
-    pthread_mutex_lock(pub->lock);
-
-    // TODO: { ASYNC CLIENT, TIME }
-    //       If client-side gets async send, this wont be true.
-    //       Until then, buffer-create time IS the send time.
-
+    // CONCURRENCY: This function assumes the pub->lock is already held.
+    
     SOS_TIME( send_time );
 
     if (SOS->role == SOS_ROLE_CLIENT) {
@@ -2441,8 +2472,6 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     header.msg_size = offset;
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
-
-    pthread_mutex_unlock(pub->lock);
 
     return;
 }
@@ -2586,6 +2615,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     }//for
 
     pthread_mutex_unlock(pub->lock);
+
     dlog(6, "  ... done.\n");
 
     return;
@@ -2604,6 +2634,8 @@ SOS_publish_from_buffer(
     int             offset;
     int             elem;
 
+    pthread_mutex_lock(pub->lock);
+
     if (buffer == NULL) {
         dlog(0, "ERROR: SOS_buffer *buffer parameter is NULL!"
                 " Terminating.\n");
@@ -2615,8 +2647,6 @@ SOS_publish_from_buffer(
                 " Terminating.\n");
         exit(EXIT_FAILURE);
     }
-
-    pthread_mutex_lock(pub->lock);
 
     dlog(7, "Unpacking the values from the buffer...\n");
 
@@ -2688,6 +2718,7 @@ SOS_publish_from_buffer(
     }//while
 
     pthread_mutex_unlock(pub->lock);
+
     dlog(7, "  ... done.\n");
 
     return;
@@ -2700,21 +2731,26 @@ SOS_announce( SOS_pub *pub ) {
     SOS_buffer *ann_buf;
     SOS_buffer *rep_buf;
 
+    dlog(6, "Preparing an announcement message...\n");
+
+    if (pub->announced != 0) {
+        dlog(1, "This publication has already been announced!"
+                " Doing nothing.\n");
+        return;
+    }
+
     ann_buf = NULL;
     rep_buf = NULL;
     SOS_buffer_init(SOS, &ann_buf);
     SOS_buffer_init_sized(SOS, &rep_buf, SOS_DEFAULT_REPLY_LEN);
 
-    dlog(6, "Preparing an announcement message...\n");
-
-    if (pub->announced != 0) {
-        dlog(1, "WARNING: This publication has already been announced!"
-                " Doing nothing.\n");
-        return;
-    }
+    pthread_mutex_lock(pub->lock);
 
     dlog(6, "  ... placing the announce message in a buffer.\n");
     SOS_announce_to_buffer(pub, ann_buf);
+
+    pthread_mutex_unlock(pub->lock);
+
     dlog(6, "  ... sending the buffer to the daemon.\n");
     SOS_send_to_daemon(ann_buf, rep_buf);
     dlog(6, "  ... done.\n");
@@ -2736,11 +2772,15 @@ SOS_publish( SOS_pub *pub ) {
     rep_buf = NULL;
     SOS_buffer_init(SOS, &pub_buf);
     SOS_buffer_init_sized(SOS, &rep_buf, SOS_DEFAULT_REPLY_LEN);
+    
+    // CONCURRENCY: Announce will lock the pub, so don't lock it yet...
 
     if (pub->announced == 0) {
         dlog(6, "AUTO-ANNOUNCING this pub...\n");
         SOS_announce(pub);
     }
+
+    pthread_mutex_lock(pub->lock);
 
     dlog(6, "Preparing a publish message...\n");
     dlog(6, "  ... placing the publish message in a buffer.\n");
@@ -2759,6 +2799,8 @@ SOS_publish( SOS_pub *pub ) {
 
     SOS_buffer_destroy(pub_buf);
     SOS_buffer_destroy(rep_buf);
+
+    pthread_mutex_unlock(pub->lock);
 
     return;
 }
