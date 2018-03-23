@@ -77,13 +77,12 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-    SOS_runtime *my_sos;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_RUNTIME_UTILITY,
+    SOS_runtime *my_sos = NULL;
+    SOS_init(&my_sos, SOS_ROLE_RUNTIME_UTILITY,
             SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     if (my_sos == NULL) {
-        fprintf(stderr, "ERROR: Unable to register successfully"
-                " with SOS daemon.\n");
+        fprintf(stderr, "sosd_probe: Unable to contact the SOS daemon. Terminating.\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
@@ -156,7 +155,7 @@ int main(int argc, char *argv[]) {
     offset = 0;
     SOS_msg_zip(request, header, 0, &offset);
 
-    while (getenv("SOS_SHUTDOWN") == NULL) {
+    while (!SOS_str_opt_is_enabled(getenv("SOS_SHUTDOWN"))) {
 
         SOS_buffer_wipe(reply);
 
@@ -170,10 +169,10 @@ int main(int argc, char *argv[]) {
         // -----=====-----
 
         if (reply->len < sizeof(SOS_msg_header)) {
-            fprintf(stderr, "[sosd_probe]: ERROR! Received short"
-                    " (useless) message from daemon!"
-                    "   (reply->len == %d)\n",
-                    reply->len);
+            //fprintf(stderr, "[sosd_probe]: ERROR! Received short"
+            //        " (useless) message from daemon!"
+            //        "   (reply->len == %d)\n",
+            //        reply->len);
             continue;
         }
 

@@ -2,7 +2,7 @@
 #define SOS_H
 
 /*
- * sos.h              Core API for SOS_flow project. 
+ * sos.h              Core API for SOS_flow project.
  *
  *                    (see also:  sos_types.h)
  *
@@ -13,8 +13,8 @@
 //       as they are treated as ints when exchanged between
 //       client and server.
 
-#define SOS_VERSION_MAJOR 0
-#define SOS_VERSION_MINOR 9901 
+#define SOS_VERSION_MAJOR 1
+#define SOS_VERSION_MINOR 10003
 
 // ...
 
@@ -22,7 +22,7 @@
 #define SOS_QUOTE_DEF_STR(x) SOS_Q(x)
 
 #ifndef SOS_BUILDER
-#define SOS_BUILDER "----------" 
+#define SOS_BUILDER "----------"
 #endif
 
 #ifndef SOS_BUILT_FOR
@@ -48,7 +48,7 @@
 #define SOS_CONFIG_USE_THREAD_POOL  1
 #define SOS_CONFIG_FEEDBACK_ACTIVE  1
 
-#define SOS_DEFAULT_SERVER_HOST     "localhost"
+#define SOS_DEFAULT_SERVER_HOST     "127.0.0.1"
 #define SOS_DEFAULT_SERVER_PORT     "22500"
 #define SOS_DEFAULT_MSG_TIMEOUT     2048
 #define SOS_DEFAULT_TIMEOUT_SEC     2.0
@@ -77,18 +77,22 @@ extern "C" {
 
     // ---------- primary functions --------------------
 
-    void SOS_init(int *argc, char ***argv,
+    void SOS_init(
         SOS_runtime **runtime, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
-    void SOS_pub_create(SOS_runtime *sos_context,
+    void SOS_pub_init(SOS_runtime *sos_context,
         SOS_pub **pub_handle, char *pub_title, SOS_nature nature);
 
     int SOS_pack(SOS_pub *pub, const char *name,
-        SOS_val_type pack_type, void *pack_val_var);
+        SOS_val_type pack_type, const void *pack_val_var);
 
     int SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
         SOS_val_type pack_type, const void *pack_val_var);
+
+    // NOTE: This seems like a nice idea.  Soon.  -CDW
+    //int SOS_pack_array(SOS_pub *pub, const char **names,
+    //        int elem_count, SOS_val_type pack_type, const void *array);
 
     void SOS_announce(SOS_pub *pub);
 
@@ -106,17 +110,23 @@ extern "C" {
 
     // ---------- internal / utility functions -----------------
 
-    void SOS_init_existing_runtime(int *argc, char ***argv,
+    void SOS_init_existing_runtime(
         SOS_runtime **runtime, SOS_options *options, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
-    int SOS_process_options_file(SOS_options **sos_options_ptr_ref,
-            SOS_role role, char *filepath, char *special_settings_key);
-
     int SOS_file_exists(char *path);
 
-    void SOS_pub_create_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
+    void SOS_pub_init_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
         char *pub_title, SOS_nature nature, int new_size);
+
+    //NOTE: Sub-components of the SOS_pack() API call, allowing code
+    //      reuse among the different interactions like SOS_pack() VS.
+    //      SOS_pack_related() and additional future data inlets:
+    int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
+            const char *name, SOS_val_type type, const void *val);
+    int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap);
+    int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
+
 
     int SOS_pub_search(SOS_pub *pub, const char *name);
 
@@ -144,13 +154,16 @@ extern "C" {
     void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer,
         SOS_pipe *snap_queue, SOS_pub *pub);
 
-    void SOS_strip_str(char *str);
+    void SOS_str_strip_ext(char *str);
+    void SOS_str_to_upper(char *mutable_str);
+    bool SOS_str_opt_is_enabled(char *mutable_str);
+
 
     char* SOS_uint64_to_str(uint64_t val, char *result, int result_len);
 
     // Communication wrapper functions:
 
-    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header, 
+    int SOS_msg_zip(SOS_buffer *msg, SOS_msg_header header,
             int starting_offset, int *offset_after_header);
 
     int SOS_msg_unzip(SOS_buffer *msg, SOS_msg_header *header,
@@ -158,21 +171,6 @@ extern "C" {
 
     int SOS_msg_seal(SOS_buffer *msg, SOS_msg_header header,
             int starting_offset, int *offset_after_header_size_field);
-
-    int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
-            char *host, int port);
-
-    int SOS_target_connect(SOS_socket *target);
-
-    int SOS_target_accept_connection(SOS_socket *target);
-
-    int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);
-
-    int SOS_target_recv_msg(SOS_socket *target, SOS_buffer *reply);
-
-    int SOS_target_disconnect(SOS_socket *tgt_conn);
-
-    int SOS_target_destroy(SOS_socket *target);
 
     void SOS_send_to_daemon(SOS_buffer *buffer, SOS_buffer *reply);
 
@@ -274,7 +272,7 @@ extern "C" {
 #define SOS_SYM_LU "\e(0\x76\e(B " /* -^- */
 #define SOS_SYM_LD "\e(0\x77\e(B " /* -.- */
 #define SOS_SYM_LV "\e(0\x78\e(B " /*  |  */
- 
+
 // Symbols:
 #define SOS_SYM_GREY_BLOCK "\xE2\x96\x92"
 
@@ -304,6 +302,11 @@ extern "C" {
 
 // Example of colors:
 // printf(SOS_RED "red\n" SOS_CLR);
+
+#define SOS_TODO(__msg_str)                                     \
+        fprintf(stderr, SOS_GRN ">>>" SOS_CLR                   \
+                " " SOS_BOLD_GRN "TODO" SOS_CLR ": %s",         \
+                __msg_str); fflush(stderr);
 
 
 #endif

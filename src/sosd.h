@@ -20,14 +20,11 @@
 #include "sos.h"
 #include "sos_types.h"
 #include "sosa.h"
+#include "sos_options.h"
 
-/*********************/
-/* [SOSD_DAEMON_MODE]
- *    1 = Fork into a new ID/SESSION...
- *    0 = Run interactively, as launched. (Good for most MPI+MPMD setups)
- *
+// 1 = Fork a new ID/SESSION.     (DEPRECATED)
+// 0 = Run interactively, as launched
 #define SOSD_DAEMON_MODE             0
- *********************/
 
 #define SOSD_DAEMON_NAME             "sosd"
 #define SOSD_DEFAULT_DIR             "/tmp"
@@ -36,6 +33,7 @@
 #define SOSD_RING_QUEUE_TRIGGER_PCT  0.7
 
 #define SOSD_DEFAULT_K_MEAN_CENTERS  24
+#define SOSD_DEFAULT_CENTROID_COUNT  12
 
 #define SOSD_PUB_ANN_DIRTY           66
 #define SOSD_PUB_ANN_LOCAL           77
@@ -53,7 +51,6 @@
 #define SOSD_DB_SYNC_WAIT_NSEC       1
 #define SOSD_FEEDBACK_SYNC_WAIT_NSEC 1
 
-#define SOSD_DEFAULT_CENTROID_COUNT  12
 
 
 typedef struct {
@@ -89,7 +86,7 @@ typedef struct {
     char               *reply_host;
     int                 reply_port;
     void               *results;
-} SOSD_peek_handle;
+} SOSD_match_handle;
 
 
 typedef struct {
@@ -103,29 +100,29 @@ typedef struct {
 } SOSD_sensitivity_entry;
 
 typedef struct {
-    pthread_mutex_t    *lock_stats;   
-    uint64_t            thread_local_wakeup;   
-    uint64_t            thread_cloud_wakeup;   
+    pthread_mutex_t    *lock_stats;
+    uint64_t            thread_local_wakeup;
+    uint64_t            thread_cloud_wakeup;
     uint64_t            thread_db_wakeup;
     uint64_t            thread_feedback_wakeup;
-    uint64_t            feedback_checkin_messages;   
-    uint64_t            socket_messages;       
-    uint64_t            socket_bytes_recv;         
-    uint64_t            socket_bytes_sent;        
-    uint64_t            mpi_sends;            
-    uint64_t            mpi_bytes;           
-    uint64_t            db_transactions;      
-    uint64_t            db_insert_announce;     
+    uint64_t            feedback_checkin_messages;
+    uint64_t            socket_messages;
+    uint64_t            socket_bytes_recv;
+    uint64_t            socket_bytes_sent;
+    uint64_t            mpi_sends;
+    uint64_t            mpi_bytes;
+    uint64_t            db_transactions;
+    uint64_t            db_insert_announce;
     uint64_t            db_insert_announce_nop;
-    uint64_t            db_insert_publish;      
-    uint64_t            db_insert_publish_nop;  
-    uint64_t            db_insert_val_snaps;     
-    uint64_t            db_insert_val_snaps_nop;  
-    uint64_t            buffer_creates;      
-    uint64_t            buffer_bytes_on_heap;   
-    uint64_t            buffer_destroys;      
-    uint64_t            pipe_creates;        
-    uint64_t            pub_handles;          
+    uint64_t            db_insert_publish;
+    uint64_t            db_insert_publish_nop;
+    uint64_t            db_insert_val_snaps;
+    uint64_t            db_insert_val_snaps_nop;
+    uint64_t            buffer_creates;
+    uint64_t            buffer_bytes_on_heap;
+    uint64_t            buffer_destroys;
+    uint64_t            pipe_creates;
+    uint64_t            pub_handles;
 } SOSD_counts;
 
 
@@ -185,10 +182,22 @@ typedef struct {
 } SOSD_runtime;
 
 typedef struct {
+    SOS_guid   guid;
+    SOS_guid   pub_guid;
+    int        frame;
+    bool       dirty;
+    void      *next_note;
+} SOSD_frame_note;
+
+typedef struct {
     char               *file;
     int                 ready;
     pthread_mutex_t    *lock;
     SOS_pipe           *snap_queue;
+    qhashtbl_t         *frame_note_pub_table;
+    SOSD_frame_note    *frame_note_pub_list_head;
+    qhashtbl_t         *frame_note_val_table;
+    SOSD_frame_note    *frame_note_val_list_head;
 } SOSD_db;
 
 typedef struct {
@@ -285,7 +294,8 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
-    void  SOSD_handle_peek(SOS_buffer *buffer);
+    void  SOSD_handle_match_pubs(SOS_buffer *buffer);
+    void  SOSD_handle_match_vals(SOS_buffer *buffer);
     void  SOSD_handle_sensitivity(SOS_buffer *buffer);
     void  SOSD_handle_desensitize(SOS_buffer *buffer);
     void  SOSD_handle_triggerpull(SOS_buffer *buffer);
@@ -302,7 +312,7 @@ extern "C" {
     extern void SOS_uid_init( SOS_runtime *sos_context,
             SOS_uid **uid, SOS_guid from, SOS_guid to);
 
-    
+
     /* Functions for monitoring system health */
     void SOSD_setup_system_data(void);
     void SOSD_read_system_data(void);

@@ -46,8 +46,10 @@
 #define SOS_DEBUG 1
 */
 
+#if defined(USE_MPI)
 void fork_exec_sosd(void);
 void fork_exec_sosd_shutdown(void);
+#endif //defined(USE_MPI)
 void send_shutdown_message(SOS_runtime *runtime);
 
 #include "sos_debug.h"
@@ -176,13 +178,15 @@ int main(int argc, char *argv[]) {
     int      send_shutdown = 0;
     
     my_sos = NULL;
-    SOS_init( &argc, &argv, &my_sos, SOS_ROLE_CLIENT,
+    SOS_init(&my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
 
     /*
     if(my_sos == NULL) {
         printf("Unable to connect to SOS daemon. Determining whether to spawn...\n");
+#if defined(USE_MPI)
         fork_exec_sosd();
+#endif //defined(USE_MPI)
         send_shutdown = 1;
     }
     int repeat = 10;
@@ -216,7 +220,9 @@ int main(int argc, char *argv[]) {
 
     if (WAIT_FOR_FEEDBACK) {
         //printf("demo_app : Sending query.  (%s)\n", SQL_QUERY);
-        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(getenv("SOS_CMD_PORT")));
+        const char * portStr = getenv("SOS_CMD_PORT");
+        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
 
         //printf("demo_app : Waiting for feedback.\n");
         while(!g_done) {
@@ -230,7 +236,7 @@ int main(int argc, char *argv[]) {
 
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
-        SOS_pub_create(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
+        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_CREATE_OUTPUT);
         
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
 
@@ -282,10 +288,10 @@ int main(int argc, char *argv[]) {
             SOS_publish(pub);
         }
 
-        if (send_shutdown) {
-            fork_exec_sosd_shutdown();
-            //send_shutdown_message(my_sos);
-        }
+        //if (send_shutdown) {
+        //    fork_exec_sosd_shutdown();
+        //    //send_shutdown_message(my_sos);
+        //}
 
         SOS_publish(pub);
 

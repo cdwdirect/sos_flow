@@ -48,6 +48,7 @@ int main(int argc, char *argv[]) {
 #endif
 
     int stop_hard = 0;    
+    int rc = 0;
 
     // Process command line arguments
     int i, j;
@@ -68,23 +69,14 @@ int main(int argc, char *argv[]) {
     }
 
     my_SOS = NULL;
-    SOS_init(&argc, &argv, &my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    SOS_init(&my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
-        fprintf(stderr, "ERROR: sosd_stop(%d) failed to connect to the SOS daemon.\n", rank);
+        fprintf(stderr, "sosd_stop: Unable to connect to an SOSflow"
+                " daemon at port %s.\n", getenv("SOS_CMD_PORT"));
         exit(EXIT_FAILURE);
     }
 
     SOS_SET_CONTEXT(my_SOS, "sosd_stop:main()");
-
-#if defined(USE_MPI)
-    char  mpi_hostname[ MPI_MAX_PROCESSOR_NAME] = {0};
-    int   mpi_hostname_len;
-    MPI_Get_processor_name(mpi_hostname, &mpi_hostname_len);
-
-    dlog(1, "Connected to sosd (daemon) on port %s ...\n", mpi_hostname);
-#endif
-
-    setenv("SOS_SHUTDOWN", "1", 1);
 
     SOS_buffer_init(SOS, &buffer);
 
@@ -102,7 +94,13 @@ int main(int argc, char *argv[]) {
 
     dlog(1, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
 
-    SOS_target_connect(SOS->daemon);
+    rc = SOS_target_connect(SOS->daemon);
+    if (rc != 0) {
+        dlog(1, "sosd_stop: Unable to connect to an SOSflow"
+                " daemon at port %s. (after successful init)\n", getenv("SOS_CMD_PORT"));
+        exit(EXIT_FAILURE);
+    }
+    
     SOS_target_send_msg(SOS->daemon, buffer);
     SOS_target_disconnect(SOS->daemon);
 

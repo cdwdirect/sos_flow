@@ -58,15 +58,15 @@ ENDIF (NOT EVPath_FIND_QUIETLY)
 # First, see if the evpath_config program is in our path.  
 # If so, use it.
 
-IF (NOT EVPath_FIND_QUIETLY)
+if(NOT EVPath_FIND_QUIETLY)
     message("FindEVPath: looking for evpath_config")
-ENDIF (NOT EVPath_FIND_QUIETLY)
-find_program (EVPath_CONFIG NAMES evpath_config 
-              PATHS 
-              "${EVPath_DIR}/bin"
-              NO_DEFAULT_PATH)
+endif()
+find_program(EVPath_CONFIG NAMES evpath_config 
+             PATHS 
+             "${EVPath_DIR}/bin"
+             NO_DEFAULT_PATH)
 
-  if(EVPath_CONFIG)
+if(EVPath_CONFIG)
     IF (NOT EVPath_FIND_QUIETLY)
         message("FindEVPath: run ${EVPath_CONFIG}")
     ENDIF (NOT EVPath_FIND_QUIETLY)
@@ -105,12 +105,12 @@ find_program (EVPath_CONFIG NAMES evpath_config
     ENDIF (NOT EVPath_FIND_QUIETLY)
     set(EVPath_LIBRARIES)
     foreach(lib IN LISTS evpath_libs)
-      find_library(evpath_${lib}_LIBRARY NAME ${lib} HINTS ${evpath_lib_hints})
-      if(evpath_${lib}_LIBRARY)
-        list(APPEND EVPath_LIBRARIES ${evpath_${lib}_LIBRARY})
-      else()
-        list(APPEND EVPath_LIBRARIES ${lib})
-      endif()
+        find_library(evpath_${lib}_LIBRARY NAME ${lib} HINTS ${evpath_lib_hints})
+        if(evpath_${lib}_LIBRARY)
+            list(APPEND EVPath_LIBRARIES ${evpath_${lib}_LIBRARY})
+        else()
+            list(APPEND EVPath_LIBRARIES ${lib})
+        endif()
     endforeach()
     set(HAVE_EVPath 1)
     set(EVPath_LIBRARIES "${EVPath_LIBRARIES}" CACHE STRING "")
@@ -118,33 +118,33 @@ find_program (EVPath_CONFIG NAMES evpath_config
 
 else(EVPath_CONFIG)
 
-
     find_package(PkgConfig REQUIRED)
 
+    message("FindEVPath: evpath_config not available.")
+    message("FindEVPath: pkg_search_module for libenet...")
     pkg_search_module(EVPath REQUIRED libenet QUIET)
     # could be needed on some platforms
+    message("FindEVPath: pkg_search_module for libfabric...")
     pkg_search_module(FABRIC libfabric QUIET)
 
     if(NOT EVPath_FOUND)
+        message("FindEVPath: searching for libraries...")
+        # FIND_PATH and FIND_LIBRARY normally search standard locations
+        # before the specified paths. To search non-standard paths first,
+        # FIND_* is invoked first with specified paths and NO_DEFAULT_PATH
+        # and then again with no specified paths to search the default
+        # locations. When an earlier FIND_* succeeds, subsequent FIND_*s
+        # searching for the same item do nothing. 
 
-    # FIND_PATH and FIND_LIBRARY normally search standard locations
-    # before the specified paths. To search non-standard paths first,
-    # FIND_* is invoked first with specified paths and NO_DEFAULT_PATH
-    # and then again with no specified paths to search the default
-    # locations. When an earlier FIND_* succeeds, subsequent FIND_*s
-    # searching for the same item do nothing. 
+        FIND_PATH(EVPath_INCLUDE_DIR evpath.h 
+            "${EVPath_DIR}/include" NO_DEFAULT_PATH)
+        FIND_PATH(EVPath_INCLUDE_DIR evpath.h)
 
-    FIND_PATH(EVPath_INCLUDE_DIR evpath.h 
-        "${EVPath_DIR}/include" NO_DEFAULT_PATH)
-    FIND_PATH(EVPath_INCLUDE_DIR evpath.h)
-
-    FIND_LIBRARY(EVPath_LIBRARIES NAMES libenet.a PATHS
-        "${EVPath_DIR}/lib" NO_DEFAULT_PATH)
-    FIND_LIBRARY(EVPath_LIBRARIES NAMES enet)
-
+        FIND_LIBRARY(EVPath_LIBRARIES NAMES libenet.a PATHS
+            "${EVPath_DIR}/lib" NO_DEFAULT_PATH)
+        FIND_LIBRARY(EVPath_LIBRARIES NAMES enet)
     endif()
-    
-endif(EVPath_CONFIG)
+endif()
 
 IF (EVPath_INCLUDE_DIR AND EVPath_LIBRARIES)
    SET(EVPath_FOUND TRUE)
