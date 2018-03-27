@@ -321,8 +321,12 @@ SOS_init_existing_runtime(
         dlog(4, "  ... setting up socket communications with the daemon.\n" );
 
         SOS->daemon = NULL;
+        const char *portStr = getenv("SOS_CMD_PORT");
+        if (portStr == NULL) {
+            portStr = SOS_DEFAULT_SERVER_PORT;
+        }
         SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
-                atoi(getenv("SOS_CMD_PORT")));
+                atoi(portStr));
         rc = SOS_target_connect(SOS->daemon);
 
         if (rc != 0) {
