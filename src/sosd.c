@@ -417,8 +417,8 @@ int main(int argc, char *argv[])  {
     dlog(0, "Shutting down SOS services.\n");
     SOS_finalize(SOS);
 
-    if (SOSD_DAEMON_LOG) { fclose(sos_daemon_log_fptr); }
-    if (SOSD_DAEMON_LOG) { free(SOSD.daemon.log_file); }
+    if (SOSD_DAEMON_LOG >= 0) { fclose(sos_daemon_log_fptr); }
+    if (SOSD_DAEMON_LOG >= 0) { free(SOSD.daemon.log_file); }
     if (SOS_DEBUG > 0)   {
         pthread_mutex_lock(SOSD.daemon.countof.lock_stats);
         pthread_mutex_destroy(SOSD.daemon.countof.lock_stats);
@@ -1969,16 +1969,16 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 
     dlog(1, "header.msg_type = SOS_MSG_TYPE_SHUTDOWN\n");
 
-    if (SOS->role == SOS_ROLE_AGGREGATOR) {
-        fprintf(stderr, "WARNING: Attempt to trigger shutdown"
-                " at AGGREGATOR.\n");
-        dlog(0, "CRITICAL WARNING: Shutdown was triggered on an AGGREGATION\n"
-                "    daemon. Shutdown should be sent to each in situ LISTENER,\n"
-                "    and they will automatically propagate the notification via\n"
-                "    inter-daemon communication channels to the appropriate\n"
-                "    aggregation targets, if any exist.\n"
-                "    ... attempting to proceed anyway.\n");
-    }
+    //if (SOS->role == SOS_ROLE_AGGREGATOR) {
+    //    fprintf(stderr, "WARNING: Attempt to trigger shutdown"
+    //            " at AGGREGATOR.\n");
+    //    dlog(0, "CRITICAL WARNING: Shutdown was triggered on an AGGREGATION\n"
+    //            "    daemon. Shutdown should be sent to each in situ LISTENER,\n"
+    //            "    and they will automatically propagate the notification via\n"
+    //            "    inter-daemon communication channels to the appropriate\n"
+    //            "    aggregation targets, if any exist.\n"
+    //            "    ... attempting to proceed anyway.\n");
+    //}
 
     reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
@@ -1986,22 +1986,22 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
-    if (SOS->role == SOS_ROLE_LISTENER) {
-        dlog(5, "Replying to the client who submitted the shutdown"
-                " request in situ...\n");
-        SOSD_PACK_ACK(reply);
-        i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
-                reply->len, 0);
-        if (i == -1) {
-            dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
-        } else {
-            dlog(5, "  ... send() returned the following bytecount: %d\n", i);
-            SOSD_countof(socket_bytes_sent += i);
-        }
-#if (SOSD_CLOUD_SYNC > 0)
-        SOSD_cloud_shutdown_notice();
-#endif
+    dlog(5, "Replying to the client who submitted the shutdown"
+            " request in situ...\n");
+    SOSD_PACK_ACK(reply);
+    i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    if (i == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
     }
+#if (SOSD_CLOUD_SYNC > 0)
+    if (SOS->role == SOS_ROLE_LISTENER) {
+        SOSD_cloud_shutdown_notice();
+    }
+#endif
 
     SOSD.daemon.running = 0;
     SOS->status = SOS_STATUS_SHUTDOWN;

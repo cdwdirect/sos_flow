@@ -362,7 +362,7 @@ set(LIBS "${LIBS} ${DYNAMICLIB} ${MATHLIB}")
 # remove leading, trailing spaces from libraries
 string(STRIP "${LIBS}" LIBS)
 
-subdirs (src tests src/sosa_mods)
+subdirs (src tests)
 
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)
