@@ -204,11 +204,11 @@ int main(int argc, char *argv[]) {
     srandom(my_sos->my_guid);
 
     if (WAIT_FOR_FEEDBACK) {
-        printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
+        //printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
         const char * portStr = getenv("SOS_CMD_PORT");
         if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
         SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
-        printf("demo_app: Waiting for results.\n");
+        //printf("demo_app: Waiting for results.\n");
         while(!g_done) {
             usleep(100000);
         }

@@ -486,13 +486,13 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
     switch(output_mode) {
     case SOSA_OUTPUT_JSON:
         
-        fprintf(fptr, "{\"title\"      : \"%s\",\n",  title);
+        fprintf(fptr, "{\n \"title\"      : \"%s\",\n",  title);
         fprintf(fptr, " \"time_stamp\" : \"%lf\",\n", time_now);
-        fprintf(fptr, " \"query_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
-        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
+//        fprintf(fptr, " \"query_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
+//        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
         fprintf(fptr, " \"col_count\"  : \"%d\",\n",  results->col_count);
         fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
-        fprintf(fptr, " \"data\"       : [\n");
+        fprintf(fptr, " \"data\"       :\n [\n");
 
         for (row = 0; row < results->row_count; row++) {
             fprintf(fptr, "\t{\n"); //row:begin
@@ -526,13 +526,13 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
     default://OUTPUT_CSV:
         // Display header (optional)
         if (options & SOSA_OUTPUT_W_HEADER) {
-            fprintf(fptr, "title      : \"%s\"\n",  title);
-            fprintf(fptr, "time_stamp : \"%lf\"\n", time_now);
-            fprintf(fptr, "query_guid : \"%" SOS_GUID_FMT "\"\n", results->query_guid);
-            fprintf(fptr, "query_sql  : \"%s\"\n", results->query_sql);
-            fprintf(fptr, "col_count  : \"%d\"\n",  results->col_count);
-            fprintf(fptr, "row_count  : \"%d\"\n",  results->row_count);
-            fprintf(fptr, "----------\n");
+            //fprintf(fptr, "title      : \"%s\"\n",  title);
+            //fprintf(fptr, "time_stamp : \"%lf\"\n", time_now);
+            //fprintf(fptr, "query_guid : \"%" SOS_GUID_FMT "\"\n", results->query_guid);
+            //fprintf(fptr, "query_sql  : \"%s\"\n", results->query_sql);
+            //fprintf(fptr, "col_count  : \"%d\"\n",  results->col_count);
+            //fprintf(fptr, "row_count  : \"%d\"\n",  results->row_count);
+            //fprintf(fptr, "----------\n");
             fprintf(fptr, "\"result_row\",");
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);

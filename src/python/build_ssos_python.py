@@ -17,9 +17,9 @@ if __name__ == "__main__":
         sos_include_dir = sys.argv[1]
         sos_lib_dir = sys.argv[2]
     else:
-        sos_build_dir = os.environ.get("SOS_BUILD_DIR")
-        sos_include_dir = sos_build_dir + "/include"
-        sos_lib_dir = sos_build_dir + "/lib"
+        sos_build_dir = str(os.environ.get("SOS_BUILD_DIR"))
+        sos_include_dir = str(sos_build_dir) + "/include"
+        sos_lib_dir = str(sos_build_dir) + "/lib"
     
     ffibuilder.set_source(
     "ssos_python", """ 
