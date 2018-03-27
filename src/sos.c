@@ -218,7 +218,11 @@ SOS_init_existing_runtime(
     NEW_SOS->config.process_id = (int) getpid();
 
     NEW_SOS->config.program_name = (char *) calloc(PATH_MAX, sizeof(char));
-    readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
+    rc = readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
+    if (rc < 0) { 
+        fprintf (stderr, "ERROR: Unable to read /proc/self/exe\n");
+        exit (EXIT_FAILURE);
+    }
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
