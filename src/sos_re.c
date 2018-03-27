@@ -220,11 +220,7 @@ SOS_re_t SOS_re_compile(const char* pattern)
 
 void SOS_re_print(SOS_regex_t* pattern)
 {
-<<<<<<< HEAD
-  char* types = (char *)SOS_REGEX_string; 
-=======
   char* types = (char *)SOS_REGEX_str; 
->>>>>>> chad_dev
   
   int i;
   for (i = 0; i < MAX_REGEXP_OBJECTS; ++i)
@@ -234,11 +230,7 @@ void SOS_re_print(SOS_regex_t* pattern)
       break;
     }
 
-<<<<<<< HEAD
-    printf("type: %s", types[pattern[i].type]);
-=======
     printf("type: %d", types[pattern[i].type]);
->>>>>>> chad_dev
     if (pattern[i].type == SOS_REGEX_CHAR_CLASS || pattern[i].type == SOS_REGEX_INV_CHAR_CLASS)
     {
       printf(" [");
