@@ -566,8 +566,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_CHECK_IN:     SOSD_handle_check_in    (buffer); break;
         case SOS_MSG_TYPE_PROBE:        SOSD_handle_probe       (buffer); break;
         case SOS_MSG_TYPE_QUERY:        SOSD_handle_query       (buffer); break;
-        case SOS_MSG_TYPE_MATCH_PUBS:   SOSD_handle_match_pubs  (buffer); break;
-        case SOS_MSG_TYPE_MATCH_VALS:   SOSD_handle_match_vals  (buffer); break;
+        case SOS_MSG_TYPE_MATCH_PUBS:   SOSD_handle_cache_grab  (buffer); break;
         case SOS_MSG_TYPE_SENSITIVITY:  SOSD_handle_sensitivity (buffer); break;
         case SOS_MSG_TYPE_DESENSITIZE:  SOSD_handle_desensitize (buffer); break;
         case SOS_MSG_TYPE_TRIGGERPULL:  SOSD_handle_triggerpull (buffer); break;
@@ -1228,18 +1227,23 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
 }
 
 void
-SOSD_handle_match_pubs(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_match_pubs");
+SOSD_handle_cache_grab(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_cache_grab");
     //SLICE
-    return;
-}
+    //
+    // Parts of the API:
+    //      -sos
+    //      -sos_match_model
+    //      -model_var
+    //      -sos_frame_model
+    //      -frame_var
+    //      -regex_pattern
+    //
 
-
-
-void
-SOSD_handle_match_vals(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_match_vals");
-    //SLICE
+    
+    
+    
+    
     return;
 }
 

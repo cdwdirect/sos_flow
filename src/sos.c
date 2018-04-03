@@ -2345,7 +2345,7 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     SOS_msg_zip(buffer, header, 0, &offset);
 
     // Pub metadata.
-    SOS_buffer_pack(buffer, &offset, "siiississiiiiiii",
+    SOS_buffer_pack(buffer, &offset, "siiississiiiiiiii",
                     pub->node_id,
                     pub->process_id,
                     pub->thread_id,
@@ -2361,7 +2361,8 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
                     pub->meta.nature,
                     pub->meta.pri_hint,
                     pub->meta.scope_hint,
-                    pub->meta.retain_hint);
+                    pub->meta.retain_hint,
+                    pub->cache_depth);
 
     // Data definitions.
     for (elem = 0; elem < pub->elem_count; elem++) {
@@ -2505,7 +2506,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
             "%" SOS_GUID_FMT, pub->guid);
 
     dlog(6, "  ... unpacking the pub definition.\n");
-    SOS_buffer_unpack(buffer, &offset, "siiississiiiiiii",
+    SOS_buffer_unpack(buffer, &offset, "siiississiiiiiiii",
          pub->node_id,
         &pub->process_id,
         &pub->thread_id,
@@ -2521,7 +2522,8 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
         &pub->meta.nature,
         &pub->meta.pri_hint,
         &pub->meta.scope_hint,
-        &pub->meta.retain_hint);
+        &pub->meta.retain_hint,
+        &pub->cache_depth);
 
     dlog(6, "pub->node_id = \"%s\"\n", pub->node_id);
     dlog(6, "pub->process_id = %d\n", pub->process_id);
@@ -2539,6 +2541,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.pri_hint = %d\n", pub->meta.pri_hint);
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
+    dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
 
     if ((SOS->role != SOS_ROLE_CLIENT)) {
         dlog(1, "AUTOGROW --\n");

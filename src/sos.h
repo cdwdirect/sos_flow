@@ -107,7 +107,6 @@ extern "C" {
 
 
 
-
     // ---------- internal / utility functions -----------------
 
     void SOS_init_existing_runtime(

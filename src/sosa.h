@@ -38,11 +38,14 @@ typedef struct {
 extern "C" {
 #endif
 
+
     // Submit an SQL query to a SOS daemon over the socket:
     SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
             char *sql_string, char *target_host, int target_port);
 
     // Gather the current values belonging to matching pub or value names:
+    //
+    // NOTE: This is the SOS_cache_grab() handling...
     SOS_guid SOSA_request_matching_pubs(SOS_runtime *sos_context,
             char *regex_pattern, char *target_host, int target_port);
     SOS_guid SOSA_request_matching_vals(SOS_runtime *sos_context,

@@ -294,8 +294,7 @@ extern "C" {
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
-    void  SOSD_handle_match_pubs(SOS_buffer *buffer);
-    void  SOSD_handle_match_vals(SOS_buffer *buffer);
+    void  SOSD_handle_cache_grab(SOS_buffer *buffer);
     void  SOSD_handle_sensitivity(SOS_buffer *buffer);
     void  SOSD_handle_desensitize(SOS_buffer *buffer);
     void  SOSD_handle_triggerpull(SOS_buffer *buffer);

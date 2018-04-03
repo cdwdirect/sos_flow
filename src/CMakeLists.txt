@@ -178,7 +178,7 @@ INSTALL(FILES sos.h
               sos_re.h
               DESTINATION include)
 INSTALL(TARGETS
-    sos sosd_stop sosd_probe demo_app_silent proc_app sosd sosd_trigger
+    sos sosd_stop sosd_probe demo_app_silent proc_app demo_app sosd sosd_trigger
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
