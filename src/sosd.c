@@ -366,6 +366,34 @@ int main(int argc, char *argv[])  {
     //
     //
 
+    // If requested, export the database to a file:
+    if (SOS->config.options->db_write_at_exit) {
+
+        char dest_file[PATH_MAX] = {0};
+        //Go with the default naming convention:
+        snprintf(dest_file, PATH_MAX, "%s/%s.%05d.db",
+                SOSD.daemon.work_dir,
+                SOSD.daemon.name,
+                SOS->config.comm_rank);
+        if (SOS_file_exists(dest_file)) {
+            //If this file exists already and we're using an in-memory-only dabase
+            //then remove the file, otherwise append a qualifier to avoid issues
+            //with exporting while an existing file-based DB is in use.
+            //(i.e. user config error)
+            if (SOS->config.options->db_in_memory_only) {
+                remove(dest_file);
+            } else {
+                snprintf(dest_file, PATH_MAX, "%s/%s.%05d.db.export",
+                        SOSD.daemon.work_dir,
+                        SOSD.daemon.name,
+                        SOS->config.comm_rank);
+            }
+        }
+        
+        dlog(1, "Exporting database to file:  %s\n", dest_file);
+        SOSD_db_export_to_file(dest_file);
+        dlog(1, "Exporting complete.\n");
+    }
 
     dlog(1, "Closing the sync queues:\n");
 

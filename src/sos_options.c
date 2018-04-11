@@ -51,6 +51,19 @@ int SOS_options_init(
         opt->batch_environment = false;
     }
 
+    if (SOS_str_opt_is_enabled(getenv("SOS_IN_MEMORY_DATABASE"))) {
+        opt->db_in_memory_only = true;
+    } else {
+        opt->db_in_memory_only = false;
+    }
+
+    if (SOS_str_opt_is_enabled(getenv("SOS_EXPORT_DB_AT_EXIT"))) {
+        opt->db_write_at_exit = true;
+    } else {
+        opt->db_write_at_exit = false;
+    }
+
+
     if (SOS_str_opt_is_disabled(getenv("SOS_UPDATE_LATEST_FRAME"))) {
         // In some cases we might not want to use any extra time
         // to synchronize the values stored in:

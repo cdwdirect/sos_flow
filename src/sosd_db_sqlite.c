@@ -260,12 +260,12 @@ void SOSD_db_init_database() {
     #endif
 
     // Does the user want an in memory database?
-    if (SOS_str_opt_is_enabled(getenv("SOS_IN_MEMORY_DATABASE"))) {
+    if (SOS->config.options->db_in_memory_only) {
         snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
     }
 
     if (SOS_file_exists(SOSD.db.file)) {
-        fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
+        fprintf(stderr, "NOTICE: Attaching to existing database file: %s\n",
                 SOSD.db.file);
     }
 
@@ -401,6 +401,41 @@ void SOSD_db_close_database() {
 }
 
 
+int SOSD_db_export_to_file(char *dest_filename) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_export_to_file");
+
+    sqlite3        *dest_db;     // Database connection opened on zFilename 
+    sqlite3_backup *backup_obj;  // Backup object used to copy data 
+    
+    int rc;                      
+    rc = sqlite3_open(dest_filename, &dest_db); 
+    if (rc == SQLITE_OK) {
+        // Set up the backup procedure to copy from the "main" database of 
+        // ** connection pFile to the main database of connection pInMemory.
+        // ** If something goes wrong, pBackup will be set to NULL and an error
+        // ** code and message left in connection pTo.
+        // 
+        // ** If the backup object is successfully created, call backup_step()
+        // ** to copy data from pFile to pInMemory. Then call backup_finish()
+        // ** to release resources associated with the pBackup object.  If an
+        // ** error occurred, then an error code and message will be left in
+        // ** connection pTo. If no error occurred, then the error code belonging
+        // ** to pTo is set to SQLITE_OK.
+        //                                            
+        backup_obj = sqlite3_backup_init(dest_db, "main", database, "main");
+        if (backup_obj) {
+            (void)sqlite3_backup_step(backup_obj, -1);
+            (void)sqlite3_backup_finish(backup_obj);
+        }
+        rc = sqlite3_errcode(dest_db);
+    }
+    (void)sqlite3_close(dest_db);
+
+    return rc;
+}
+
+
+
 void SOSD_db_transaction_begin() {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_transaction_begin");
     int   rc;
@@ -473,7 +508,7 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     char *err = NULL;
 
     if (sosa_query == NULL) {
-        dlog(0, "WARNING: Empty (NULL) query submitted."
+        dlog(1, "WARNING: Empty (NULL) query submitted."
                 " Doing nothing and returning.\n");
         OK_to_execute = false;
     } else {

@@ -20,6 +20,7 @@ extern "C" {
 
 void SOSD_db_init_database(void);
 void SOSD_db_close_database(void);
+int  SOSD_db_export_to_file(char *dest_filename);
 void SOSD_db_create_tables(void);
 void SOSD_db_insert_pub(SOS_pub *pub);
 void SOSD_db_insert_data(SOS_pub *pub);
