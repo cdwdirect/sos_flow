@@ -1506,10 +1506,27 @@ bool SOS_str_opt_is_enabled(char *mutable_str) {
     char *opt_str = mutable_str;
     if (opt_str == NULL) return false;
     SOS_str_to_upper(opt_str);
-    if ((strcmp(opt_str, "1")    == 0) ||
-        (strcmp(opt_str, "TRUE") == 0) ||
-        (strcmp(opt_str, "YES")  == 0) ||
-        (strcmp(opt_str, "ON")   == 0)) {
+    if ((strcmp(opt_str, "1")           == 0) ||
+        (strcmp(opt_str, "TRUE")        == 0) ||
+        (strcmp(opt_str, "YES")         == 0) ||
+        (strcmp(opt_str, "ENABLED")     == 0) ||
+        (strcmp(opt_str, "ON")          == 0)) {
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool SOS_str_opt_is_disabled(char *mutable_str) {
+    char *opt_str = mutable_str;
+    if (opt_str == NULL) return false;
+    SOS_str_to_upper(opt_str);
+    if ((strcmp(opt_str, "0")           == 0) ||
+        (strcmp(opt_str, "-1")          == 0) ||
+        (strcmp(opt_str, "FALSE")       == 0) ||
+        (strcmp(opt_str, "NO")          == 0) ||
+        (strcmp(opt_str, "DISABLED")    == 0) ||
+        (strcmp(opt_str, "OFF")         == 0)) {
         return true;
     } else {
         return false;

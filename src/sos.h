@@ -157,6 +157,7 @@ extern "C" {
     void SOS_str_strip_ext(char *str);
     void SOS_str_to_upper(char *mutable_str);
     bool SOS_str_opt_is_enabled(char *mutable_str);
+    bool SOS_str_opt_is_disabled(char *mutable_str);
 
 
     char* SOS_uint64_to_str(uint64_t val, char *result, int result_len);

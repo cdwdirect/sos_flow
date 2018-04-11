@@ -19,22 +19,25 @@ int SOS_options_init(
     *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
     SOS_options *opt = *sos_options_ptr_ref;
 
-    //Set default 'sentinel' values.
-    opt->listener_port    = -999;
-    opt->listener_count   = -999;
-    opt->aggregator_count = -999;
+    //Set default and/or 'sentinel' values.
+    opt->listener_port      = -999;
+    opt->listener_count     = -999;
+    opt->aggregator_count   = -999;
 
-    opt->build_dir        = NULL;
-    opt->install_dir      = NULL;
-    opt->source_dir       = NULL;
-    opt->project_dir      = NULL;
-    opt->work_dir         = NULL;
-    opt->discovery_dir    = NULL;
+    opt->build_dir          = NULL;
+    opt->install_dir        = NULL;
+    opt->source_dir         = NULL;
+    opt->project_dir        = NULL;
+    opt->work_dir           = NULL;
+    opt->discovery_dir      = NULL;
 
-    opt->db_disabled      = false;
-    opt->db_frame_limit   = 0;     //0 == NO LIMIT
+    opt->db_disabled        = false;
+    opt->db_in_memory_only  = false;
+    opt->db_write_at_exit   = false; //Does nothing if db_disabled == true;
+    opt->db_update_frame    = true;
+    opt->db_frame_limit     = 0;     //0 == No limit
 
-    opt->pub_cache_depth  = 0;    //0 == NO CACHE
+    opt->pub_cache_depth    = 0;     //0 == No value cacheing
 
     // TODO: Process what is available...
     //
@@ -48,11 +51,26 @@ int SOS_options_init(
         opt->batch_environment = false;
     }
 
+    if (SOS_str_opt_is_disabled(getenv("SOS_UPDATE_LATEST_FRAME"))) {
+        // In some cases we might not want to use any extra time
+        // to synchronize the values stored in:
+        //    tblPubs.latest_frame
+        //    tblData.latest_frame
+        opt->db_update_frame = false;
+    } else {
+        // This behavior defaults to being on unless explicitly disabled.
+        opt->db_update_frame = true;
+    }
+
     return 0;
 }
 
+
+
 void SOS_options_destroy(SOS_options *sos_options_ptr) {
     SOS_SET_CONTEXT(sos_options_ptr->sos_context, "SOS_options_destroy");
-    
+
+
+
     return;
 }
