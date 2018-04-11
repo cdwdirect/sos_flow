@@ -510,17 +510,25 @@ typedef struct {
     int                 listener_port;
     int                 listener_count;
     int                 aggregator_count;
+    //
     char               *build_dir;
     char               *install_dir;
     char               *source_dir;
     char               *project_dir;
     char               *work_dir;
     char               *discovery_dir;
-    int                 db_frame_limit;
+    //
     bool                db_disabled;
+    bool                db_in_memory_only;
+    bool                db_write_at_exit;
+    bool                db_update_frame;
+    int                 db_frame_limit;
+    //
     int                 pub_cache_depth;
+    //
     bool                batch_environment;
 } SOS_options;
+
 
 typedef struct {
     char               *node_id;

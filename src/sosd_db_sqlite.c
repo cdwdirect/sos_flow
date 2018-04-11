@@ -260,12 +260,12 @@ void SOSD_db_init_database() {
     #endif
 
     // Does the user want an in memory database?
-    if (SOS_str_opt_is_enabled(getenv("SOS_IN_MEMORY_DATABASE"))) {
+    if (SOS->config.options->db_in_memory_only) {
         snprintf(SOSD.db.file, SOS_DEFAULT_STRING_LEN, ":memory:");
     }
 
     if (SOS_file_exists(SOSD.db.file)) {
-        fprintf(stderr, "WARNING: The database file already exists!  (%s)\n",
+        fprintf(stderr, "NOTICE: Attaching to existing database file: %s\n",
                 SOSD.db.file);
     }
 
@@ -401,6 +401,41 @@ void SOSD_db_close_database() {
 }
 
 
+int SOSD_db_export_to_file(char *dest_filename) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_export_to_file");
+
+    sqlite3        *dest_db;     // Database connection opened on zFilename 
+    sqlite3_backup *backup_obj;  // Backup object used to copy data 
+    
+    int rc;                      
+    rc = sqlite3_open(dest_filename, &dest_db); 
+    if (rc == SQLITE_OK) {
+        // Set up the backup procedure to copy from the "main" database of 
+        // ** connection pFile to the main database of connection pInMemory.
+        // ** If something goes wrong, pBackup will be set to NULL and an error
+        // ** code and message left in connection pTo.
+        // 
+        // ** If the backup object is successfully created, call backup_step()
+        // ** to copy data from pFile to pInMemory. Then call backup_finish()
+        // ** to release resources associated with the pBackup object.  If an
+        // ** error occurred, then an error code and message will be left in
+        // ** connection pTo. If no error occurred, then the error code belonging
+        // ** to pTo is set to SQLITE_OK.
+        //                                            
+        backup_obj = sqlite3_backup_init(dest_db, "main", database, "main");
+        if (backup_obj) {
+            (void)sqlite3_backup_step(backup_obj, -1);
+            (void)sqlite3_backup_finish(backup_obj);
+        }
+        rc = sqlite3_errcode(dest_db);
+    }
+    (void)sqlite3_close(dest_db);
+
+    return rc;
+}
+
+
+
 void SOSD_db_transaction_begin() {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_db_transaction_begin");
     int   rc;
@@ -473,7 +508,7 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     char *err = NULL;
 
     if (sosa_query == NULL) {
-        dlog(0, "WARNING: Empty (NULL) query submitted."
+        dlog(1, "WARNING: Empty (NULL) query submitted."
                 " Doing nothing and returning.\n");
         OK_to_execute = false;
     } else {
@@ -740,6 +775,9 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
     SOSD_frame_note *note               = NULL;
     char             note_guid_str[128] = {0};
 
+    bool update_latest_frame_is_enabled = 
+        SOS->config.options->db_update_frame;
+
     dlog(5, "Flushing SOSD.db.snap_queue into database...\n");
     pthread_mutex_lock( queue->sync_lock );
     snap_count = queue->elem_count;
@@ -851,113 +889,117 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         CALL_SQLITE (reset (stmt_insert_val));
         CALL_SQLITE (clear_bindings (stmt_insert_val));
 
-        //----
-        dlog(5, "     ... Tracking the latest_frame values...\n");
-        // >>> tblPubs.latest_frame
-        note_table = SOSD.db.frame_note_pub_table;
-        snprintf(note_guid_str, 128, "%" SOS_GUID_FMT "", pub_guid);
-        note = (SOSD_frame_note *)
-            note_table->get(note_table, note_guid_str);
-        if (note == NULL) {
-            // Make a new note for this pub's latest frame.
-            note = (SOSD_frame_note *) calloc(1, sizeof(SOSD_frame_note));
-            note->guid      = guid;
-            note->pub_guid  = pub_guid;
-            note->frame     = frame;
-            note->dirty     = true;
-            note->next_note = SOSD.db.frame_note_pub_list_head;
-            SOSD.db.frame_note_pub_list_head = note;
-            note_table->put(note_table, note_guid_str, note); 
-        } else {
-            // Update the existing note's value.
-            note->frame = frame;
-            note->dirty = true;
-        }
-        // >>> tblData.latest_frame
-        note_table = SOSD.db.frame_note_val_table;
-        snprintf(note_guid_str, 128, "%" SOS_GUID_FMT "", guid);
-        note = (SOSD_frame_note *)
-            note_table->get(note_table, note_guid_str);
-        if (note == NULL) {
-            // Make a new note for this pub's latest frame.
-            note = (SOSD_frame_note *) calloc(1, sizeof(SOSD_frame_note));
-            note->guid      = guid;
-            note->pub_guid  = pub_guid;
-            note->frame     = frame;
-            note->dirty     = true;
-            note->next_note = SOSD.db.frame_note_val_list_head;
-            SOSD.db.frame_note_val_list_head = note;
-            note_table->put(note_table, note_guid_str, note); 
-        } else {
-            // Update the existing note's value.
-            note->frame = frame;
-            note->dirty = true;
+        if (update_latest_frame_is_enabled) {
+
+            //----
+            dlog(5, "     ... Tracking the latest_frame values...\n");
+            // >>> tblPubs.latest_frame
+            note_table = SOSD.db.frame_note_pub_table;
+            snprintf(note_guid_str, 128, "%" SOS_GUID_FMT "", pub_guid);
+            note = (SOSD_frame_note *)
+                note_table->get(note_table, note_guid_str);
+            if (note == NULL) {
+                // Make a new note for this pub's latest frame.
+                note = (SOSD_frame_note *) calloc(1, sizeof(SOSD_frame_note));
+                note->guid      = guid;
+                note->pub_guid  = pub_guid;
+                note->frame     = frame;
+                note->dirty     = true;
+                note->next_note = SOSD.db.frame_note_pub_list_head;
+                SOSD.db.frame_note_pub_list_head = note;
+                note_table->put(note_table, note_guid_str, note); 
+            } else {
+                // Update the existing note's value.
+                note->frame = frame;
+                note->dirty = true;
+            }
+            // >>> tblData.latest_frame
+            note_table = SOSD.db.frame_note_val_table;
+            snprintf(note_guid_str, 128, "%" SOS_GUID_FMT "", guid);
+            note = (SOSD_frame_note *)
+                note_table->get(note_table, note_guid_str);
+            if (note == NULL) {
+                // Make a new note for this pub's latest frame.
+                note = (SOSD_frame_note *) calloc(1, sizeof(SOSD_frame_note));
+                note->guid      = guid;
+                note->pub_guid  = pub_guid;
+                note->frame     = frame;
+                note->dirty     = true;
+                note->next_note = SOSD.db.frame_note_val_list_head;
+                SOSD.db.frame_note_val_list_head = note;
+                note_table->put(note_table, note_guid_str, note); 
+            } else {
+                // Update the existing note's value.
+                note->frame = frame;
+                note->dirty = true;
+            }
+
+            //----
+
+            dlog(5, "     ... grabbing the next snap.\n");
         }
 
-        //----
+        dlog(5, "   ... All val snaps are updated in tblVals!\n");
 
-        dlog(5, "     ... grabbing the next snap.\n");
+        // ----- Update the latest_frame fields...
+        dlog(5, "   ... Updating latest_frame for all snaps...\n");
+        double   latest_frame_time_start;
+        double   latest_frame_time_stop;
+        int      rc;
+        char    *err = NULL;
+        SOS_TIME(latest_frame_time_start);
+        sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+        note = SOSD.db.frame_note_pub_list_head;
+        while(note != NULL) {
+            if (note->dirty != true) {
+                note = note->next_note;
+                continue;
+            }
+            frame      = note->frame;
+            pub_guid   = note->pub_guid;
+            // Update tblPubs.latest_frame
+            CALL_SQLITE (bind_int    (stmt_update_pub_frame, 1, frame));
+            CALL_SQLITE (bind_int64  (stmt_update_pub_frame, 2, pub_guid));
+            CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
+            // Clear the bindings
+            CALL_SQLITE (reset (stmt_update_pub_frame));
+            CALL_SQLITE (clear_bindings (stmt_update_pub_frame));
+            // Move to the next note...
+            note->dirty = false;
+            note        = note->next_note;
+        }
+
+        dlog(5, "   ... Updating tblData.latest_frame for all snaps...\n");
+        sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+        note = SOSD.db.frame_note_val_list_head;
+        while(note != NULL) {
+            if (note->dirty != true) {
+                note = note->next_note;
+                continue;
+            }
+            frame      = note->frame;
+            guid       = note->guid;
+            // Update tblData.latest_frame
+            CALL_SQLITE (bind_int    (stmt_update_data_frame, 1, frame));
+            CALL_SQLITE (bind_int64  (stmt_update_data_frame, 2, guid));
+            CALL_SQLITE_EXPECT (step (stmt_update_data_frame), DONE);
+            // Clear the bindings:
+            CALL_SQLITE (reset (stmt_update_data_frame));
+            CALL_SQLITE (clear_bindings (stmt_update_data_frame));
+            // Move to the next note...
+            note->dirty = false;
+            note        = note->next_note;
+        }
+        sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
+        sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+        SOS_TIME(latest_frame_time_stop);
+        dlog(5, " >> updating latest_frame values cost %lf seconds.\n",
+                (latest_frame_time_stop - latest_frame_time_start));
+
     }
 
-    dlog(5, "   ... All val snaps are updated in tblVals!\n");
-
-    // ----- Update the latest_frame fields...
-    dlog(5, "   ... Updating latest_frame for all snaps...\n");
-    double   latest_frame_time_start;
-    double   latest_frame_time_stop;
-    int      rc;
-    char    *err = NULL;
-    SOS_TIME(latest_frame_time_start);
-    sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
-    sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
-    note = SOSD.db.frame_note_pub_list_head;
-    while(note != NULL) {
-        if (note->dirty != true) {
-            note = note->next_note;
-            continue;
-        }
-        frame      = note->frame;
-        pub_guid   = note->pub_guid;
-        // Update tblPubs.latest_frame
-        CALL_SQLITE (bind_int    (stmt_update_pub_frame, 1, frame));
-        CALL_SQLITE (bind_int64  (stmt_update_pub_frame, 2, pub_guid));
-        CALL_SQLITE_EXPECT (step (stmt_update_pub_frame), DONE);
-        // Clear the bindings
-        CALL_SQLITE (reset (stmt_update_pub_frame));
-        CALL_SQLITE (clear_bindings (stmt_update_pub_frame));
-        // Move to the next note...
-        note->dirty = false;
-        note        = note->next_note;
-    }
-
-    dlog(5, "   ... Updating tblData.latest_frame for all snaps...\n");
-    sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
-    sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
-    note = SOSD.db.frame_note_val_list_head;
-    while(note != NULL) {
-        if (note->dirty != true) {
-            note = note->next_note;
-            continue;
-        }
-        frame      = note->frame;
-        guid       = note->guid;
-         // Update tblData.latest_frame
-        CALL_SQLITE (bind_int    (stmt_update_data_frame, 1, frame));
-        CALL_SQLITE (bind_int64  (stmt_update_data_frame, 2, guid));
-        CALL_SQLITE_EXPECT (step (stmt_update_data_frame), DONE);
-        // Clear the bindings:
-        CALL_SQLITE (reset (stmt_update_data_frame));
-        CALL_SQLITE (clear_bindings (stmt_update_data_frame));
-        // Move to the next note...
-        note->dirty = false;
-        note        = note->next_note;
-    }
-    sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
-    sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
-    SOS_TIME(latest_frame_time_stop);
-    dlog(5, " >> updating latest_frame values cost %lf seconds.\n",
-            (latest_frame_time_stop - latest_frame_time_start));
-    
     // ----- Done... re-queue or free the snaps now.
 
     if (re_queue == NULL) {

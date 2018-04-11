@@ -68,6 +68,11 @@ int main(int argc, char *argv[]) {
         i = j + 1;
     }
 
+	/* if the user didn't set SOS_CMD_PORT, just USE THE DEFAULT! */
+	if (getenv("SOS_CMD_PORT") == NULL) {
+        setenv("SOS_CMD_PORT", SOS_DEFAULT_SERVER_PORT, 1);
+	}
+
     my_SOS = NULL;
     SOS_init(&my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
     if (my_SOS == NULL) {
