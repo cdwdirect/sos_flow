@@ -1,4 +1,4 @@
-![Alt](/ref/sosflow_masthead.png "SOSflow")
+![Alt](/ref/sosflow_logo.png "SOSflow")
 
 SOSflow provides a flexible, scalable, and programmable framework for
 observation, introspection, feedback, and control of HPC applications.
