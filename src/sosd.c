@@ -104,7 +104,6 @@ int main(int argc, char *argv[])  {
 
     SOSD.daemon.work_dir    = (char *) calloc(sizeof(char), PATH_MAX);
     SOSD.daemon.name        = (char *) calloc(sizeof(char), PATH_MAX);
-    SOSD.daemon.lock_file   = (char *) calloc(sizeof(char), PATH_MAX);
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), PATH_MAX);
 
     // Default the working directory to the current working directory,
@@ -432,10 +431,7 @@ int main(int argc, char *argv[])  {
         free(SOSD.daemon.countof.lock_stats);
     }
 
-    close(sos_daemon_lock_fptr);
-    remove(SOSD.daemon.lock_file);
     free(SOSD.daemon.name);
-    free(SOSD.daemon.lock_file);
 
     fprintf(stdout, "** SHUTDOWN **: sosd(%d) is exiting cleanly!\n", my_rank);
     fflush(stdout);
@@ -628,6 +624,8 @@ void* SOSD_THREAD_system_monitor(void *args) {
         }
     }
     pthread_exit(NULL);
+
+    return NULL; //Stops the PGI compiler from complaining.
 }
 
 void* SOSD_THREAD_feedback_sync(void *args) {
@@ -856,6 +854,8 @@ void* SOSD_THREAD_feedback_sync(void *args) {
     dlog(1, "Feedback handler shut down cleanly.\n");
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
+
+    return NULL; //Stops the PGI compiler from complaining.
 }
 
 
@@ -937,6 +937,8 @@ void* SOSD_THREAD_local_sync(void *args) {
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
+    
+    return NULL; //Stops the PGI compiler from complaining.
 }
 
 
@@ -1037,6 +1039,8 @@ void* SOSD_THREAD_db_sync(void *args) {
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
+
+    return NULL; //Stops the PGI compiler from complaining.
 }
 
 // NOTE: This function is needed for the EVPath implementation.
@@ -1167,6 +1171,8 @@ void* SOSD_THREAD_cloud_send(void *args) {
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
+
+    return NULL; //Stops the PGI compiler from complaining.
 }
 
 
@@ -2275,40 +2281,6 @@ void SOSD_init() {
     default: break;
     }
 
-    // [lock file]
-    #if (SOSD_CLOUD_SYNC > 0)
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN,
-            "%s/%s.%05d.lock", SOSD.daemon.work_dir,
-            SOSD.daemon.name, SOS->config.comm_rank);
-    #else
-    snprintf(SOSD.daemon.lock_file, SOS_DEFAULT_STRING_LEN,
-            "%s/%s.local.lock", SOSD.daemon.work_dir, SOSD.daemon.name);
-    #endif
-    sos_daemon_lock_fptr = open(SOSD.daemon.lock_file, O_RDWR | O_CREAT, 0640);
-    if (sos_daemon_lock_fptr < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s):"
-                " Could not access lock file %s in directory %s\n",
-                SOSD.daemon.name,
-                SOSD.daemon.lock_file,
-                SOSD.daemon.work_dir);
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
-    if (lockf(sos_daemon_lock_fptr, F_TLOCK, 0) < 0) {
-        fprintf(stderr, "\nERROR!  Unable to start daemon (%s):"
-                " Could not lock instance id file %s in directory %s\n",
-                SOSD.daemon.name,
-                SOSD.daemon.lock_file,
-                SOSD.daemon.work_dir);
-        fflush(stderr);
-        exit(EXIT_FAILURE);
-    }
-
-    if ((SOS_DEBUG > 0) && SOSD_ECHO_TO_STDOUT) {
-        printf("Lock file obtained.  (%s)\n", SOSD.daemon.lock_file);
-        fflush(stdout);
-    }
-
 
     // [log file]
 #if (SOSD_DAEMON_LOG > 0)
@@ -2379,10 +2351,6 @@ void SOSD_init() {
 
     sprintf(SOSD.daemon.pid_str, "%d", getpid());
     dlog(1, "  ... pid: %s\n", SOSD.daemon.pid_str);
-
-    // Now we can write our PID out to the lock file safely...
-    rc = write(sos_daemon_lock_fptr, SOSD.daemon.pid_str,
-            strlen(SOSD.daemon.pid_str));
 
 
 

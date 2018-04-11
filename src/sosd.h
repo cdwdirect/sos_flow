@@ -162,7 +162,6 @@ typedef struct {
 
 typedef struct {
     char               *work_dir;
-    char               *lock_file;
     char               *log_file;
     char               *name;
     int                 running;
