@@ -406,24 +406,51 @@ int SOSD_db_export_to_file(char *dest_filename) {
 
     sqlite3        *dest_db;     // Database connection opened on zFilename 
     sqlite3_backup *backup_obj;  // Backup object used to copy data 
-    
+   
+    bool verbose = SOS->config.options->db_export_verbose;
+
     int rc;                      
     rc = sqlite3_open(dest_filename, &dest_db); 
+
     if (rc == SQLITE_OK) {
-        // Set up the backup procedure to copy from the "main" database of 
-        // ** connection pFile to the main database of connection pInMemory.
-        // ** If something goes wrong, pBackup will be set to NULL and an error
-        // ** code and message left in connection pTo.
-        // 
-        // ** If the backup object is successfully created, call backup_step()
-        // ** to copy data from pFile to pInMemory. Then call backup_finish()
-        // ** to release resources associated with the pBackup object.  If an
-        // ** error occurred, then an error code and message will be left in
-        // ** connection pTo. If no error occurred, then the error code belonging
-        // ** to pTo is set to SQLITE_OK.
-        //                                            
         backup_obj = sqlite3_backup_init(dest_db, "main", database, "main");
-        if (backup_obj) {
+        if (backup_obj && verbose) {
+            dlog(1, "Exporting w/VERBOSE option enabled.\n");
+            // Report progress during export.
+            int remaining = 0;
+            int pagecount = 0;
+            float pct_done  = 0.0;
+
+            double time_start;
+            double time_now;
+
+            SOS_TIME(time_start);
+
+            do {
+                rc = sqlite3_backup_step(backup_obj, 1000);
+
+                remaining = sqlite3_backup_remaining(backup_obj);
+                pagecount = sqlite3_backup_pagecount(backup_obj);
+                if ((pagecount != remaining) && (pagecount != 0)) {
+                    pct_done  = 100.0 * (float) (((float) pagecount - (float)remaining) / (float)pagecount);
+                } else {
+                    pct_done  = 0.0;
+                }
+
+                SOS_TIME(time_now);
+
+                printf("%s --> Exported %3.1f%% in %.2lf seconds.  (%d of %d pages)\n",
+                        dest_filename, pct_done, (time_now - time_start),
+                        (pagecount - remaining), pagecount);
+                fflush(stdout);
+
+            } while (rc == SQLITE_OK || rc == SQLITE_BUSY || rc == SQLITE_LOCKED);
+
+            (void)sqlite3_backup_finish(backup_obj);
+
+        } else if (backup_obj) {
+            // Export the entire database in one silent operation.
+            dlog(1, "Exporting in ONE operation, silently.\n");
             (void)sqlite3_backup_step(backup_obj, -1);
             (void)sqlite3_backup_finish(backup_obj);
         }

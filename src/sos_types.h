@@ -520,7 +520,8 @@ typedef struct {
     //
     bool                db_disabled;
     bool                db_in_memory_only;
-    bool                db_write_at_exit;
+    bool                db_export_at_exit;
+    bool                db_export_verbose;
     bool                db_update_frame;
     int                 db_frame_limit;
     //

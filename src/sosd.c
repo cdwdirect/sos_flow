@@ -367,7 +367,7 @@ int main(int argc, char *argv[])  {
     //
 
     // If requested, export the database to a file:
-    if (SOS->config.options->db_write_at_exit) {
+    if (SOS->config.options->db_export_at_exit) {
 
         char dest_file[PATH_MAX] = {0};
         //Go with the default naming convention:

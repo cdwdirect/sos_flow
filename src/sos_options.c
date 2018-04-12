@@ -33,7 +33,8 @@ int SOS_options_init(
 
     opt->db_disabled        = false;
     opt->db_in_memory_only  = false;
-    opt->db_write_at_exit   = false; //Does nothing if db_disabled == true;
+    opt->db_export_at_exit  = false; //Does nothing if db_disabled == true;
+    opt->db_export_verbose  = false;
     opt->db_update_frame    = true;
     opt->db_frame_limit     = 0;     //0 == No limit
 
@@ -58,9 +59,15 @@ int SOS_options_init(
     }
 
     if (SOS_str_opt_is_enabled(getenv("SOS_EXPORT_DB_AT_EXIT"))) {
-        opt->db_write_at_exit = true;
+        opt->db_export_at_exit = true;
+        //Now test if we need to display output during export:
+        if (strcmp("VERBOSE", getenv("SOS_EXPORT_DB_AT_EXIT")) == 0) {
+            opt->db_export_verbose = true;
+        } else {
+            opt->db_export_verbose = false;
+        }
     } else {
-        opt->db_write_at_exit = false;
+        opt->db_export_at_exit = false;
     }
 
 
