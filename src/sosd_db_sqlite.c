@@ -427,7 +427,8 @@ int SOSD_db_export_to_file(char *dest_filename) {
             SOS_TIME(time_start);
 
             do {
-                rc = sqlite3_backup_step(backup_obj, 1000);
+				// dump 64k worth at a time
+                rc = sqlite3_backup_step(backup_obj, 65536);
 
                 remaining = sqlite3_backup_remaining(backup_obj);
                 pagecount = sqlite3_backup_pagecount(backup_obj);
