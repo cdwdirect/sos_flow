@@ -11,6 +11,7 @@ if [ -z $1 ]; then echo "   >>> Clearing the connection string[s]."; fi;
 rm -rf ${SOS_EVPATH_MEETUP}/sosd.*.key
 if [ -z $1 ]; then echo "   >>> Clearing the database[s]."; fi;
 rm -rf ${SOS_WORK}/sosd.*.db
+rm -rf ${SOS_WORK}/sosd.*.db.export
 rm -rf ${SOS_WORK}/sosd.*.db.lock
 rm -rf ${SOS_WORK}/sosd.*.db-journal
 rm -rf ${SOS_WORK}/sosd.valgrind.log

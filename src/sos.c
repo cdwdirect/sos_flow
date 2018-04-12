@@ -1510,6 +1510,7 @@ bool SOS_str_opt_is_enabled(char *mutable_str) {
         (strcmp(opt_str, "TRUE")        == 0) ||
         (strcmp(opt_str, "YES")         == 0) ||
         (strcmp(opt_str, "ENABLED")     == 0) ||
+        (strcmp(opt_str, "VERBOSE")     == 0) ||
         (strcmp(opt_str, "ON")          == 0)) {
         return true;
     } else {
