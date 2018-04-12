@@ -963,11 +963,15 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
 
             //----
 
-            dlog(5, "     ... grabbing the next snap.\n");
         }
 
-        dlog(5, "   ... All val snaps are updated in tblVals!\n");
+        dlog(5, "     ... grabbing the next snap.\n");
+    
+    } //end:for
 
+    dlog(5, "   ... All val snaps are updated in tblVals!\n");
+
+    if (update_latest_frame_is_enabled) {
         // ----- Update the latest_frame fields...
         dlog(5, "   ... Updating latest_frame for all snaps...\n");
         double   latest_frame_time_start;
@@ -1024,9 +1028,8 @@ void SOSD_db_insert_vals( SOS_pipe *queue, SOS_pipe *re_queue ) {
         SOS_TIME(latest_frame_time_stop);
         dlog(5, " >> updating latest_frame values cost %lf seconds.\n",
                 (latest_frame_time_stop - latest_frame_time_start));
-
     }
-
+    
     // ----- Done... re-queue or free the snaps now.
 
     if (re_queue == NULL) {
