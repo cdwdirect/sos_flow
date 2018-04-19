@@ -82,7 +82,7 @@ extern "C" {
         SOS_receives receives, SOS_feedback_handler_f handler);
 
     void SOS_pub_init(SOS_runtime *sos_context,
-        SOS_pub **pub_handle, char *pub_title, SOS_nature nature);
+        SOS_pub **pub_handle, const char *pub_title, SOS_nature nature);
 
     int SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type pack_type, const void *pack_val_var);
@@ -116,7 +116,7 @@ extern "C" {
     int SOS_file_exists(char *path);
 
     void SOS_pub_init_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
-        char *pub_title, SOS_nature nature, int new_size);
+        const char *pub_title, SOS_nature nature, int new_size);
 
     //NOTE: Sub-components of the SOS_pack() API call, allowing code
     //      reuse among the different interactions like SOS_pack() VS.

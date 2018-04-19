@@ -1331,7 +1331,7 @@ SOS_uid_next( SOS_uid *id ) {
 
 void
 SOS_pub_init(SOS_runtime *sos_context,
-    SOS_pub **pub_handle, char *title, SOS_nature nature)
+    SOS_pub **pub_handle, const char *title, SOS_nature nature)
 {
      SOS_pub_init_sized(sos_context, pub_handle, title,
              nature, SOS_DEFAULT_ELEM_MAX);
@@ -1340,7 +1340,7 @@ SOS_pub_init(SOS_runtime *sos_context,
 
 void
 SOS_pub_init_sized(SOS_runtime *sos_context,
-    SOS_pub **pub_handle, char *title, SOS_nature nature, int new_size)
+    SOS_pub **pub_handle, const char *title, SOS_nature nature, int new_size)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_pub_init_sized");
     SOS_pub   *new_pub;
