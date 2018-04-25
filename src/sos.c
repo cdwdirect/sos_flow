@@ -1874,10 +1874,29 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
         tmp_snap = pub->data[snap->elem]->cached_latest;
         snap_count = 0;
         while (tmp_snap != NULL) {
+            switch (tmp_snap->type) {
+            case SOS_VAL_TYPE_INT:
+                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
+                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                        snap_count, tmp_snap->val.i_val);
+                break;
+            case SOS_VAL_TYPE_LONG:
+                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
+                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                        snap_count, tmp_snap->val.l_val);
+                break;
+            case SOS_VAL_TYPE_DOUBLE:
+                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
+                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                        snap_count, tmp_snap->val.d_val);
+                break;
+            case SOS_VAL_TYPE_STRING:
+                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
+                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                        snap_count, tmp_snap->val.c_val);
+                break;
+            }
             snap_count++;
-            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
-                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                    snap_count, tmp_snap->val.d_val);
             tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
         }
 
@@ -2317,11 +2336,31 @@ SOS_val_snap_queue_from_buffer(
             tmp_snap = pub->data[snap->elem]->cached_latest;
             snap_count = 0;
             while (tmp_snap != NULL) {
+                switch (tmp_snap->type) {
+                    case SOS_VAL_TYPE_INT:
+                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
+                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                                snap_count, tmp_snap->val.i_val);
+                        break;
+                    case SOS_VAL_TYPE_LONG:
+                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
+                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                                snap_count, tmp_snap->val.l_val);
+                        break;
+                    case SOS_VAL_TYPE_DOUBLE:
+                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
+                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                                snap_count, tmp_snap->val.d_val);
+                        break;
+                    case SOS_VAL_TYPE_STRING:
+                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
+                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                                snap_count, tmp_snap->val.c_val);
+                        break;
+                }
                 snap_count++;
-                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
-                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                    snap_count, tmp_snap->val.d_val);
                 tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
+
             }
 
         } //end if: (daemon && pub_cache)

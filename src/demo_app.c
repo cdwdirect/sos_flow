@@ -14,18 +14,17 @@
 #include <mpi.h>
 #endif
 
-#define USAGE "USAGE:\n"        \
-    "\t./demo_app"              \
-    " -i <iteration_size>"      \
-    " -m <max_send_count>"      \
-    " -p <pub_elem_count>"      \
-    " [-d <iter_delay_usec>]\n" \
-    "\n"                        \
-    "\t\t       - OR -\n"       \
-    "\n"                        \
-    "\t./demo_app"              \
-    " --sql SOS_SQL_QUERY"      \
-    "    (environment variable)"\
+#define USAGE "USAGE:\n"                                            \
+    "\t./demo_app\n"                                                \
+    "\t\t -i <iteration_size>\n"                                    \
+    "\t\t -m <max_send_count>\n"                                    \
+    "\t\t -p <pub_elem_count>\n"                                    \
+    "\t\t[-d <iter_delay_usec> ]\n"                                 \
+    "\t\t[-c <cache_depth>     ]\n"                                 \
+    "\n"                                                            \
+    "\t\t       - OR -\n"                                           \
+    "\n"                                                            \
+    "\t./demo_app --sql <SOS_SQL (environment variable)>\n"         \
     "\n"
 
 
@@ -37,6 +36,9 @@
 #include "sos.h"
 #include "sos_error.h"
 #include "sosa.h"
+
+void random_double(double *dest_dbl);
+void random_string(char   *dest_str, size_t length);
 
 
 /*
@@ -109,6 +111,7 @@ int main(int argc, char *argv[]) {
     int    ITERATION_SIZE;
     int    PUB_ELEM_COUNT;
     int    DELAY_ENABLED;
+    int    PUB_CACHE_DEPTH;
     int    WAIT_FOR_FEEDBACK;
     char  *SQL_QUERY;
     double DELAY_IN_USEC;
@@ -126,6 +129,7 @@ int main(int argc, char *argv[]) {
     PUB_ELEM_COUNT  = -1;
     DELAY_ENABLED   = 0;
     DELAY_IN_USEC   = 0;
+    PUB_CACHE_DEPTH = 0;
     WAIT_FOR_FEEDBACK = 0;
 
     for (elem = 1; elem < argc; ) {
@@ -140,6 +144,8 @@ int main(int argc, char *argv[]) {
             MAX_SEND_COUNT  = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-p"  ) == 0) {
             PUB_ELEM_COUNT  = atoi(argv[next_elem]);
+        } else if ( strcmp(argv[elem], "-c"  ) == 0) {
+            PUB_CACHE_DEPTH = atoi(argv[next_elem]);
         } else if ( strcmp(argv[elem], "-d"  ) == 0) {
             DELAY_IN_USEC = strtod(argv[next_elem], NULL);
             DELAY_ENABLED = 1;
@@ -221,8 +227,12 @@ int main(int argc, char *argv[]) {
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
         SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_DEFAULT);
-        
+       
+        pub->cache_depth = PUB_CACHE_DEPTH;
+
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
+        if (rank == 0) dlog(1, "  ... pub->cache_depth = %d\n", pub->cache_depth);
+
 
         if (rank == 0) dlog(1, "Manually configuring some pub metadata...\n");
         strcpy (pub->prog_ver, str_prog_ver);
@@ -237,6 +247,7 @@ int main(int argc, char *argv[]) {
         
         var_double = 0.0;
 
+
         SOS_TIME( time_start );
         int mils = 0;
         int ones = 0;
@@ -249,8 +260,10 @@ int main(int argc, char *argv[]) {
             // Pack in a bunch of doubles, up to the element count specified with '-p #'
             for (i = 0; i < PUB_ELEM_COUNT; i++) {
                 snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
-                SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-                var_double += 0.00000001;
+                snprintf(var_string, 100, "%3.14lf", var_double);
+                //SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
+                SOS_pack(pub, elem_name, SOS_VAL_TYPE_STRING, var_string);
+                var_double += 1.00000001;
             }
 
             SOS_publish(pub);
@@ -270,3 +283,43 @@ int main(int argc, char *argv[]) {
 
     return (EXIT_SUCCESS);
 }
+
+
+void random_double(double *dest_dbl) {
+    double a;
+    double b;
+    double c;
+
+    /* Make a random floating point value for 'input' */
+    a = (double)random();
+    b = (double)random();
+    c = a / b;
+    a = (double)random();
+    c = c * a;
+    a = (double)random();
+    *dest_dbl = (c * random()) / a;
+
+    return;
+}
+
+
+void random_string(char *dest_str, size_t size) {
+    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*<>()[]{};:/,.-_=+";
+    int charset_len = 0;
+    int key;
+    int n;
+
+    charset_len = (strlen(charset) - 1);
+
+    if (size) {
+        --size;
+        for (n = 0; n < size; n++) {
+            key = rand() % charset_len;
+            dest_str[n] = charset[key];
+        }
+        dest_str[size - 1] = '\0';
+    }
+    return;
+}
+
+

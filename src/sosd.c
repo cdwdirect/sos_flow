@@ -2662,6 +2662,6 @@ void SOSD_display_logo(void) {
                "=========================================\n");
 
     }
-
+    fflush(stdout);
     return;
 }
