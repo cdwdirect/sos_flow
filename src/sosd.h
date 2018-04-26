@@ -81,12 +81,13 @@ typedef struct {
 
 typedef struct {
     SOS_guid            reply_to_guid;
-    char               *val_name;
+    char               *pub_filter_regex;
+    char               *val_filter_regex;
     SOS_guid            req_guid;
     char               *reply_host;
     int                 reply_port;
     void               *results;
-} SOSD_match_handle;
+} SOSD_cache_grab_handle;
 
 
 typedef struct {
@@ -229,16 +230,16 @@ typedef struct {
 } SOSD_sync_set;
 
 
-
 typedef struct {
-    SOS_runtime        *sos_context;
-    SOSD_runtime        daemon;
-    SOSD_db             db;
-    SOS_socket         *net;
-    SOS_uid            *guid;
-    SOSD_sync_set       sync;
-    qhashtbl_t         *pub_table;
-    int                 system_monitoring;
+    SOS_runtime         *sos_context;
+    SOSD_runtime         daemon;
+    SOSD_db              db;
+    SOS_socket          *net;
+    SOS_uid             *guid;
+    SOSD_sync_set        sync;
+    qhashtbl_t          *pub_table;
+    SOS_list_entry      *pub_list_head;
+    int                  system_monitoring;
 } SOSD_global;
 
 /* ----------

@@ -24,6 +24,7 @@ typedef struct {
     SOS_runtime *sos_context;
     char        *query_sql;
     SOS_guid     query_guid;
+    double       exec_duration;
     int          col_max;
     int          col_count;
     char       **col_names;
@@ -44,16 +45,12 @@ extern "C" {
             char *sql_string, char *target_host, int target_port);
 
     // Gather the current values belonging to matching pub or value names:
-    //
-    // NOTE: This is the SOS_cache_grab() handling...
-    SOS_guid SOSA_request_matching_pubs(SOS_runtime *sos_context,
-            char *regex_pattern, char *target_host, int target_port);
-    SOS_guid SOSA_request_matching_vals(SOS_runtime *sos_context,
-            char *regex_pattern, char *target_host, int target_port);
-    void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
-            SOSA_results **results, char *regex_pattern);
-    void SOSA_compile_matching_vals(SOS_runtime *sos_context,
-            SOSA_results **results, char *regex_pattern);
+    SOS_guid SOSA_cache_grab(SOS_runtime *sos_context,
+            char *pub_filter_regex, char *val_filter_regex,
+            char *target_host, int target_port);
+    void SOSA_cache_to_results(SOS_runtime *sos_context,
+            SOSA_results *results, char *pub_filter_regex,
+            char *val_filter_regex);
 
     // Utilities for working with result sets:
     void SOSA_results_init(SOS_runtime *sos_context,

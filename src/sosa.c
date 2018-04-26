@@ -15,32 +15,102 @@
 #include "sos_debug.h"
 #include "sos_target.h"
 
-void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
-            SOSA_results **results, char *regex_pattern)
+void SOSA_cache_to_results(SOS_runtime *sos_context,
+            SOSA_results *results, char *pub_filter_regex, char *val_filter_regex)
 {
-    SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_pubs");
-    //SLICE
+/*    SOS_SET_CONTEXT(sos_context, "SOSA_cache_to_results");
+    double start_time = 0.0;
+    double stop_time  = 0.0;
+    SOS_TIME(start_time);
+   
+    SOS_pub *pub = NULL;
+    SOS_list_entry *entry = SOSD.pub_list_head;
+
+    int current_row = 0;
+    int i = 0;
+
+    SOSA_results_put_name(results, 0,  "process_id");
+    SOSA_results_put_name(results, 1,  "node_id");
+    SOSA_results_put_name(results, 2,  "pub_title");
+    SOSA_results_put_name(results, 3,  "pub_guid");
+    SOSA_results_put_name(results, 4,  "comm_rank");
+    SOSA_results_put_name(results, 5,  "prog_name");
+    SOSA_results_put_name(results, 6,  "time_pack");
+    SOSA_results_put_name(results, 7,  "time_recv");
+    SOSA_results_put_name(results, 8,  "frame");
+    SOSA_results_put_name(results, 9,  "val_name");
+    SOSA_results_put_name(results, 10, "val_type");
+    SOSA_results_put_name(results, 11, "val_guid");
+    SOSA_results_put_name(results, 12, "val");
+
+    char comm_rank_str   [SOS_DEFAULT_STRING_LEN] = {0};
+    char process_id_str  [SOS_DEFAULT_STRING_LEN] = {0};
+    char time_pack_str   [SOS_DEFAULT_STRING_LEN] = {0};
+    char time_recv_str   [SOS_DEFAULT_STRING_LEN] = {0};
+    char val_frame_str   [SOS_DEFAULT_STRING_LEN] = {0};
+    char val_guid_str    [SOS_DEFAULT_STRING_LEN] = {0};
+    char val_type_str    [SOS_DEFAULT_STRING_LEN] = {0};
+    char val_str         [SOS_DEFAULT_STRING_LEN] = {0};
+
+    while (entry != NULL) {
+        pub = (SOS_pub *) entry->ref;
+        if ((strcmp(pub->title, pub_filter_regex) == 0) 
+                && pub->cache_depth > 0) {
+            for (i = 0; i < pub->elem_count; i++) {
+                if (strcmp(pub->data[i]->name, val_filter_regex) == 0) {
+                    SOS_val_snap *snap = pub->data[i]->cached_latest;
+                    while (snap != NULL) {
+                        //Put all the fields we are gathering into strings.
+                        //pub->process_id
+                        //pub->comm_rank
+                        //val->time_pack
+                        //val->time_recv
+                        //val->frame
+                        //val->type
+                        //val->guid
+
+                        SOSA_results_put_name(results, 0,  process_id_str);
+                        SOSA_results_put_name(results, 1,  pub->node_id);
+                        SOSA_results_put_name(results, 2,  pub->title);
+                        SOSA_results_put_name(results, 3,  pub->guid_str);
+                        SOSA_results_put_name(results, 4,  comm_rank_str);
+                        SOSA_results_put_name(results, 5,  pub->prog_name);
+                        SOSA_results_put_name(results, 6,  time_pack_str);
+                        SOSA_results_put_name(results, 7,  time_recv_str);
+                        SOSA_results_put_name(results, 8,  val_frame_str);
+                        SOSA_results_put_name(results, 9,  val->name);
+                        SOSA_results_put_name(results, 10, val_type_str);
+                        SOSA_results_put_name(results, 11, val_guid_str);
+                        SOSA_results_put_name(results, 12, val_str);
+
+                        snap = snap->next_snap;
+                        current_row++;
+                    }//while: snap
+                }//for: vals
+            }//end:if[name]
+        }//end:for[elems]
+
+        entry = entry->next_entry; 
+    }//while: pubs
+
+    SOS_TIME(stop_time);
+    results->exec_duration = (stop_time - start_time);
+ */
     return;
 }
 
-
-
-void SOSA_compile_matching_vals(SOS_runtime *sos_context,
-            SOSA_results **results, char *regex_pattern)
-{
-    SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_vals");
-    //SLICE
-    return;
-}
 
 
 SOS_guid
-SOSA_request_matching_pubs(SOS_runtime *sos_context,
-        char *regex_pattern, char *target_host, int target_port)
+SOSA_cache_grab(SOS_runtime *sos_context,
+        char *pub_filter_regex, char *val_filter_regex,
+        char *target_host, int target_port)
 {
-    SOS_SET_CONTEXT(sos_context, "SOSA_request_matching_pubs");
+    SOS_SET_CONTEXT(sos_context, "SOSA_cache_grab");
 
-    dlog(7, "Submitting request for current values of pubs named \"%s\" ...\n", regex_pattern);
+    dlog(7, "Submitting request for cached values matching"
+            " pub == \"%s\" && val == \"%s\"   ...\n",
+                pub_filter_regex, val_filter_regex);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
@@ -78,74 +148,8 @@ SOSA_request_matching_pubs(SOS_runtime *sos_context,
     
     SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
     SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    SOS_buffer_pack(msg, &offset, "s", regex_pattern);
-    SOS_buffer_pack(msg, &offset, "g", request_guid);
-
-    header.msg_size = offset;
-    offset = 0;
-    SOS_msg_zip(msg, header, 0, &offset);
-
-    dlog(7, "   ... sending match request to daemon.\n");
-    SOS_socket *target = NULL;
-    SOS_target_init(SOS, &target, target_host, target_port);
-    SOS_target_connect(target);
-    SOS_target_send_msg(target, msg);
-    SOS_target_recv_msg(target, reply);
-    SOS_target_disconnect(target);
-    SOS_target_destroy(target);
-
-    SOS_buffer_destroy(msg);
-    SOS_buffer_destroy(reply);
-
-    dlog(7, "   ... done.\n");
-    return request_guid;
-}
-
-SOS_guid
-SOSA_request_matching_vals(SOS_runtime *sos_context,
-        char *regex_pattern, char *target_host, int target_port)
-{
-    SOS_SET_CONTEXT(sos_context, "SOSA_request_matching_vals");
-
-    dlog(7, "Submitting request for current values named \"%s\" ...\n", regex_pattern);
-
-    SOS_buffer *msg;
-    SOS_buffer *reply;
-    SOS_buffer_init_sized_locking(SOS, &msg,   4096, false);
-    SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
-
-    SOS_msg_header header;
-    header.msg_size = -1;
-    header.msg_type = SOS_MSG_TYPE_MATCH_VALS;
-    header.msg_from = SOS->config.comm_rank;
-    header.ref_guid = 0;
-
-    dlog(7, "   ... creating msg.\n");
-
-    int offset = 0;
-    SOS_msg_zip(msg, header, 0, &offset);
-    
-    SOS_guid request_guid;
-    if (SOS->role == SOS_ROLE_CLIENT) {
-        // NOTE: This guid is returned by the function so it can
-        // be tracked by clients.  They can blast out a bunch
-        // of queries to different daemons that get returned
-        // asynchronously, and can do some internal bookkeeping by
-        // uniting the results with the original query submission.
-        request_guid = SOS_uid_next(SOS->uid.my_guid_pool);
-    } else {
-        // Or...
-        // this generally should not happen unless the daemon is
-        // submitting queries internally, which is downright
-        // funky and shouldn't be happening, IMO.  -CW
-        request_guid = -99999;
-    }
-    dlog(7, "   ... assigning request_guid = %" SOS_GUID_FMT "\n",
-            request_guid);
-    
-    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
-    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    SOS_buffer_pack(msg, &offset, "s", regex_pattern);
+    SOS_buffer_pack(msg, &offset, "s", pub_filter_regex);
+    SOS_buffer_pack(msg, &offset, "s", val_filter_regex);
     SOS_buffer_pack(msg, &offset, "g", request_guid);
 
     header.msg_size = offset;
@@ -351,9 +355,10 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
         results->query_sql = strdup("<none>");
     }
  
-    SOS_buffer_pack(buffer, &offset, "sg",
+    SOS_buffer_pack(buffer, &offset, "sgd",
                     results->query_sql,
-                    results->query_guid);
+                    results->query_guid,
+                    results->exec_duration);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
@@ -412,6 +417,8 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     dlog(9, "   ... SQL: %s\n", results->query_sql);
     SOS_buffer_unpack(buffer, &offset, "g", &results->query_guid);
     dlog(9, "   ... guid: %" SOS_GUID_FMT "\n", results->query_guid);
+    SOS_buffer_unpack(buffer, &offset, "d", &results->exec_duration);
+    dlog(9, "   ... exec_duration: %3.12lf\n", results->exec_duration);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
@@ -490,6 +497,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
         fprintf(fptr, " \"time_stamp\" : \"%lf\",\n", time_now);
 //        fprintf(fptr, " \"query_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
 //        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
+        fprintf(fptr, " \"exec_duration\" : \"%3.12lf\",\n", results->exec_duration);
         fprintf(fptr, " \"col_count\"  : \"%d\",\n",  results->col_count);
         fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
         fprintf(fptr, " \"data\"       :\n [\n");
@@ -621,8 +629,9 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
     results->sos_context = SOS;
 
     // These get set manually w/in the daemons:
-    results->query_guid  = -1;
-    results->query_sql   = NULL;   //strdup("NONE");
+    results->query_guid    = -1;
+    results->query_sql     = NULL;   //strdup("NONE");
+    results->exec_duration = 0.0;
 
     results->col_count   = 0;
     results->row_count   = 0;

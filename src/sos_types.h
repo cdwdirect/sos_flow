@@ -70,8 +70,7 @@
 #define FOREACH_FEEDBACK_TYPE(FEEDBACK_TYPE)    \
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_PAYLOAD)    \
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_QUERY)      \
-    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_MATCH_PUBS) \
-    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_MATCH_VALS) \
+    FEEDBACK_TYPE(SOS_FEEDBACK_TYPE_CACHE)      \
     FEEDBACK_TYPE(SOS_FEEDBACK_TYPE___MAX)
 
 #define FOREACH_QUERY_STATE(QUERY_STATE)        \
@@ -361,6 +360,11 @@ typedef struct {
     double              send;
     double              recv;
 } SOS_time;
+
+typedef struct {
+    void               *ref;
+    void               *next_entry;
+} SOS_list_entry;
 
 
 typedef struct {

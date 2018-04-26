@@ -704,12 +704,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         switch(task->type) {
 
-        case SOS_FEEDBACK_TYPE_MATCH_PUBS:
-            //SLICE
-            break;
-
-        
-        case SOS_FEEDBACK_TYPE_MATCH_VALS:
+        case SOS_FEEDBACK_TYPE_CACHE:
             //SLICE
             break;
 
@@ -1274,10 +1269,53 @@ SOSD_handle_cache_grab(SOS_buffer *msg) {
     //      -regex_pattern
     //
 
+    SOS_msg_header header;
+
+    int offset = 0;
+    SOS_msg_unzip(msg, &header, 0, &offset);
+
+    SOSD_cache_grab_handle *cache_grab = calloc(1, sizeof(SOSD_cache_grab_handle));
+    cache_grab->results = NULL;
+    SOSA_results_init(SOSD.sos_context, (SOSA_results **) &cache_grab->results);
+
+    SOS_buffer_unpack_safestr(msg, &offset, "s", cache_grab->reply_host);
+    SOS_buffer_unpack(msg, &offset, "i", &cache_grab->reply_port);
+    SOS_buffer_unpack_safestr(msg, &offset, "s", cache_grab->pub_filter_regex);
+    SOS_buffer_unpack_safestr(msg, &offset, "s", cache_grab->val_filter_regex);
+    SOS_buffer_unpack(msg, &offset, "g", &cache_grab->request_guid);
+
+    // NOTE: Immediately service this cache grab operation, keep an eye on this.
+    SOSA_cache_to_results(SOSD.sos_context, &cache_grab->results,
+        cache_grab->pub_filter_regex, cache_grab->val_filter_regex);
     
-    
-    
-    
+    SOSD_feedback_task *new_task =
+        (SOSD_feedback_task *) calloc(1, sizeof(SOSD_feedback_task));
+
+    new_task->type = SOS_FEEDBACK_TYPE_CACHE;
+    new_task->ref = cache_grab;
+   
+    // Enqueue this in the feedback pipeline:
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &new_task, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
+
+    dlog(6, "   ...send ACK to client.\n");
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+    SOS_target_send_msg(SOSD.net, reply);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply);
+
+    dlog(6, "Done.\n");
+
     return;
 }
 
@@ -1884,12 +1922,17 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
-        /* If it's not in the table, add it. */
+        // If it's not in the table, add it. 
         SOS_pub_init(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;
         SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
+        // Add a pointer to the pub_list:
+        SOSD_list_entry new_entry = calloc(1, sizeof(SOSD_pub_list_entry));
+        new_entry->ref = (void *)pub;
+        new_entry->next_entry = SOSD.pub_list_head;
+        SOSD.pub_list_head = new_entry;
         // Make sure the pub only goes in once...
         firstAnnouncement = true;
     } else {
@@ -2408,7 +2451,8 @@ void SOSD_init() {
 
     // [hashtable]
     dlog(1, "Setting up a hash table for pubs...\n");
-    SOSD.pub_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOSD.pub_table      = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOSD.pub_list_head  = NULL;
 
     dlog(1, "Daemon initialization is complete.\n");
     SOSD.daemon.running = 1;
