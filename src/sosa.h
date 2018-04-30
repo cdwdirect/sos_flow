@@ -40,17 +40,24 @@ extern "C" {
 #endif
 
 
-    // Submit an SQL query to a SOS daemon over the socket:
+    // SQL: Submit an SQL query to a SOS daemon over the socket:
     SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
             char *sql_string, char *target_host, int target_port);
 
-    // Gather the current values belonging to matching pub or value names:
+    // CACHE: Gather current values belonging to matching pub and value names:
+    //      frame_head:
+    //          Start at this frame and go backward (-1 = latest)
+    //      frame_depth_limit:
+    //          How many frames may be included (-1, 0 = no limit)
+    //
     SOS_guid SOSA_cache_grab(SOS_runtime *sos_context,
             char *pub_filter_regex, char *val_filter_regex,
+            int frame_head, int frame_depth_limit,
             char *target_host, int target_port);
-    void SOSA_cache_to_results(SOS_runtime *sos_context,
-            SOSA_results *results, char *pub_filter_regex,
-            char *val_filter_regex);
+    //
+    void SOSA_cache_to_results(SOS_runtime *sos_context, SOSA_results *results,
+            char *pub_filter_regex, char *val_filter_regex,
+            int frame_head, int frame_depth_limit);
 
     // Utilities for working with result sets:
     void SOSA_results_init(SOS_runtime *sos_context,

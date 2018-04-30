@@ -400,8 +400,7 @@ typedef struct {
     SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
-    SOS_val_snap       *cached_latest;
-                        //cached_latest: Used only within daemons.
+    SOS_val_snap       *cached_latest;  // only w/in daemons. 
 } SOS_data;
 
 typedef struct {

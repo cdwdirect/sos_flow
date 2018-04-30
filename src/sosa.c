@@ -15,10 +15,15 @@
 #include "sos_debug.h"
 #include "sos_target.h"
 
-void SOSA_cache_to_results(SOS_runtime *sos_context,
-            SOSA_results *results, char *pub_filter_regex, char *val_filter_regex)
+void SOSA_cache_to_results(
+        SOS_runtime *sos_context,
+        SOSA_results *results,
+        char *pub_filter_regex,
+        char *val_filter_regex,
+        int frame_head,
+        int frame_depth_limit)
 {
-/*    SOS_SET_CONTEXT(sos_context, "SOSA_cache_to_results");
+    SOS_SET_CONTEXT(sos_context, "SOSA_cache_to_results");
     double start_time = 0.0;
     double stop_time  = 0.0;
     SOS_TIME(start_time);
@@ -26,7 +31,10 @@ void SOSA_cache_to_results(SOS_runtime *sos_context,
     SOS_pub *pub = NULL;
     SOS_list_entry *entry = SOSD.pub_list_head;
 
-    int current_row = 0;
+    int row = 0;
+
+    int frames_grabbed = 0;
+
     int i = 0;
 
     SOSA_results_put_name(results, 0,  "process_id");
@@ -38,53 +46,110 @@ void SOSA_cache_to_results(SOS_runtime *sos_context,
     SOSA_results_put_name(results, 6,  "time_pack");
     SOSA_results_put_name(results, 7,  "time_recv");
     SOSA_results_put_name(results, 8,  "frame");
-    SOSA_results_put_name(results, 9,  "val_name");
-    SOSA_results_put_name(results, 10, "val_type");
-    SOSA_results_put_name(results, 11, "val_guid");
-    SOSA_results_put_name(results, 12, "val");
+    SOSA_results_put_name(results, 9,  "relation_id");
+    SOSA_results_put_name(results, 10, "val_name");
+    SOSA_results_put_name(results, 11, "val_type");
+    SOSA_results_put_name(results, 12, "val_guid");
+    SOSA_results_put_name(results, 13, "val");
 
-    char comm_rank_str   [SOS_DEFAULT_STRING_LEN] = {0};
-    char process_id_str  [SOS_DEFAULT_STRING_LEN] = {0};
-    char time_pack_str   [SOS_DEFAULT_STRING_LEN] = {0};
-    char time_recv_str   [SOS_DEFAULT_STRING_LEN] = {0};
-    char val_frame_str   [SOS_DEFAULT_STRING_LEN] = {0};
-    char val_guid_str    [SOS_DEFAULT_STRING_LEN] = {0};
-    char val_type_str    [SOS_DEFAULT_STRING_LEN] = {0};
-    char val_str         [SOS_DEFAULT_STRING_LEN] = {0};
+    char comm_rank_str    [128] = {0};
+    char process_id_str   [128] = {0};
+    char time_pack_str    [128] = {0};
+    char time_recv_str    [128] = {0};
+    char val_frame_str    [128] = {0};
+    char val_relation_str [128] = {0};
+    char val_guid_str     [128] = {0};
+    char val_type_str     [128] = {0};
+
+    char *val_str;
+    char val_numeric_str  [128] = {0};
 
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
+        //TODO: Make pub->title a REGEX test
         if ((strcmp(pub->title, pub_filter_regex) == 0) 
                 && pub->cache_depth > 0) {
             for (i = 0; i < pub->elem_count; i++) {
+                //TODO: Make pub->data[i]->name a REGEX test
                 if (strcmp(pub->data[i]->name, val_filter_regex) == 0) {
                     SOS_val_snap *snap = pub->data[i]->cached_latest;
-                    while (snap != NULL) {
-                        //Put all the fields we are gathering into strings.
-                        //pub->process_id
-                        //pub->comm_rank
-                        //val->time_pack
-                        //val->time_recv
-                        //val->frame
-                        //val->type
-                        //val->guid
+                    frames_grabbed = 0;
 
-                        SOSA_results_put_name(results, 0,  process_id_str);
-                        SOSA_results_put_name(results, 1,  pub->node_id);
-                        SOSA_results_put_name(results, 2,  pub->title);
-                        SOSA_results_put_name(results, 3,  pub->guid_str);
-                        SOSA_results_put_name(results, 4,  comm_rank_str);
-                        SOSA_results_put_name(results, 5,  pub->prog_name);
-                        SOSA_results_put_name(results, 6,  time_pack_str);
-                        SOSA_results_put_name(results, 7,  time_recv_str);
-                        SOSA_results_put_name(results, 8,  val_frame_str);
-                        SOSA_results_put_name(results, 9,  val->name);
-                        SOSA_results_put_name(results, 10, val_type_str);
-                        SOSA_results_put_name(results, 11, val_guid_str);
-                        SOSA_results_put_name(results, 12, val_str);
+                    while (snap != NULL) {
+                        // Apply our frame constraints, if any:
+                        if (   (frame_head >= 0)
+                            && (snap->frame > frame_head)) {
+                            // If the request is starting at a specific frame
+                            // and we've not hit it yet, move to the next snap.
+                            // NOTE: Snaps are stored as a push-down stack, so
+                            //       cached_latest is the largest frame #, and
+                            //       snap->next_snap is a lower/earlier frame.
+                            snap = snap->next_snap;
+                            continue;
+                        }
+                        if (   (frame_depth_limit > 0)
+                            && (frames_grabbed > frame_depth_limit)) {
+                            // If we're limiting results, and we're past the
+                            // limit, move on to the next value in the pub.
+                            break;
+                        }
+
+                        //If we're here, we have a snapshot that matches
+                        //all of the filtering/frame constraints.
+                        
+                        //Put all the numeric fields into strings:
+                        snprintf(process_id_str,   128, "%d", pub->process_id);
+                        snprintf(comm_rank_str,    128, "%d", pub->comm_rank);
+                        snprintf(time_pack_str,    128, "%lf", snap->time.pack);
+                        snprintf(time_recv_str,    128, "%lf", snap->time.recv);
+                        snprintf(val_frame_str,    128, "%ld", snap->frame);
+                        snprintf(val_relation_str, 128, SOS_GUID_FMT, snap->relation_id);
+                        snprintf(val_type_str,     128, "%d", snap->type);
+                        snprintf(val_guid_str,     128, SOS_GUID_FMT, snap->guid);
+
+                        switch(snap->type) {
+                        case SOS_VAL_TYPE_INT:
+                            snprintf(val_numeric_str, 128, "%d", snap->val.i_val);
+                            val_str = val_numeric_str; break;
+                        case SOS_VAL_TYPE_LONG:
+                            snprintf(val_numeric_str, 128, "%ld", snap->val.l_val);
+                            val_str = val_numeric_str; break;
+                        case SOS_VAL_TYPE_DOUBLE:
+                            snprintf(val_numeric_str, 128, "%lf", snap->val.d_val);
+                            val_str = val_numeric_str; break;
+                        case SOS_VAL_TYPE_STRING:
+                            if (snap->val.c_val != NULL) {
+                                val_str = snap->val.c_val; break;
+                            } else {
+                                snprintf(val_numeric_str, 128, "(null)");
+                                val_str = val_numeric_str; break;
+                            }
+                        case SOS_VAL_TYPE_BYTES:
+                            snprintf(val_numeric_str, 128, "(bytes)");
+                            val_str = val_numeric_str; break;
+                        default:
+                            snprintf(val_numeric_str, 128, "(unknown type)");
+                            val_str = val_numeric_str; break;
+                        }
+
+                        // SOSA_results_put makes a copy of these values:
+                        SOSA_results_put(results, 0,  row, process_id_str);
+                        SOSA_results_put(results, 1,  row, pub->node_id);
+                        SOSA_results_put(results, 2,  row, pub->title);
+                        SOSA_results_put(results, 3,  row, pub->guid_str);
+                        SOSA_results_put(results, 4,  row, comm_rank_str);
+                        SOSA_results_put(results, 5,  row, pub->prog_name);
+                        SOSA_results_put(results, 6,  row, time_pack_str);
+                        SOSA_results_put(results, 7,  row, time_recv_str);
+                        SOSA_results_put(results, 8,  row, val_frame_str);
+                        SOSA_results_put(results, 9,  row, val_relation_str);
+                        SOSA_results_put(results, 10, row, pub->data[i]->name);
+                        SOSA_results_put(results, 11, row, val_type_str);
+                        SOSA_results_put(results, 12, row, val_guid_str);
+                        SOSA_results_put(results, 13, row, val_str);
 
                         snap = snap->next_snap;
-                        current_row++;
+                        row++;
                     }//while: snap
                 }//for: vals
             }//end:if[name]
@@ -95,16 +160,21 @@ void SOSA_cache_to_results(SOS_runtime *sos_context,
 
     SOS_TIME(stop_time);
     results->exec_duration = (stop_time - start_time);
- */
+
     return;
 }
 
 
 
 SOS_guid
-SOSA_cache_grab(SOS_runtime *sos_context,
-        char *pub_filter_regex, char *val_filter_regex,
-        char *target_host, int target_port)
+SOSA_cache_grab(
+        SOS_runtime *sos_context,
+        char *pub_filter_regex,
+        char *val_filter_regex,
+        int frame_head,
+        int frame_depth_limit,
+        char *target_host,
+        int target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_cache_grab");
 
@@ -150,6 +220,8 @@ SOSA_cache_grab(SOS_runtime *sos_context,
     SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
     SOS_buffer_pack(msg, &offset, "s", pub_filter_regex);
     SOS_buffer_pack(msg, &offset, "s", val_filter_regex);
+    SOS_buffer_pack(msg, &offset, "i", frame_head);
+    SOS_buffer_pack(msg, &offset, "i", frame_depth_limit);
     SOS_buffer_pack(msg, &offset, "g", request_guid);
 
     header.msg_size = offset;

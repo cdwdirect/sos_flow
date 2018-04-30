@@ -83,6 +83,8 @@ typedef struct {
     SOS_guid            reply_to_guid;
     char               *pub_filter_regex;
     char               *val_filter_regex;
+    int                 frame_head;
+    int                 frame_depth_limit;
     SOS_guid            req_guid;
     char               *reply_host;
     int                 reply_port;
