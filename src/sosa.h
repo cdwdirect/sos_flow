@@ -46,9 +46,9 @@ extern "C" {
 
     // CACHE: Gather current values belonging to matching pub and value names:
     //      frame_head:
-    //          Start at this frame and go backward (-1 = latest)
+    //          Start at this frame and go backward  (-1 == LATEST)
     //      frame_depth_limit:
-    //          How many frames may be included (-1, 0 = no limit)
+    //          How many frames may be included (-1 || 0 == NO LIMIT)
     //
     SOS_guid SOSA_cache_grab(SOS_runtime *sos_context,
             char *pub_filter_regex, char *val_filter_regex,

@@ -163,6 +163,23 @@ typedef struct {
 } SOSD_evpath;
 #endif
 
+#ifdef SOSD_CLOUD_SYNC_WITH_ZEROMQ
+typedef struct {
+    void               *conn;
+    char                conn_str[512];
+    char               *remote_host;
+    int                 remote_port;
+    SOS_role            role;
+} SOSD_zeromq_node;
+
+typedef struct {
+    void               *conn;
+    char                conn_str[512];
+    char               *meetup_path;
+    void               *context;
+} SOSD_zeromq;
+#endif
+
 typedef struct {
     char               *work_dir;
     char               *log_file;
@@ -180,6 +197,12 @@ typedef struct {
 #endif
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     SOSD_evpath         evpath;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_ZEROMQ
+    SOSD_zeromq         zeromq;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_SOCKET
+    SOS_target         *socket;
 #endif
 } SOSD_runtime;
 

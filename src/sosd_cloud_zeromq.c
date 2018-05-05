@@ -8,20 +8,29 @@
 #include "sos_target.h"
 
 #include "sosd_cloud_zeromq.h"
+#include "czmq.h"
 
 bool SOSD_cloud_shutdown_underway = false;
+bool SOSD_ready_to_listen = false;
 
-bool SOSD_socket_ready_to_listen = false;
-
+//TODO: This becomes a thread.
 void SOSD_cloud_listen_loop(void) {
-    //TODO: This is a thread launched from sosd.c
+    //NOTE: This happens VERY early, we don't use dlog()
+    //      or SOS_SET_CONTEXT stuff.
+
+    
     //wait for initialization
+    while (!SOSD_ready_to_listen) {
+        usleep(100000);
+    }
+
     //while(supposed_to_keep_running) {
+    //NOTE: This is EARLY, may be no flags set yet.
         //accept connection
         //read in buffer
         //send ack
         //disconnect
-        //SOSD_cloud_process_message(msg)
+        //SOSD_cloud_process_buffer(msg)
     // }
     //clean up stuff
     //free msg
@@ -31,8 +40,10 @@ void SOSD_cloud_listen_loop(void) {
 
 
 //Process a buffer containing 1 or more messages...
+//This is the general "message cracker" for SOSD_cloud_*
+//routines. This should not need to change between versions.
 void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_process_buffer");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_process_buffer.ZEROMQ");
     buffer_rec_ptr evp_buffer = vevent;
 
     SOS_msg_header    header;
@@ -71,8 +82,10 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
         SOS_buffer *msg;
         SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
 
-        dlog(1, "[ccc] (%d of %d) <<< bringing in msg(%15s).size == %d from offset:%d\n",
-                (entry + 1), entry_count, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+        dlog(1, "[ccc] (%d of %d) <<< bringing in"
+                " msg(%15s).size == %d from offset:%d\n",
+                (entry + 1), entry_count, 
+                SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
                 header.msg_size, offset);
 
         //Copy the data into the new message directly:
@@ -128,7 +141,8 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
 
 
 void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_handle_daemon_registration");
+    SOS_SET_CONTEXT(SOSD.sos_context,
+            "SOSD_cloud_handle_daemon_registration.ZEROMQ");
 
     dlog(3, "Registering a new connection...");
 
@@ -151,6 +165,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
         fflush(stderr);
     }
 
+    //TODO: This needs to change for a simpler struct for ZMQ.
     SOSD_evpath_node *node = evp->node[header.msg_from];
 
     node->contact_string = NULL;
@@ -221,7 +236,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
 //       they are pulled (at this time).  They go "downstream"
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
-    SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull");
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull.ZEROMQ");
 
     dlog(4, "Message received... unzipping.\n");
 
@@ -362,23 +377,23 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
  *    scalability and throughput.
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.SOCKET");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.ZEROMQ");
 
-    SOSD_evpath_ready_to_listen = false;
-    SOSD_evpath *evp = &SOSD.daemon.evpath;
+    SOSD_ready_to_listen = false;
+    SOSD_zeromq *zmq = &SOSD.zeromq;
 
-    evp->meetup_path = NULL;
-    evp->meetup_path = getenv("SOS_EVPATH_MEETUP");
-    if ((evp->meetup_path == NULL) || (strlen(evp->meetup_path) < 1)) {
-        evp->meetup_path = (char *) calloc(sizeof(char), SOS_DEFAULT_STRING_LEN);
-        if (!getcwd(evp->meetup_path, SOS_DEFAULT_STRING_LEN)) {
-            fprintf(stderr, "ERROR: The SOS_EVPATH_MEETUP evar was not set,"
+    zmq->meetup_path = NULL;
+    zmq->meetup_path = getenv("SOS_MEETUP_PATH");
+    if ((zmq->meetup_path == NULL) || (strlen(zmq->meetup_path) < 1)) {
+        zmq->meetup_path = (char *) calloc(sizeof(char), PATH_MAX);
+        if (!getcwd(zmq->meetup_path, SOS_DEFAULT_STRING_LEN)) {
+            fprintf(stderr, "ERROR: The SOS_MEETUP_PATH evar was not set,"
                     " and getcwd() failed! Set the evar and retry.\n");
             fflush(stderr);
             exit(EXIT_FAILURE);
         }
-        fprintf(stderr, "STATUS: The SOS_EVPATH_MEETUP evar was not set."
-                " Using getcwd() path:\n\t%s\n", evp->meetup_path);
+        fprintf(stderr, "STATUS: The SOS_MEETUP_PATH evar was not set.\n"
+                        "        Using getcwd() path: %s\n", zmq->meetup_path);
         fflush(stderr);
     }
 
@@ -391,7 +406,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     // Do some sanity checks.
     if (SOSD.daemon.aggregator_count == 0) {
-        fprintf(stderr, "ERROR: SOS requires an aggregator.\n");
+        fprintf(stderr, "ERROR: SOS requires one or more aggregator roles.\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
@@ -429,7 +444,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     // indices...
     SOSD.daemon.cloud_sync_target_count = SOSD.daemon.aggregator_count;
 
-    dlog(0, "Initializing EVPath...\n");
+    dlog(1, "Initializing ZeroMQ...\n");
 
     int aggregation_rank = -1;
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
@@ -440,38 +455,29 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             % SOSD.daemon.aggregator_count;
         SOSD.daemon.cloud_sync_target = aggregation_rank;
     }
-    dlog(0, "   ... aggregation_rank: %d\n", aggregation_rank);
+    dlog(1, "   ... aggregation_rank: %d\n", aggregation_rank);
 
     char *contact_filename = (char *) calloc(2048, sizeof(char));
     snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
-        evp->meetup_path, aggregation_rank);
-    dlog(0, "   ... contact_filename: %s\n", contact_filename);
+        zmq->meetup_path, aggregation_rank);
+    dlog(1, "   ... contact_filename: %s\n", contact_filename);
 
-    dlog(0, "   ... creating connection manager:\n");
-    dlog(0, "      ... evp->recv.cm\n");
-    evp->recv.cm = CManager_create();
-    CMlisten(evp->recv.cm);
-    SOSD_evpath_ready_to_listen = true;
-    CMfork_comm_thread(evp->recv.cm);
-    dlog(0, "      ... configuring stones:\n");
-    evp->recv.out_stone = EValloc_stone(evp->recv.cm);
-    EVassoc_terminal_action(
-            evp->recv.cm,
-            evp->recv.out_stone,
-            SOSD_buffer_format_list,
-            SOSD_evpath_message_handler,
-            NULL);
-    dlog(0, "      ... evp->send.cm\n");
-    evp->send.cm = CManager_create();
-    CMlisten(evp->send.cm);
-    CMfork_comm_thread(evp->send.cm);
-    evp->send.out_stone = EValloc_stone(evp->send.cm);
-    dlog(0, "      ... done.\n");
-    dlog(0, "  ... done.\n");
+    dlog(1, "   ... creating connection manager:\n");
 
+    zmq->context = zmq_ctx_new();
+
+    SOSD_ready_to_listen = true;
+    
+    // This is where EVPath would start listening.
+    //
+    // CMfork_comm_thread(evp->recv.cm);
+    // TODO: Kick up the thread?
+    
     // Get the location we're listening on...
-    evp->recv.contact_string =
-        attr_list_to_string(CMget_contact_list(evp->recv.cm));
+    // evp->recv.contact_string =
+    //     attr_list_to_string(CMget_contact_list(evp->recv.cm));
+
+    //TODO: Write out to the .key file how other ranks can get ahold of us.
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
@@ -481,32 +487,14 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         dlog(0, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
-        dlog(0, "   ... creating objects to coordinate with listeners: ");
-        evp->node = (SOSD_evpath_node **)
-            malloc(expected_node_count * sizeof(SOSD_evpath_node *));
-        int node_idx = 0; 
-        for (node_idx = 0; node_idx < expected_node_count; node_idx++) {
-            // Allocate space to store returning connections to clients...
-            // NOTE: Fill in later, as clients connect.
-            evp->node[node_idx] =
-                (SOSD_evpath_node *) calloc(1, sizeof(SOSD_evpath_node));
-            snprintf(evp->node[node_idx]->name, 256, "%d", node_idx);
-            evp->node[node_idx]->active            = false;
-            evp->node[node_idx]->contact_string    = NULL;
-            evp->node[node_idx]->src               = NULL;
-            evp->node[node_idx]->out_stone         = 0;
-            evp->node[node_idx]->rmt_stone         = 0;
-        }
-        dlog(0, "done.\n");
 
         FILE *contact_file;
-		// set the node id before we use it.
 		SOSD.sos_context->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
 		gethostname( SOSD.sos_context->config.node_id, SOS_DEFAULT_STRING_LEN );
         contact_file = fopen(contact_filename, "w");
-        fprintf(contact_file, "%s\n%s\n",
-                evp->recv.contact_string,
-                SOSD.sos_context->config.node_id);
+        fprintf(contact_file, "%s\n%d\n",
+                SOSD.sos_context->config.node_id,
+                SOSD.sos_context->config.);
         fflush(contact_file);
         fclose(contact_file);
 
@@ -617,7 +605,7 @@ int SOSD_cloud_start(void) {
  * description: Send a message to the target aggregator.
  */
 int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.SOCKET");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.ZEROMQ");
 
     //TODO: Use target API to send message.
     //This is a blocking send.  Use SOSD_cloud_enqueue for async push.
@@ -633,7 +621,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
  *              passing them off to the underlying transport API.
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.ZEROMQ");
     SOS_msg_header header;
     int offset;
 
@@ -672,7 +660,7 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
 // description: Force the send-queue to flush and transmit.
 //
 void  SOSD_cloud_fflush(void) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.SOCKET");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.ZEROMQ");
 
     //TODO: Decide whether this op is supported.
 
@@ -684,7 +672,7 @@ void  SOSD_cloud_fflush(void) {
  * description: Shut down the cloud operation, flush / close files, etc.
  */
 int   SOSD_cloud_finalize(void) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.SOCKET");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.ZEROMQ");
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
 
@@ -710,7 +698,7 @@ int   SOSD_cloud_finalize(void) {
  *              Only certain daemon ranks participate/call this function.
  */
 void  SOSD_cloud_shutdown_notice(void) {
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_shutdown_notice.SOCKET");
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_shutdown_notice.ZEROMQ");
 
     SOS_buffer *shutdown_msg;
     SOS_buffer_init(SOS, &shutdown_msg);
@@ -801,4 +789,10 @@ void  SOSD_cloud_shutdown_notice(void) {
     return;
 }
 
-
+void *SOSD_THREAD_ZEROMQ_listen_wrapper(void *not_used) {
+    // Run the basic API-required loop listener function.
+    // NOTE: Daemons have globals, no need to intake a parameter.
+    SOSD_cloud_listen_loop():
+    pthread_exit(NULL);
+    return NULL;
+}
