@@ -156,8 +156,8 @@ void SSOS_result_destroy(SSOS_query_results *results) {
     SSOS_CONFIRM_ONLINE("SSOS_results_destroy");
     SOS_SET_CONTEXT(g_sos, "SSOS_results_destroy");
 
-    int row = 0;
-    int col = 0;
+    uint32_t row = 0;
+    uint32_t col = 0;
     for (row = 0; row < results->row_count; row++) {
         for (col = 0; col < results->col_count; col++) {
             free(results->data[row][col]);
