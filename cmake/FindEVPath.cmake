@@ -70,7 +70,7 @@ if(EVPath_CONFIG)
     IF (NOT EVPath_FIND_QUIETLY)
         message("FindEVPath: run ${EVPath_CONFIG}")
     ENDIF (NOT EVPath_FIND_QUIETLY)
-    execute_process(COMMAND ${EVPath_CONFIG} "-l"
+    execute_process(COMMAND ${EVPath_CONFIG} "-s"
         OUTPUT_VARIABLE evpath_config_out
         RESULT_VARIABLE evpath_config_ret
         OUTPUT_STRIP_TRAILING_WHITESPACE
@@ -93,6 +93,7 @@ if(EVPath_CONFIG)
             elseif(OPT MATCHES "^-l(.*)")
                 list(APPEND evpath_libs "${CMAKE_MATCH_1}")
             else()
+                message("${OPT}")
                 list(APPEND evpath_libs "${OPT}")
             endif()
         endforeach()
