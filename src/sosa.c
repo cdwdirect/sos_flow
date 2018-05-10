@@ -11,6 +11,7 @@
 
 #include "sos.h"
 #include "sosa.h"
+#include "sos_re.h"
 #include "sos_types.h"
 #include "sos_debug.h"
 #include "sos_target.h"
@@ -27,7 +28,10 @@ void SOSA_cache_to_results(
     double start_time = 0.0;
     double stop_time  = 0.0;
     SOS_TIME(start_time);
-   
+  
+    SOS_re_t pub_regex = SOS_re_compile(pub_filter_regex);
+    SOS_re_t val_regex = SOS_re_compile(val_filter_regex);
+
     SOS_pub *pub = NULL;
     SOS_list_entry *entry = SOSD.pub_list_head;
 
@@ -64,18 +68,21 @@ void SOSA_cache_to_results(
     char *val_str;
     char val_numeric_str  [128] = {0};
 
+    printf("filters...  pub: %s    val: %s\n",
+            pub_filter_regex,
+            val_filter_regex);
+
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
-        //TODO: Make pub->title a REGEX test
-        //if ((strcmp(pub->title, pub_filter_regex) == 0) \
-                && pub->cache_depth > 0) {
         if (pub == NULL) break;
-
-        if (true) {
+        //if ((pub->cache_depth > 0)  //NOTE: Regex isn't working right yet.
+        //    && (SOS_re_matchp(pub_regex, pub->title)))
+        if ((pub->cache_depth > 0)
+            && (strcmp(pub_filter_regex, pub->title) == 0))
+        {
             for (i = 0; i < pub->elem_count; i++) {
-                //TODO: Make pub->data[i]->name a REGEX test
-                //if (strcmp(pub->data[i]->name, val_filter_regex) == 0) {
-                if (true) {
+                //if (SOS_re_matchp(val_regex, pub->data[i]->name)) {
+                if (strcmp(val_filter_regex, pub->data[i]->name) == 0) {
                     SOS_val_snap *snap = pub->data[i]->cached_latest;
                     frames_grabbed = 0;
 
