@@ -67,11 +67,15 @@ void SOSA_cache_to_results(
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
         //TODO: Make pub->title a REGEX test
-        if ((strcmp(pub->title, pub_filter_regex) == 0) 
+        //if ((strcmp(pub->title, pub_filter_regex) == 0) \
                 && pub->cache_depth > 0) {
+        if (pub == NULL) break;
+
+        if (true) {
             for (i = 0; i < pub->elem_count; i++) {
                 //TODO: Make pub->data[i]->name a REGEX test
-                if (strcmp(pub->data[i]->name, val_filter_regex) == 0) {
+                //if (strcmp(pub->data[i]->name, val_filter_regex) == 0) {
+                if (true) {
                     SOS_val_snap *snap = pub->data[i]->cached_latest;
                     frames_grabbed = 0;
 
@@ -84,13 +88,15 @@ void SOSA_cache_to_results(
                             // NOTE: Snaps are stored as a push-down stack, so
                             //       cached_latest is the largest frame #, and
                             //       snap->next_snap is a lower/earlier frame.
+                            
                             snap = snap->next_snap;
                             continue;
                         }
                         if (   (frame_depth_limit > 0)
-                            && (frames_grabbed > frame_depth_limit)) {
+                            && (frames_grabbed >= frame_depth_limit)) {
                             // If we're limiting results, and we're past the
                             // limit, move on to the next value in the pub.
+                            
                             break;
                         }
 
@@ -103,9 +109,12 @@ void SOSA_cache_to_results(
                         snprintf(time_pack_str,    128, "%lf", snap->time.pack);
                         snprintf(time_recv_str,    128, "%lf", snap->time.recv);
                         snprintf(val_frame_str,    128, "%ld", snap->frame);
-                        snprintf(val_relation_str, 128, SOS_GUID_FMT, snap->relation_id);
+                        snprintf(val_relation_str, 128, "%"SOS_GUID_FMT,
+                                snap->relation_id);
                         snprintf(val_type_str,     128, "%d", snap->type);
-                        snprintf(val_guid_str,     128, SOS_GUID_FMT, snap->guid);
+                        snprintf(val_guid_str,     128, "%"SOS_GUID_FMT,
+                                snap->guid);
+
 
                         switch(snap->type) {
                         case SOS_VAL_TYPE_INT:
@@ -148,8 +157,11 @@ void SOSA_cache_to_results(
                         SOSA_results_put(results, 12, row, val_guid_str);
                         SOSA_results_put(results, 13, row, val_str);
 
+                        frames_grabbed++;
+
                         snap = snap->next_snap;
                         row++;
+                        results->row_count = row;
                     }//while: snap
                 }//for: vals
             }//end:if[name]
@@ -344,6 +356,9 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
 
     if (results->data[row][col] != NULL) { free(results->data[row][col]); }
 
+    if (results->row_count < (row + 1)) { results->row_count = (row + 1); }
+    if (results->col_count < (col + 1)) { results->col_count = (col + 1); }
+
     results->data[row][col] = strdup((const char *) strval);
 
     return;
@@ -351,13 +366,16 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
 
 
 void SOSA_results_put_name(SOSA_results *results, int col, const char *name) {
-    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_col_name");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_put_name");
 
     if (col >= results->col_max) {
-        SOSA_results_grow_to(results, col, results->row_max);
+        SOSA_results_grow_to(results, col, 0);
     }
 
     if (results->col_names[col] != NULL) { free(results->col_names[col]); }
+
+    dlog(5, "Resultset(%d x %d) column[%2d].name == \"%s\"\n",
+            results->col_max, results->row_max, col, name);
 
     results->col_names[col] = strdup((const char *) name);
 
@@ -634,6 +652,10 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
 
     }//select
 
+    printf("\n");
+    printf("Query executed in %lf seconds.\n",
+            results->exec_duration);
+
     return;
 }
 
@@ -731,10 +753,14 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 }
 
 
-void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max) {
+void SOSA_results_grow_to(SOSA_results *results, int new_col_ask, int new_row_ask) {
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_grow_to");
     int row;
     int col;
+
+    int new_col_max = new_col_ask;
+    int new_row_max = new_row_ask;
+
 
     if ((new_col_max < results->col_max) && (new_row_max < results->row_max)) {
         dlog(7, "NOTE: results->data[%d][%d] can already handle requested size[%d][%d].\n",
@@ -757,7 +783,7 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
          results->row_max, results->col_max,
          new_row_max, new_col_max );
 
-    if (new_col_max > results->col_max) {
+    if (new_col_ask >= results->col_max) {
 
         // Add column space to column names...
         results->col_names = (char **) realloc(results->col_names, (new_col_max * sizeof(char *)));
@@ -778,7 +804,7 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
     }
     
 
-    if (new_row_max > results->row_max) {
+    if (new_row_ask >= results->row_max) {
         // Add additional rows space
         results->data = (char ***) realloc(results->data, (new_row_max * sizeof(char **)));
         // For each new row...

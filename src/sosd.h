@@ -88,7 +88,7 @@ typedef struct {
     SOS_guid            req_guid;
     char               *reply_host;
     int                 reply_port;
-    void               *results;
+    SOSA_results       *results;
 } SOSD_cache_grab_handle;
 
 

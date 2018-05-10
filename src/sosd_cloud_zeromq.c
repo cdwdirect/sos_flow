@@ -13,7 +13,7 @@
 bool SOSD_cloud_shutdown_underway = false;
 bool SOSD_ready_to_listen = false;
 
-//TODO: This becomes a thread.
+//TODO: This becomes a thread (or gets called by a thread).
 void SOSD_cloud_listen_loop(void) {
     //NOTE: This happens VERY early, we don't use dlog()
     //      or SOS_SET_CONTEXT stuff.

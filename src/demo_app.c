@@ -83,7 +83,16 @@ DEMO_feedback_handler(
                 (unsigned char *) payload_data);
         fflush(stdout);
         break;
+
+    case SOS_FEEDBACK_TYPE_CACHE:
+        SOSA_results_init(my_sos, &results);
+        SOSA_results_from_buffer(results, payload_data);
+        SOSA_results_output_to(stdout, results,
+                "Query Results", SOSA_OUTPUT_W_HEADER);
+        SOSA_results_destroy(results);
+        break; 
     }
+    
     g_done = 1;
 
     return;
@@ -210,15 +219,25 @@ int main(int argc, char *argv[]) {
     srandom(my_sos->my_guid);
 
     if (WAIT_FOR_FEEDBACK) {
-        //printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
+        //SQL_QUERY Block: START
+        printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
         const char * portStr = getenv("SOS_CMD_PORT");
         if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
         SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
-        //printf("demo_app: Waiting for results.\n");
+        printf("demo_app: Waiting for results.\n");
+        //SQL_QUERY Block: END
+        
+        //CACHE_GRAB Block: START
+        //SOSA_cache_grab(SOS, "demo", "example_dbl_1", -1, -1,
+        //        "localhost", 22500);
+
+        //CACHE_GRAB Block: END
+
+
         while(!g_done) {
             usleep(100000);
         }
-    
+        //... 
     } else {
 
         dlog(1, "Registering sensitivity...\n");
