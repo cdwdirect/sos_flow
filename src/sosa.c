@@ -78,11 +78,11 @@ void SOSA_cache_to_results(
         //if ((pub->cache_depth > 0)  //NOTE: Regex isn't working right yet.
         //    && (SOS_re_matchp(pub_regex, pub->title)))
         if ((pub->cache_depth > 0)
-            && (strcmp(pub_filter_regex, pub->title) == 0))
+            && (strstr(pub->title, pub_filter_regex) != NULL))
         {
             for (i = 0; i < pub->elem_count; i++) {
                 //if (SOS_re_matchp(val_regex, pub->data[i]->name)) {
-                if (strcmp(val_filter_regex, pub->data[i]->name) == 0) {
+                if (strstr(pub->data[i]->name, val_filter_regex) != NULL) {
                     SOS_val_snap *snap = pub->data[i]->cached_latest;
                     frames_grabbed = 0;
 

@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
         //CACHE_GRAB Block: START
         
         //Get the latest frame for everything:
-        SOSA_cache_grab(SOS, "demo", "example_dbl_22", -1, 1, "localhost", 22500);
+        SOSA_cache_grab(SOS, "", "", -1, 1, "localhost", 22500);
 
         //CACHE_GRAB Block: END
 
