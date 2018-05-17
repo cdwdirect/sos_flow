@@ -727,7 +727,7 @@ SOS_msg_unzip(
         int starting_offset,
         int *offset_after_header)
 {
-    SOS_SET_CONTEXT(msg->sos_context, "SOS_message_unzip");
+    SOS_SET_CONTEXT(msg->sos_context, "SOS_msg_unzip");
 
     if (msg->is_locking) {
         pthread_mutex_unlock(msg->lock);
@@ -1439,7 +1439,90 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
     return;
 }
 
+void SOS_pub_config(SOS_pub *pub, SOS_pub_option opt, ...) {
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pub_config");
 
+    //NOTE: Each option will have its own expectations
+    //      for what is in the va_list.  Determine what
+    //      to scrape out inside the switch below.
+    va_list  ap;
+    va_start(ap, opt);
+    //
+    int      i;
+    double   d;
+    char    *c;
+
+    int offset = 0;
+    SOS_buffer *msg = NULL;
+    SOS_buffer *reply = NULL;
+    SOS_msg_header header;
+
+    // Be conservative and grab the lock the whole time any
+    // options are being set.  Configuration is a relatively
+    // rare event, better safe than sorry -- this will prevent
+    // extremely rare cases such as one thread announcing
+    // and another adjusting cache depth, with a race
+    // condition that causes the notification to not be sent
+    // to the daemon.
+    pthread_mutex_lock(pub->lock);
+
+    switch (opt) {
+
+    case SOS_PUB_OPTION_CACHE:
+        // Get the new pub cache depth: 
+        i = va_arg(ap, int);
+
+
+        if (pub->cache_depth != i) {
+            pub->cache_depth = i;
+
+            // NOTE: Only send message IF the pub has been
+            //       announced/published already, otherwise
+            //       the newly set size will go out with the
+            //       first publish.
+
+            if (pub->announced > 0) {
+                // NOTE: Create a SOS_MSG_TYPE_CACHE_SIZE message
+                //       and send it to the listener.  (It will
+                //       forward it to the aggregator as needed.)
+
+                offset = 0;
+                SOS_buffer_init_sized_locking(SOS, &msg, 1024, false);
+                SOS_buffer_init_sized_locking(SOS, &reply, 1024, false);
+                header.msg_size = -1;
+                header.msg_type = SOS_MSG_TYPE_CACHE_SIZE;
+                header.msg_from = SOS->my_guid;
+                header.ref_guid = pub->guid;
+                SOS_msg_zip(msg, header, 0, &offset);
+                SOS_buffer_pack(msg, &offset, "gi",
+                        pub->guid,
+                        pub->cache_depth);
+                offset = 0;
+                SOS_msg_zip(msg, header, 0, &offset);
+                SOS_send_to_daemon(msg, reply);
+                SOS_buffer_destroy(msg);
+                SOS_buffer_destroy(reply);
+            }
+            // Done adjusting the cache_size and giving notice.
+
+        } else {
+            // If we got here it is because the pub is already
+            // set to the cache_depth being requested.
+            //
+            // Do nothing.
+        }
+        break; //end: SOS_PUB_OPTION_CACHE
+
+    default:
+        dlog(1, "WARNING: Invalid option, doing nothing. (%d)\n", opt);
+        pthread_mutex_unlock(pub->lock);
+        return;
+    }
+
+    pthread_mutex_unlock(pub->lock);
+
+    return;
+}
 
 
 void SOS_expand_data( SOS_pub *pub ) {
@@ -1448,10 +1531,15 @@ void SOS_expand_data( SOS_pub *pub ) {
     // NOTE: This is an internal-use-only function, and assumes you
     //       already hold the lock on the pub.
 
+    double start_time = 0.0;
+    double stop_time  = 0.0;
+
     dlog(6, "Growing pub(\"%s\")->elem_max from %d to %d...\n",
             pub->title,
             pub->elem_max,
             (pub->elem_max + SOS_DEFAULT_ELEM_MAX));
+
+    SOS_TIME(start_time);
 
     int n = 0;
     int from_old_max = pub->elem_max;
@@ -1466,7 +1554,9 @@ void SOS_expand_data( SOS_pub *pub ) {
 
     pub->elem_max = to_new_max;
 
-    dlog(6, "  ... done.\n");
+    SOS_TIME(stop_time);
+
+    dlog(6, "  ... done.  (ALLOC: %3.6lf seconds\n", (stop_time - start_time));
 
     return;
 }

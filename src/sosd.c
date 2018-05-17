@@ -593,7 +593,8 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_CHECK_IN:     SOSD_handle_check_in    (buffer); break;
         case SOS_MSG_TYPE_PROBE:        SOSD_handle_probe       (buffer); break;
         case SOS_MSG_TYPE_QUERY:        SOSD_handle_query       (buffer); break;
-        case SOS_MSG_TYPE_MATCH_PUBS:   SOSD_handle_cache_grab  (buffer); break;
+        case SOS_MSG_TYPE_CACHE_GRAB:   SOSD_handle_cache_grab  (buffer); break;
+        case SOS_MSG_TYPE_CACHE_SIZE:   SOSD_handle_cache_size  (buffer); break;
         case SOS_MSG_TYPE_SENSITIVITY:  SOSD_handle_sensitivity (buffer); break;
         case SOS_MSG_TYPE_DESENSITIZE:  SOSD_handle_desensitize (buffer); break;
         case SOS_MSG_TYPE_TRIGGERPULL:  SOSD_handle_triggerpull (buffer); break;
@@ -1383,6 +1384,146 @@ SOSD_handle_cache_grab(SOS_buffer *msg) {
 
 
 void
+SOSD_handle_cache_size(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_cache_size");
+
+    SOS_msg_header header;
+    int offset = 0;
+
+    bool cache_resized = false;
+
+    // Start off by releasing the client w/an ACK message...
+    dlog(6, "   ...send ACK to client.\n");
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+    int rc = SOS_target_send_msg(SOSD.net, reply);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply);
+
+
+    // NOTE: For now, we handle this immediately.
+    //       Resizing a pub's cache is a rare event and
+    //       usually at init or outside of application loops.
+    //
+    //       Keep an eye here if the cache concept in SOS
+    //       develops in complexity, the guts of this function
+    //       could get moved into a work ticket handled
+    //       by the feedback thread, and all we do here
+    //       is generate the ticket and move on.
+
+    SOS_msg_unzip(msg, &header, 0, &offset);
+  
+    SOS_pub   *pub           = NULL;
+    SOS_guid   guid          = 0;
+    char       guid_str[124] = {0};
+    int        cache_to_size = 0;
+
+    SOS_buffer_unpack(msg, &offset, "g", &guid);
+    SOS_buffer_unpack(msg, &offset, "i", &cache_to_size);
+
+    // TODO: Allow for a guid of -1 to mean "resize cache for ALL pubs."
+   
+    if (cache_to_size < 0) cache_to_size = 0;
+
+    snprintf(guid_str, 124, "%" SOS_GUID_FMT, guid);
+
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
+
+    if (pub == NULL) {
+        dlog(1, "Cache size msg received for unknown pub!  Doing nothing.\n");
+        return;
+    }
+
+    pthread_mutex_lock(pub->lock);
+
+    if (pub->cache_depth < cache_to_size) {
+        // Allow our cache depth to grow automatically as new
+        // values arrive.  (requires no immediate effort)
+        dlog(4, "Growing pub->cache_depth from %d to %d.\n",
+                pub->cache_depth, cache_to_size);
+        pub->cache_depth = cache_to_size;
+        cache_resized = true;
+    } else {
+        // Cache is being requested to shrink. Set the new size
+        // and then go inside and prune off any data beyond the new
+        // depth.
+        dlog(4, "Shrinking pub->cache_depth from %d to %d.\n",
+                pub->cache_depth, cache_to_size);
+        pub->cache_depth = cache_to_size;
+        cache_resized = true;
+
+        int           elem = 0;
+        int           deep = 0;
+        SOS_val_snap *snap = NULL;
+        SOS_val_snap *next = NULL;
+        SOS_val_snap *last = NULL;
+
+        for (elem = 0; elem < pub->elem_count; elem++) {
+            snap = pub->data[elem]->cached_latest;
+            deep = -1;
+            while ((deep < pub->cache_depth)
+                && (snap != NULL)) {
+                // Roll through snaps until we find the end of
+                // data or go beyond the new limit.
+                last = snap;
+                snap = snap->next_snap;
+                deep++;
+            }
+            if ((deep >= pub->cache_depth)
+                && (snap != NULL)) {
+                dlog(4, "Pruning...\n");
+                // We have a pointer to the beginning of the
+                // cache where we want to start removing values,
+                // AND there are values here to remove.
+                //
+                // Set the previous pointer's next_snap to NULL
+                // since it's the new end of the list
+                last->next_snap = NULL;
+                // Now proceed to wipe out the remainder of the snaps:
+                while (snap != NULL) {
+                    switch(snap->type) {
+                    case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
+                    case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
+                    case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
+                    case SOS_VAL_TYPE_STRING: free(snap->val.c_val); break;
+                    case SOS_VAL_TYPE_BYTES:  free(snap->val.bytes); break;
+                    }
+                    dlog(4, "    pub->data[%d]...snap->frame == %d\n",
+                            elem, snap->frame);
+                    next = snap->next_snap;
+                    snap->next_snap = NULL;
+                    free(snap);     
+                    snap = next;
+                } //end: while (snap!=NULL)
+            } //end: if (snaps to free)
+        } //end: for (all elems in pub)
+        //
+        // Done shrinking cache.
+
+    } //end: if (pub cache being changed)
+
+    pthread_mutex_unlock(pub->lock);
+
+    if ((cache_resized)
+        && (SOS->role != SOS_ROLE_AGGREGATOR)) {
+        //Enqueue this message to send to our aggregator
+        SOSD_cloud_send(msg, (SOS_buffer *) NULL);
+    }
+
+
+    dlog(6, "Done.\n");
+
+    return;
+}
+
+void
 SOSD_handle_unregister(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_unregister");
 
@@ -1545,7 +1686,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
 
     if (pub == NULL) {
         dlog(0, "ERROR: No pub exists for header.ref_guid"

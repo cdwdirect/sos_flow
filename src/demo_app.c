@@ -230,7 +230,7 @@ int main(int argc, char *argv[]) {
         //CACHE_GRAB Block: START
         
         //Get the latest frame for everything:
-        SOSA_cache_grab(SOS, "", "", -1, 1, "localhost", 22500);
+        SOSA_cache_grab(SOS, "", SQL_QUERY, -1, -1, "localhost", 22500);
 
         //CACHE_GRAB Block: END
 
@@ -247,12 +247,10 @@ int main(int argc, char *argv[]) {
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
         SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_DEFAULT);
-       
-        pub->cache_depth = PUB_CACHE_DEPTH;
+        SOS_pub_config(pub, SOS_PUB_OPTION_CACHE, PUB_CACHE_DEPTH);
 
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
         if (rank == 0) dlog(1, "  ... pub->cache_depth = %d\n", pub->cache_depth);
-
 
         if (rank == 0) dlog(1, "Manually configuring some pub metadata...\n");
         strcpy (pub->prog_ver, str_prog_ver);
@@ -264,7 +262,6 @@ int main(int argc, char *argv[]) {
         pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
         //SOS_pack(pub, "test_string", SOS_VAL_TYPE_STRING, "Hello!");
-        
         var_double = 0.0;
 
 
@@ -285,7 +282,6 @@ int main(int argc, char *argv[]) {
                 SOS_pack(pub, elem_name, SOS_VAL_TYPE_STRING, var_string);
                 var_double += 1.00000001;
             }
-
             SOS_publish(pub);
         }
 

@@ -16,6 +16,7 @@
 #include "sos_debug.h"
 #include "sos_target.h"
 
+
 void SOSA_cache_to_results(
         SOS_runtime *sos_context,
         SOSA_results *results,
@@ -208,7 +209,7 @@ SOSA_cache_grab(
 
     SOS_msg_header header;
     header.msg_size = -1;
-    header.msg_type = SOS_MSG_TYPE_MATCH_PUBS;
+    header.msg_type = SOS_MSG_TYPE_CACHE_GRAB;
     header.msg_from = SOS->config.comm_rank;
     header.ref_guid = 0;
 
@@ -768,9 +769,16 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_ask, int new_row_as
     int new_col_max = new_col_ask;
     int new_row_max = new_row_ask;
 
+    int    count_alloc   = 0;
+    int    count_realloc = 0;
+    int    count_inits   = 0;
+    double time_start    = 0.0;
+    double time_stop     = 0.0;
 
-    if ((new_col_max < results->col_max) && (new_row_max < results->row_max)) {
-        dlog(7, "NOTE: results->data[%d][%d] can already handle requested size[%d][%d].\n",
+    if ((new_col_max < results->col_max)
+     && (new_row_max < results->row_max)) {
+        dlog(7, "NOTE: results->data[%d][%d] can already handle"
+                " requested size[%d][%d].\n",
              results->row_max, results->col_max,
              new_row_max, new_col_max );
         dlog(7, "NOTE: Nothing to do, returning.\n");
@@ -786,25 +794,34 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_ask, int new_row_as
     }
 
 
-    dlog(7, "Growing results->data[row_max:%d][col_max:%d] to handle size[row_max:%d][col_max:%d] ...\n",
+    dlog(7, "Growing results->data[row_max:%d][col_max:%d]"
+            " to handle size[row_max:%d][col_max:%d] ...\n",
          results->row_max, results->col_max,
          new_row_max, new_col_max );
+
+    SOS_TIME(time_start);
 
     if (new_col_ask >= results->col_max) {
 
         // Add column space to column names...
         results->col_names = (char **) realloc(results->col_names, (new_col_max * sizeof(char *)));
+        count_realloc++;
         // Initialize it.
         for (col = results->col_max; col < new_col_max; col++) {
             results->col_names[col] = NULL;
+            count_inits++;
         }
 
         // Add column space to existing rows...
         for (row = 0; row < results->row_max; row++) {
-            results->data[row] = (char **) realloc(results->data[row], (new_col_max * sizeof(char *)));
+            results->data[row] =
+                (char **) realloc(results->data[row],
+                        (new_col_max * sizeof(char *)) );
+            count_realloc++;
             // Initialize it.
             for (col = results->col_max; col < new_col_max; col++) {
                 results->data[row][col] = NULL;
+                count_inits++;
             }
         }
         results->col_max = new_col_max;
@@ -813,20 +830,31 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_ask, int new_row_as
 
     if (new_row_ask >= results->row_max) {
         // Add additional rows space
-        results->data = (char ***) realloc(results->data, (new_row_max * sizeof(char **)));
+        results->data =
+            (char ***) realloc(results->data,
+                    (new_row_max * sizeof(char **)) );
+        count_realloc++;
         // For each new row...
         for (row = results->row_max; row < new_row_max; row++) {
             // ...add space for columns
-            results->data[row] = (char **) calloc(results->col_max, sizeof(char **));
+            results->data[row] =
+                (char **) calloc(results->col_max, sizeof(char **));
+            count_alloc++;
             for (col = 0; col < results->col_max; col++) {
                 // ...and initialize each one.
                 results->data[row][col] = NULL;
+                count_inits++;
             }
         }
         results->row_max = new_row_max;
     }
 
-    dlog(7, "    ... done.\n");
+    SOS_TIME(time_stop);
+
+    dlog(7, "    ... done.  (ALLOC: %d realloc, %d alloc, %d inits"
+            " in %1.6lf seconds.\n",
+            count_realloc, count_alloc, count_inits,
+            (time_stop - time_start));
     return;
 }
 

@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 1
-#define SOS_VERSION_MINOR 10004
+#define SOS_VERSION_MINOR 10005
 
 // ...
 
@@ -84,6 +84,8 @@ extern "C" {
     void SOS_pub_init(SOS_runtime *sos_context,
         SOS_pub **pub_handle, const char *pub_title, SOS_nature nature);
 
+    void SOS_pub_config(SOS_pub *pub, SOS_pub_option opt, ...);
+
     int SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type pack_type, const void *pack_val_var);
 
@@ -102,6 +104,7 @@ extern "C" {
 
     void SOS_sense_trigger(SOS_runtime *sos_context,
         char *handle, char *data, int data_length);
+
 
     void SOS_finalize(SOS_runtime *sos_context);
 
