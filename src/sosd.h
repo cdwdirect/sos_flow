@@ -81,12 +81,15 @@ typedef struct {
 
 typedef struct {
     SOS_guid            reply_to_guid;
-    char               *val_name;
+    char               *pub_filter_regex;
+    char               *val_filter_regex;
+    int                 frame_head;
+    int                 frame_depth_limit;
     SOS_guid            req_guid;
     char               *reply_host;
     int                 reply_port;
-    void               *results;
-} SOSD_match_handle;
+    SOSA_results       *results;
+} SOSD_cache_grab_handle;
 
 
 typedef struct {
@@ -160,6 +163,23 @@ typedef struct {
 } SOSD_evpath;
 #endif
 
+#ifdef SOSD_CLOUD_SYNC_WITH_ZEROMQ
+typedef struct {
+    void               *conn;
+    char                conn_str[512];
+    char               *remote_host;
+    int                 remote_port;
+    SOS_role            role;
+} SOSD_zeromq_node;
+
+typedef struct {
+    void               *conn;
+    char                conn_str[512];
+    char               *meetup_path;
+    void               *context;
+} SOSD_zeromq;
+#endif
+
 typedef struct {
     char               *work_dir;
     char               *log_file;
@@ -177,6 +197,12 @@ typedef struct {
 #endif
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     SOSD_evpath         evpath;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_ZEROMQ
+    SOSD_zeromq         zeromq;
+#endif
+#ifdef SOSD_CLOUD_SYNC_WITH_SOCKET
+    SOS_target         *socket;
 #endif
 } SOSD_runtime;
 
@@ -229,16 +255,16 @@ typedef struct {
 } SOSD_sync_set;
 
 
-
 typedef struct {
-    SOS_runtime        *sos_context;
-    SOSD_runtime        daemon;
-    SOSD_db             db;
-    SOS_socket         *net;
-    SOS_uid            *guid;
-    SOSD_sync_set       sync;
-    qhashtbl_t         *pub_table;
-    int                 system_monitoring;
+    SOS_runtime         *sos_context;
+    SOSD_runtime         daemon;
+    SOSD_db              db;
+    SOS_socket          *net;
+    SOS_uid             *guid;
+    SOSD_sync_set        sync;
+    qhashtbl_t          *pub_table;
+    SOS_list_entry      *pub_list_head;
+    int                  system_monitoring;
 } SOSD_global;
 
 /* ----------
@@ -294,6 +320,7 @@ extern "C" {
     void  SOSD_handle_probe(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
     void  SOSD_handle_cache_grab(SOS_buffer *buffer);
+    void  SOSD_handle_cache_size(SOS_buffer *buffer);
     void  SOSD_handle_sensitivity(SOS_buffer *buffer);
     void  SOSD_handle_desensitize(SOS_buffer *buffer);
     void  SOSD_handle_triggerpull(SOS_buffer *buffer);

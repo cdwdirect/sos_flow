@@ -39,6 +39,10 @@ option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF
 
 # --- Other SOS options ---
 
+#set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
+
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
     OFF)
@@ -49,7 +53,7 @@ option(SOS_DAEMON_DETACH
 
 option(SOS_ENABLE_PYTHON
     "Build python analysis interface for client querying of aggregators/listeners"
-    ON)
+    OFF)
 
 option(BUILD_SHARED_LIBS
     "Build Shared libraries? (set to OFF/FALSE/NO for static build)"
@@ -155,9 +159,11 @@ endif ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
 set(CMAKE_POSITION_INDEPENDENT_CODE TRUE)
 set(POSITION_INDEPENDENT_CODE TRUE)
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+
+
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
 
 ###########
 # SOS_FORCE_RPATH OPTIONS

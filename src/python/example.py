@@ -32,8 +32,6 @@ def demonstrateSOS():
     print "Sending this query to the SOS daemon: "
     print "    " + sql_string
     results, col_names = SOS.query(sql_string, sos_host, sos_port)
-    results, col_names = SOS.query(sql_string, sos_host, sos_port)
-    results, col_names = SOS.query(sql_string, sos_host, sos_port)
     print "Results:"
     print "    Output rows....: " + str(len(results))
     print "    Output values..: " + str(results)

@@ -78,6 +78,8 @@
 #include "sosd.h"
 #include "sosd_db_sqlite.h"
 
+#include "sosa.h"
+
 #include "sos_pipe.h"
 #include "sos_qhashtbl.h"
 #include "sos_buffer.h"
@@ -127,7 +129,8 @@ int main(int argc, char *argv[])  {
     // Grab the port from the environment variable SOS_CMD_PORT
     char* tmp_port = getenv("SOS_CMD_PORT");
     if ((tmp_port == NULL) || (strlen(tmp_port)) < 2) {
-        fprintf(stderr, "\n\nSTATUS: SOS_CMD_PORT evar not set.\nSTATUS: Using default: %s\n",
+        fprintf(stderr, "\n\nSTATUS: SOS_CMD_PORT evar not set."
+                "\nSTATUS: Using default: %s\n",
                 SOS_DEFAULT_SERVER_PORT);
         fflush(stderr);
         strncpy(tgt->local_port, SOS_DEFAULT_SERVER_PORT, NI_MAXSERV);
@@ -136,10 +139,10 @@ int main(int argc, char *argv[])  {
     }
     tgt->port_number = atoi(tgt->local_port);
 
-    tgt->listen_backlog = 20;
-    tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
-    tgt->timeout                   = SOS_DEFAULT_MSG_TIMEOUT;
-    tgt->local_hint.ai_family     = AF_INET;     // Allow IPv4 or IPv6
+    tgt->listen_backlog           = 20;
+    tgt->buffer_len               = SOS_DEFAULT_BUFFER_MAX;
+    tgt->timeout                  = SOS_DEFAULT_MSG_TIMEOUT;
+    tgt->local_hint.ai_family     = AF_INET;       // Allow IPv4 or IPv6
     tgt->local_hint.ai_socktype   = SOCK_STREAM;   // _STREAM/_DGRAM/_RAW
     tgt->local_hint.ai_flags      = AI_NUMERICSERV;// Don't invoke namserv.
     tgt->local_hint.ai_protocol   = 0;             // Any protocol
@@ -273,16 +276,15 @@ int main(int argc, char *argv[])  {
     my_role = SOS->role;
 
     dlog(1, "Initializing SOSD:\n");
+    SOSD.sos_context->config.argc = argc;
+    SOSD.sos_context->config.argv = argv;
 
-    dlog(1, "   ... loading options...\n");
-    SOS_options *sos_options = NULL;
-    SOS_options_init(&sos_options, my_role,
-            getenv("SOS_OPTIONS_FILE"), NULL);
-
-    dlog(1, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
-            " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
-    SOS_init_existing_runtime(&SOSD.sos_context,
-            sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    dlog(1, "   ... calling SOS_init_existing_runtime(SOSD.sos_context,"
+            " %s, SOS_RECEIVES_NO_FEEDBACK, NULL) ...\n",
+            SOS_ENUM_STR( SOS->role, SOS_ROLE ));
+            //
+    SOS_init_existing_runtime(&SOSD.sos_context, my_role,
+            SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();
@@ -590,7 +592,8 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_CHECK_IN:     SOSD_handle_check_in    (buffer); break;
         case SOS_MSG_TYPE_PROBE:        SOSD_handle_probe       (buffer); break;
         case SOS_MSG_TYPE_QUERY:        SOSD_handle_query       (buffer); break;
-        case SOS_MSG_TYPE_MATCH_PUBS:   SOSD_handle_cache_grab  (buffer); break;
+        case SOS_MSG_TYPE_CACHE_GRAB:   SOSD_handle_cache_grab  (buffer); break;
+        case SOS_MSG_TYPE_CACHE_SIZE:   SOSD_handle_cache_size  (buffer); break;
         case SOS_MSG_TYPE_SENSITIVITY:  SOSD_handle_sensitivity (buffer); break;
         case SOS_MSG_TYPE_DESENSITIZE:  SOSD_handle_desensitize (buffer); break;
         case SOS_MSG_TYPE_TRIGGERPULL:  SOSD_handle_triggerpull (buffer); break;
@@ -668,15 +671,19 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
     pthread_mutex_lock(my->lock);
 
+    // For processing cache_grabs...
+    SOSD_cache_grab_handle *cache;
     // For processing queries...
     SOSD_query_handle *query;
-    SOS_buffer *results_reply_msg = NULL;
-    SOS_buffer_init(SOS, &results_reply_msg);
     // For processing payloads...
     SOSD_feedback_payload *payload = NULL;
     SOS_buffer *delivery = NULL;
     SOS_buffer_init_sized_locking(SOS, &delivery, 1024, false);
 
+    SOS_socket *target = NULL;
+
+    SOS_buffer *results_reply_msg = NULL;
+    SOS_buffer_init(SOS, &results_reply_msg);
 
     gettimeofday(&now, NULL);
     wait.tv_sec  = SOSD_FEEDBACK_SYNC_WAIT_SEC  + (now.tv_sec);
@@ -704,19 +711,67 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         switch(task->type) {
 
-        case SOS_FEEDBACK_TYPE_MATCH_PUBS:
-            //SLICE
-            break;
+        case SOS_FEEDBACK_TYPE_CACHE:
+            //>>>>>
+            dlog(6, "Processing feedback message for cache_grab!\n");
+            cache = (SOSD_cache_grab_handle *) task->ref;
+            
+            rc = SOS_target_init(SOS, &target,
+                    cache->reply_host, cache->reply_port);
+            if (rc != 0) {
+                dlog(0, "ERROR: Unable to initialize link to %s:%d"
+                        " ... destroying results and returning.\n",
+                        cache->reply_host,
+                        cache->reply_port);
+                if (cache->reply_host != NULL) {
+                    free(cache->reply_host);
+                    cache->reply_host = NULL;
+                }
+                SOSA_results_destroy(cache->results);
+                free(cache);
+                free(task);
+                continue;
+            }
 
-        
-        case SOS_FEEDBACK_TYPE_MATCH_VALS:
-            //SLICE
+            dlog(5, "SOSD: Sending cache results to %s:%d ...\n",
+                   cache->reply_host,
+                   cache->reply_port);
+
+            rc = SOS_target_connect(target);
+            if (rc != 0) {
+                dlog(0, "Unable to connect to"
+                        " client at %s:%d\n",
+                        cache->reply_host,
+                        cache->reply_port);
+            }
+
+            SOS_buffer_wipe(results_reply_msg);
+            SOSA_results_to_buffer(results_reply_msg, cache->results);
+
+            rc = SOS_target_send_msg(target, results_reply_msg);
+            if (rc < 0) {
+                dlog(0, "SOSD: Unable to send message to client.\n");
+            }
+
+            rc = SOS_target_disconnect(target);
+            rc = SOS_target_destroy(target);
+            if (cache->reply_host != NULL) {
+                free(cache->reply_host);
+                cache->reply_host = NULL;
+            }
+
+            //Done delivering cache results.
+            SOSA_results_destroy(cache->results);
+            free(cache);
+
+            dlog(6, "Done processing feedback for cache_grab.\n");
+            //<<<<<
             break;
 
 
         case SOS_FEEDBACK_TYPE_QUERY:
             query = (SOSD_query_handle *) task->ref;
-            SOS_socket *target = NULL;
+            
             rc = SOS_target_init(SOS, &target,
                     query->reply_host, query->reply_port);
             if (rc != 0) {
@@ -1263,24 +1318,209 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
 void
 SOSD_handle_cache_grab(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_cache_grab");
-    //SLICE
-    //
-    // Parts of the API:
-    //      -sos
-    //      -sos_match_model
-    //      -model_var
-    //      -sos_frame_model
-    //      -frame_var
-    //      -regex_pattern
-    //
 
+    SOS_msg_header header;
+
+    int offset = 0;
+    SOS_msg_unzip(msg, &header, 0, &offset);
+
+    SOSD_cache_grab_handle *cache_grab = calloc(1, sizeof(SOSD_cache_grab_handle));
+    cache_grab->results = NULL;
+    SOSA_results_init(SOSD.sos_context, &cache_grab->results);
+
+    SOS_buffer_unpack_safestr(msg, &offset, &cache_grab->reply_host);
+    SOS_buffer_unpack(msg, &offset, "i", &cache_grab->reply_port);
+    SOS_buffer_unpack_safestr(msg, &offset, &cache_grab->pub_filter_regex);
+    SOS_buffer_unpack_safestr(msg, &offset, &cache_grab->val_filter_regex);
+    SOS_buffer_unpack(msg, &offset, "i", &cache_grab->frame_head);
+    SOS_buffer_unpack(msg, &offset, "i", &cache_grab->frame_depth_limit);
+    SOS_buffer_unpack(msg, &offset, "g", &cache_grab->req_guid);
+   
+    char filters[2048];
+    snprintf(filters, 2048, "pub:\"%s\" val:\"%s\"",
+            cache_grab->pub_filter_regex,
+            cache_grab->val_filter_regex);
+
+    SOSA_results_label(cache_grab->results, cache_grab->req_guid, filters);
+
+    // NOTE: Immediately service this cache grab operation, keep an eye on this.
+    SOSA_cache_to_results(SOSD.sos_context, cache_grab->results,
+        cache_grab->pub_filter_regex, cache_grab->val_filter_regex,
+        cache_grab->frame_head, cache_grab->frame_depth_limit);
     
-    
-    
-    
+    SOSD_feedback_task *new_task =
+        (SOSD_feedback_task *) calloc(1, sizeof(SOSD_feedback_task));
+
+    new_task->type = SOS_FEEDBACK_TYPE_CACHE;
+    new_task->ref = cache_grab;
+   
+    // Enqueue this in the feedback pipeline:
+    dlog(6, "   ...enqueing results into feedback pipeline.  (%d rows)\n",
+            cache_grab->results->row_count);
+    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &new_task, 1);
+    SOSD.sync.feedback.queue->elem_count++;
+    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
+
+    dlog(6, "   ...send ACK to client.\n");
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+    int rc = SOS_target_send_msg(SOSD.net, reply);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply);
+
+    dlog(6, "Done.\n");
+
     return;
 }
 
+
+void
+SOSD_handle_cache_size(SOS_buffer *msg) {
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_cache_size");
+
+    SOS_msg_header header;
+    int offset = 0;
+
+    bool cache_resized = false;
+
+    // Start off by releasing the client w/an ACK message...
+    dlog(6, "   ...send ACK to client.\n");
+    SOS_buffer *reply = NULL;
+    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
+    SOSD_PACK_ACK(reply);
+    int rc = SOS_target_send_msg(SOSD.net, reply);
+    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
+            reply->len, rc);
+    if (rc == -1) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        SOSD_countof(socket_bytes_sent += rc);
+    }
+    SOS_buffer_destroy(reply);
+
+
+    // NOTE: For now, we handle this immediately.
+    //       Resizing a pub's cache is a rare event and
+    //       usually at init or outside of application loops.
+    //
+    //       Keep an eye here if the cache concept in SOS
+    //       develops in complexity, the guts of this function
+    //       could get moved into a work ticket handled
+    //       by the feedback thread, and all we do here
+    //       is generate the ticket and move on.
+
+    SOS_msg_unzip(msg, &header, 0, &offset);
+  
+    SOS_pub   *pub           = NULL;
+    SOS_guid   guid          = 0;
+    char       guid_str[124] = {0};
+    int        cache_to_size = 0;
+
+    SOS_buffer_unpack(msg, &offset, "g", &guid);
+    SOS_buffer_unpack(msg, &offset, "i", &cache_to_size);
+
+    // TODO: Allow for a guid of -1 to mean "resize cache for ALL pubs."
+   
+    if (cache_to_size < 0) cache_to_size = 0;
+
+    snprintf(guid_str, 124, "%" SOS_GUID_FMT, guid);
+
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
+
+    if (pub == NULL) {
+        dlog(1, "Cache size msg received for unknown pub!  Doing nothing.\n");
+        return;
+    }
+
+    pthread_mutex_lock(pub->lock);
+
+    if (pub->cache_depth < cache_to_size) {
+        // Allow our cache depth to grow automatically as new
+        // values arrive.  (requires no immediate effort)
+        dlog(4, "Growing pub->cache_depth from %d to %d.\n",
+                pub->cache_depth, cache_to_size);
+        pub->cache_depth = cache_to_size;
+        cache_resized = true;
+    } else {
+        // Cache is being requested to shrink. Set the new size
+        // and then go inside and prune off any data beyond the new
+        // depth.
+        dlog(4, "Shrinking pub->cache_depth from %d to %d.\n",
+                pub->cache_depth, cache_to_size);
+        pub->cache_depth = cache_to_size;
+        cache_resized = true;
+
+        int           elem = 0;
+        int           deep = 0;
+        SOS_val_snap *snap = NULL;
+        SOS_val_snap *next = NULL;
+        SOS_val_snap *last = NULL;
+
+        for (elem = 0; elem < pub->elem_count; elem++) {
+            snap = pub->data[elem]->cached_latest;
+            deep = -1;
+            while ((deep < pub->cache_depth)
+                && (snap != NULL)) {
+                // Roll through snaps until we find the end of
+                // data or go beyond the new limit.
+                last = snap;
+                snap = snap->next_snap;
+                deep++;
+            }
+            if ((deep >= pub->cache_depth)
+                && (snap != NULL)) {
+                dlog(4, "Pruning...\n");
+                // We have a pointer to the beginning of the
+                // cache where we want to start removing values,
+                // AND there are values here to remove.
+                //
+                // Set the previous pointer's next_snap to NULL
+                // since it's the new end of the list
+                last->next_snap = NULL;
+                // Now proceed to wipe out the remainder of the snaps:
+                while (snap != NULL) {
+                    switch(snap->type) {
+                    case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
+                    case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
+                    case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
+                    case SOS_VAL_TYPE_STRING: free(snap->val.c_val); break;
+                    case SOS_VAL_TYPE_BYTES:  free(snap->val.bytes); break;
+                    }
+                    dlog(4, "    pub->data[%d]...snap->frame == %d\n",
+                            elem, snap->frame);
+                    next = snap->next_snap;
+                    snap->next_snap = NULL;
+                    free(snap);     
+                    snap = next;
+                } //end: while (snap!=NULL)
+            } //end: if (snaps to free)
+        } //end: for (all elems in pub)
+        //
+        // Done shrinking cache.
+
+    } //end: if (pub cache being changed)
+
+    pthread_mutex_unlock(pub->lock);
+
+    if ((cache_resized)
+        && (SOS->role != SOS_ROLE_AGGREGATOR)) {
+        //Enqueue this message to send to our aggregator
+        SOSD_cloud_send(msg, (SOS_buffer *) NULL);
+    }
+
+
+    dlog(6, "Done.\n");
+
+    return;
+}
 
 void
 SOSD_handle_unregister(SOS_buffer *msg) {
@@ -1445,7 +1685,7 @@ void SOSD_handle_kmean_data(SOS_buffer *buffer) {
     snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
             header.ref_guid);
 
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table,pub_guid_str);
+    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
 
     if (pub == NULL) {
         dlog(0, "ERROR: No pub exists for header.ref_guid"
@@ -1884,12 +2124,17 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
-        /* If it's not in the table, add it. */
+        // If it's not in the table, add it. 
         SOS_pub_init(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
         pub->guid = header.ref_guid;
         SOSD.pub_table->put(SOSD.pub_table,pub_guid_str, pub);
+        // Add a pointer to the pub_list:
+        SOS_list_entry *new_entry = calloc(1, sizeof(SOS_list_entry));
+        new_entry->ref = (void *)pub;
+        new_entry->next_entry = SOSD.pub_list_head;
+        SOSD.pub_list_head = new_entry;
         // Make sure the pub only goes in once...
         firstAnnouncement = true;
     } else {
@@ -2408,7 +2653,8 @@ void SOSD_init() {
 
     // [hashtable]
     dlog(1, "Setting up a hash table for pubs...\n");
-    SOSD.pub_table = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOSD.pub_table      = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOSD.pub_list_head  = NULL;
 
     dlog(1, "Daemon initialization is complete.\n");
     SOSD.daemon.running = 1;
@@ -2662,6 +2908,6 @@ void SOSD_display_logo(void) {
                "=========================================\n");
 
     }
-
+    fflush(stdout);
     return;
 }
