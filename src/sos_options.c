@@ -2,6 +2,7 @@
 #include <stdio.h>
 
 #include "sos.h"
+#include "sos_types.h"
 #include "sos_debug.h"
 #include "sos_error.h"
 
@@ -9,15 +10,27 @@
 
 
 int SOS_options_init(
+        void           *sos_context,
         SOS_options   **sos_options_ptr_ref,
-        SOS_role        role,
-        char           *filepath,
-        char           *special_settings_key)
+        char           *options_file,
+        char           *options_class)
 {
+    SOS_runtime *SOS_obj = sos_context;
+
+    // NOTE: Options get loaded in three orders of priority:
+    //           evars
+    //           command line params (overrides evars)
+    //           config file (overrides command line and evars)
 
     //Initialize the options
     *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
     SOS_options *opt = *sos_options_ptr_ref;
+
+
+    opt->sos_context    = sos_context;
+    opt->role           = SOS_obj->role; 
+    opt->options_file   = options_file;
+    opt->options_class  = options_class;
 
     //Set default and/or 'sentinel' values.
     opt->listener_port      = -999;
@@ -40,16 +53,41 @@ int SOS_options_init(
 
     opt->pub_cache_depth    = 0;     //0 == No value cacheing
 
-    // TODO: Process what is available...
-    //
-    //  -argv/argc
-    //  -environment
-    //  -actual file
-  
+
+    // STEP 1/3: Load any settings from environment variables:
+    SOS_options_load_evar(opt);
+
+    // STEP 2/3: If provided, load options from command line:
+    if ((SOS_obj->config.argc > 2)
+     && (SOS_obj->config.argv != NULL)) {
+        SOS_options_load_argv(opt);
+    }
+
+    // STEP 3/3: If provided, load options from a config file:
+    if (opt->options_file != NULL) {
+        if (strlen(opt->options_file) > 0) {
+            SOS_options_load_file(opt);
+        }
+    }
+       
+
+    return 0;
+}
+
+
+void SOS_options_load_evar(SOS_options *opt) {
+    // The default "baseline" for options is to use evars.
+
     if (SOS_str_opt_is_enabled(getenv("SOS_BATCH_ENVIRONMENT"))) {
         opt->batch_environment = true;
     } else {
         opt->batch_environment = false;
+    }
+
+    if (SOS_str_opt_is_enabled(getenv("SOS_DB_DISABLED"))) {
+        opt->db_disabled = true;
+    } else {
+        opt->db_disabled = false;
     }
 
     if (SOS_str_opt_is_enabled(getenv("SOS_IN_MEMORY_DATABASE"))) {
@@ -81,11 +119,36 @@ int SOS_options_init(
         // This behavior defaults to being on unless explicitly disabled.
         opt->db_update_frame = true;
     }
-
-    return 0;
+    return;
 }
 
+void SOS_options_load_argv(SOS_options *opt)
+{
+    SOS_runtime *SOS_obj = opt->sos_context;
+    int    argc = SOS_obj->config.argc;
+    char **argv = SOS_obj->config.argv;
 
+    if ((argc < 3) || (argv == NULL)) {
+        // Nothing useful on the command line, skip.
+        return;
+    }
+
+    return;
+}
+
+void SOS_options_load_file(SOS_options *opt)
+{
+    if (!SOS_file_exists(opt->options_file)) {
+        fprintf(stderr, "WARNING: Invalid path specified for"
+                " SOS options file.  Skipping.\n            "
+                " Path given: %s\n", opt->options_file);
+        return;
+    }
+
+    // TODO: Load and scan options file.
+
+    return;
+}
 
 void SOS_options_destroy(SOS_options *sos_options_ptr) {
     SOS_SET_CONTEXT(sos_options_ptr->sos_context, "SOS_options_destroy");

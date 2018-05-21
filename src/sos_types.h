@@ -516,6 +516,10 @@ typedef struct {
 
 typedef struct {
     void               *sos_context;
+    SOS_role            role;
+    char               *options_file;
+    char               *options_class;
+    //
     int                 listener_port;
     int                 listener_count;
     int                 aggregator_count;
@@ -546,6 +550,8 @@ typedef struct {
     int                 comm_size;
     int                 comm_support;
     char               *program_name;
+    int                 argc;  //optional
+    char              **argv;  //optional
     int                 process_id;
     int                 thread_id;
     SOS_layer           layer;

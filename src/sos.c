@@ -124,8 +124,6 @@ static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
  * @p receives parameter should be set to SOS_RECEIVES_NO_FEEDBACK
  * and the @p handler can be set to NULL.
  *
- * @param argc The address of the argc variable from main, or NULL.
- * @param argv The address of the argv variable from main, or NULL.
  * @param sos_runtime The address of an uninitialized SOS_runtime pointer.
  * @param role What this client is doing, e.g: @c SOS_ROLE_CLIENT
  * @param receives What feedback is expected, e.g: @c SOS_RECEIVES_NO_FEEDBACK
@@ -139,12 +137,13 @@ SOS_init(SOS_runtime **sos_runtime,
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
 
-    SOS_options *opt = NULL;
-    SOS_options_init(&opt, role,
-            getenv("SOS_OPTIONS_FILE"), NULL);
+    // If these are needed (as in daemons) then call
+    // SOS_init_existing_runtime() after setting things
+    // up yourself, as in sosd.c:
+    (*sos_runtime)->config.argc = -1;
+    (*sos_runtime)->config.argv = NULL;
 
-    SOS_init_existing_runtime(sos_runtime, opt,
-            role, receives, handler);
+    SOS_init_existing_runtime(sos_runtime, role, receives, handler);
     return;
 }
 
@@ -176,11 +175,13 @@ SOS_init(SOS_runtime **sos_runtime,
 void
 SOS_init_existing_runtime(
         SOS_runtime **sos_runtime,
-        SOS_options *opt,
         SOS_role role,
         SOS_receives receives,
         SOS_feedback_handler_f handler)
 {
+
+   
+    
     SOS_msg_header header;
     int i, n, retval, remote_socket_fd;
     int rc;
@@ -206,6 +207,11 @@ SOS_init_existing_runtime(
         NEW_SOS->role = role;
         break;
     }
+
+    SOS_options *opt = NULL;
+    SOS_options_init(NEW_SOS, &opt,
+                getenv("SOS_OPTIONS_FILE"),
+                getenv("SOS_OPTIONS_CLASS"));
 
     NEW_SOS->config.options = opt;
 
@@ -2377,6 +2383,7 @@ SOS_val_snap_queue_from_buffer(
                     break;
             }
             // We have a new snap, push it down into the pub
+            SOS_TIME(snap_copy->time.recv);
             snap_copy->next_snap = pub->data[snap->elem]->cached_latest;
             pub->data[snap->elem]->cached_latest = snap_copy;
 

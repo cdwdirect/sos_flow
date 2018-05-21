@@ -276,16 +276,15 @@ int main(int argc, char *argv[])  {
     my_role = SOS->role;
 
     dlog(1, "Initializing SOSD:\n");
+    SOSD.sos_context->config.argc = argc;
+    SOSD.sos_context->config.argv = argv;
 
-    dlog(1, "   ... loading options...\n");
-    SOS_options *sos_options = NULL;
-    SOS_options_init(&sos_options, my_role,
-            getenv("SOS_OPTIONS_FILE"), NULL);
-
-    dlog(1, "   ... calling SOS_init(argc, argv, %s, SOSD.sos_context)"
-            " ...\n", SOS_ENUM_STR( SOS->role, SOS_ROLE ));
-    SOS_init_existing_runtime(&SOSD.sos_context,
-            sos_options, my_role, SOS_RECEIVES_NO_FEEDBACK, NULL);
+    dlog(1, "   ... calling SOS_init_existing_runtime(SOSD.sos_context,"
+            " %s, SOS_RECEIVES_NO_FEEDBACK, NULL) ...\n",
+            SOS_ENUM_STR( SOS->role, SOS_ROLE ));
+            //
+    SOS_init_existing_runtime(&SOSD.sos_context, my_role,
+            SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();

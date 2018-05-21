@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 1
-#define SOS_VERSION_MINOR 10005
+#define SOS_VERSION_MINOR 10006
 
 // ...
 
@@ -113,7 +113,7 @@ extern "C" {
     // ---------- internal / utility functions -----------------
 
     void SOS_init_existing_runtime(
-        SOS_runtime **runtime, SOS_options *options, SOS_role role,
+        SOS_runtime **runtime, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
     int SOS_file_exists(char *path);
