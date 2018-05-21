@@ -63,6 +63,39 @@ class SSOS:
             return
         lib.SSOS_pack(entry_name, entry_type, entry_addr)
 
+    def cache_grab(self, pub_filter, val_filter,    \
+            frame_start, frame_depth,               \
+            sos_host, sos_port):
+        res_pub_filter = ffi.new("char[]", pub_filter)
+        res_val_filter = ffi.new("char[]", val_filter)
+        res_frame_start = ffi.new("int*", int(frame_start))
+        res_frame_depth = ffi.new("int*", int(frame_depth))
+        res_host = ffi.new("char[]", sos_host)
+        res_port = ffi.new("int*", int(sos_port))
+        # Send out the cache grab...
+        lib.SSOS_cache_grab(res_pub_filter, res_val_filter,            \
+                            res_frame_start[0], res_frame_depth[0],    \
+                            res_host, res_port[0])
+
+        res_obj = ffi.new("SSOS_query_results*")
+        lib.SSOS_result_claim(res_obj);
+        results = []
+        for row in range(res_obj.row_count):
+            thisrow = []
+            for col in range(res_obj.col_count):
+                thisrow.append(ffi.string(res_obj.data[row][col]))
+            print "results[{}] = {}".format(row, thisrow)
+            results.append(thisrow)
+
+        # Generate the column name list:
+        col_names = []
+        for col in range(0, res_obj.col_count):
+           col_names.append(ffi.string(res_obj.col_names[col]))
+
+        lib.SSOS_result_destroy(res_obj)
+        return (results, col_names)
+
+
     def query(self, sql, host, port):
         res_sql = ffi.new("char[]", sql)
         res_obj = ffi.new("SSOS_query_results*")
@@ -70,22 +103,26 @@ class SSOS:
         res_port = ffi.new("int*", int(port))
 
         # Send out the query...
-        #print "Sending the query..."
+        print "Sending the query..."
         lib.SSOS_query_exec(res_sql, res_host, res_port[0])
         # Grab the next available result.
         # NOTE: For queries submitted in a thread pool, this may not
         #       be the results for the query that was submitted above!
         #       Use of a thread pool requires that the results returned
         #       can be processed independently, for now.
-        #print "Claiming the results..."
+        print "Claiming the results..."
         lib.SSOS_result_claim(res_obj);
+
+        print "Results received!"
+        print "   row_count = " + str(res_obj.row_count)
+        print "   col_count = " + str(res_obj.col_count)
 
         results = []
         for row in range(res_obj.row_count):
             thisrow = []
             for col in range(res_obj.col_count):
                 thisrow.append(ffi.string(res_obj.data[row][col]))
-            #print "results[{}] = {}".format(row, thisrow)
+            print "results[{}] = {}".format(row, thisrow)
             results.append(thisrow)
 
         # Generate the column name list:

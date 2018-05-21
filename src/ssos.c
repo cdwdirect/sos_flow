@@ -62,6 +62,13 @@ void SSOS_feedback_handler(
         return;
     }
 
+    printf("SSOS_feedback_handler:\n"
+           "    payload_type = %d\n"
+           "    payload_size = %d\n"
+           "    payload_data = %p   (pointer)\n",
+           payload_type, payload_size, payload_data);
+    fflush(stdout);
+
     //What was passed in is a SOS_buffer*, not buf->data pointer.
     SOS_buffer *incoming_buffer = (SOS_buffer *) payload_data;
 
@@ -88,7 +95,6 @@ void SSOS_feedback_handler(
 
     return;
 }
-
 
 
 void SSOS_result_pool_size(int *addr_of_counter_int) {
@@ -179,6 +185,26 @@ void SSOS_result_destroy(SSOS_query_results *results) {
     return;
 }
 
+
+void
+SSOS_cache_grab(
+        char *pub_filter,
+        char *val_filter,
+        int frame_head,
+        int frame_depth_limit,
+        char *target_host,
+        int target_port)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_cache_grab");
+    SOS_SET_CONTEXT(g_sos, "SSOS_cache_grab");
+
+    SOSA_cache_grab(g_sos,
+            pub_filter, val_filter,
+            frame_head, frame_depth_limit,
+            target_host, target_port);
+
+    return;
+}
 
 
 void

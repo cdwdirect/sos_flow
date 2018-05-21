@@ -53,7 +53,7 @@ option(SOS_DAEMON_DETACH
 
 option(SOS_ENABLE_PYTHON
     "Build python analysis interface for client querying of aggregators/listeners"
-    OFF)
+    ON)
 
 option(BUILD_SHARED_LIBS
     "Build Shared libraries? (set to OFF/FALSE/NO for static build)"

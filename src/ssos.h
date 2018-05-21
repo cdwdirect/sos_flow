@@ -55,6 +55,7 @@ typedef struct {
     void        *sos_context;
     char        *query_sql;
     uint64_t     query_guid;
+    double       exec_duration;
     uint32_t     col_max;
     uint32_t     col_count;
     char       **col_names;
@@ -77,6 +78,14 @@ extern "C" {
     void SSOS_finalize(void);
 
     void SSOS_query_exec(char *sql, char *target_host, int target_port);
+    void SSOS_cache_grab(
+        char *pub_filter,
+        char *val_filter,
+        int frame_head,
+        int frame_depth_limit,
+        char *target_host,
+        int target_port);
+    //
     void SSOS_result_pool_size(int *addr_of_counter_int);
     void SSOS_result_claim(SSOS_query_results *results);
     void SSOS_result_destroy(SSOS_query_results *results);
