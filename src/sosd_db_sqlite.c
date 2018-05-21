@@ -527,9 +527,6 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     dlog(4, "Building result set...\n");
     SOSA_results *results = NULL;
     SOSA_results_init(SOS, &results);
-    SOSA_results_grow_to(results, 1, 1);
-    SOSA_results_put_name(results, 0, "[NULL]");
-    SOSA_results_put(results, 0, 0, "[NULL]");
 
     double query_start_time = 0.0;
     double query_stop_time  = 0.0;

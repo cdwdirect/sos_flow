@@ -62,12 +62,12 @@ void SSOS_feedback_handler(
         return;
     }
 
-    printf("SSOS_feedback_handler:\n"
-           "    payload_type = %d\n"
-           "    payload_size = %d\n"
-           "    payload_data = %p   (pointer)\n",
-           payload_type, payload_size, payload_data);
-    fflush(stdout);
+    //printf("SSOS_feedback_handler:\n"
+    //       "    payload_type = %d\n"
+    //       "    payload_size = %d\n"
+    //       "    payload_data = %p   (pointer)\n",
+    //       payload_type, payload_size, payload_data);
+    //fflush(stdout);
 
     //What was passed in is a SOS_buffer*, not buf->data pointer.
     SOS_buffer *incoming_buffer = (SOS_buffer *) payload_data;
