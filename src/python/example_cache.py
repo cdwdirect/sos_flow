@@ -43,8 +43,10 @@ def demonstrateSOS():
                            frame_start, frame_depth,    \
                            sos_host, sos_port)
     print "Results:"
-    print "    Output rows....: " + str(len(results))
-    print "    Output values..: " + str(results)
+    print "    Output.........: "
+    print str(results)
+    print ""
+    print "    Row count......: " + str(len(results))
     print "    Column count...: " + str(len(col_names)) 
     print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
     pp.pprint(col_names)

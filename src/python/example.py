@@ -33,8 +33,10 @@ def demonstrateSOS():
     print "    " + sql_string
     results, col_names = SOS.query(sql_string, sos_host, sos_port)
     print "Results:"
-    print "    Output rows....: " + str(len(results))
-    print "    Output values..: " + str(results)
+    print "    Output.........: "
+    print str(results)
+    print ""
+    print "    Row count......: " + str(len(results))
     print "    Column count...: " + str(len(col_names)) 
     print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
     pp.pprint(col_names)

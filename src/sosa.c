@@ -470,7 +470,8 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
         SOS_buffer_pack(buffer, &offset, "s", results->col_names[col]);
     }
 
-    dlog(7, "   ... packing data.\n");
+    dlog(7, "   ... packing data.  (row_count == %d, col_count == %d\n",
+            results->row_count, results->col_count);
     for (row = 0; row < results->row_count; row++) {
         for (col = 0; col < results->col_count; col++) {
             SOS_buffer_pack(buffer, &offset, "s", results->data[row][col]);
