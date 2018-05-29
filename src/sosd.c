@@ -40,6 +40,8 @@
 #define USAGE          "USAGE:   $ sosd  -l, --listeners <count>\n" \
                        "                 -a, --aggregators <count>\n" \
                        "                [-w, --work_dir <full_path>]\n" \
+                       "                [-o, --options_file <full_path]\n"\
+                       "                [-c, --options_class <class>]\n"\
                        OPT_PARAMS
 
 
@@ -108,6 +110,11 @@ int main(int argc, char *argv[])  {
     SOSD.daemon.name        = (char *) calloc(sizeof(char), PATH_MAX);
     SOSD.daemon.log_file    = (char *) calloc(sizeof(char), PATH_MAX);
 
+    // Default to the environment variables.
+    // NOTE: This will be overwritten by any commandline arguments.
+    char *OPTIONS_file_path  = getenv("SOS_OPTIONS_FILE");
+    char *OPTIONS_class_name = getenv("SOS_OPTIONS_CLASS");
+
     // Default the working directory to the current working directory,
     // can be overridden at the command line with the -w option.
     if (!getcwd(SOSD.daemon.work_dir, PATH_MAX)) {
@@ -174,6 +181,14 @@ int main(int argc, char *argv[])  {
         else if ( (strcmp(argv[elem], "--aggregators"     ) == 0)
         ||        (strcmp(argv[elem], "-a"                ) == 0)) {
             SOSD.daemon.aggregator_count = atoi(argv[next_elem]);
+        }
+        else if ( (strcmp(argv[elem], "--options_file"    ) == 0)
+        ||        (strcmp(argv[elem], "-o"                ) == 0)) {
+            OPTIONS_file_path = argv[next_elem];
+        }
+        else if ( (strcmp(argv[elem], "--options_class"   ) == 0)
+        ||        (strcmp(argv[elem], "-c"                ) == 0)) {
+            OPTIONS_class_name = argv[next_elem];
         }
         else if ( (strcmp(argv[elem], "--work_dir"        ) == 0)
         ||        (strcmp(argv[elem], "-w"                ) == 0)) {
@@ -252,8 +267,10 @@ int main(int argc, char *argv[])  {
     SOSD.sos_context = (SOS_runtime *) malloc(sizeof(SOS_runtime));
     memset(SOSD.sos_context, '\0', sizeof(SOS_runtime));
 
-    SOSD.sos_context->role              = my_role;
-    SOSD.sos_context->config.comm_rank  = my_rank;
+    SOSD.sos_context->role                 = my_role;
+    SOSD.sos_context->config.comm_rank     = my_rank;
+    SOSD.sos_context->config.options_file  = OPTIONS_file_path;
+    SOSD.sos_context->config.options_class = OPTIONS_class_name;
 
     #ifdef SOSD_CLOUD_SYNC
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) {
@@ -307,19 +324,31 @@ int main(int argc, char *argv[])  {
     SOSD.net->sos_context = SOSD.sos_context;
     SOSD_setup_socket();
 
-    dlog(1, "Calling daemon_init_database()...\n");
-    SOSD_db_init_database();
+    if (SOS->config.options->db_disabled) {
+        dlog(1, "Skipping database initialization..."
+                " (SOSD_DB_DISABLED == true)\n");
+    } else {
+        dlog(1, "Calling SOSD_db_init_database()...\n");
+        SOSD_db_init_database();
+    }
 
     dlog(1, "Initializing the sync framework...\n");
 
-    SOSD_sync_context_init(SOS, &SOSD.sync.db,
-            sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
+    
+    if (SOS->config.options->db_disabled == false) {
+        SOSD_sync_context_init(SOS, &SOSD.sync.db,
+                sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
+        dlog(1, "   ... SOSD_THREAD_db_sync is ENABLED.\n");
+    } else {
+        dlog(1, "   ... SOSD_THREAD_db_sync is DISABLED.\n");
+    }
 
     #ifdef SOSD_CLOUD_SYNC
     if (SOS->role == SOS_ROLE_LISTENER) {
         SOSD_sync_context_init(SOS, &SOSD.sync.cloud_send,
                 sizeof(SOS_buffer *), SOSD_THREAD_cloud_send);
         SOSD_cloud_start();
+        dlog(1, "   ... SOSD_THREAD_cloud_send is ENABLED.\n");
     }
     #else
     #endif
@@ -327,13 +356,12 @@ int main(int argc, char *argv[])  {
         SOSD_THREAD_local_sync);
 
     // Do system monitoring, if requested.
-    if (SOS_str_opt_is_enabled(getenv("SOS_READ_SYSTEM_STATUS"))) {
-        //setup_system_monitor_pub();
+    if (SOS->config.options->system_monitor_enabled) {
+        dlog(1, "   ... automatic monitoring of client PIDs is ENABLED.\n");
         SOSD_sync_context_init(SOS, &SOSD.sync.system_monitor, 0,
              SOSD_THREAD_system_monitor);
-        SOSD.system_monitoring = 1;
     } else {
-        SOSD.system_monitoring = 0;
+        dlog(1, "   ... automatic monitoring of client PIDs is DISABLED.\n");
     }
 
     SOSD_sync_context_init(SOS, &SOSD.sync.feedback,
@@ -355,22 +383,23 @@ int main(int argc, char *argv[])  {
     }
 
     //
-    //
     // Start listening to the socket with the main thread:
     //
     SOSD_listen_loop();
     //
     // Wait for the database to be done flushing...
     //
-    pthread_join(*SOSD.sync.db.handler, NULL);
+    if (SOS->config.options->db_disabled == false) {
+        pthread_join(*SOSD.sync.db.handler, NULL);
+    }
     //
     // Done!  Cleanup and shut down.
     //
-    //
 
     // If requested, export the database to a file:
-    if (SOS->config.options->db_export_at_exit) {
-
+    if ((SOS->config.options->db_export_at_exit) 
+     && (SOS->config.options->db_disabled == false)) 
+    {
         char dest_file[PATH_MAX] = {0};
         //Go with the default naming convention:
         snprintf(dest_file, PATH_MAX, "%s/%s.%05d.db",
@@ -391,11 +420,14 @@ int main(int argc, char *argv[])  {
                         SOS->config.comm_rank);
             }
         }
-        
         dlog(1, "Exporting database to file:  %s\n", dest_file);
         SOSD_db_export_to_file(dest_file);
         dlog(1, "Exporting complete.\n");
-    }
+    } // end: if DB enabled
+
+    // TODO: Send a trigger to the "SOS" channel to provide notice of shutdown...
+    // This is a really nice idea for coordinated shutdown. 
+
 
     dlog(1, "Closing the sync queues:\n");
 
@@ -411,7 +443,9 @@ int main(int argc, char *argv[])  {
         dlog(1, "  .. SOSD.sync.cloud_recv.queue\n");
         pipe_producer_free(SOSD.sync.cloud_recv.queue->intake);
     }
-    if (SOSD.sync.db.queue != NULL) {
+    if ((SOSD.sync.db.queue != NULL)
+     && (SOS->config.options->db_disabled == false))
+    {
         dlog(1, "  .. SOSD.sync.db.queue\n");
         pipe_producer_free(SOSD.sync.db.queue->intake);
     }
@@ -441,8 +475,10 @@ int main(int argc, char *argv[])  {
     dlog(1, "Destroying uid configurations.\n");
     SOS_uid_destroy( SOSD.guid );
     dlog(1, "  ... done.\n");
-    dlog(1, "Closing the database.\n");
-    SOSD_db_close_database();
+    if (SOS->config.options->db_disabled == false) {
+        dlog(1, "Closing the database.\n");
+        SOSD_db_close_database();
+    }
     dlog(1, "Closing the socket.\n");
     shutdown(SOSD.net->local_socket_fd, SHUT_RDWR);
     #if (SOSD_CLOUD_SYNC > 0)
@@ -625,8 +661,12 @@ void* SOSD_THREAD_system_monitor(void *args) {
     if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
         period_seconds = atoi(system_flag);
     }
-
+ 
+    // NOTE: This calls SOSD_setup_system_monitor_pub() internally:
+    //
     SOSD_setup_system_data();
+    //
+
     while (SOS->status == SOS_STATUS_RUNNING) {
         pthread_mutex_lock(my->lock);
         gettimeofday(&now, NULL);
@@ -990,7 +1030,6 @@ void* SOSD_THREAD_local_sync(void *args) {
         case SOS_MSG_TYPE_ANNOUNCE:   SOSD_handle_announce   (buffer); break;
         case SOS_MSG_TYPE_PUBLISH:    SOSD_handle_publish    (buffer); break;
         case SOS_MSG_TYPE_VAL_SNAPS:  SOSD_handle_val_snaps  (buffer); break;
-        case SOS_MSG_TYPE_KMEAN_DATA: SOSD_handle_kmean_data (buffer); break;
         default:
             dlog(0, "ERROR: An invalid message type (%d) was"
                     " placed in the local_sync queue!\n", header.msg_type);
@@ -1034,6 +1073,10 @@ void* SOSD_THREAD_db_sync(void *args) {
     int              task_index;
     int              queue_depth;
     int              count;
+
+    if (SOS->config.options->db_disabled == true) {
+        pthread_exit(NULL);
+    }
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
@@ -1427,7 +1470,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     SOS_buffer_unpack(msg, &offset, "g", &guid);
     SOS_buffer_unpack(msg, &offset, "i", &cache_to_size);
 
-    // TODO: Allow for a guid of -1 to mean "resize cache for ALL pubs."
+    // IDEA: Allow for a guid of -1 to mean "resize cache for ALL pubs."
    
     if (cache_to_size < 0) cache_to_size = 0;
 
@@ -1665,109 +1708,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
 }
 
 
-void SOSD_handle_kmean_data(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_kmean_data");
-    // For parsing the buffer:
-    char            pub_guid_str[SOS_DEFAULT_STRING_LEN] = {0};
-    SOS_pub         *pub;
-    SOS_msg_header   header;
-    int              offset;
-    int              rc;
-    // For unpacking / using the contents:
-    SOS_guid         guid;
-    SOSD_km2d_point  point;
 
-    dlog(5, "header.msg_type = SOS_MSG_TYPE_KMEAN_DATA\n");
-
-    offset = 0;
-    SOS_msg_unzip(buffer, &header, 0, &offset);
-
-    snprintf(pub_guid_str, SOS_DEFAULT_STRING_LEN, "%" SOS_GUID_FMT,
-            header.ref_guid);
-
-    pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, pub_guid_str);
-
-    if (pub == NULL) {
-        dlog(0, "ERROR: No pub exists for header.ref_guid"
-                " == %" SOS_GUID_FMT "\n", header.ref_guid);
-        dlog(0, "ERROR: Destroying message and returning.\n");
-        SOS_buffer_destroy(buffer);
-        return;
-    }
-
-    dlog(5, "Pub handle found for this KMEANS2D data.\n");
-
-    //TODO: kmean2d -- process data for this pub handle
-    //      this function is present a stub, but the protocol
-    //      is in pleace cleanly now
-
-
-    dlog(5, "Nothing remains to do, returning.\n");
-    return;
-}
-
-
-/*
-void SOSD_handle_peek(SOS_buffer *buffer) {
-    SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_peek");
-    SOS_msg_header header;
-    int            offset;
-    int            rc;
-
-    dlog(5, "header.msg_type = SOS_MSG_TYPE_PEEK\n");
-
-    offset = 0;
-    SOS_msg_unzip(buffer, &header, 0, &offset);
-
-    SOSD_peek_handle *peek = calloc(1, sizeof(SOSD_peek_handle));
-
-    peek->reply_to_guid = header.msg_from;
-    peek->val_name    = NULL;
-    peek->req_guid    = 0;
-    peek->reply_host  = NULL;
-    peek->reply_port  = 0;
-    peek->results     = NULL;
-
-    dlog(6, "   ...extracting peek request...\n");
-    SOS_buffer_unpack_safestr(buffer, &offset, &peek->reply_host);
-    SOS_buffer_unpack(buffer, &offset, "i",    &peek->reply_port);
-    SOS_buffer_unpack_safestr(buffer, &offset, &peek->val_name);
-    SOS_buffer_unpack(buffer, &offset, "g",    &peek->req_guid);
-
-    dlog(6, "      ...received reply_host: \"%s\"\n",
-            peek->reply_host);
-    dlog(6, "      ...received reply_port: \"%d\"\n",
-            peek->reply_port);
-    dlog(6, "      ...received peek_var_name: \"%s\"\n",
-            peek->val_name);
-
-    //Queue up the peek task for the feedback thread.
-    SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
-    feedback->type = SOS_FEEDBACK_TYPE_PEEK;
-    feedback->ref = peek;
-    pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
-    pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
-    SOSD.sync.feedback.queue->elem_count++;
-    pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
-
-    dlog(6, "   ...send ACK to client.\n");
-    SOS_buffer *reply = NULL;
-    SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
-    SOSD_PACK_ACK(reply);
-    SOS_target_send_msg(SOSD.net, reply);
-    dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
-            reply->len, rc);
-    if (rc == -1) {
-        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
-    } else {
-        SOSD_countof(socket_bytes_sent += rc);
-    }
-    SOS_buffer_destroy(reply);
-
-    dlog(6, "Done.\n");
-    return;
-}
-*/
 
 void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_sosa_query");
@@ -1776,6 +1717,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     int            rc;
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
+
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
@@ -1804,15 +1746,54 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     dlog(6, "      ...received query_sql: \"%s\"\n",
             query_handle->query_sql);
 
-    dlog(6, "   ...placing query in db queue.\n");
-    SOSD_db_task *task = NULL;
-    task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
-    task->ref = (void *) query_handle;
-    task->type = SOS_MSG_TYPE_QUERY;
-    pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-    pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-    SOSD.sync.db.queue->elem_count++;
-    pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+    if (SOS->config.options->db_disabled) {
+        // DB is DISABLED
+        //
+        // Since the database is disabled (and clients might not know
+        // this) we need to take a different response here than to
+        // queue it up into the database work order system, as none of
+        // that has been initialized.
+        //
+        // Construct an empty response, drop it in the feedback queue,
+        // and return.  Unblock clients who are waiting for results.
+      
+        dlog(6, "   ...DB is disabled, assembling empty set to reply.\n");
+
+        SOSA_results *results = NULL;
+        SOSA_results_init(SOS, &results); 
+        SOSA_results_label(results,
+                query_handle->query_guid, query_handle->query_sql);
+        results->col_count     = 0;
+        results->row_count     = 0;
+        results->exec_duration = 0.0;
+
+        query_handle->results = results;
+
+        // NOTE: For debugging.  These should not be needed.
+        //SOSA_results_put_name(results, 0, "<error>");
+        //SOSA_results_put(results, 0, 0, "<db disabled>");
+
+        SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
+        feedback->type = SOS_FEEDBACK_TYPE_QUERY;
+        feedback->ref = query_handle;
+        pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+        pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
+        SOSD.sync.feedback.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
+        
+    } else {
+        // DB is ENABLED
+        dlog(6, "   ...placing query in DB queue.\n");
+        SOSD_db_task *task = NULL;
+        task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
+        task->ref = (void *) query_handle;
+        task->type = SOS_MSG_TYPE_QUERY;
+        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+        SOSD.sync.db.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+
+    }
 
     dlog(6, "   ...sending ACK to client.\n");
     SOS_buffer *reply = NULL;
@@ -1884,40 +1865,24 @@ void SOSD_handle_val_snaps(SOS_buffer *buffer) {
         return;
     }
 
-    dlog(5, "Injecting snaps into SOSD.db.snap_queue...\n");
-    SOS_val_snap_queue_from_buffer(buffer, SOSD.db.snap_queue, pub);
+    if (SOS->config.options->db_disabled == false) {
+        dlog(5, "Injecting snaps into SOSD.db.snap_queue...\n");
+        SOS_val_snap_queue_from_buffer(buffer, SOSD.db.snap_queue, pub);
+    } else {
+        dlog(5, "Processing snaps into pub/cache... (DB is disabled)\n");
+        SOS_val_snap_queue_from_buffer(buffer, NULL, pub);
+    }
 
-    dlog(5, "Queue these val snaps up for the database...\n");
-    task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->ref = (void *) pub;
-    task->type = SOS_MSG_TYPE_VAL_SNAPS;
-
-    pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-    pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-    SOSD.sync.db.queue->elem_count++;
-    pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    dlog(5, "  ... done.\n");
-
-
-    // Spin off the k-means information to be treated
-    //   in parallel with its database injection:
-    if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
-        && (SOS->role == SOS_ROLE_LISTENER)) {
-        dlog(4, "Re-queing the k-means task for processing...\n");
-        SOS_buffer *copy;
-        // Make a copy of this buffer.
-        SOS_buffer_clone(&copy, buffer);
-        // Set it to be the KMEAN type of data:
-        offset = 0;
-        header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
-
-        SOS_msg_zip(copy, header, 0, &offset);
-
-        // Enqueue it to be handled:
-        pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
-        pipe_push(SOSD.sync.local.queue->intake, (void *)&copy, 1);
-        SOSD.sync.local.queue->elem_count++;
-        pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+    if (SOS->config.options->db_disabled == false) {
+        dlog(5, "Queue these val snaps up for the database...\n");
+        task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
+        task->ref = (void *) pub;
+        task->type = SOS_MSG_TYPE_VAL_SNAPS;
+        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+        SOSD.sync.db.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+        dlog(5, "  ... done.\n");
     }
 
     return;
@@ -2145,10 +2110,15 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
             SOSD.pub_table->size(SOSD.pub_table));
     dlog(5, "Calling SOSD_apply_announce() ...\n");
 
+    //
     SOSD_apply_announce(pub, buffer);
+    //
     pub->announced = SOSD_PUB_ANN_DIRTY;
+    //
 
-    if (firstAnnouncement == true) {
+    if ((firstAnnouncement == true) 
+     && (SOS->config.options->db_disabled == false)) 
+    {
         task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
         task->ref = (void *) pub;
         task->type = SOS_MSG_TYPE_ANNOUNCE;
@@ -2209,41 +2179,22 @@ void SOSD_handle_publish(SOS_buffer *buffer)  {
 
     SOSD_apply_publish(pub, buffer);
 
-    task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
-    task->ref = (void *) pub;
-    task->type = SOS_MSG_TYPE_PUBLISH;
-    pthread_mutex_lock(pub->lock);
-    if (pub->sync_pending == 0) {
-        pub->sync_pending = 1;
-        pthread_mutex_unlock(pub->lock);
-        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-        SOSD.sync.db.queue->elem_count++;
-        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-    } else {
-        pthread_mutex_unlock(pub->lock);
-    }
-
-    // Spin off the k-means information to be treated
-    //   in parallel with its database injection:
-    if ((pub->meta.nature == SOS_NATURE_KMEAN_2D)
-        && (SOS->role == SOS_ROLE_LISTENER)) {
-        dlog(4, "Re-queing the k-means task for processing...\n");
-        SOS_buffer *copy;
-        // Make a copy of this buffer.
-        SOS_buffer_clone(&copy, buffer);
-        // Set it to be the KMEAN type of data:
-        offset = 0;
-        header.msg_type = SOS_MSG_TYPE_KMEAN_DATA;
-        SOS_msg_zip(copy, header, 0, &offset);
-        // Enqueue it to be handled:
-        pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
-        pipe_push(SOSD.sync.local.queue->intake, (void *) &copy, 1);
-        SOSD.sync.local.queue->elem_count++;
-        pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
-     }
-
-
+    if (SOS->config.options->db_disabled == false) {
+        task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
+        task->ref = (void *) pub;
+        task->type = SOS_MSG_TYPE_PUBLISH;
+        pthread_mutex_lock(pub->lock);
+        if (pub->sync_pending == 0) {
+            pub->sync_pending = 1;
+            pthread_mutex_unlock(pub->lock);
+            pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+            pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+            SOSD.sync.db.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+        } else {
+            pthread_mutex_unlock(pub->lock);
+        } //end: if sync_pending
+    } //end: if db enabled
 
     return;
 }
@@ -2396,8 +2347,13 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     if (SOS->role == SOS_ROLE_LISTENER) {
         queue_depth_cloud          = SOSD.sync.cloud_send.queue->elem_count;
     }
-    uint64_t queue_depth_db_tasks  = SOSD.sync.db.queue->elem_count;
-    uint64_t queue_depth_db_snaps  = SOSD.db.snap_queue->elem_count;
+
+    uint64_t queue_depth_db_tasks  = 0;
+    uint64_t queue_depth_db_snaps  = 0;
+    if (SOS->config.options->db_disabled == false) {
+        queue_depth_db_tasks  = SOSD.sync.db.queue->elem_count;
+        queue_depth_db_snaps  = SOSD.db.snap_queue->elem_count;
+    }
 
     SOS_buffer_pack(reply, &offset, "gggg",
                     queue_depth_local,
@@ -2736,7 +2692,11 @@ void SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer ) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_apply_publish");
 
     dlog(6, "Calling SOS_publish_from_buffer()...\n");
-    SOS_publish_from_buffer(buffer, pub, SOSD.db.snap_queue);
+    if (SOS->config.options->db_disabled) {
+        SOS_publish_from_buffer(buffer, pub, SOSD.db.snap_queue);
+    } else {
+        SOS_publish_from_buffer(buffer, pub, NULL);
+    }
 
     return;
 }

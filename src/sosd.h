@@ -264,7 +264,6 @@ typedef struct {
     SOSD_sync_set        sync;
     qhashtbl_t          *pub_table;
     SOS_list_entry      *pub_list_head;
-    int                  system_monitoring;
 } SOSD_global;
 
 /* ----------

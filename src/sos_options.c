@@ -53,6 +53,9 @@ int SOS_options_init(
 
     opt->pub_cache_depth    = 0;     //0 == No value cacheing
 
+    opt->system_monitor_enabled   = false;
+    opt->system_monitor_freq_usec = -1;
+
 
     // STEP 1/3: Load any settings from environment variables:
     SOS_options_load_evar(opt);
@@ -84,12 +87,6 @@ void SOS_options_load_evar(SOS_options *opt) {
         opt->batch_environment = false;
     }
 
-    if (SOS_str_opt_is_enabled(getenv("SOS_DB_DISABLED"))) {
-        opt->db_disabled = true;
-    } else {
-        opt->db_disabled = false;
-    }
-
     if (SOS_str_opt_is_enabled(getenv("SOS_IN_MEMORY_DATABASE"))) {
         opt->db_in_memory_only = true;
     } else {
@@ -108,7 +105,6 @@ void SOS_options_load_evar(SOS_options *opt) {
         opt->db_export_at_exit = false;
     }
 
-
     if (SOS_str_opt_is_disabled(getenv("SOS_UPDATE_LATEST_FRAME"))) {
         // In some cases we might not want to use any extra time
         // to synchronize the values stored in:
@@ -119,6 +115,26 @@ void SOS_options_load_evar(SOS_options *opt) {
         // This behavior defaults to being on unless explicitly disabled.
         opt->db_update_frame = true;
     }
+
+    if (SOS_str_opt_is_enabled(getenv("SOS_DB_DISABLED"))) {
+        opt->db_disabled = true;
+        // Disabling the database overrides other database settings:
+        opt->db_export_verbose = false;
+        opt->db_export_at_exit = false;
+        opt->db_in_memory_only = false;
+        opt->db_update_frame   = false;
+    } else {
+        opt->db_disabled = false;
+    }
+
+    if (SOS_str_opt_is_enabled(getenv("SOS_SYSTEM_MONITOR_ENABLED"))) {
+        opt->system_monitor_enabled   = true;
+        opt->system_monitor_freq_usec = 100000;
+    } else {
+        opt->system_monitor_enabled   = false;
+        opt->system_monitor_freq_usec = -1;
+    }
+    
     return;
 }
 
