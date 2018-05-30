@@ -759,7 +759,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_destroy(shutdown_msg);
         SOS_buffer_destroy(reply);
 
-    } else {
+    } else if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
         // AGGREGATOR:
         //     Build a dummy message to send to ourself to purge the
         //     main listen loop's accept() call:

@@ -2122,7 +2122,7 @@ SOS_val_snap_queue_from_buffer(
     if (pub == NULL) {
         dlog(0, "WARNING! Attempting to build snap_queue for a"
                 " pub we don't know about.\n");
-        dlog(0, "  ... skipping this request, potentially missing"
+        dlog(2, "  ... skipping this request, potentially missing"
                 " values in the daemon/database.\n");
         return;
     }
@@ -2561,15 +2561,6 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
 
-    if ((SOS->role != SOS_ROLE_CLIENT)) {
-        dlog(1, "AUTOGROW --\n");
-        dlog(1, "AUTOGROW --\n");
-        dlog(1, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
-        dlog(1, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
-        dlog(1, "AUTOGROW --\n");
-        dlog(1, "AUTOGROW --\n");
-    }
-
     // Ensure there is room in this pub to handle incoming data definitions.
     while(pub->elem_max < elem) {
         dlog(6, "  ... growing pub->elem_max from %d to handle"
@@ -2763,7 +2754,7 @@ SOS_announce( SOS_pub *pub ) {
     dlog(6, "Preparing an announcement message...\n");
 
     if (pub->announced != 0) {
-        dlog(1, "This publication has already been announced!"
+        dlog(3, "This publication has already been announced!"
                 " Doing nothing.\n");
         return;
     }
