@@ -142,6 +142,8 @@ SOS_init(SOS_runtime **sos_runtime,
     // up yourself, as in sosd.c:
     (*sos_runtime)->config.argc = -1;
     (*sos_runtime)->config.argv = NULL;
+    (*sos_runtime)->config.options_file  = getenv("SOS_OPTIONS_FILE");
+    (*sos_runtime)->config.options_class = getenv("SOS_OPTIONS_CLASS");
 
     SOS_init_existing_runtime(sos_runtime, role, receives, handler);
     return;
@@ -209,9 +211,10 @@ SOS_init_existing_runtime(
     }
 
     SOS_options *opt = NULL;
+    
     SOS_options_init(NEW_SOS, &opt,
-                getenv("SOS_OPTIONS_FILE"),
-                getenv("SOS_OPTIONS_CLASS"));
+            NEW_SOS->config.options_file,
+            NEW_SOS->config.options_class);
 
     NEW_SOS->config.options = opt;
 
@@ -2242,11 +2245,6 @@ SOS_val_snap_queue_from_buffer(
         return;
     }
 
-    if (snap_queue == NULL) {
-        dlog(0, "ERROR: snap_queue == NULL!\n");
-        return;
-    }
-
     dlog(6, "  ... building val_snap queue from a buffer:\n");
     dlog(6, "     ... processing header\n");
 
@@ -2430,35 +2428,35 @@ SOS_val_snap_queue_from_buffer(
             } //end while
 
             // Let's print the whole thing while we debug.
-            tmp_snap = pub->data[snap->elem]->cached_latest;
-            snap_count = 0;
-            while (tmp_snap != NULL) {
-                switch (tmp_snap->type) {
-                    case SOS_VAL_TYPE_INT:
-                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
-                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                                snap_count, tmp_snap->val.i_val);
-                        break;
-                    case SOS_VAL_TYPE_LONG:
-                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
-                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                                snap_count, tmp_snap->val.l_val);
-                        break;
-                    case SOS_VAL_TYPE_DOUBLE:
-                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
-                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                                snap_count, tmp_snap->val.d_val);
-                        break;
-                    case SOS_VAL_TYPE_STRING:
-                        dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
-                                tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                                snap_count, tmp_snap->val.c_val);
-                        break;
-                }
-                snap_count++;
-                tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
+            //tmp_snap = pub->data[snap->elem]->cached_latest;
+            //snap_count = 0;
+            //while (tmp_snap != NULL) {
+            //    switch (tmp_snap->type) {
+            //        case SOS_VAL_TYPE_INT:
+            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
+            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+            //                    snap_count, tmp_snap->val.i_val);
+            //            break;
+            //        case SOS_VAL_TYPE_LONG:
+            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
+            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+            //                    snap_count, tmp_snap->val.l_val);
+            //            break;
+            //        case SOS_VAL_TYPE_DOUBLE:
+            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
+            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+            //                    snap_count, tmp_snap->val.d_val);
+            //            break;
+            //        case SOS_VAL_TYPE_STRING:
+            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
+            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+            //                    snap_count, tmp_snap->val.c_val);
+            //            break;
+            //    }
+            //    snap_count++;
+            //    tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
 
-            }
+            //}
 
         } //end if: (daemon && pub_cache)
 
@@ -2466,11 +2464,36 @@ SOS_val_snap_queue_from_buffer(
     }//for:snap_index
 
 
-    dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
-    pthread_mutex_lock(snap_queue->sync_lock);
-    pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
-    snap_queue->elem_count += snap_count;
-    pthread_mutex_unlock( snap_queue->sync_lock );
+    if (snap_queue != NULL) {
+        // Place these snapshots in the next queue stage:
+        dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
+        pthread_mutex_lock(snap_queue->sync_lock);
+        pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
+        snap_queue->elem_count += snap_count;
+        pthread_mutex_unlock( snap_queue->sync_lock );
+    } else {
+        // Free the list of snapshots:
+        for (snap_index = 0; snap_index < snap_count; snap_index++) {
+            snap = snap_list[snap_index];
+            switch (snap->type) {
+            case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
+            case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
+            case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
+            case SOS_VAL_TYPE_STRING:
+                if (snap->val.c_val != NULL) {
+                    free(snap->val.c_val);
+                    snap->val.c_val = NULL;
+                }
+                break;
+            case SOS_VAL_TYPE_BYTES:
+                if (snap->val.bytes != NULL) {
+                    free(snap->val.bytes);
+                    snap->val.bytes = NULL;
+                }
+                break;
+            }
+        } // end: forall snaps
+    } //end: if no requeue...
 
     free(snap_list);
 
@@ -2696,15 +2719,6 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
-
-    if ((SOS->role != SOS_ROLE_CLIENT)) {
-        dlog(1, "AUTOGROW --\n");
-        dlog(1, "AUTOGROW --\n");
-        dlog(1, "AUTOGROW -- Announced pub elem_count: %d\n", elem);
-        dlog(1, "AUTOGROW -- In-memory pub elem_count: %d\n", pub->elem_max);
-        dlog(1, "AUTOGROW --\n");
-        dlog(1, "AUTOGROW --\n");
-    }
 
     // Ensure there is room in this pub to handle incoming data definitions.
     while(pub->elem_max < elem) {

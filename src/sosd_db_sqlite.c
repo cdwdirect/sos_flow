@@ -230,6 +230,10 @@ void SOSD_db_init_database() {
     int     retval;
     int     flags;
 
+    if (SOS->config.options->db_disabled) {
+        return;
+    }
+
     dlog(1, "Opening database...\n");
 
     SOSD.db.ready = 0;
@@ -714,7 +718,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     for (i = 0; i < pub->elem_count; i++) {
 
         if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
-            dlog(1, "Skipping pub->data[%d]->sync == %s\n",
+            dlog(6, "Skipping pub->data[%d]->sync == %s\n",
                     i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
             continue;
         } else {

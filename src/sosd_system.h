@@ -41,7 +41,7 @@ public:
   void sample_values();
 };
 
-void setup_system_monitor_pub(void);
+void SOSD_setup_system_monitor_pub(void);
 
 #if defined(APEX_HAVE_CRAY_POWER)
 int read_cray_file(const char * filename) {

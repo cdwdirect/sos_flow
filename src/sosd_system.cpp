@@ -293,7 +293,7 @@ extern "C" void SOSD_setup_system_data(void) {
   oldData = parse_proc_stat();
 }
 
-void setup_system_monitor_pub(void) {
+void SOSD_setup_system_monitor_pub(void) {
     SOS_runtime *SOS = SOSD.sos_context;
 
     /*
@@ -518,7 +518,7 @@ extern "C" void SOSD_add_pid_to_track(SOS_pub *pid_pub) {
 extern "C" void SOSD_read_system_data(void) {
   static bool got_pub = false;
   if (!got_pub) {
-    setup_system_monitor_pub();
+    SOSD_setup_system_monitor_pub();
     got_pub = true;
   }
   newData = parse_proc_stat();

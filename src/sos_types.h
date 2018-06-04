@@ -56,7 +56,6 @@
     MSG_TYPE(SOS_MSG_TYPE_SENSITIVITY)          \
     MSG_TYPE(SOS_MSG_TYPE_DESENSITIZE)          \
     MSG_TYPE(SOS_MSG_TYPE_TRIGGERPULL)          \
-    MSG_TYPE(SOS_MSG_TYPE_KMEAN_DATA)           \
     MSG_TYPE(SOS_MSG_TYPE___MAX)
 
 #define FOREACH_RECEIVES(RECEIVES)              \
@@ -219,7 +218,6 @@
     NATURE(SOS_NATURE_SUPPORT_EXEC)             \
     NATURE(SOS_NATURE_SUPPORT_FLOW)             \
     NATURE(SOS_NATURE_CONTROL_FLOW)             \
-    NATURE(SOS_NATURE_KMEAN_2D)                 \
     NATURE(SOS_NATURE_SOS)                      \
     NATURE(SOS_NATURE___MAX)
 
@@ -541,6 +539,9 @@ typedef struct {
     int                 pub_cache_depth;
     //
     bool                batch_environment;
+    //
+    bool                system_monitor_enabled;
+    int                 system_monitor_freq_usec;
 } SOS_options;
 
 
@@ -564,6 +565,8 @@ typedef struct {
     bool                runtime_utility;
     int                 pub_cache_depth;
     double              time_of_init;
+    char               *options_file;
+    char               *options_class;
     SOS_options        *options;
 } SOS_config;
 
