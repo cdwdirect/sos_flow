@@ -89,8 +89,13 @@ void SOSA_cache_to_results(
 
                     while (snap != NULL) {
                         // Apply our frame constraints, if any:
-                        if (   (frame_head >= 0)
-                            && (snap->frame > frame_head)) {
+                        if (
+                            ((frame_head >= 0) && (snap->frame > frame_head))
+                              ||
+                            ((snap->frame < (frame_head - frame_depth_limit))
+                                && (frame_depth_limit > 0))
+                           )
+                        {
                             // If the request is starting at a specific frame
                             // and we've not hit it yet, move to the next snap.
                             // NOTE: Snaps are stored as a push-down stack, so
