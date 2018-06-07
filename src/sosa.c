@@ -11,36 +11,201 @@
 
 #include "sos.h"
 #include "sosa.h"
+#include "sos_re.h"
 #include "sos_types.h"
 #include "sos_debug.h"
 #include "sos_target.h"
 
-void SOSA_compile_matching_pubs(SOS_runtime *sos_context,
-            SOSA_results **results, char *regex_pattern)
+
+void SOSA_cache_to_results(
+        SOS_runtime *sos_context,
+        SOSA_results *results,
+        char *pub_filter_regex,
+        char *val_filter_regex,
+        int frame_head,
+        int frame_depth_limit)
 {
-    SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_pubs");
-    //SLICE
+    SOS_SET_CONTEXT(sos_context, "SOSA_cache_to_results");
+    double start_time = 0.0;
+    double stop_time  = 0.0;
+    SOS_TIME(start_time);
+  
+    SOS_re_t pub_regex = SOS_re_compile(pub_filter_regex);
+    SOS_re_t val_regex = SOS_re_compile(val_filter_regex);
+
+    SOS_pub *pub = NULL;
+    SOS_list_entry *entry = SOSD.pub_list_head;
+
+    int row = 0;
+
+    int frames_grabbed = 0;
+
+    int i = 0;
+
+    SOSA_results_put_name(results, 0,  "process_id");
+    SOSA_results_put_name(results, 1,  "node_id");
+    SOSA_results_put_name(results, 2,  "pub_title");
+    SOSA_results_put_name(results, 3,  "pub_guid");
+    SOSA_results_put_name(results, 4,  "comm_rank");
+    SOSA_results_put_name(results, 5,  "prog_name");
+    SOSA_results_put_name(results, 6,  "time_pack");
+    SOSA_results_put_name(results, 7,  "time_recv");
+    SOSA_results_put_name(results, 8,  "frame");
+    SOSA_results_put_name(results, 9,  "relation_id");
+    SOSA_results_put_name(results, 10, "val_name");
+    SOSA_results_put_name(results, 11, "val_type");
+    SOSA_results_put_name(results, 12, "val_guid");
+    SOSA_results_put_name(results, 13, "val");
+
+    char comm_rank_str    [128] = {0};
+    char process_id_str   [128] = {0};
+    char time_pack_str    [128] = {0};
+    char time_recv_str    [128] = {0};
+    char val_frame_str    [128] = {0};
+    char val_relation_str [128] = {0};
+    char val_guid_str     [128] = {0};
+    char val_type_str     [128] = {0};
+
+    char *val_str;
+    char val_numeric_str  [128] = {0};
+
+    printf("filters...  pub: %s    val: %s\n",
+            pub_filter_regex,
+            val_filter_regex);
+
+    while (entry != NULL) {
+        pub = (SOS_pub *) entry->ref;
+        if (pub == NULL) break;
+        //if ((pub->cache_depth > 0)  //NOTE: Regex isn't working right yet.
+        //    && (SOS_re_matchp(pub_regex, pub->title)))
+        if ((pub->cache_depth > 0)
+            && (strstr(pub->title, pub_filter_regex) != NULL))
+        {
+            for (i = 0; i < pub->elem_count; i++) {
+                //if (SOS_re_matchp(val_regex, pub->data[i]->name)) {
+                if (strstr(pub->data[i]->name, val_filter_regex) != NULL) {
+                    SOS_val_snap *snap = pub->data[i]->cached_latest;
+                    frames_grabbed = 0;
+
+                    while (snap != NULL) {
+                        // Apply our frame constraints, if any:
+                        if (
+                            ((frame_head >= 0) && (snap->frame > frame_head))
+                              ||
+                            ((snap->frame < (frame_head - frame_depth_limit))
+                                && (frame_depth_limit > 0))
+                           )
+                        {
+                            // If the request is starting at a specific frame
+                            // and we've not hit it yet, move to the next snap.
+                            // NOTE: Snaps are stored as a push-down stack, so
+                            //       cached_latest is the largest frame #, and
+                            //       snap->next_snap is a lower/earlier frame.
+                            
+                            snap = snap->next_snap;
+                            continue;
+                        }
+                        if (   (frame_depth_limit > 0)
+                            && (frames_grabbed >= frame_depth_limit)) {
+                            // If we're limiting results, and we're past the
+                            // limit, move on to the next value in the pub.
+                            
+                            break;
+                        }
+
+                        //If we're here, we have a snapshot that matches
+                        //all of the filtering/frame constraints.
+                        
+                        //Put all the numeric fields into strings:
+                        snprintf(process_id_str,   128, "%d", pub->process_id);
+                        snprintf(comm_rank_str,    128, "%d", pub->comm_rank);
+                        snprintf(time_pack_str,    128, "%lf", snap->time.pack);
+                        snprintf(time_recv_str,    128, "%lf", snap->time.recv);
+                        snprintf(val_frame_str,    128, "%ld", snap->frame);
+                        snprintf(val_relation_str, 128, "%"SOS_GUID_FMT,
+                                snap->relation_id);
+                        snprintf(val_type_str,     128, "%d", snap->type);
+                        snprintf(val_guid_str,     128, "%"SOS_GUID_FMT,
+                                snap->guid);
+
+
+                        switch(snap->type) {
+                        case SOS_VAL_TYPE_INT:
+                            snprintf(val_numeric_str, 128, "%d", snap->val.i_val);
+                            val_str = val_numeric_str; break;
+                        case SOS_VAL_TYPE_LONG:
+                            snprintf(val_numeric_str, 128, "%ld", snap->val.l_val);
+                            val_str = val_numeric_str; break;
+                        case SOS_VAL_TYPE_DOUBLE:
+                            snprintf(val_numeric_str, 128, "%lf", snap->val.d_val);
+                            val_str = val_numeric_str; break;
+                        case SOS_VAL_TYPE_STRING:
+                            if (snap->val.c_val != NULL) {
+                                val_str = snap->val.c_val; break;
+                            } else {
+                                snprintf(val_numeric_str, 128, "(null)");
+                                val_str = val_numeric_str; break;
+                            }
+                        case SOS_VAL_TYPE_BYTES:
+                            snprintf(val_numeric_str, 128, "(bytes)");
+                            val_str = val_numeric_str; break;
+                        default:
+                            snprintf(val_numeric_str, 128, "(unknown type)");
+                            val_str = val_numeric_str; break;
+                        }
+
+                        // SOSA_results_put makes a copy of these values:
+                        SOSA_results_put(results, 0,  row, process_id_str);
+                        SOSA_results_put(results, 1,  row, pub->node_id);
+                        SOSA_results_put(results, 2,  row, pub->title);
+                        SOSA_results_put(results, 3,  row, pub->guid_str);
+                        SOSA_results_put(results, 4,  row, comm_rank_str);
+                        SOSA_results_put(results, 5,  row, pub->prog_name);
+                        SOSA_results_put(results, 6,  row, time_pack_str);
+                        SOSA_results_put(results, 7,  row, time_recv_str);
+                        SOSA_results_put(results, 8,  row, val_frame_str);
+                        SOSA_results_put(results, 9,  row, val_relation_str);
+                        SOSA_results_put(results, 10, row, pub->data[i]->name);
+                        SOSA_results_put(results, 11, row, val_type_str);
+                        SOSA_results_put(results, 12, row, val_guid_str);
+                        SOSA_results_put(results, 13, row, val_str);
+
+                        frames_grabbed++;
+
+                        snap = snap->next_snap;
+                        row++;
+                        results->row_count = row;
+                    }//while: snap
+                }//for: vals
+            }//end:if[name]
+        }//end:for[elems]
+
+        entry = entry->next_entry; 
+    }//while: pubs
+
+    SOS_TIME(stop_time);
+    results->exec_duration = (stop_time - start_time);
+
     return;
 }
 
-
-
-void SOSA_compile_matching_vals(SOS_runtime *sos_context,
-            SOSA_results **results, char *regex_pattern)
-{
-    SOS_SET_CONTEXT(sos_context, "SOSA_compile_matching_vals");
-    //SLICE
-    return;
-}
 
 
 SOS_guid
-SOSA_request_matching_pubs(SOS_runtime *sos_context,
-        char *regex_pattern, char *target_host, int target_port)
+SOSA_cache_grab(
+        SOS_runtime *sos_context,
+        char *pub_filter_regex,
+        char *val_filter_regex,
+        int frame_head,
+        int frame_depth_limit,
+        char *target_host,
+        int target_port)
 {
-    SOS_SET_CONTEXT(sos_context, "SOSA_request_matching_pubs");
+    SOS_SET_CONTEXT(sos_context, "SOSA_cache_grab");
 
-    dlog(7, "Submitting request for current values of pubs named \"%s\" ...\n", regex_pattern);
+    dlog(7, "Submitting request for cached values matching"
+            " pub == \"%s\" && val == \"%s\"   ...\n",
+                pub_filter_regex, val_filter_regex);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
@@ -49,7 +214,7 @@ SOSA_request_matching_pubs(SOS_runtime *sos_context,
 
     SOS_msg_header header;
     header.msg_size = -1;
-    header.msg_type = SOS_MSG_TYPE_MATCH_PUBS;
+    header.msg_type = SOS_MSG_TYPE_CACHE_GRAB;
     header.msg_from = SOS->config.comm_rank;
     header.ref_guid = 0;
 
@@ -78,74 +243,10 @@ SOSA_request_matching_pubs(SOS_runtime *sos_context,
     
     SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
     SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    SOS_buffer_pack(msg, &offset, "s", regex_pattern);
-    SOS_buffer_pack(msg, &offset, "g", request_guid);
-
-    header.msg_size = offset;
-    offset = 0;
-    SOS_msg_zip(msg, header, 0, &offset);
-
-    dlog(7, "   ... sending match request to daemon.\n");
-    SOS_socket *target = NULL;
-    SOS_target_init(SOS, &target, target_host, target_port);
-    SOS_target_connect(target);
-    SOS_target_send_msg(target, msg);
-    SOS_target_recv_msg(target, reply);
-    SOS_target_disconnect(target);
-    SOS_target_destroy(target);
-
-    SOS_buffer_destroy(msg);
-    SOS_buffer_destroy(reply);
-
-    dlog(7, "   ... done.\n");
-    return request_guid;
-}
-
-SOS_guid
-SOSA_request_matching_vals(SOS_runtime *sos_context,
-        char *regex_pattern, char *target_host, int target_port)
-{
-    SOS_SET_CONTEXT(sos_context, "SOSA_request_matching_vals");
-
-    dlog(7, "Submitting request for current values named \"%s\" ...\n", regex_pattern);
-
-    SOS_buffer *msg;
-    SOS_buffer *reply;
-    SOS_buffer_init_sized_locking(SOS, &msg,   4096, false);
-    SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
-
-    SOS_msg_header header;
-    header.msg_size = -1;
-    header.msg_type = SOS_MSG_TYPE_MATCH_VALS;
-    header.msg_from = SOS->config.comm_rank;
-    header.ref_guid = 0;
-
-    dlog(7, "   ... creating msg.\n");
-
-    int offset = 0;
-    SOS_msg_zip(msg, header, 0, &offset);
-    
-    SOS_guid request_guid;
-    if (SOS->role == SOS_ROLE_CLIENT) {
-        // NOTE: This guid is returned by the function so it can
-        // be tracked by clients.  They can blast out a bunch
-        // of queries to different daemons that get returned
-        // asynchronously, and can do some internal bookkeeping by
-        // uniting the results with the original query submission.
-        request_guid = SOS_uid_next(SOS->uid.my_guid_pool);
-    } else {
-        // Or...
-        // this generally should not happen unless the daemon is
-        // submitting queries internally, which is downright
-        // funky and shouldn't be happening, IMO.  -CW
-        request_guid = -99999;
-    }
-    dlog(7, "   ... assigning request_guid = %" SOS_GUID_FMT "\n",
-            request_guid);
-    
-    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
-    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    SOS_buffer_pack(msg, &offset, "s", regex_pattern);
+    SOS_buffer_pack(msg, &offset, "s", pub_filter_regex);
+    SOS_buffer_pack(msg, &offset, "s", val_filter_regex);
+    SOS_buffer_pack(msg, &offset, "i", frame_head);
+    SOS_buffer_pack(msg, &offset, "i", frame_depth_limit);
     SOS_buffer_pack(msg, &offset, "g", request_guid);
 
     header.msg_size = offset;
@@ -268,6 +369,9 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
 
     if (results->data[row][col] != NULL) { free(results->data[row][col]); }
 
+    if (results->row_count < (row + 1)) { results->row_count = (row + 1); }
+    if (results->col_count < (col + 1)) { results->col_count = (col + 1); }
+
     results->data[row][col] = strdup((const char *) strval);
 
     return;
@@ -275,13 +379,16 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
 
 
 void SOSA_results_put_name(SOSA_results *results, int col, const char *name) {
-    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_col_name");
+    SOS_SET_CONTEXT(results->sos_context, "SOSA_results_put_name");
 
     if (col >= results->col_max) {
-        SOSA_results_grow_to(results, col, results->row_max);
+        SOSA_results_grow_to(results, col, 0);
     }
 
     if (results->col_names[col] != NULL) { free(results->col_names[col]); }
+
+    dlog(5, "Resultset(%d x %d) column[%2d].name == \"%s\"\n",
+            results->col_max, results->row_max, col, name);
 
     results->col_names[col] = strdup((const char *) name);
 
@@ -351,9 +458,10 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
         results->query_sql = strdup("<none>");
     }
  
-    SOS_buffer_pack(buffer, &offset, "sg",
+    SOS_buffer_pack(buffer, &offset, "sgd",
                     results->query_sql,
-                    results->query_guid);
+                    results->query_guid,
+                    results->exec_duration);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
@@ -367,7 +475,8 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
         SOS_buffer_pack(buffer, &offset, "s", results->col_names[col]);
     }
 
-    dlog(7, "   ... packing data.\n");
+    dlog(7, "   ... packing data.  (row_count == %d, col_count == %d\n",
+            results->row_count, results->col_count);
     for (row = 0; row < results->row_count; row++) {
         for (col = 0; col < results->col_count; col++) {
             SOS_buffer_pack(buffer, &offset, "s", results->data[row][col]);
@@ -412,6 +521,8 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     dlog(9, "   ... SQL: %s\n", results->query_sql);
     SOS_buffer_unpack(buffer, &offset, "g", &results->query_guid);
     dlog(9, "   ... guid: %" SOS_GUID_FMT "\n", results->query_guid);
+    SOS_buffer_unpack(buffer, &offset, "d", &results->exec_duration);
+    dlog(9, "   ... exec_duration: %3.12lf\n", results->exec_duration);
 
     // Start unrolling the data.
     SOS_buffer_unpack(buffer, &offset, "ii",
@@ -490,6 +601,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
         fprintf(fptr, " \"time_stamp\" : \"%lf\",\n", time_now);
 //        fprintf(fptr, " \"query_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
 //        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
+        fprintf(fptr, " \"exec_duration\" : \"%3.12lf\",\n", results->exec_duration);
         fprintf(fptr, " \"col_count\"  : \"%d\",\n",  results->col_count);
         fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
         fprintf(fptr, " \"data\"       :\n [\n");
@@ -553,6 +665,10 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int 
         break;
 
     }//select
+
+    printf("\n");
+    printf("Query executed in %lf seconds.\n",
+            results->exec_duration);
 
     return;
 }
@@ -621,8 +737,9 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
     results->sos_context = SOS;
 
     // These get set manually w/in the daemons:
-    results->query_guid  = -1;
-    results->query_sql   = NULL;   //strdup("NONE");
+    results->query_guid    = -1;
+    results->query_sql     = NULL;   //strdup("NONE");
+    results->exec_duration = 0.0;
 
     results->col_count   = 0;
     results->row_count   = 0;
@@ -650,13 +767,24 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 }
 
 
-void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max) {
+void SOSA_results_grow_to(SOSA_results *results, int new_col_ask, int new_row_ask) {
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_grow_to");
     int row;
     int col;
 
-    if ((new_col_max < results->col_max) && (new_row_max < results->row_max)) {
-        dlog(7, "NOTE: results->data[%d][%d] can already handle requested size[%d][%d].\n",
+    int new_col_max = new_col_ask;
+    int new_row_max = new_row_ask;
+
+    int    count_alloc   = 0;
+    int    count_realloc = 0;
+    int    count_inits   = 0;
+    double time_start    = 0.0;
+    double time_stop     = 0.0;
+
+    if ((new_col_max < results->col_max)
+     && (new_row_max < results->row_max)) {
+        dlog(7, "NOTE: results->data[%d][%d] can already handle"
+                " requested size[%d][%d].\n",
              results->row_max, results->col_max,
              new_row_max, new_col_max );
         dlog(7, "NOTE: Nothing to do, returning.\n");
@@ -672,47 +800,67 @@ void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_ma
     }
 
 
-    dlog(7, "Growing results->data[row_max:%d][col_max:%d] to handle size[row_max:%d][col_max:%d] ...\n",
+    dlog(7, "Growing results->data[row_max:%d][col_max:%d]"
+            " to handle size[row_max:%d][col_max:%d] ...\n",
          results->row_max, results->col_max,
          new_row_max, new_col_max );
 
-    if (new_col_max > results->col_max) {
+    SOS_TIME(time_start);
+
+    if (new_col_ask >= results->col_max) {
 
         // Add column space to column names...
         results->col_names = (char **) realloc(results->col_names, (new_col_max * sizeof(char *)));
+        count_realloc++;
         // Initialize it.
         for (col = results->col_max; col < new_col_max; col++) {
             results->col_names[col] = NULL;
+            count_inits++;
         }
 
         // Add column space to existing rows...
         for (row = 0; row < results->row_max; row++) {
-            results->data[row] = (char **) realloc(results->data[row], (new_col_max * sizeof(char *)));
+            results->data[row] =
+                (char **) realloc(results->data[row],
+                        (new_col_max * sizeof(char *)) );
+            count_realloc++;
             // Initialize it.
             for (col = results->col_max; col < new_col_max; col++) {
                 results->data[row][col] = NULL;
+                count_inits++;
             }
         }
         results->col_max = new_col_max;
     }
     
 
-    if (new_row_max > results->row_max) {
+    if (new_row_ask >= results->row_max) {
         // Add additional rows space
-        results->data = (char ***) realloc(results->data, (new_row_max * sizeof(char **)));
+        results->data =
+            (char ***) realloc(results->data,
+                    (new_row_max * sizeof(char **)) );
+        count_realloc++;
         // For each new row...
         for (row = results->row_max; row < new_row_max; row++) {
             // ...add space for columns
-            results->data[row] = (char **) calloc(results->col_max, sizeof(char **));
+            results->data[row] =
+                (char **) calloc(results->col_max, sizeof(char **));
+            count_alloc++;
             for (col = 0; col < results->col_max; col++) {
                 // ...and initialize each one.
                 results->data[row][col] = NULL;
+                count_inits++;
             }
         }
         results->row_max = new_row_max;
     }
 
-    dlog(7, "    ... done.\n");
+    SOS_TIME(time_stop);
+
+    dlog(7, "    ... done.  (ALLOC: %d realloc, %d alloc, %d inits"
+            " in %1.6lf seconds.\n",
+            count_realloc, count_alloc, count_inits,
+            (time_stop - time_start));
     return;
 }
 

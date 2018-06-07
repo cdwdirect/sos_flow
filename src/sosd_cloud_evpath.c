@@ -608,10 +608,17 @@ int SOSD_cloud_start(void) {
 int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.EVPATH");
 
+    if (reply == NULL) {
+        // NOTE: This is valid behavior, so be careful to account
+        //       for it.
+    }
+
     buffer_rec rec;
     rec.data = (unsigned char *) buffer->data;
     rec.size = buffer->len;
     EVsubmit(SOSD.daemon.evpath.send.src, &rec, NULL);
+
+    
 
     return 0;
 }

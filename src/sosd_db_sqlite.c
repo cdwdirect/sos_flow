@@ -230,6 +230,10 @@ void SOSD_db_init_database() {
     int     retval;
     int     flags;
 
+    if (SOS->config.options->db_disabled) {
+        return;
+    }
+
     dlog(1, "Opening database...\n");
 
     SOSD.db.ready = 0;
@@ -527,9 +531,9 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
     dlog(4, "Building result set...\n");
     SOSA_results *results = NULL;
     SOSA_results_init(SOS, &results);
-    SOSA_results_grow_to(results, 1, 1);
-    SOSA_results_put_name(results, 0, "[NULL]");
-    SOSA_results_put(results, 0, 0, "[NULL]");
+
+    double query_start_time = 0.0;
+    double query_stop_time  = 0.0;
 
     sqlite3_stmt *sosa_statement = NULL;
     int rc = 0;
@@ -544,6 +548,8 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
         dlog(6, "Flushing the database.  (BEFORE query)\n");
         rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
         rc = sqlite3_exec(database, sql_cmd_begin_transaction, NULL, NULL, &err);
+
+        SOS_TIME(query_start_time);
 
         rc = sqlite3_prepare_v2(database, sosa_query,
                 strlen(sosa_query) + 1, &sosa_statement, NULL);
@@ -583,6 +589,9 @@ void SOSD_db_handle_sosa_query(SOSD_db_task *task) {
         }//while:rows
 
         sqlite3_finalize(sosa_statement);
+
+        SOS_TIME(query_stop_time);
+        results->exec_duration = query_stop_time - query_start_time;
 
         dlog(6, "Flushing the database.  (AFTER query)\n");
         rc = sqlite3_exec(database, sql_cmd_commit_transaction, NULL, NULL, &err);
@@ -709,7 +718,7 @@ void SOSD_db_insert_data( SOS_pub *pub ) {
     for (i = 0; i < pub->elem_count; i++) {
 
         if (pub->data[i]->sync != SOS_VAL_SYNC_RENEW) {
-            dlog(5, "Skipping pub->data[%d]->sync == %s\n",
+            dlog(6, "Skipping pub->data[%d]->sync == %s\n",
                     i, SOS_ENUM_STR(pub->data[i]->sync, SOS_VAL_SYNC));
             continue;
         } else {

@@ -19,14 +19,19 @@ export CXX=g++
 export MPICC=mpicc
 export MPICXX=mpicxx
 
+export SOS_SHUTDOWN="FALSE"
+export SOS_BATCH_ENVIRONMENT="FALSE"
+#
 export SOS_OPTIONS_FILE=""
 export SOS_EVPATH_MEETUP=$SOS_WORK
-export SOS_READ_SYSTEM_STATUS="0"
+#
+export SOS_DB_DISABLED="FALSE"
 export SOS_UPDATE_LATEST_FRAME="TRUE"
 export SOS_IN_MEMORY_DATABASE="FALSE"
 export SOS_EXPORT_DB_AT_EXIT="FALSE"
-export SOS_BATCH_ENVIRONMENT="FALSE"
-export SOS_SHUTDOWN="FALSE"
+#
+export SOS_SYSTEM_MONITOR_ENABLED="FALSE"
+export SOS_SYSTEM_MONITOR_FREQ_USEC="0"
 
 echo "======"
 echo ""
@@ -44,14 +49,18 @@ echo "     \$SOS_WORK           = $SOS_WORK"
 echo "     \$SOS_BUILD_DIR      = $SOS_BUILD_DIR"
 echo ""
 echo "SOSflow runtime options:" 
+echo "     \$SOS_SHUTDOWN            = $SOS_SHUTDOWN"
 echo "     \$SOS_OPTIONS_FILE        = $SOS_OPTIONS_FILE"
+echo "     \$SOS_BATCH_ENVIRONMENT   = $SOS_BATCH_ENVIRONMENT"
+echo ""
+echo "     \$SOS_DB_DISABLED         = $SOS_DB_DISABLED"
 echo "     \$SOS_IN_MEMORY_DATABASE  = $SOS_IN_MEMORY_DATABASE"
 echo "     \$SOS_EXPORT_DB_AT_EXIT   = $SOS_EXPORT_DB_AT_EXIT"
 echo "     \$SOS_UPDATE_LATEST_FRAME = $SOS_UPDATE_LATEST_FRAME"
 echo "     \$SOS_EVPATH_MEETUP       = $SOS_EVPATH_MEETUP"
-echo "     \$SOS_READ_SYSTEM_STATUS  = $SOS_READ_SYSTEM_STATUS"
-echo "     \$SOS_BATCH_ENVIRONMENT   = $SOS_BATCH_ENVIRONMENT"
-echo "     \$SOS_SHUTDOWN            = $SOS_SHUTDOWN"
+echo ""
+echo "     \$SOS_SYSTEM_MONITOR_ENABLED   = $SOS_SYSTEM_MONITOR_ENABLED"
+echo "     \$SOS_SYSTEM_MONITOR_FREQ_USEC = $SOS_SYSTEM_MONITOR_FREQ_USEC"
 echo ""
 
 echo "Updating paths:"
