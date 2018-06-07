@@ -624,7 +624,7 @@ void SOSD_db_insert_pub( SOS_pub *pub ) {
     int i;
 
     if (pub->announced == 1) {
-        dlog(1, "Skipping database insertion, this pub is already marked as announced.\n");
+        dlog(5, "Skipping database insertion, this pub is already marked as announced.\n");
 
         SOSD_countof(db_insert_announce_nop++);
         return;

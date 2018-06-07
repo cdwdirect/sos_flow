@@ -2240,7 +2240,7 @@ SOS_val_snap_queue_from_buffer(
     if (pub == NULL) {
         dlog(0, "WARNING! Attempting to build snap_queue for a"
                 " pub we don't know about.\n");
-        dlog(0, "  ... skipping this request, potentially missing"
+        dlog(2, "  ... skipping this request, potentially missing"
                 " values in the daemon/database.\n");
         return;
     }
@@ -2913,7 +2913,7 @@ SOS_announce( SOS_pub *pub ) {
     dlog(6, "Preparing an announcement message...\n");
 
     if (pub->announced != 0) {
-        dlog(1, "This publication has already been announced!"
+        dlog(3, "This publication has already been announced!"
                 " Doing nothing.\n");
         return;
     }

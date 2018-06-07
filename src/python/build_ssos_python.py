@@ -33,8 +33,8 @@ if __name__ == "__main__":
     ],
     libraries=["sos"],
     library_dirs=[sos_lib_dir],
-    include_dirs=[sos_include_dir],
-    extra_compile_args=["-Wno-unused-variable"])
+    include_dirs=[sos_include_dir])
+    #extra_compile_args=["-Wno-unused-variable"])
     #extra_compile_args=["-Wno-unused-variable", "-DUSE_MUNGE=1"])
 
     ffibuilder.cdef("""    
