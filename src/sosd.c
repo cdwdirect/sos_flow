@@ -96,6 +96,8 @@ int main(int argc, char *argv[])  {
     SOS_role   my_role;
     int        my_rank;
 
+    sos_debug_start_timestamp = clock();
+
     /* [countof]
      *    statistics for daemon activity.
      */
@@ -1314,7 +1316,7 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     SOS_socket *my_own_listen_port = NULL;
     const char * portStr = getenv("SOS_CMD_PORT");
     if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
-    SOS_target_init(SOS, &my_own_listen_port, "localhost", atoi(portStr));
+    SOS_target_init(SOS, &my_own_listen_port, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
     dlog(1, "  ... Sending...\n");

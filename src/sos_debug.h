@@ -5,6 +5,7 @@
 
 #include "sos.h"
 #include "sosd.h"
+#include "sys/timeb.h"
 
 /*
  * sos_debug.h
@@ -29,7 +30,7 @@
 #define SOS_DEBUG_SHOW_LOCATION   0 
 
 /* Daemon logging sensitivity.         (Req. SOS_DEBUG >= 0) */
-#define SOSD_DAEMON_LOG           -1 
+#define SOSD_DAEMON_LOG          -1 
 #define SOSD_ECHO_TO_STDOUT       0
 
 #define SOSA_DEBUG_LEVEL          0
@@ -37,6 +38,10 @@
 int     sos_daemon_lock_fptr;
 FILE   *sos_daemon_log_fptr;
 
+extern clock_t sos_debug_start_timestamp;
+
+/* Get a timestamp */
+#define TS_MACRO (((double) (clock() - sos_debug_start_timestamp)) / CLOCKS_PER_SEC)
 
 /* Defined in sosd.c ... */
 
@@ -59,7 +64,7 @@ FILE   *sos_daemon_log_fptr;
                     printf("ERROR: SOS_WHOAMI == NULL !\n");            \
                     exit(EXIT_FAILURE);                                 \
                 }                                                       \
-                printf("[%s.%s]: ", SOS_WHOAMI, SOS_WHEREAMI);          \
+                printf("[%f:%s.%s]: ", TS_MACRO, SOS_WHOAMI, SOS_WHEREAMI);          \
                 printf(__VA_ARGS__);                                    \
                 if (stdout) fflush(stdout);                             \
             }                                                           \
@@ -76,8 +81,8 @@ FILE   *sos_daemon_log_fptr;
                     exit(EXIT_FAILURE);                                 \
                 }                                                       \
                 if (sos_daemon_log_fptr != NULL) {                      \
-                    fprintf(sos_daemon_log_fptr, "[%s.%s]: ",           \
-                            SOS_WHOAMI, SOS_WHEREAMI);                  \
+                    fprintf(sos_daemon_log_fptr, "[%f:%s.%s]: ",           \
+                            TS_MACRO, SOS_WHOAMI, SOS_WHEREAMI);                  \
                     fprintf(sos_daemon_log_fptr, __VA_ARGS__);          \
                     fflush(sos_daemon_log_fptr);                        \
                 }                                                       \
@@ -88,9 +93,9 @@ FILE   *sos_daemon_log_fptr;
                                 __FILE__, __LINE__ );                   \
                         printf(SOS_CLR ")");                            \
                     }                                                   \
-                    printf("[" SOS_DIM_WHT "%s." SOS_CLR SOS_BOLD_RED   \
+                    printf("[%f:" SOS_DIM_WHT "%s." SOS_CLR SOS_BOLD_RED   \
                             "%s" SOS_CLR                                \
-                            "]: ", SOS_WHOAMI, SOS_WHEREAMI);           \
+                            "]: ", TS_MACRO, SOS_WHOAMI, SOS_WHEREAMI);           \
                     printf(__VA_ARGS__);                                \
                     fflush(stdout);                                     \
                 }                                                       \
@@ -107,7 +112,7 @@ FILE   *sos_daemon_log_fptr;
                     printf("ERROR: SOS_WHOAMI == NULL !\n");            \
                     exit(EXIT_FAILURE);                                 \
                 }                                                       \
-                printf("[%s.%s]: ", SOS_WHOAMI, SOS_WHEREAMI);          \
+                printf("[%f:%s.%s]: ", TS_MACRO, SOS_WHOAMI, SOS_WHEREAMI);          \
                 printf(__VA_ARGS__);                                    \
                 if (stdout) fflush(stdout);                             \
             }                                                           \
@@ -122,9 +127,9 @@ FILE   *sos_daemon_log_fptr;
                     printf("ERROR: SOS_WHOAMI == NULL !\n");            \
                     exit(EXIT_FAILURE);                                 \
                 }                                                       \
-                printf("[" SOS_DIM_WHT "%s." SOS_CLR SOS_BOLD_RED "%s"  \
+                printf("[%f:" SOS_DIM_WHT "%s." SOS_CLR SOS_BOLD_RED "%s"  \
                         SOS_CLR "]: ",                                  \
-                        SOS_WHOAMI, SOS_WHEREAMI);                      \
+                        TS_MACRO, SOS_WHOAMI, SOS_WHEREAMI);                      \
                 printf(__VA_ARGS__);                                    \
                 if (stdout) fflush(stdout);                             \
             }                                                           \

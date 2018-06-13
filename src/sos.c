@@ -41,6 +41,8 @@
 #include "sos_qhashtbl.h"
 #include "sos_target.h"
 
+clock_t sos_debug_start_timestamp = 0L;
+
 // Private functions (not in the header file)
 
 /**
@@ -134,6 +136,9 @@ void
 SOS_init(SOS_runtime **sos_runtime,
     SOS_role role, SOS_receives receives, SOS_feedback_handler_f handler)
 {
+    if (sos_debug_start_timestamp == 0L) {
+        sos_debug_start_timestamp = clock();
+    }
     *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
      memset(*sos_runtime, '\0', sizeof(SOS_runtime));
 
@@ -842,7 +847,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             dlog(1, "  ... This client RECEIVES_DIRECT_MESSAGES:\n");
             dlog(1, "      ... establishing connection it self...\n");
             SOS_socket *target = NULL;
-            SOS_target_init(SOS, &target, "localhost", SOS->config.receives_port);
+            SOS_target_init(SOS, &target, SOS_DEFAULT_SERVER_HOST, SOS->config.receives_port);
             dlog(1, "      ... connecting to self...\n");
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;
