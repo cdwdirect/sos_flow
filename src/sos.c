@@ -2359,6 +2359,8 @@ SOS_val_snap_queue_from_buffer(
 
         dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
         
+        snap_copy = NULL;
+        
         if (((SOS->role == SOS_ROLE_AGGREGATOR) ||
              (SOS->role == SOS_ROLE_LISTENER))
                 && pub->cache_depth > 0)
