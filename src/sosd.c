@@ -1312,9 +1312,11 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     dlog(1, "Preparing to send a message to our own listening socket...\n");
     dlog(1, "  ... Initializing...\n");
     SOS_socket *my_own_listen_port = NULL;
+    
     const char * portStr = getenv("SOS_CMD_PORT");
     if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
-    SOS_target_init(SOS, &my_own_listen_port, "localhost", atoi(portStr));
+    
+    SOS_target_init(SOS, &my_own_listen_port, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
     dlog(1, "  ... Sending...\n");
@@ -2682,7 +2684,9 @@ void SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer ) {
 
     dlog(6, "Calling SOS_announce_from_buffer()...\n");
     SOS_announce_from_buffer(buffer, pub);
-    SOSD_add_pid_to_track(pub);
+    if (SOS->config.options->system_monitor_enabled) {
+        SOSD_add_pid_to_track(pub);
+    }
 
     return;
 }

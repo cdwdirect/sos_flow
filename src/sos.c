@@ -842,7 +842,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             dlog(1, "  ... This client RECEIVES_DIRECT_MESSAGES:\n");
             dlog(1, "      ... establishing connection it self...\n");
             SOS_socket *target = NULL;
-            SOS_target_init(SOS, &target, "localhost", SOS->config.receives_port);
+            SOS_target_init(SOS, &target, SOS_DEFAULT_SERVER_HOST, SOS->config.receives_port);
             dlog(1, "      ... connecting to self...\n");
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;

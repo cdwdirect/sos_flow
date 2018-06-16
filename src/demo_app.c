@@ -220,18 +220,18 @@ int main(int argc, char *argv[]) {
 
     if (WAIT_FOR_FEEDBACK) {
         //--- SQL_QUERY Block: START
-        printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
-        const char * portStr = getenv("SOS_CMD_PORT");
-        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
-        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
-        printf("demo_app: Waiting for results.\n");
+        //printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
+        //const char * portStr = getenv("SOS_CMD_PORT");
+        //if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+        //SOSA_exec_query(my_sos, SQL_QUERY, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
+        //printf("demo_app: Waiting for results.\n");
         //--- SQL_QUERY Block: END
         
         //--- CACHE_GRAB Block: START
         //Get the latest frame for everything:
-        //printf("demo_app: Sending cache_grab."
-        //        "  (val_name contains \"%s\")\n", SQL_QUERY);
-        //SOSA_cache_grab(SOS, "", SQL_QUERY, 1, 1, "localhost", 22500);
+        printf("demo_app: Sending cache_grab."
+                "  (val_name contains \"%s\")\n", SQL_QUERY);
+        SOSA_cache_grab(SOS, "", SQL_QUERY, -1, 1, SOS_DEFAULT_SERVER_HOST, 22500);
 
         //--- CACHE_GRAB Block: END
 
