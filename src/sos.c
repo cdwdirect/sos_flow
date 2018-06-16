@@ -2268,6 +2268,7 @@ SOS_val_snap_queue_from_buffer(
     }
 
     SOS_val_snap *snap;
+    SOS_val_snap *snap_copy;  //for cache'd values 
     SOS_val_snap **snap_list;
     snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
 
@@ -2362,23 +2363,33 @@ SOS_val_snap_queue_from_buffer(
              (SOS->role == SOS_ROLE_LISTENER))
                 && pub->cache_depth > 0)
         {
-            // ...
-            SOS_val_snap *snap_copy = 
-                (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
-            // Copy all the static member values of the snap:
-            memcpy(snap_copy, snap, sizeof(SOS_val_snap));
-            // Strings and Bytes need to be alloc'ed and copied in seperately:
-            switch (snap_copy->type) {
-                case SOS_VAL_TYPE_STRING: 
-                    snap_copy->val.c_val =
-                        (char *) calloc(snap_copy->val_len, sizeof(char));
-                    memcpy(snap_copy->val.c_val, snap->val.c_val, snap_copy->val_len);
-                    break;
-                case SOS_VAL_TYPE_BYTES:
-                    snap_copy->val.bytes =
-                        (void *) calloc(snap_copy->val_len, sizeof(unsigned char));
-                    memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
-                    break;
+
+            if (SOS->config.options->db_disabled == true) {
+                //The database INSERT code usually free()'s the
+                //val_snap once it is done, but it is disabled.
+                //Rather than make a copy of the snap to use for
+                //the cache, just use the one we already unpacked...
+                
+                snap_copy = snap;
+           
+            } else {
+                // ...
+                snap_copy = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
+                // Copy all the static member values of the snap:
+                memcpy(snap_copy, snap, sizeof(SOS_val_snap));
+                // Strings and Bytes need to be alloc'ed and copied in seperately:
+                switch (snap_copy->type) {
+                    case SOS_VAL_TYPE_STRING: 
+                        snap_copy->val.c_val =
+                            (char *) calloc(snap_copy->val_len, sizeof(char));
+                        memcpy(snap_copy->val.c_val, snap->val.c_val, snap_copy->val_len);
+                        break;
+                    case SOS_VAL_TYPE_BYTES:
+                        snap_copy->val.bytes =
+                            (void *) calloc(snap_copy->val_len, sizeof(unsigned char));
+                        memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
+                        break;
+                }
             }
             // We have a new snap, push it down into the pub
             SOS_TIME(snap_copy->time.recv);
@@ -2463,37 +2474,45 @@ SOS_val_snap_queue_from_buffer(
 
     }//for:snap_index
 
+    if (snap_copy != snap) {
+        // NOTE: The only time snap_copy == snap is when
+        //       the database is disabled and the value
+        //       has become cached.
+        //       In this case, we don't want to free it
+        //       AND we don't want to enqueue it.  So do
+        //       nothing.  :)
 
-    if (snap_queue != NULL) {
-        // Place these snapshots in the next queue stage:
-        dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
-        pthread_mutex_lock(snap_queue->sync_lock);
-        pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
-        snap_queue->elem_count += snap_count;
-        pthread_mutex_unlock( snap_queue->sync_lock );
-    } else {
-        // Free the list of snapshots:
-        for (snap_index = 0; snap_index < snap_count; snap_index++) {
-            snap = snap_list[snap_index];
-            switch (snap->type) {
-            case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
-            case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
-            case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
-            case SOS_VAL_TYPE_STRING:
-                if (snap->val.c_val != NULL) {
-                    free(snap->val.c_val);
-                    snap->val.c_val = NULL;
+        if (snap_queue != NULL) {
+            // Place these snapshots in the next queue stage:
+            dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
+            pthread_mutex_lock(snap_queue->sync_lock);
+            pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
+            snap_queue->elem_count += snap_count;
+            pthread_mutex_unlock( snap_queue->sync_lock );
+        } else {
+            // Free the list of snapshots:
+            for (snap_index = 0; snap_index < snap_count; snap_index++) {
+                snap = snap_list[snap_index];
+                switch (snap->type) {
+                    case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
+                    case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
+                    case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
+                    case SOS_VAL_TYPE_STRING:
+                                              if (snap->val.c_val != NULL) {
+                                                  free(snap->val.c_val);
+                                                  snap->val.c_val = NULL;
+                                              }
+                                              break;
+                    case SOS_VAL_TYPE_BYTES:
+                                              if (snap->val.bytes != NULL) {
+                                                  free(snap->val.bytes);
+                                                  snap->val.bytes = NULL;
+                                              }
+                                              break;
                 }
-                break;
-            case SOS_VAL_TYPE_BYTES:
-                if (snap->val.bytes != NULL) {
-                    free(snap->val.bytes);
-                    snap->val.bytes = NULL;
-                }
-                break;
-            }
-        } // end: forall snaps
-    } //end: if no requeue...
+            } // end: forall snaps
+        } //end: if no requeue...
+    } //end: if no need to free cached snap
 
     free(snap_list);
 
