@@ -228,11 +228,10 @@ int main(int argc, char *argv[]) {
         //--- SQL_QUERY Block: END
         
         //--- CACHE_GRAB Block: START
-        //Get the latest frame for everything:
+        //--- Get the latest frame for everything:
         printf("demo_app: Sending cache_grab."
                 "  (val_name contains \"%s\")\n", SQL_QUERY);
         SOSA_cache_grab(SOS, "", SQL_QUERY, -1, 1, SOS_DEFAULT_SERVER_HOST, 22500);
-
         //--- CACHE_GRAB Block: END
 
 

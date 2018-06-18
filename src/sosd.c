@@ -327,6 +327,12 @@ int main(int argc, char *argv[])  {
     if (SOS->config.options->db_disabled) {
         dlog(1, "Skipping database initialization..."
                 " (SOSD_DB_DISABLED == true)\n");
+        // This will ensure val_snaps
+        // are free()'ed as they come in,
+        // except for cases where
+        // the cache is enabled and those
+        // snaps are used for the cache.
+        SOSD.db.snap_queue = NULL;
     } else {
         dlog(1, "Calling SOSD_db_init_database()...\n");
         SOSD_db_init_database();
