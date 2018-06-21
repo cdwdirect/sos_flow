@@ -1465,7 +1465,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     //       Keep an eye here if the cache concept in SOS
     //       develops in complexity, the guts of this function
     //       could get moved into a work ticket handled
-    //       by the feedback thread, and all we do here
+    //       by the feedback thread, where all we do here
     //       is generate the ticket and move on.
 
     SOS_msg_unzip(msg, &header, 0, &offset);
@@ -1517,18 +1517,21 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
 
         for (elem = 0; elem < pub->elem_count; elem++) {
             snap = pub->data[elem]->cached_latest;
-            deep = -1;
+            deep = 0;
             while ((deep < pub->cache_depth)
                 && (snap != NULL)) {
                 // Roll through snaps until we find the end of
                 // data or go beyond the new limit.
                 last = snap;
-                snap = snap->next_snap;
+                snap = (SOS_val_snap *) snap->next_snap;
                 deep++;
             }
             if ((deep >= pub->cache_depth)
                 && (snap != NULL)) {
                 dlog(4, "Pruning...\n");
+                if (pub->data[elem]->cached_count > cache_to_size) {
+                    pub->data[elem]->cached_count = cache_to_size;
+                }
                 // We have a pointer to the beginning of the
                 // cache where we want to start removing values,
                 // AND there are values here to remove.
@@ -1547,11 +1550,14 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
                     }
                     dlog(4, "    pub->data[%d]...snap->frame == %d\n",
                             elem, snap->frame);
-                    next = snap->next_snap;
+                    next = (SOS_val_snap *) snap->next_snap;
                     snap->next_snap = NULL;
                     free(snap);     
                     snap = next;
                 } //end: while (snap!=NULL)
+                if (pub->data[elem]->cached_latest != NULL) {
+                    pub->data[elem]->cached_latest->prev_snap = last;
+                }
             } //end: if (snaps to free)
         } //end: for (all elems in pub)
         //

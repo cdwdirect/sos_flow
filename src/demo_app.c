@@ -246,7 +246,10 @@ int main(int argc, char *argv[]) {
 
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
-        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_DEFAULT);
+        char pub_namestr[1024] = {0};
+        snprintf(pub_namestr, 1024, "demo_pid_%d", getpid());
+
+        SOS_pub_init(my_sos, &pub, pub_namestr, SOS_NATURE_DEFAULT);
         SOS_pub_config(pub, SOS_PUB_OPTION_CACHE, PUB_CACHE_DEPTH);
 
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
@@ -282,8 +285,13 @@ int main(int argc, char *argv[]) {
                 SOS_pack(pub, elem_name, SOS_VAL_TYPE_STRING, var_string);
                 var_double += 1.00000001;
             }
-            //SOS_publish(pub);
+            SOS_publish(pub);
+            if (ones == 100) {
+                SOS_pub_config(pub, SOS_PUB_OPTION_CACHE, 100);
+            }
+            
         }
+
 
         // One last publish, for good measure.
         SOS_publish(pub);

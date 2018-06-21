@@ -392,6 +392,7 @@ typedef struct {
     int                 val_len;
     SOS_val             val;
     void               *next_snap;
+    void               *prev_snap;
 } SOS_val_snap;
 
 typedef struct {
@@ -404,7 +405,8 @@ typedef struct {
     SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
-    SOS_val_snap       *cached_latest;  // only w/in daemons. 
+    SOS_val_snap       *cached_latest;  // only w/in daemons.
+    int                 cached_count;
 } SOS_data;
 
 typedef struct {
