@@ -220,18 +220,18 @@ int main(int argc, char *argv[]) {
 
     if (WAIT_FOR_FEEDBACK) {
         //--- SQL_QUERY Block: START
-        printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
-        const char * portStr = getenv("SOS_CMD_PORT");
-        if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
-        SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
-        printf("demo_app: Waiting for results.\n");
+        // printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
+        // const char * portStr = getenv("SOS_CMD_PORT");
+        // if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+        // SOSA_exec_query(my_sos, SQL_QUERY, "localhost", atoi(portStr));
+        // printf("demo_app: Waiting for results.\n");
         //--- SQL_QUERY Block: END
         
         //--- CACHE_GRAB Block: START
         //--- Get the latest frame for everything:
-        //printf("demo_app: Sending cache_grab."
-        //        "  (val_name contains \"%s\")\n", SQL_QUERY);
-        //SOSA_cache_grab(SOS, "", SQL_QUERY, -1, -1, "localhost", 22500);
+        printf("demo_app: Sending cache_grab."
+                "  (val_name contains \"%s\")\n", SQL_QUERY);
+        SOSA_cache_grab(SOS, "", SQL_QUERY, -1, -1, "localhost", 22500);
         //--- CACHE_GRAB Block: END
 
 
@@ -246,7 +246,10 @@ int main(int argc, char *argv[]) {
 
         if (rank == 0) dlog(1, "Creating a pub...\n");
 
-        SOS_pub_init(my_sos, &pub, "demo", SOS_NATURE_DEFAULT);
+        char pub_namestr[1024] = {0};
+        snprintf(pub_namestr, 1024, "demo_pid_%d", getpid());
+
+        SOS_pub_init(my_sos, &pub, pub_namestr, SOS_NATURE_DEFAULT);
         SOS_pub_config(pub, SOS_PUB_OPTION_CACHE, PUB_CACHE_DEPTH);
 
         if (rank == 0) dlog(1, "  ... pub->guid  = %" SOS_GUID_FMT "\n", pub->guid);
@@ -282,8 +285,13 @@ int main(int argc, char *argv[]) {
                 SOS_pack(pub, elem_name, SOS_VAL_TYPE_STRING, var_string);
                 var_double += 1.00000001;
             }
-            //SOS_publish(pub);
+            SOS_publish(pub);
+            if (ones == 100) {
+                SOS_pub_config(pub, SOS_PUB_OPTION_CACHE, 100);
+            }
+            
         }
+
 
         // One last publish, for good measure.
         SOS_publish(pub);

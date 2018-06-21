@@ -9,9 +9,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
-#if defined(USE_MPI)
-#include <mpi.h>
-#endif
 
 #define USAGE "./sosd_probe [-f <output_file>] [-l loop_delay_usec]" \
                           " [-header on] [-o json] [-p force_sos_port]"
@@ -34,10 +31,6 @@ int main(int argc, char *argv[]) {
     int   i;
     int   elem;
     int   next_elem;
-
-#if defined(USE_MPI)
-    MPI_Init(&argc, &argv);
-#endif
 
     GLOBAL_header_on          = -1;
     GLOBAL_sleep_delay        = 0;
@@ -364,9 +357,6 @@ int main(int argc, char *argv[]) {
     SOS_buffer_destroy(request);
     SOS_buffer_destroy(reply);
     SOS_finalize(my_sos);
-#if defined(USE_MPI)
-    MPI_Finalize();
-#endif
 
     return (EXIT_SUCCESS);
 }
