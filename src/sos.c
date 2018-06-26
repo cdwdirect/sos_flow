@@ -1564,6 +1564,27 @@ void SOS_expand_data( SOS_pub *pub ) {
 
     for (n = from_old_max; n < to_new_max; n++) {
         pub->data[n] = calloc(1, sizeof(SOS_data));
+       
+        pub->data[n]->guid      = 0;
+        pub->data[n]->name[0]   = '\0';
+        pub->data[n]->type      = SOS_VAL_TYPE_INT;
+        pub->data[n]->val_len   = 0;
+        pub->data[n]->val.l_val = 0;
+        pub->data[n]->val.c_val = 0;
+        pub->data[n]->val.d_val = 0.0;
+        pub->data[n]->state     = SOS_VAL_STATE_EMPTY;
+        pub->data[n]->time.pack = 0.0;
+        pub->data[n]->time.send = 0.0;
+        pub->data[n]->time.recv = 0.0;
+        
+        pub->data[n]->meta.freq        = SOS_VAL_FREQ_DEFAULT;
+        pub->data[n]->meta.classifier  = SOS_VAL_CLASS_DATA;
+        pub->data[n]->meta.semantic    = SOS_VAL_SEMANTIC_DEFAULT;
+        pub->data[n]->meta.pattern     = SOS_VAL_PATTERN_DEFAULT;
+        pub->data[n]->meta.compare     = SOS_VAL_COMPARE_SELF;
+        pub->data[n]->meta.relation_id = 0;
+        
+        pub->data[n]->cached_latest = NULL;
     }
 
     pub->elem_max = to_new_max;
