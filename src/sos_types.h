@@ -17,6 +17,7 @@
 #include "sos_qhashtbl.h"
 #include "sos_pipe.h"
 #include "sos_buffer.h"
+#include "sos_debug.h"
 
     
 #define FOREACH_ROLE(ROLE)                      \
@@ -322,48 +323,24 @@ typedef union {
     long                l_val;
     double              d_val;
     char               *c_val;
-    void               *bytes;   /* Use addr. of SOS_buffer object. */
+    void               *bytes;   // addr of SOS_buffer object w/the byte array
 } SOS_val;
 
-//
-//  SOS_position:
-//
-//        [Z]
-//         | [Y]
-//         | /
-//         |/
-//  . . ... ------[X]
-//        ,:
-//       . .
-//      .  .
-//
 typedef struct {
-    double              x;
-    double              y;
-    double              z;
-} SOS_position;
-
-//
-//  SOS_volume_hexahedron:
-//
-//          [p7]---------[p6]
-//         /________    / |
-//      [p4]--------[p5]  |
-//       ||  |       ||   |
-//       || [p3]-----||--[p2]
-//       ||/________ || /
-//      [p0]--------[p1]
-//
-typedef struct {
-    SOS_position        p[8];
-} SOS_volume_hexahedron;
-
+    long                init_flag;
+    int                 len;     // including the trailing '\0';
+    char               *val;
+#if (SOS_DEBUG > 0)
+    uint32_t            crc32_at_set;
+#endif
+} SOS_string;
 
 typedef struct {
     double              pack;
     double              send;
     double              recv;
 } SOS_time;
+
 
 typedef struct {
     void               *ref;
@@ -443,8 +420,6 @@ typedef struct {
     qhashtbl_t         *name_table;
     SOS_pipe           *snap_queue;
 } SOS_pub;
-
-
 
 
 typedef struct {

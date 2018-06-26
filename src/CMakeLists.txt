@@ -53,6 +53,7 @@ add_library(sos
     ssos.c
     sosa.c
     sos_buffer.c
+    sos_string.c
     sos_qhashtbl.c
     sos_pipe.c
     sos_target.c
@@ -149,10 +150,6 @@ endif(MPI_FOUND)
 add_executable(demo_app ${MPI_SOURCE_FILES} demo_app.c)
 target_link_libraries(demo_app sos)
 
-#TARGET ---> demo_app_silent (demonstration / example)
-add_executable(demo_app_silent ${MPI_SOURCE_FILES} demo_app_silent.c)
-target_link_libraries(demo_app_silent sos)
-
 #TARGET ---> proc_app (demonstration / example)
 add_executable(proc_app proc_app.c)
 target_link_libraries(proc_app sos)
@@ -174,11 +171,12 @@ INSTALL(FILES sos.h
               sos_pipe.h
               sos_json.h
               sos_buffer.h
+              sos_string.h
               sos_target.h
               sos_re.h
               DESTINATION include)
 INSTALL(TARGETS
-    sos sosd_stop sosd_probe demo_app_silent proc_app demo_app sosd sosd_trigger
+    sos sosd_stop sosd_probe proc_app demo_app sosd sosd_trigger
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
