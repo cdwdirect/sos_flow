@@ -9,7 +9,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <pthread.h>
-#if defined(USE_MPI)
+#if defined(USE_MPI_disabled)
 #include <mpi.h>
 #endif
 
@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     int   elem;
     int   next_elem;
 
-#if defined(USE_MPI)
+#if defined(USE_MPI_disabled)
     MPI_Init(&argc, &argv);
 #endif
 
@@ -364,7 +364,7 @@ int main(int argc, char *argv[]) {
     SOS_buffer_destroy(request);
     SOS_buffer_destroy(reply);
     SOS_finalize(my_sos);
-#if defined(USE_MPI)
+#if defined(USE_MPI_disabled)
     MPI_Finalize();
 #endif
 

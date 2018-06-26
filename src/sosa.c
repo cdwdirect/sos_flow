@@ -69,10 +69,6 @@ void SOSA_cache_to_results(
     char *val_str;
     char val_numeric_str  [128] = {0};
 
-    printf("filters...  pub: %s    val: %s\n",
-            pub_filter_regex,
-            val_filter_regex);
-
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
         if (pub == NULL) break;
