@@ -1433,6 +1433,8 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
             new_pub->data[i]->meta.pattern     = SOS_VAL_PATTERN_DEFAULT;
             new_pub->data[i]->meta.compare     = SOS_VAL_COMPARE_SELF;
             new_pub->data[i]->meta.relation_id = 0;
+
+            new_pub->data[i]->cached_latest    = NULL;
     }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
