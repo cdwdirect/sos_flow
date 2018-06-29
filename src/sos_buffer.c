@@ -198,7 +198,7 @@ void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
 void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_trim");
 
-    if (buffer->max == to_new_max) return;
+    if (buffer->max == (int)to_new_max) return;
 
     int original_max = buffer->max;
 

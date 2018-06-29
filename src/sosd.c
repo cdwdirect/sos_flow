@@ -573,7 +573,7 @@ void SOSD_listen_loop() {
 
         dlog(5, "Accepted connection.  Attempting to receive message...\n");
         i = SOS_target_recv_msg(SOSD.net, buffer);
-        if (i < sizeof(SOS_msg_header)) {
+        if (i < (int)sizeof(SOS_msg_header)) {
             printf(".");
             SOS_target_disconnect(SOSD.net);
             continue;
@@ -1721,8 +1721,8 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
 void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_sosa_query");
     SOS_msg_header header;
-    int            offset;
-    int            rc;
+    int            offset = 0;
+    int            rc = 0;
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 

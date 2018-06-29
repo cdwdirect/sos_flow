@@ -190,7 +190,7 @@ SOS_init_existing_runtime(
    
     
     SOS_msg_header header;
-    int i, n, retval, remote_socket_fd;
+    int retval;
     int rc;
     SOS_guid guid_pool_from;
     SOS_guid guid_pool_to;
@@ -925,11 +925,8 @@ SOS_THREAD_receives_direct(void *args)
     SOS_socket *insock;
 
     int i;
-    int yes;
-    int opts;
     int offset;
     SOS_msg_header header;
-    char local_hostname[NI_MAXHOST];
 
     insock = NULL;
     SOS_target_init(SOS, &insock, SOS_DEFAULT_SERVER_HOST, 0);
@@ -962,7 +959,7 @@ SOS_THREAD_receives_direct(void *args)
         }
 
         i = SOS_target_recv_msg(insock, buffer);
-        if (i < sizeof(SOS_msg_header)) {
+        if (i < (int)sizeof(SOS_msg_header)) {
             SOS_target_disconnect(insock);
             continue;
         };
@@ -2295,8 +2292,8 @@ SOS_val_snap_queue_from_buffer(
       return;
     }
 
-    SOS_val_snap *snap;
-    SOS_val_snap *snap_copy;  //for cache'd values 
+    SOS_val_snap *snap = NULL;
+    SOS_val_snap *snap_copy = NULL;  //for cache'd values 
     SOS_val_snap **snap_list;
     snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
 
@@ -2617,10 +2614,10 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
 void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_publish_to_buffer");
     SOS_msg_header   header;
-    long             this_frame;
-    double           send_time;
-    int              offset;
-    int              elem;
+    long             this_frame = 0;
+    double           send_time = 0.0;
+    int              offset = 0;
+    int              elem = 0;
 
     // CONCURRENCY: This function assumes the pub->lock is already held.
     

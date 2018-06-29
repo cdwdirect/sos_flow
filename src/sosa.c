@@ -696,7 +696,7 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
     
     SOSA_send_to_target_db(msg, reply);
 
-    if (reply->len < (2 * sizeof(double))) {
+    if (reply->len < (int)(2 * sizeof(double))) {
         dlog(0, "WARNING: Malformed UID reply from sosd (db) ...\n");
         uid->next = -1;
         uid->last = 0;

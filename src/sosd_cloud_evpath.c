@@ -135,7 +135,7 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
 
     SOSD_evpath *evp = &SOSD.daemon.evpath;
 
-    if (header.msg_from >= SOS->config.comm_size) {
+    if (header.msg_from >= (SOS_guid)SOS->config.comm_size) {
         fprintf(stderr, "ERROR: You are attempting to register a rank"
                 "(%" SOS_GUID_FMT ") outside the size (%d) that you"
                 " specified to the daemon at launch.",

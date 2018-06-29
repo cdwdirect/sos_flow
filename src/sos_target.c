@@ -184,7 +184,7 @@ SOS_target_recv_msg(
     }
 
     memset(&header, '\0', sizeof(SOS_msg_header));
-    if (reply->len >= sizeof(SOS_msg_header)) {
+    if (reply->len >= (int)sizeof(SOS_msg_header)) {
         int offset = 0;
         SOS_msg_unzip(reply, &header, 0, &offset);
     } else {
