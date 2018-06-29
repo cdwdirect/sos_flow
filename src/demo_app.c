@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
         if (rank == 0) dlog(1, "  ... pub->cache_depth = %d\n", pub->cache_depth);
 
         if (rank == 0) dlog(1, "Manually configuring some pub metadata...\n");
-        strcpy (pub->prog_ver, str_prog_ver);
+        strncpy (pub->prog_ver, str_prog_ver, SOS_DEFAULT_STRING_LEN);
         pub->meta.channel     = 1;
         pub->meta.nature      = SOS_NATURE_EXEC_WORK;
         pub->meta.layer       = SOS_LAYER_APP;

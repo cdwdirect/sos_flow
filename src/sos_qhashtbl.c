@@ -135,7 +135,7 @@ qhashtbl_t *qhashtbl(int range)
         return NULL;
     }
 
-    qhashtbl_t *tbl = (qhashtbl_t *)malloc(sizeof(qhashtbl_t));
+    qhashtbl_t *tbl = (qhashtbl_t *)calloc(1, sizeof(qhashtbl_t));
     if (tbl == NULL) {
         errno = ENOMEM;
         return NULL;
@@ -143,7 +143,7 @@ qhashtbl_t *qhashtbl(int range)
     memset((void *)tbl, 0, sizeof(qhashtbl_t));
 
     // allocate table space
-    tbl->slots = (qhslot_t *)malloc(sizeof(qhslot_t) * range);
+    tbl->slots = (qhslot_t *)calloc(1, sizeof(qhslot_t) * range);
     if (tbl->slots == NULL) {
         errno = ENOMEM;
         free_(tbl);
@@ -193,15 +193,15 @@ static void genkey(const char *path, const char *name, int *keylen, char **key)
     // create key
     if (!path || !strcmp (path, "")) {
         *keylen = strlen (name);
-        *key = malloc (*keylen+1);
+        *key = calloc (*keylen+1, sizeof(char));
         sprintf (*key, "%s", name);
     } else if (!strcmp (path, "/")) {
-        *keylen = strlen (name) + 1;
-        *key = malloc (*keylen+1);
+        *keylen = strlen (name) + 2;
+        *key = calloc (*keylen+1, sizeof(char));
         sprintf (*key, "/%s", name);
     } else {
-        *keylen = strlen (name) + strlen (path) + 1;
-        *key = malloc (*keylen+1);
+        *keylen = strlen (name) + strlen (path) + 2;
+        *key = calloc (*keylen+1, sizeof(char));
         sprintf (*key, "%s/%s", path, name);
     }
 }
@@ -228,7 +228,7 @@ static bool qhput(qhashtbl_t *tbl, char *key, int keylen, const void *data)
     // put into table
     if (obj == NULL) {
         // insert
-        obj = (qhnobj_t *)malloc(sizeof(qhnobj_t));
+        obj = (qhnobj_t *)calloc(1, sizeof(qhnobj_t));
         if (obj == NULL) {
             free(key);
             errno = ENOMEM;
