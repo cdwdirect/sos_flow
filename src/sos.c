@@ -2297,6 +2297,12 @@ SOS_val_snap_queue_from_buffer(
     SOS_val_snap **snap_list;
     snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
 
+#ifdef SOSD_DAEMON_SRC
+    if (pub->cache_depth > 0) {
+        pthread_mutex_lock(SOSD.sync.global_cache_lock);
+    }
+#endif
+
     for (snap_index = 0; snap_index < snap_count; snap_index++) {
         snap_list[snap_index]
                 = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
@@ -2513,6 +2519,12 @@ SOS_val_snap_queue_from_buffer(
             } // end: forall snaps
         } //end: if no requeue...
     } //end: if no need to free cached snap
+
+#ifdef SOSD_DAEMON_SRC
+    if (pub->cache_depth > 0) {
+        pthread_mutex_unlock(SOSD.sync.global_cache_lock);
+    }
+#endif
 
     free(snap_list);
 

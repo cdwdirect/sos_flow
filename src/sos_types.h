@@ -17,8 +17,6 @@
 #include "sos_qhashtbl.h"
 #include "sos_pipe.h"
 #include "sos_buffer.h"
-#include "sos_debug.h"
-
     
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_UNASSIGNED)                   \
@@ -328,11 +326,9 @@ typedef union {
 
 typedef struct {
     long                init_flag;
+    uint32_t            crc32_at_set;
     int                 len;     // including the trailing '\0';
     char               *val;
-#if (SOS_DEBUG > 0)
-    uint32_t            crc32_at_set;
-#endif
 } SOS_string;
 
 typedef struct {

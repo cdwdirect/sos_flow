@@ -373,8 +373,13 @@ int main(int argc, char *argv[])  {
     SOSD_sync_context_init(SOS, &SOSD.sync.feedback,
             sizeof(SOSD_feedback_task *), SOSD_THREAD_feedback_sync);
 
+    dlog(1, "   ... Creating mutex: sense_list_lock\n");
     SOSD.sync.sense_list_lock = calloc(1, sizeof(pthread_mutex_t));
     pthread_mutex_init(SOSD.sync.sense_list_lock, NULL);
+
+    dlog(1, "   ... Creating mutex: global_cache_lock\n");
+    SOSD.sync.global_cache_lock = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOSD.sync.global_cache_lock, NULL);
 
     dlog(1, "Entering listening loops...\n");
 
@@ -1492,6 +1497,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     }
 
     pthread_mutex_lock(pub->lock);
+    pthread_mutex_lock(SOSD.sync.global_cache_lock);
 
     if (pub->cache_depth < cache_to_size) {
         // Allow our cache depth to grow automatically as new
@@ -1565,6 +1571,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
 
     } //end: if (pub cache being changed)
 
+    pthread_mutex_unlock(SOSD.sync.global_cache_lock);
     pthread_mutex_unlock(pub->lock);
 
     if ((cache_resized)
@@ -1572,7 +1579,6 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
         //Enqueue this message to send to our aggregator
         SOSD_cloud_send(msg, (SOS_buffer *) NULL);
     }
-
 
     dlog(6, "Done.\n");
 

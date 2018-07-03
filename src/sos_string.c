@@ -71,7 +71,7 @@ SOS_string_crc32(SOS_string *str_obj)
         i = i + 1;
     }
 
-    return ~crc
+    return ~crc;
 }
 
 int
