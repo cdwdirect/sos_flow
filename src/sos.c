@@ -181,9 +181,6 @@ SOS_init_existing_runtime(
         SOS_receives receives,
         SOS_feedback_handler_f handler)
 {
-
-   
-    
     SOS_msg_header header;
     int i, n, retval, remote_socket_fd;
     int rc;
@@ -3014,3 +3011,5 @@ SOS_publish( SOS_pub *pub ) {
 
     return;
 }
+
+

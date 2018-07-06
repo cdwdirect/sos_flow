@@ -4,7 +4,7 @@
 # ZeroMQ_DIR - set this to a location where ZeroMQ may be found
 #
 # ZeroMQ_FOUND - True of ZeroMQ found
-# ZeroMQ_INCLUDE_DIRS - Location of ZeroMQ includes
+# ZeroMQ_INCLUDE_DIR - Location of ZeroMQ includes
 # ZeroMQ_LIBRARIES - ZeroMQ libraries
 
 include(FindPackageHandleStandardArgs)
@@ -19,10 +19,10 @@ else()
     set(_ZeroMQ_ROOT "${ZeroMQ_DIR}")
 endif()
 
-find_path(ZeroMQ_INCLUDE_DIRS NAMES zmq.h HINTS ${_ZeroMQ_ROOT}/include)
+find_path(ZeroMQ_INCLUDE_DIR NAMES zmq.h HINTS ${_ZeroMQ_ROOT}/include)
 
-if (ZeroMQ_INCLUDE_DIRS)
-    set(_ZeroMQ_H ${ZeroMQ_INCLUDE_DIRS}/zmq.h)
+if (ZeroMQ_INCLUDE_DIR)
+    set(_ZeroMQ_H ${ZeroMQ_INCLUDE_DIR}/zmq.h)
 
     function(_zmqver_EXTRACT _ZeroMQ_VER_COMPONENT _ZeroMQ_VER_OUTPUT)
         set(CMAKE_MATCH_1 "0")
@@ -75,10 +75,10 @@ if (ZeroMQ_INCLUDE_DIRS)
 endif()
 
 find_package_handle_standard_args(ZeroMQ FOUND_VAR ZeroMQ_FOUND
-    REQUIRED_VARS ZeroMQ_INCLUDE_DIRS ZeroMQ_LIBRARIES
+    REQUIRED_VARS ZeroMQ_INCLUDE_DIR ZeroMQ_LIBRARIES
     VERSION_VAR ZeroMQ_VERSION)
 
 if (ZeroMQ_FOUND)
-    mark_as_advanced(ZeroMQ_INCLUDE_DIRS ZeroMQ_LIBRARIES ZeroMQ_VERSION
+    mark_as_advanced(ZeroMQ_INCLUDE_DIR ZeroMQ_LIBRARIES ZeroMQ_VERSION
         ZeroMQ_VERSION_MAJOR ZeroMQ_VERSION_MINOR ZeroMQ_VERSION_PATCH)
 endif()

@@ -20,7 +20,7 @@ void  SOSD_cloud_shutdown_notice(void);
 void  SOSD_cloud_listen_loop(void);
 void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
 
-void  SOSD_aggregator_register_listener(SOS_buffer *msg);
+void  SOSD_cloud_handle_daemon_registration(SOS_buffer *msg);
 
 void *SOSD_THREAD_ZEROMQ_listen_wrapper(void *not_used);
 

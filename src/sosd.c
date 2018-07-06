@@ -8,42 +8,17 @@
 
 // ############################################################################
 
-#ifndef SOSD_CLOUD_SYNC
-    #define OPT_PARAMS ""\
-        "\n" \
-        "                 The following parameters are REQUIRED for"\
-                " STANDALONE operation:\n" \
-        "\n" \
-        "                 -k, --rank <rank within ALL sosd instances>\n" \
-        "\n"
-
-#endif
-
-#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
-    #define OPT_PARAMS ""\
-        "\n" \
-        "                 The following parameters are REQUIRED for"\
-                " EVPath:\n" \
-        "\n" \
-        "                 -r, --role <listener | aggregator>\n" \
-        "                 -k, --rank <rank within ALL sosd instances>\n" \
-        "\n" \
-        "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
-        "                       from 0 to n-1 aggregators.\n" \
-        "\n" \
-        "\n"
-#else
-    #define OPT_PARAMS "\n"
-#endif
-
-
 #define USAGE          "USAGE:   $ sosd  -l, --listeners <count>\n" \
                        "                 -a, --aggregators <count>\n" \
+                       "                 -r, --role <listener | aggregator>\n" \
+                       "                 -k, --rank <rank within ALL sosd instances>\n" \
                        "                [-w, --work_dir <full_path>]\n" \
                        "                [-o, --options_file <full_path]\n"\
                        "                [-c, --options_class <class>]\n"\
-                       OPT_PARAMS
-
+                       "\n"\
+                       "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
+                       "                       from 0 to n-1 aggregators.\n" \
+                       "\n"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -195,14 +170,15 @@ int main(int argc, char *argv[])  {
             free(SOSD.daemon.work_dir); // Default getcwd() string.
             SOSD.daemon.work_dir    = argv[next_elem];
         }
-#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
         else if ( (strcmp(argv[elem], "--rank"            ) == 0)
         ||        (strcmp(argv[elem], "-k"                ) == 0)) {
             my_rank = atoi(argv[next_elem]);
         }
         else if ( (strcmp(argv[elem], "--role"            ) == 0)
         ||        (strcmp(argv[elem], "-r"                ) == 0)) {
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
             SOSD.daemon.evpath.instance_role = argv[next_elem];
+#endif
             if (strcmp(argv[next_elem], "listener") == 0) {
                 my_role = SOS_ROLE_LISTENER;
             } else if (strcmp(argv[next_elem], "aggregator") == 0) {
@@ -214,7 +190,6 @@ int main(int argc, char *argv[])  {
             }
             fflush(stdout);
         }
-#endif
         else    { fprintf(stderr, "Unknown flag: %s %s\n",
                     argv[elem], argv[next_elem]); }
         elem = next_elem + 1;
@@ -235,9 +210,15 @@ int main(int argc, char *argv[])  {
         exit(EXIT_FAILURE);
     }
     #endif
-
-    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    
+#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     if (SOSD.daemon.evpath.instance_role == NULL) {
+        fprintf(stderr, "ERROR: Please select an instance role.\n%s\n", USAGE);
+        exit(EXIT_FAILURE);
+    }
+#endif
+
+    if (my_role == SOS_ROLE_UNASSIGNED) {
         fprintf(stderr, "ERROR: Please select an instance role.\n%s\n", USAGE);
         exit(EXIT_FAILURE);
     }
@@ -247,8 +228,6 @@ int main(int argc, char *argv[])  {
                 " daemon.\n\n%s\n", USAGE);
         exit(EXIT_FAILURE);
     }
-
-    #endif
 
     // Done with param processing... fire things up.
 
@@ -272,6 +251,21 @@ int main(int argc, char *argv[])  {
     SOSD.sos_context->config.options_file  = OPTIONS_file_path;
     SOSD.sos_context->config.options_class = OPTIONS_class_name;
 
+    SOS_SET_CONTEXT(SOSD.sos_context, "main");
+
+    my_role = SOS->role;
+
+    dlog(1, "Initializing SOSD:\n");
+    SOSD.sos_context->config.argc = argc;
+    SOSD.sos_context->config.argv = argv;
+
+    dlog(1, "   ... calling SOS_init_existing_runtime(SOSD.sos_context,"
+            " %s, SOS_RECEIVES_NO_FEEDBACK, NULL) ...\n",
+            SOS_ENUM_STR( SOS->role, SOS_ROLE ));
+            //
+    SOS_init_existing_runtime(&SOSD.sos_context, my_role,
+            SOS_RECEIVES_NO_FEEDBACK, NULL);
+
     #ifdef SOSD_CLOUD_SYNC
     if (SOSD_DAEMON_LOG && SOSD_ECHO_TO_STDOUT) {
         printf("   ... calling SOSD_cloud_init()...\n"); fflush(stdout);
@@ -287,21 +281,6 @@ int main(int argc, char *argv[])  {
     dlog(0, "   ... WARNING: There is no CLOUD_SYNC configured"
             " for this SOSD.\n");
     #endif
-
-    SOS_SET_CONTEXT(SOSD.sos_context, "main");
-
-    my_role = SOS->role;
-
-    dlog(1, "Initializing SOSD:\n");
-    SOSD.sos_context->config.argc = argc;
-    SOSD.sos_context->config.argv = argv;
-
-    dlog(1, "   ... calling SOS_init_existing_runtime(SOSD.sos_context,"
-            " %s, SOS_RECEIVES_NO_FEEDBACK, NULL) ...\n",
-            SOS_ENUM_STR( SOS->role, SOS_ROLE ));
-            //
-    SOS_init_existing_runtime(&SOSD.sos_context, my_role,
-            SOS_RECEIVES_NO_FEEDBACK, NULL);
 
     dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();

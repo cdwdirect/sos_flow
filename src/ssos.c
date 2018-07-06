@@ -233,7 +233,6 @@ SSOS_query_exec(char *sql, char *target_host, int target_port)
 
 void SSOS_init(char *prog_name) {
     g_sos_is_online = 0;
-    int attempt = 0;
 
     g_sos = NULL;
     while (g_sos == NULL) {
