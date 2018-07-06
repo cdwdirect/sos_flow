@@ -10,7 +10,7 @@
 #include "sos_target.h"
 
 #define SOSA_DEFAULT_RESULT_ROW_MAX 16*1024
-#define SOSA_DEFAULT_RESULT_COL_MAX 5 
+#define SOSA_DEFAULT_RESULT_COL_MAX 14 
 
 
 typedef enum {

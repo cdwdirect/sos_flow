@@ -1423,15 +1423,16 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
             new_pub->data[i]->time.pack = 0.0;
             new_pub->data[i]->time.send = 0.0;
             new_pub->data[i]->time.recv = 0.0;
-
+            //
             new_pub->data[i]->meta.freq        = SOS_VAL_FREQ_DEFAULT;
             new_pub->data[i]->meta.classifier  = SOS_VAL_CLASS_DATA;
             new_pub->data[i]->meta.semantic    = SOS_VAL_SEMANTIC_DEFAULT;
             new_pub->data[i]->meta.pattern     = SOS_VAL_PATTERN_DEFAULT;
             new_pub->data[i]->meta.compare     = SOS_VAL_COMPARE_SELF;
             new_pub->data[i]->meta.relation_id = 0;
-
-            new_pub->data[i]->cached_latest    = NULL;
+            //
+            new_pub->data[i]->cached_latest = NULL;
+            new_pub->data[i]->cached_count  = 0;
     }
 
     if (SOS->role == SOS_ROLE_CLIENT) {
@@ -1563,7 +1564,7 @@ void SOS_expand_data( SOS_pub *pub ) {
 
     for (n = from_old_max; n < to_new_max; n++) {
         pub->data[n] = calloc(1, sizeof(SOS_data));
-       
+
         pub->data[n]->guid      = 0;
         pub->data[n]->name[0]   = '\0';
         pub->data[n]->type      = SOS_VAL_TYPE_INT;
@@ -1584,6 +1585,7 @@ void SOS_expand_data( SOS_pub *pub ) {
         pub->data[n]->meta.relation_id = 0;
         
         pub->data[n]->cached_latest = NULL;
+        pub->data[n]->cached_count  = 0;
     }
 
     pub->elem_max = to_new_max;
@@ -2297,6 +2299,12 @@ SOS_val_snap_queue_from_buffer(
     SOS_val_snap **snap_list;
     snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
 
+#ifdef SOSD_DAEMON_SRC
+    if (pub->cache_depth > 0) {
+        pthread_mutex_lock(SOSD.sync.global_cache_lock);
+    }
+#endif
+
     for (snap_index = 0; snap_index < snap_count; snap_index++) {
         snap_list[snap_index]
                 = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
@@ -2418,83 +2426,56 @@ SOS_val_snap_queue_from_buffer(
                         break;
                 }
             }
-            // We have a new snap, push it down into the pub
+
             SOS_TIME(snap_copy->time.recv);
+
+            // We have a new snap, push it down into the pub
             snap_copy->next_snap = pub->data[snap->elem]->cached_latest;
             pub->data[snap->elem]->cached_latest = snap_copy;
+            SOS_val_snap *old_head = (SOS_val_snap *) snap_copy->next_snap;
+            //
+            if (old_head != NULL) {
+                snap_copy->prev_snap     = old_head->prev_snap;
+                old_head->prev_snap      = snap_copy;
+            } else {
+                snap_copy->prev_snap = snap_copy;
+            }
 
-            // Now trace to the end of this element's cache and
-            //     see if we need to trim it off.
-            int snap_count = 0;
-            SOS_val_snap *tmp_snap = snap_copy;
-            while (tmp_snap != NULL) {
-                snap_count++;
-                if (snap_count >= pub->cache_depth) {
-                    // tmp_snap currently points to what should be the final snap.
-                    if (tmp_snap->next_snap == NULL) {
-                        //This is the last snap, the cache is currently full,
-                        //and we're done.
-                        break;
-                    } else {
-                        // ...free() the next one (there will only be one more after
-                        // the one tmp_snap is pointing to), and make
-                        // tmp_snap->next_snap == NULL;
-                        SOS_val_snap *the_end = (SOS_val_snap *)tmp_snap->next_snap;
+            // See if we need to trim the cache tail
+            if (pub->data[snap->elem]->cached_count < pub->cache_depth) {
+                pub->data[snap->elem]->cached_count++;
+            } else {
+                SOS_val_snap *new_tail;
+                SOS_val_snap *del_tail;
+                // Trim off the tail.
+                if (pub->data[snap->elem]->cached_count > 2) {
+                    // Adjust in the new tail pointers...
+                    del_tail = (SOS_val_snap *) snap_copy->prev_snap;
+                    new_tail = (SOS_val_snap *) del_tail->prev_snap;
+                    new_tail->next_snap = NULL;
+                    snap_copy->prev_snap = new_tail;
+                } else {
+                    // There is no tail, just a head.
+                    del_tail = (SOS_val_snap *) snap_copy->next_snap;
+                    snap_copy->next_snap = NULL;
+                }
 
-                        switch (the_end->type) {
-                            case SOS_VAL_TYPE_STRING:
-                                if (the_end->val.c_val != NULL) {
-                                    free(the_end->val.c_val);
-                                }
-                                break;
-                            case SOS_VAL_TYPE_BYTES:
-                                if (the_end->val.bytes != NULL) {
-                                    free(the_end->val.bytes);
-                                }
-                                break;
-                        } //end switch
-                        // Wipe out the trailing snap.
-                        free(the_end);
-                        the_end = NULL;
-                        tmp_snap->next_snap = NULL;
-                    }
-                } //end if (at the end of the cache)
+                switch (del_tail->type) {
+                case SOS_VAL_TYPE_STRING:
+                    if (del_tail->val.c_val != NULL) {
+                        free(del_tail->val.c_val);
+                    } break;
+                case SOS_VAL_TYPE_BYTES:
+                    if (del_tail->val.bytes != NULL) {
+                        free(del_tail->val.bytes);
+                    } break;
+                }
+                free(del_tail);
+                del_tail = NULL;
 
-                // Advance to the next snap in the list, which will be NULL if we're
-                // at the end.
-                tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
-            } //end while
+            }
 
-            // Let's print the whole thing while we debug.
-            //tmp_snap = pub->data[snap->elem]->cached_latest;
-            //snap_count = 0;
-            //while (tmp_snap != NULL) {
-            //    switch (tmp_snap->type) {
-            //        case SOS_VAL_TYPE_INT:
-            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
-            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-            //                    snap_count, tmp_snap->val.i_val);
-            //            break;
-            //        case SOS_VAL_TYPE_LONG:
-            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
-            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-            //                    snap_count, tmp_snap->val.l_val);
-            //            break;
-            //        case SOS_VAL_TYPE_DOUBLE:
-            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
-            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-            //                    snap_count, tmp_snap->val.d_val);
-            //            break;
-            //        case SOS_VAL_TYPE_STRING:
-            //            dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
-            //                    tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-            //                    snap_count, tmp_snap->val.c_val);
-            //            break;
-            //    }
-            //    snap_count++;
-            //    tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
 
-            //}
 
         } //end if: (daemon && pub_cache)
 
@@ -2540,6 +2521,12 @@ SOS_val_snap_queue_from_buffer(
             } // end: forall snaps
         } //end: if no requeue...
     } //end: if no need to free cached snap
+
+#ifdef SOSD_DAEMON_SRC
+    if (pub->cache_depth > 0) {
+        pthread_mutex_unlock(SOSD.sync.global_cache_lock);
+    }
+#endif
 
     free(snap_list);
 

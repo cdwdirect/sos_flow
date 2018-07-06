@@ -17,7 +17,6 @@
 #include "sos_qhashtbl.h"
 #include "sos_pipe.h"
 #include "sos_buffer.h"
-
     
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_UNASSIGNED)                   \
@@ -322,48 +321,22 @@ typedef union {
     long                l_val;
     double              d_val;
     char               *c_val;
-    void               *bytes;   /* Use addr. of SOS_buffer object. */
+    void               *bytes;   // addr of SOS_buffer object w/the byte array
 } SOS_val;
 
-//
-//  SOS_position:
-//
-//        [Z]
-//         | [Y]
-//         | /
-//         |/
-//  . . ... ------[X]
-//        ,:
-//       . .
-//      .  .
-//
 typedef struct {
-    double              x;
-    double              y;
-    double              z;
-} SOS_position;
-
-//
-//  SOS_volume_hexahedron:
-//
-//          [p7]---------[p6]
-//         /________    / |
-//      [p4]--------[p5]  |
-//       ||  |       ||   |
-//       || [p3]-----||--[p2]
-//       ||/________ || /
-//      [p0]--------[p1]
-//
-typedef struct {
-    SOS_position        p[8];
-} SOS_volume_hexahedron;
-
+    long                init_flag;
+    uint32_t            crc32_at_set;
+    int                 len;     // including the trailing '\0';
+    char               *val;
+} SOS_string;
 
 typedef struct {
     double              pack;
     double              send;
     double              recv;
 } SOS_time;
+
 
 typedef struct {
     void               *ref;
@@ -392,6 +365,7 @@ typedef struct {
     int                 val_len;
     SOS_val             val;
     void               *next_snap;
+    void               *prev_snap;
 } SOS_val_snap;
 
 typedef struct {
@@ -404,7 +378,8 @@ typedef struct {
     SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
-    SOS_val_snap       *cached_latest;  // only w/in daemons. 
+    SOS_val_snap       *cached_latest;  // only w/in daemons.
+    int                 cached_count;
 } SOS_data;
 
 typedef struct {
@@ -441,8 +416,6 @@ typedef struct {
     qhashtbl_t         *name_table;
     SOS_pipe           *snap_queue;
 } SOS_pub;
-
-
 
 
 typedef struct {

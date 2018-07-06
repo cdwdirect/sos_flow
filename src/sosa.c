@@ -30,8 +30,9 @@ void SOSA_cache_to_results(
     double stop_time  = 0.0;
     SOS_TIME(start_time);
   
-    SOS_re_t pub_regex = SOS_re_compile(pub_filter_regex);
-    SOS_re_t val_regex = SOS_re_compile(val_filter_regex);
+    // NOTE: Re-enable if we go back to using regular expressions:
+    //SOS_re_t pub_regex = SOS_re_compile(pub_filter_regex);
+    //SOS_re_t val_regex = SOS_re_compile(val_filter_regex);
 
     SOS_pub *pub = NULL;
     SOS_list_entry *entry = SOSD.pub_list_head;
@@ -68,6 +69,8 @@ void SOSA_cache_to_results(
 
     char *val_str;
     char val_numeric_str  [128] = {0};
+
+    pthread_mutex_lock(SOSD.sync.global_cache_lock);
 
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
@@ -178,6 +181,8 @@ void SOSA_cache_to_results(
 
         entry = entry->next_entry; 
     }//while: pubs
+
+    pthread_mutex_unlock(SOSD.sync.global_cache_lock);
 
     SOS_TIME(stop_time);
     results->exec_duration = (stop_time - start_time);

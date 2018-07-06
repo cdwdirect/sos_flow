@@ -375,8 +375,13 @@ int main(int argc, char *argv[])  {
     SOSD_sync_context_init(SOS, &SOSD.sync.feedback,
             sizeof(SOSD_feedback_task *), SOSD_THREAD_feedback_sync);
 
+    dlog(1, "   ... Creating mutex: sense_list_lock\n");
     SOSD.sync.sense_list_lock = calloc(1, sizeof(pthread_mutex_t));
     pthread_mutex_init(SOSD.sync.sense_list_lock, NULL);
+
+    dlog(1, "   ... Creating mutex: global_cache_lock\n");
+    SOSD.sync.global_cache_lock = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOSD.sync.global_cache_lock, NULL);
 
     dlog(1, "Entering listening loops...\n");
 
@@ -1320,8 +1325,10 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     dlog(1, "Preparing to send a message to our own listening socket...\n");
     dlog(1, "  ... Initializing...\n");
     SOS_socket *my_own_listen_port = NULL;
+    
     const char * portStr = getenv("SOS_CMD_PORT");
     if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
+    
     SOS_target_init(SOS, &my_own_listen_port, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
@@ -1465,7 +1472,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     //       Keep an eye here if the cache concept in SOS
     //       develops in complexity, the guts of this function
     //       could get moved into a work ticket handled
-    //       by the feedback thread, and all we do here
+    //       by the feedback thread, where all we do here
     //       is generate the ticket and move on.
 
     SOS_msg_unzip(msg, &header, 0, &offset);
@@ -1492,6 +1499,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     }
 
     pthread_mutex_lock(pub->lock);
+    pthread_mutex_lock(SOSD.sync.global_cache_lock);
 
     if (pub->cache_depth < cache_to_size) {
         // Allow our cache depth to grow automatically as new
@@ -1517,18 +1525,21 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
 
         for (elem = 0; elem < pub->elem_count; elem++) {
             snap = pub->data[elem]->cached_latest;
-            deep = -1;
+            deep = 0;
             while ((deep < pub->cache_depth)
                 && (snap != NULL)) {
                 // Roll through snaps until we find the end of
                 // data or go beyond the new limit.
                 last = snap;
-                snap = snap->next_snap;
+                snap = (SOS_val_snap *) snap->next_snap;
                 deep++;
             }
             if ((deep >= pub->cache_depth)
                 && (snap != NULL)) {
                 dlog(4, "Pruning...\n");
+                if (pub->data[elem]->cached_count > cache_to_size) {
+                    pub->data[elem]->cached_count = cache_to_size;
+                }
                 // We have a pointer to the beginning of the
                 // cache where we want to start removing values,
                 // AND there are values here to remove.
@@ -1547,11 +1558,14 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
                     }
                     dlog(4, "    pub->data[%d]...snap->frame == %d\n",
                             elem, snap->frame);
-                    next = snap->next_snap;
+                    next = (SOS_val_snap *) snap->next_snap;
                     snap->next_snap = NULL;
                     free(snap);     
                     snap = next;
                 } //end: while (snap!=NULL)
+                if (pub->data[elem]->cached_latest != NULL) {
+                    pub->data[elem]->cached_latest->prev_snap = last;
+                }
             } //end: if (snaps to free)
         } //end: for (all elems in pub)
         //
@@ -1559,6 +1573,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
 
     } //end: if (pub cache being changed)
 
+    pthread_mutex_unlock(SOSD.sync.global_cache_lock);
     pthread_mutex_unlock(pub->lock);
 
     if ((cache_resized)
@@ -1566,7 +1581,6 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
         //Enqueue this message to send to our aggregator
         SOSD_cloud_send(msg, (SOS_buffer *) NULL);
     }
-
 
     dlog(6, "Done.\n");
 
