@@ -25,7 +25,11 @@
     "\t\t       - OR -\n"                                           \
     "\n"                                                            \
     "\t./demo_app --sql <SOS_SQL (environment variable)>\n"         \
-    "\n"
+    "\n"                                                            \
+    "\t\t       - OR -\n"                                           \
+    "\n"                                                            \
+    "\t./demo_app --grab <VALNM_SUBSTR (environment variable)>\n"   \
+     "\n"
 
 
 #define DEFAULT_MAX_SEND_COUNT 2400
@@ -166,6 +170,14 @@ int main(int argc, char *argv[]) {
                         " variable '%s' and retry.\n", argv[next_elem]);
                 exit(0);
             }
+        } else if ( strcmp(argv[elem], "--grab"  ) == 0) {
+            WAIT_FOR_FEEDBACK = 2;
+            SQL_QUERY = getenv(argv[next_elem]);
+            if ((SQL_QUERY == NULL) || (strlen(SQL_QUERY) < 3)) {
+                printf("Please set a valid VALUE NAME SUBSTRING in the environment"
+                        " variable '%s' and retry.\n", argv[next_elem]);
+                exit(0);
+            }
         } else {
             fprintf(stderr, "Unknown flag: %s %s\n", argv[elem], argv[next_elem]);
         }
@@ -218,29 +230,26 @@ int main(int argc, char *argv[]) {
 
     srandom(my_sos->my_guid);
 
-    if (WAIT_FOR_FEEDBACK) {
-        //--- SQL_QUERY Block: START
+    if (WAIT_FOR_FEEDBACK == 1) {
+        //--- Submit an SQL query to the local daemon: 
         printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
         const char *portStr = getenv("SOS_CMD_PORT");
         if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
         SOSA_exec_query(my_sos, SQL_QUERY, SOS_DEFAULT_SERVER_HOST, atoi(portStr));
         printf("demo_app: Waiting for results.\n");
-        //--- SQL_QUERY Block: END
-        
-        //--- CACHE_GRAB Block: START
-        //--- Get the latest frame for everything:
-        //printf("demo_app: Sending cache_grab."
-        //        "  (val_name contains \"%s\")\n", SQL_QUERY);
-        //SOSA_cache_grab(SOS, "", SQL_QUERY, -1, -1, SOS_DEFAULT_SERVER_HOST, 22500);
-        //--- CACHE_GRAB Block: END
-
-
         while(!g_done) {
             usleep(100000);
         }
-        //... 
+    } else if (WAIT_FOR_FEEDBACK == 2) {
+        //--- Do a CACHE_GRAB for all values w/names matching a pattern:
+        printf("demo_app: Sending cache_grab."
+                "  (val_name contains \"%s\")\n", SQL_QUERY);
+        SOSA_cache_grab(SOS, "", SQL_QUERY, -1, -1, SOS_DEFAULT_SERVER_HOST, 22500);
+        while (!g_done) {
+            usleep(100000);
+        }
     } else {
-
+        //--- Run normally, publishing example values:
         dlog(1, "Registering sensitivity...\n");
         SOS_sense_register(my_sos, "demo");
 

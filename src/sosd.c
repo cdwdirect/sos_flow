@@ -617,6 +617,7 @@ void SOSD_listen_loop() {
         case SOS_MSG_TYPE_SHUTDOWN:     SOSD_handle_shutdown    (buffer); break;
         case SOS_MSG_TYPE_CHECK_IN:     SOSD_handle_check_in    (buffer); break;
         case SOS_MSG_TYPE_PROBE:        SOSD_handle_probe       (buffer); break;
+        case SOS_MSG_TYPE_MANIFEST:     SOSD_handle_manifest    (buffer); break;
         case SOS_MSG_TYPE_QUERY:        SOSD_handle_query       (buffer); break;
         case SOS_MSG_TYPE_CACHE_GRAB:   SOSD_handle_cache_grab  (buffer); break;
         case SOS_MSG_TYPE_CACHE_SIZE:   SOSD_handle_cache_size  (buffer); break;
@@ -2442,6 +2443,27 @@ void SOSD_handle_probe(SOS_buffer *buffer) {
     return;
 }
 
+
+void SOSD_handle_manifest(SOS_buffer *buffer) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_handle_manifest");
+
+    SOS_buffer *reply = NULL;
+    SOSA_pub_manifest_to_buffer(SOSD.sos_context, &reply, buffer);
+
+    int i = -1;
+    i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
+            reply->len, 0);
+    if (i < 0) {
+        dlog(0, "Error sending a response.  (%s)\n", strerror(errno));
+    } else {
+        dlog(5, "  ... send() returned the following bytecount: %d\n", i);
+        SOSD_countof(socket_bytes_sent += i);
+    }
+
+    SOS_buffer_destroy(reply);
+
+    return;
+}
 
 
 void SOSD_handle_unknown(SOS_buffer *buffer) {

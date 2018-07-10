@@ -352,6 +352,182 @@ SOSA_exec_query(SOS_runtime *sos_context, char *query,
 }
 
 
+void
+SOSA_pub_manifest_to_buffer(
+        SOS_runtime   *sos_context,
+        SOS_buffer   **reply_ptr,
+        SOS_buffer    *request)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_pub_manifest_to_buffer");    
+
+    SOS_msg_header header;
+    int            offset;
+
+    offset = 0;
+    SOS_msg_unzip(request, &header, 0, &offset);
+    dlog(1, "header.msg_size == %d\n", header.msg_size);
+    dlog(1, "header.msg_type == %d\n", header.msg_type);
+    dlog(1, "header.msg_from == %" SOS_GUID_FMT "\n", header.msg_from);
+    dlog(1, "header.ref_guid == %" SOS_GUID_FMT "\n", header.ref_guid);
+
+    char      *reply_host = NULL;
+    int        reply_port = -1;
+    char      *pub_title_filter = NULL;
+    SOS_guid   request_guid = 0;
+
+    SOS_buffer_unpack_safestr(request, &offset, &reply_host);
+    SOS_buffer_unpack(request, &offset, "i",    &reply_port);
+    SOS_buffer_unpack_safestr(request, &offset, &pub_title_filter);
+    SOS_buffer_unpack(request, &offset, "g",    &request_guid);
+
+    double time_start = 0.0;
+    double time_stop  = 0.0;
+    double time_elapsed = 0.0;
+
+    SOS_TIME(time_start);
+
+    *reply_ptr = NULL;
+    SOS_buffer_init_sized_locking(SOS, reply_ptr, 4096, false);
+    SOS_buffer *reply = *reply_ptr;
+
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_MANIFEST;
+    header.msg_from = (SOS_guid) SOS->config.comm_rank;
+    header.ref_guid = request_guid;
+
+    offset = 0;
+    SOS_msg_zip(reply, header, 0, &offset);
+   
+    int matching_pubs     = -1;
+    int max_frame_overall = -1;
+
+    SOS_buffer_pack(reply, &offset, "i", matching_pubs);
+    SOS_buffer_pack(reply, &offset, "d", time_elapsed);
+    SOS_buffer_pack(reply, &offset, "i", max_frame_overall);
+
+    matching_pubs = 0;
+    SOS_pub *pub = NULL;
+    SOS_list_entry *entry = SOSD.pub_list_head;
+    while (entry != NULL) {
+        pub = (SOS_pub *) entry->ref;
+        if (pub == NULL) break;
+
+        if (strstr(pub->title, pub_title_filter)) {
+            
+            matching_pubs++;
+
+            SOS_buffer_pack(reply, &offset, "gsisiii",
+                    pub->guid,
+                    pub->title,
+                    pub->comm_rank,
+                    pub->node_id,
+                    pub->process_id,
+                    pub->elem_count,
+                    pub->frame);
+
+            if (pub->frame > max_frame_overall) {
+                max_frame_overall = pub->frame;
+            }
+        }
+
+    }
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_msg_zip(reply, header, 0, &offset);
+
+    SOS_TIME(time_stop);
+    time_elapsed = time_stop - time_start;
+    SOS_buffer_pack(reply, &offset, "i", matching_pubs);
+    SOS_buffer_pack(reply, &offset, "d", time_elapsed);
+    SOS_buffer_pack(reply, &offset, "i", max_frame_overall);
+
+    return;
+}
+
+SOS_guid
+SOSA_request_pub_manifest(
+        SOS_runtime  *sos_context,
+        SOSA_results **results,
+        char         *pub_title_filter,
+        char         *target_host,
+        int           target_port)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_request_pub_manifest");
+
+    dlog(7, "Submitting request for a pub manifest with pub->title"
+            " containing \"%s\" ...\n",
+                pub_title_filter);
+
+    SOS_buffer *msg;
+    SOS_buffer *reply;
+    SOS_buffer_init_sized_locking(SOS, &msg,   4096, false);
+    SOS_buffer_init_sized_locking(SOS, &reply, 4096, false);
+
+    SOS_msg_header header;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_MANIFEST;
+    header.msg_from = SOS->config.comm_rank;
+    header.ref_guid = 0;
+
+    dlog(7, "   ... creating msg.\n");
+
+    int offset = 0;
+    SOS_msg_zip(msg, header, 0, &offset);
+    
+    SOS_guid request_guid;
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        // NOTE: This guid is returned by the function so it can
+        // be tracked by clients.  They can blast out a bunch
+        // of queries to different daemons that get returned
+        // asynchronously, and can do some internal bookkeeping by
+        // uniting the results with the original query submission.
+        request_guid = SOS_uid_next(SOS->uid.my_guid_pool);
+    } else {
+        // Or...
+        // this generally should not happen unless the daemon is
+        // submitting manifest requests internally, which is downright
+        // funky and shouldn't be happening.  -CW
+        request_guid = -99999;
+    }
+    dlog(7, "   ... assigning request_guid = %" SOS_GUID_FMT "\n",
+            request_guid);
+   
+    // NOTE: Manifest requests are meant to be handled immediately,
+    //       like probe messages.
+    //       Lets go ahead and send this client's contact info
+    //       in case we want to update the service behavior later to be
+    //       handled by the feedback thread.
+    SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
+    SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
+    SOS_buffer_pack(msg, &offset, "s", pub_title_filter);
+    SOS_buffer_pack(msg, &offset, "g", request_guid);
+
+    header.msg_size = offset;
+    offset = 0;
+    SOS_msg_zip(msg, header, 0, &offset);
+
+    dlog(7, "   ... sending manifest request to daemon.\n");
+    SOS_socket *target = NULL;
+    SOS_target_init(SOS, &target, target_host, target_port);
+    SOS_target_connect(target);
+    SOS_target_send_msg(target, msg);
+    SOS_target_recv_msg(target, reply);
+    SOS_target_disconnect(target);
+    SOS_target_destroy(target);
+
+    SOS_buffer_destroy(msg);
+
+    // TODO: Unzip the reply and see if there are results.
+    // TODO: Initialize the result set.
+    // TODO: Unroll the reply into the result set.
+    
+    SOS_buffer_destroy(reply);
+
+    dlog(7, "   ... done.\n");
+    return request_guid;
+}
+
 void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) {
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_put");
     
