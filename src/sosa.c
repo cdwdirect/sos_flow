@@ -429,7 +429,7 @@ SOSA_pub_manifest_to_buffer(
                 max_frame_overall = pub->frame;
             }
         }
-
+        entry = entry->next_entry;
     }
 
     header.msg_size = offset;
@@ -447,11 +447,12 @@ SOSA_pub_manifest_to_buffer(
 
 SOS_guid
 SOSA_request_pub_manifest(
-        SOS_runtime  *sos_context,
-        SOSA_results **results,
-        char         *pub_title_filter,
-        char         *target_host,
-        int           target_port)
+        SOS_runtime   *sos_context,
+        SOSA_results  *manifest,
+        int           *max_frame_overall_var,
+        char          *pub_title_filter,
+        char          *target_host,
+        int            target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_request_pub_manifest");
 
@@ -521,7 +522,74 @@ SOSA_request_pub_manifest(
     // TODO: Unzip the reply and see if there are results.
     // TODO: Initialize the result set.
     // TODO: Unroll the reply into the result set.
-    
+
+    dlog(7, "   ... unpacking the manifest for to make a SOS_results"
+            " object containing the data.\n");
+
+    int     matching_pubs       = -1;
+    double  time_to_execute     = -1.0;
+
+    offset = 0;
+    SOS_msg_unzip(reply, &header, 0, &offset);
+
+    SOS_buffer_unpack(reply, &offset, "idi",
+            &matching_pubs,
+            &time_to_execute,
+            max_frame_overall_var);
+  
+    SOSA_results_put_name(manifest, 0, "pub_guid");
+    SOSA_results_put_name(manifest, 1, "pub_title");
+    SOSA_results_put_name(manifest, 2, "pub_comm_rank");
+    SOSA_results_put_name(manifest, 3, "pub_node_id");
+    SOSA_results_put_name(manifest, 4, "pub_process_id");
+    SOSA_results_put_name(manifest, 5, "pub_elem_count");
+    SOSA_results_put_name(manifest, 6, "pub_frame");
+
+    SOS_guid  pub_guid        = 0;
+    char     *pub_title       = NULL;
+    int       pub_comm_rank   = -1;
+    char     *pub_node_id     = NULL;
+    int       pub_process_id  = -1;
+    int       pub_elem_count  = -1;
+    int       pub_frame       = -1;
+
+    char str_pub_guid         [128] = {0};
+    char str_pub_comm_rank    [128] = {0};
+    char str_pub_process_id   [128] = {0};
+    char str_pub_elem_count   [128] = {0};
+    char str_pub_frame        [128] = {0};
+
+    int row = 0;
+    for (row = 0; row < matching_pubs; row++) {
+        SOS_buffer_unpack(reply, &offset, "g", &pub_guid);
+        SOS_buffer_unpack_safestr(reply, &offset, &pub_title); 
+        SOS_buffer_unpack(reply, &offset, "i", &pub_comm_rank);        
+        SOS_buffer_unpack_safestr(reply, &offset, &pub_node_id);
+        SOS_buffer_unpack(reply, &offset, "iii", 
+                &pub_process_id,
+                &pub_elem_count,
+                &pub_frame);
+
+        snprintf(str_pub_guid,        128, "%" SOS_GUID_FMT, pub_guid);
+        snprintf(str_pub_comm_rank,   128, "%d", pub_comm_rank);
+        snprintf(str_pub_process_id,  128, "%d", pub_process_id);
+        snprintf(str_pub_elem_count,  128, "%d", pub_elem_count);
+        snprintf(str_pub_frame,       128, "%d", pub_frame);
+
+
+        SOSA_results_put(manifest,   0, row, str_pub_guid);
+        SOSA_results_put(manifest,   1, row, pub_title);
+        SOSA_results_put(manifest,   2, row, str_pub_comm_rank);
+        SOSA_results_put(manifest,   3, row, pub_node_id);
+        SOSA_results_put(manifest,   4, row, str_pub_process_id);
+        SOSA_results_put(manifest,   5, row, str_pub_elem_count);
+        SOSA_results_put(manifest,   6, row, str_pub_frame);
+
+        manifest->row_count = (row + 1);
+    }
+    // Done.
+    // ----------
+
     SOS_buffer_destroy(reply);
 
     dlog(7, "   ... done.\n");
@@ -537,8 +605,8 @@ void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) 
         strval = nullstr;
     }
 
-    dlog(9, "put(row,col)== %d, %d\t\t-> result.max(row,col) == %d, %d\n",
-        row, col, results->row_max, results->col_max);
+    dlog(9, "SOSA_results_put(%d, %d) == %s\n",
+        row, col, val);
 
     if ((col >= results->col_max) || (row >= results->row_max)) {
         SOSA_results_grow_to(results, col, row);

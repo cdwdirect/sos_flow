@@ -185,6 +185,30 @@ void SSOS_result_destroy(SSOS_query_results *results) {
     return;
 }
 
+void
+SSOS_request_pub_manifest(
+        SSOS_query_results  *manifest_var,
+        int                 *max_frame_overall_var,
+        char                *pub_title_filter,
+        char                *target_host,
+        int                 target_port)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_request_pub_manifest");
+    SOS_SET_CONTEXT(g_sos, "SSOS_request_pub_manifest");
+
+    SOSA_results_init(g_sos, (SOSA_results **) &manifest_var);
+
+    SOSA_request_pub_manifest(
+            g_sos,
+            (SOSA_results *) manifest_var,
+            max_frame_overall_var,
+            pub_title_filter,
+            target_host,
+            target_port);
+
+    return;
+}
+
 
 void
 SSOS_cache_grab(
