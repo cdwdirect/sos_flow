@@ -1945,6 +1945,7 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
                 memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
                 break;
         }
+
         // We have a new snap, push it down into the pub
         snap_copy->next_snap = pub->data[snap->elem]->cached_latest;
         pub->data[snap->elem]->cached_latest = snap_copy;
@@ -1967,7 +1968,7 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
                     // tmp_snap->next_snap == NULL;
                     SOS_val_snap *the_end = (SOS_val_snap *)tmp_snap->next_snap;
 
-                    switch (tmp_snap->type) {
+                    switch (the_end->type) {
                     case SOS_VAL_TYPE_STRING:
                         if (the_end->val.c_val != NULL) {
                             free(the_end->val.c_val);
@@ -1980,7 +1981,7 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
                         break;
                     } //end switch
                     // Wipe out the trailing snap.
-                    free(tmp_snap->next_snap);
+                    free(the_end);
                     tmp_snap->next_snap = NULL;
                 }
             } //end if (at the end of the cache)
@@ -2038,6 +2039,33 @@ int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
     
     return snap->elem;
+}
+
+
+void SOS_val_snap_destroy(SOS_val_snap **snap_var) {
+    SOS_val_snap *snap = *snap_var;
+    
+    if (snap == NULL) {
+        return;
+    }
+
+    switch (snap->type) {
+        case SOS_VAL_TYPE_STRING:
+            if (snap->val.c_val != NULL) {
+                free(snap->val.c_val);
+            }
+            break;
+        case SOS_VAL_TYPE_BYTES:
+            if (snap->val.bytes != NULL) {
+                free(snap->val.bytes);
+            }
+            break;
+
+    }
+    memset(snap, 0, sizeof(SOS_val_snap));
+    free(snap);
+    *snap_var = NULL;
+    return;
 }
 
 

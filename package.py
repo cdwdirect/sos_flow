@@ -33,9 +33,9 @@ class Sosflow(CMakePackage):
     homepage = "https://github.com/cdwdirect/sos_flow/wiki"
     url      = "https://github.com/cdwdirect/sos_flow.git"
 
-    version('1.17',     git='https://github.com/cdwdirect/sos_flow.git', tag='spack-build-v1.17', preferred=True)
-    version('0.9901',   git='https://github.com/cdwdirect/sos_flow.git', tag='spack-build-v0.9901')
-    version('chad_dev', git='https://github.com/cdwdirect/sos_flow.git', branch='chad_dev')
+    version('1.17',      git='https://github.com/cdwdirect/sos_flow.git', tag='spack-build-v1.17', preferred=True)
+    version('0.9901',    git='https://github.com/cdwdirect/sos_flow.git', tag='spack-build-v0.9901')
+    version('chad_dev',  git='https://github.com/cdwdirect/sos_flow.git', branch='chad_dev')
 
     # Primary inter-daemon transport is EVPath for now.
     depends_on('libevpath',        type=('build', 'run'))
