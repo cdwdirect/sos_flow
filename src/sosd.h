@@ -19,6 +19,7 @@
 
 #include "sos.h"
 #include "sos_types.h"
+#include "sos_target.h"
 #include "sosa.h"
 #include "sos_options.h"
 
@@ -38,6 +39,8 @@
 #define SOSD_PUB_ANN_DIRTY           66
 #define SOSD_PUB_ANN_LOCAL           77
 #define SOSD_PUB_ANN_CLOUD           88
+
+#define SOSD_DEFAULT_CLOUD_PORT      22700
 
 #define SOSD_LOCAL_SYNC_WAIT_SEC     0
 #define SOSD_CLOUD_SYNC_WAIT_SEC     0
@@ -202,7 +205,9 @@ typedef struct {
     SOSD_zeromq         zeromq;
 #endif
 #ifdef SOSD_CLOUD_SYNC_WITH_SOCKET
-    SOS_target         *socket;
+    SOS_socket         *cloud_inlet;
+    SOS_socket         *cloud_aggregator; //LISTENERS
+    SOS_socket        **cloud_targets;    //AGGREGATORS
 #endif
 } SOSD_runtime;
 
@@ -320,6 +325,7 @@ extern "C" {
     void  SOSD_handle_shutdown(SOS_buffer *buffer);
     void  SOSD_handle_check_in(SOS_buffer *buffer);
     void  SOSD_handle_probe(SOS_buffer *buffer);
+    void  SOSD_handle_manifest(SOS_buffer *buffer);
     void  SOSD_handle_query(SOS_buffer *buffer);
     void  SOSD_handle_cache_grab(SOS_buffer *buffer);
     void  SOSD_handle_cache_size(SOS_buffer *buffer);

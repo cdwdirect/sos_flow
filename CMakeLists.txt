@@ -32,10 +32,10 @@ set(ADIOS_DIR      "" CACHE STRING
 #
 # NOTE: Only ONE may be set to ON at a time.
 
-option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"  ON)
+option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (RECOMMENDED)"  OFF)
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (EXPERIMENTAL)" ON)
 option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
 option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF)
-option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
 
 # --- Other SOS options ---
 
@@ -260,7 +260,8 @@ endif()
 # SOS_CLOUD_SYNC_WITH_EVPATH OPTIONS
 ###########
 
-find_package(ADIOS)
+# Build the ADIOS examples?
+#find_package(ADIOS)
 
 ###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
@@ -299,11 +300,11 @@ if(SOS_CLOUD_SYNC_WITH_ZEROMQ)
     message(STATUS "ZEROMQ:  Sync with ZEROMQ is ENABLED")
     message(STATUS "ZEROMQ:  Locating package...")
     find_package(ZeroMQ REQUIRED QUIET)
-    message(STATUS "ZEROMQ:      ZeroMQ_INCLUDE_DIRS   = ${ZeroMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:      ZeroMQ_INCLUDE_DIR    = ${ZeroMQ_INCLUDE_DIR}")
     message(STATUS "ZEROMQ:      ZeroMQ_LIBRARIES      = ${ZeroMQ_LIBRARIES}")
     message(STATUS "ZEROMQ:  Locating C API bindings...")
     find_package(CZMQ REQUIRED QUIET)
-    message(STATUS "ZEROMQ:      CZMQ_INCLUDE_DIRS     = ${CZMQ_INCLUDE_DIRS}")
+    message(STATUS "ZEROMQ:      CZMQ_INCLUDE_DIR      = ${CZMQ_INCLUDE_DIR}")
     message(STATUS "ZEROMQ:      CZMQ_LIBRARIES        = ${CZMQ_LIBRARIES}")
 
     add_definitions(-DSOSD_CLOUD_SYNC_WITH_ZEROMQ)

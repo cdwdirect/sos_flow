@@ -87,6 +87,12 @@ void SOS_options_load_evar(SOS_options *opt) {
         opt->batch_environment = false;
     }
 
+    if (getenv("SOS_DISCOVERY_DIR") != NULL) {
+        opt->discovery_dir = getenv("SOS_DISCOVERY_DIR");
+    } else {
+        opt->discovery_dir = NULL;
+    }
+
     if (SOS_str_opt_is_enabled(getenv("SOS_IN_MEMORY_DATABASE"))) {
         opt->db_in_memory_only = true;
     } else {

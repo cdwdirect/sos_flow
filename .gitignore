@@ -8,3 +8,5 @@ sourceme.sh
 build*
 IDEAS
 src/sosa_mods/test
+.idea
+cmake-build-debug

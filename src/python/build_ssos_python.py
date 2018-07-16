@@ -88,13 +88,21 @@ if __name__ == "__main__":
     void SSOS_finalize(void);
 
     void SSOS_query_exec(char *sql, char *target_host, int target_port);
+    //
+    void SSOS_request_pub_manifest(
+        SSOS_query_results *manifest_var,
+        int  *max_frame_overall_var,
+        char *pub_title_filter,
+        char *target_host,
+        int   target_port);
+    //
     void SSOS_cache_grab(
         char *pub_filter,
         char *val_filter,
-        int frame_head,
-        int frame_depth_limit,
+        int   frame_head,
+        int   frame_depth_limit,
         char *target_host,
-        int target_port);
+        int   target_port);
     //
     void SSOS_result_pool_size(int *addr_of_counter_int);
     void SSOS_result_claim(SSOS_query_results *results);

@@ -44,7 +44,6 @@ void SOSD_cloud_listen_loop(void) {
 //routines. This should not need to change between versions.
 void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_process_buffer.ZEROMQ");
-    buffer_rec_ptr evp_buffer = vevent;
 
     SOS_msg_header    header;
 
@@ -105,7 +104,7 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
                 break;
 
             case SOS_MSG_TYPE_REGISTER:
-                SOSD_aggregator_register_connection(msg);
+                SOSD_cloud_handle_daemon_registration(msg);
                 break;
 
             case SOS_MSG_TYPE_SHUTDOWN:
@@ -123,7 +122,7 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
                 break;
 
             case SOS_MSG_TYPE_TRIGGERPULL:
-                SOSD_evpath_handle_triggerpull(msg);
+                SOSD_cloud_handle_triggerpull(msg);
                 break;
 
             case SOS_MSG_TYPE_ACK:
@@ -438,10 +437,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         exit(EXIT_FAILURE);
     }
 
-    // The cloud sync stuff gets calculated after we know
-    // how many targets have connected as aggregators,
-    // and have assigned the aggregators their internal rank
-    // indices...
     SOSD.daemon.cloud_sync_target_count = SOSD.daemon.aggregator_count;
 
     dlog(1, "Initializing ZeroMQ...\n");
@@ -792,7 +787,7 @@ void  SOSD_cloud_shutdown_notice(void) {
 void *SOSD_THREAD_ZEROMQ_listen_wrapper(void *not_used) {
     // Run the basic API-required loop listener function.
     // NOTE: Daemons have globals, no need to intake a parameter.
-    SOSD_cloud_listen_loop():
+    SOSD_cloud_listen_loop();
     pthread_exit(NULL);
     return NULL;
 }

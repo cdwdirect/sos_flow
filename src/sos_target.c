@@ -232,6 +232,7 @@ SOS_target_init(
     SOS_socket *tgt = *target;
     tgt->sos_context = sos_context;
 
+    tgt->is_locking = true;
     tgt->send_lock = (pthread_mutex_t *) calloc(1, sizeof(pthread_mutex_t));
     pthread_mutex_lock(tgt->send_lock);
 
