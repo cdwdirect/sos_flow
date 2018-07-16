@@ -1469,15 +1469,38 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     pthread_mutex_lock(pub->lock);
     pthread_mutex_lock(SOSD.sync.global_cache_lock);
 
-    SOS_val_snap **
+    SOS_val_snap **new_cache = (SOS_val_snap **)
+        calloc(cache_to_size, sizeof(SOS_val_snap *));
 
+    int head_bytes = -1;
+    int tail_bytes = -1;
+
+    if (cache_to_size > pub->cache_depth) {
+        // GROW the cache:
+        head_bytes = (pub->cache_depth - pub->cache_head) * sizeof(SOS_val_snap *);
+        tail_bytes = (pub->cache_head * sizeof(SOS_val_snap *));
+        memcpy(new_cache, pub->cache[pub->cache_head], head_bytes);
+        // Grab the segment before the head, if any:
+        if (pub->cache_head > 0) {
+            memcpy((new_cache + head_bytes), pub->cache[0], tail_bytes);
+        }
+    } else {
+        // SHRINK the cache:
+        // TODO: Let's make sure things work, nobody is shrinking yet.
+    }
+
+    SOS_val_snap **old_cache = pub->cache;
+    pub->cache = new_cache;
+    pub->cache_head = 0;
+    pub->cache_depth = cache_to_size;
 
     // Done adjusting cache.
     pthread_mutex_unlock(SOSD.sync.global_cache_lock);
     pthread_mutex_unlock(pub->lock);
 
-    if ((cache_resized)
-        && (SOS->role != SOS_ROLE_AGGREGATOR)) {
+    free(old_cache);
+
+    if (SOS->role != SOS_ROLE_AGGREGATOR) {
         //Enqueue this message to send to our aggregator
         SOSD_cloud_send(msg, (SOS_buffer *) NULL);
     }

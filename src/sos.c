@@ -1594,9 +1594,6 @@ void SOS_expand_data( SOS_pub *pub ) {
         pub->data[n]->meta.pattern     = SOS_VAL_PATTERN_DEFAULT;
         pub->data[n]->meta.compare     = SOS_VAL_COMPARE_SELF;
         pub->data[n]->meta.relation_id = 0;
-        
-        pub->data[n]->cached_latest = NULL;
-        pub->data[n]->cached_count  = 0;
     }
 
     pub->elem_max = to_new_max;
@@ -1713,7 +1710,7 @@ SOS_pack(SOS_pub *pub, const char *name,
     if (rc < 0) { return rc; }
 
     rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; } 
-    rc = SOS_pack_snap_into_pub_cache(pub, snap); if (rc < 0) { return rc; }
+    rc = SOS_pack_snap_add_to_pub_cache(pub, snap); if (rc < 0) { return rc; }
     rc = SOS_pack_snap_into_val_queue(pub, snap); if (rc < 0) { return rc; }
     
     pthread_mutex_unlock(pub->lock);
@@ -1739,7 +1736,7 @@ SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
     //
 
     rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; } 
-    rc = SOS_pack_snap_into_pub_cache(pub, snap); if (rc < 0) { return rc; }
+    rc = SOS_pack_snap_add_to_pub_cache(pub, snap); if (rc < 0) { return rc; }
     rc = SOS_pack_snap_into_val_queue(pub, snap); if (rc < 0) { return rc; }
 
     pthread_mutex_unlock(pub->lock);
@@ -1913,7 +1910,7 @@ int SOS_pack_snap_list_into_pub_cache(SOS_pub *pub, SOS_val_snap **snap_list) {
     if (snap_list == NULL) { return 0; }
     if (snap_list[0] == NULL) { return 0; }
 
-    if (pub->nature == SOS_NATURE_SOS) {
+    if (pub->meta.nature == SOS_NATURE_SOS) {
         // These values have been packed/stored in SOS already
         // because they were created by the daemon.
         // We should not have gotten here, but return anyway.
@@ -2305,7 +2302,7 @@ SOS_val_snap_queue_from_buffer(
    
     bool ynAddSnapsToCache =
         ((pub->cache_depth > 0)
-      && (pub->nature != SOS_NATURE_SOS));
+      && (pub->meta.nature != SOS_NATURE_SOS));
 
     snap_list = (SOS_val_snap **) calloc(snap_count, sizeof(SOS_val_snap *));
 

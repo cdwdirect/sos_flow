@@ -174,6 +174,8 @@ extern "C" {
     void SOS_val_snap_queue_from_buffer(SOS_buffer *buffer,
         SOS_pipe *snap_queue, SOS_pub *pub);
 
+    void SOS_val_snap_destroy(SOS_val_snap **snap_var);
+
     void SOS_str_strip_ext(char *str);
     void SOS_str_to_upper(char *mutable_str);
     bool SOS_str_opt_is_enabled(char *mutable_str);
