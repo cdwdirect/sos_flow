@@ -20,8 +20,8 @@
 void SOSA_cache_to_results(
         SOS_runtime *sos_context,
         SOSA_results *results,
-        char *pub_filter_regex,
-        char *val_filter_regex,
+        char *pub_filter_str,
+        char *val_filter_str,
         int frame_head,
         int frame_depth_limit)
 {
@@ -31,8 +31,8 @@ void SOSA_cache_to_results(
     SOS_TIME(start_time);
   
     // NOTE: Re-enable if we go back to using regular expressions:
-    //SOS_re_t pub_regex = SOS_re_compile(pub_filter_regex);
-    //SOS_re_t val_regex = SOS_re_compile(val_filter_regex);
+    //SOS_re_t pub_regex = SOS_re_compile(pub_filter_str);
+    //SOS_re_t val_regex = SOS_re_compile(val_filter_str);
 
     SOS_pub *pub = NULL;
     SOS_list_entry *entry = SOSD.pub_list_head;
@@ -75,53 +75,39 @@ void SOSA_cache_to_results(
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
         if (pub == NULL) break;
-        //if ((pub->cache_depth > 0)  //NOTE: Regex isn't working right yet.
-        //    && (SOS_re_matchp(pub_regex, pub->title)))
         if ((pub->cache_depth > 0)
-            && (strstr(pub->title, pub_filter_regex) != NULL))
-        {
-            for (i = 0; i < pub->elem_count; i++) {
-                //if (SOS_re_matchp(val_regex, pub->data[i]->name)) {
-                if (strstr(pub->data[i]->name, val_filter_regex) != NULL) {
-                    
-                    //SLICE slice
-                    //TODO: Each element in the cache is a LIST of snapshots
-                    //      itself... not a single snapshot.
-                    //      ALSO: update the frames_grabbed variable only
-                    //            after the full list has been ingested.
-                    SOS_val_snap *snap = pub->data[i]->cached_latest;
-                    frames_grabbed = 0;
-
-                    while (snap != NULL) {
-                        // Apply our frame constraints, if any:
-                        if (
-                            ((frame_head >= 0) && (snap->frame > frame_head))
-                              ||
-                            ((snap->frame < (frame_head - frame_depth_limit))
-                                && (frame_depth_limit > 0))
-                           )
-                        {
-                            // If the request is starting at a specific frame
-                            // and we've not hit it yet, move to the next snap.
-                            // NOTE: Snaps are stored as a push-down stack, so
-                            //       cached_latest is the largest frame #, and
-                            //       snap->next_snap is a lower/earlier frame.
-                            
-                            snap = snap->next_snap;
-                            continue;
-                        }
-                        if (   (frame_depth_limit > 0)
-                            && (frames_grabbed >= frame_depth_limit)) {
-                            // If we're limiting results, and we're past the
-                            // limit, move on to the next value in the pub.
-                            
-                            break;
-                        }
-
-                        //If we're here, we have a snapshot that matches
-                        //all of the filtering/frame constraints.
-                        
-                        //Put all the numeric fields into strings:
+            && (strstr(pub->title, pub_filter_str) != NULL)) {
+            int read_pos = pub->cache_head;
+            int stop_pos = -1;
+            if (pub->cache_head == 0) {
+                stop_pos = (pub->cache_depth - 1);
+            } else {
+                stop_pos = pub->cache_head - 1;
+            }
+            frames_grabbed = 0;
+            while ((read_pos != stop_pos) 
+                && (frames_grabbed < frame_depth_limit) ){
+                if (frame_head == -1) {
+                    // We're good to continue at whatever this first frame is.
+                    // ...so do nothing, fall through the next block.
+                } else if (pub->cache[read_pos]->frame > frame_head) {
+                    // Go deeper in the cache/older, looking for frame_head.
+                    read_pos++;
+                    if (read_pos == pub->cache_depth) { read_pos = 0; }
+                    continue;
+                }
+                
+                // Walk through the values and look for matching ones:
+                SOS_val_snap *snap = pub->cache[read_pos];
+                while (snap != NULL) {
+                    SOS_val_snap *next_snap = snap->next_snap;
+                    if (strstr(pub->data[snap->elem]->name, val_filter_str) == NULL) {
+                        // This snap's name doesn't match.
+                        snap = next_snap;
+                        continue;
+                    } else {
+                        // We have a match!
+                        // Put all the numeric fields into strings:
                         snprintf(process_id_str,   128, "%d", pub->process_id);
                         snprintf(comm_rank_str,    128, "%d", pub->comm_rank);
                         snprintf(time_pack_str,    128, "%lf", snap->time.pack);
@@ -132,7 +118,6 @@ void SOSA_cache_to_results(
                         snprintf(val_type_str,     128, "%d", snap->type);
                         snprintf(val_guid_str,     128, "%"SOS_GUID_FMT,
                                 snap->guid);
-
 
                         switch(snap->type) {
                         case SOS_VAL_TYPE_INT:

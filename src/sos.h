@@ -126,11 +126,26 @@ extern "C" {
     //       reuse among the different interactions like SOS_pack() VS.
     //       SOS_pack_related() and additional future data inlets:
     //
+    // Find where in the pub this new value should go, and populate the
+    // SOS_val_snap *snap obj representing with the values and position.
     int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
             const char *name, SOS_val_type type, const void *val);
+    //
+    // Update the pub->data[elem] values using this snapshot.
     int SOS_pack_snap_renew_pub_data(SOS_pub *pub, SOS_val_snap *snap);
-    int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap);
+    //
+    // Add a single snap to the latest cache entry:
+    int SOS_pack_snap_add_to_pub_cache(SOS_pub *pub, SOS_val_snap *snap);
+    //
+    // Add a list of snapshots from digesting a buffer sent in a publish:
+    // (This will increment the pub->latest_frame and move around
+    // the cache ring buffer.)
+    int SOS_pack_snap_list_into_pub_cache(SOS_pub *pub, SOS_val_snap **snap_list);
+    //
+    // This puts an individual snapshot into the "next steps" queue,
+    // or the "queue to send to the daemon" for clients, for example:
     int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
+    // -----
 
 
     int SOS_pub_search(SOS_pub *pub, const char *name);

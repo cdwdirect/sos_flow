@@ -315,8 +315,6 @@ typedef     uint64_t SOS_guid;
 #define SOS_GUID_FMT      PRIu64
 
 
-
-
 typedef union {
     int                 i_val;
     long                l_val;
@@ -379,12 +377,6 @@ typedef struct {
     SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
-    // New cache method:
-    // SLICE slice
-    
-    // Old cache method:
-    SOS_val_snap       *cached_latest;  // only w/in daemons.
-    int                 cached_count;
 } SOS_data;
 
 typedef struct {
@@ -416,7 +408,11 @@ typedef struct {
     char                prog_name[SOS_DEFAULT_STRING_LEN];
     char                prog_ver[SOS_DEFAULT_STRING_LEN];
     char                title[SOS_DEFAULT_STRING_LEN];
+    //
+    SOS_val_snap      **cache;
+    int                 cache_head;
     int                 cache_depth;
+    //
     SOS_data          **data;
     qhashtbl_t         *name_table;
     SOS_pipe           *snap_queue;
