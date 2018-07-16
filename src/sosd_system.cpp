@@ -474,7 +474,7 @@ void SOSD_setup_system_monitor_pub(void) {
 
   // make our pub 
   char * pub_title = strdup("system monitor");
-  SOS_pub_init(SOSD.sos_context, &pub, pub_title, SOS_NATURE_CREATE_OUTPUT);
+  SOS_pub_init(SOSD.sos_context, &pub, pub_title, SOS_NATURE_SOS);
   std::stringstream version;
   version << STRINGIFY(SOS_VERSION_MAJOR) << "." << STRINGIFY(SOS_VERSION_MINOR);
   strcpy (pub->prog_ver, version.str().c_str());

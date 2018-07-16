@@ -59,7 +59,6 @@ add_library(sos
     sos_pipe.c
     sos_target.c
     sos_re.c
-    sos_json.c
     sos_error.c
     sos_options.c)
 #----
@@ -170,7 +169,6 @@ INSTALL(FILES sos.h
               sos_types.h
               sos_qhashtbl.h
               sos_pipe.h
-              sos_json.h
               sos_buffer.h
               sos_string.h
               sos_target.h

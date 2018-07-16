@@ -133,6 +133,21 @@ void SOS_options_load_evar(SOS_options *opt) {
         opt->db_disabled = false;
     }
 
+    if (getenv("SOS_PUB_CACHE_DEPTH") != NULL) {
+        opt->pub_cache_depth = atoi(getenv("SOS_PUB_CACHE_DEPTH"));
+        printf("opt->pub_cache_depth == %d\n", opt->pub_cache_depth);
+        if (opt->pub_cache_depth < 0) {
+            opt->pub_cache_depth = 0;
+        } else if (opt->pub_cache_depth > 100000) {
+            fprintf(stderr, "WARNING: Unusually large value selected"
+                    " for default pub->cache_depth! (%d)\n",
+                    opt->pub_cache_depth);
+        }
+    } else {
+        // No pub cache depth is selected.
+        opt->pub_cache_depth = 0;
+    }
+
     if (SOS_str_opt_is_enabled(getenv("SOS_SYSTEM_MONITOR_ENABLED"))) {
         opt->system_monitor_enabled   = true;
         opt->system_monitor_freq_usec = 100000;

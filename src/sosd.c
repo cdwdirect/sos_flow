@@ -1445,16 +1445,6 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     SOS_buffer_destroy(reply);
 
 
-    // NOTE: For now, we handle this immediately.
-    //       Resizing a pub's cache is a rare event and
-    //       usually at init or outside of application loops.
-    //
-    //       Keep an eye here if the cache concept in SOS
-    //       develops in complexity, the guts of this function
-    //       could get moved into a work ticket handled
-    //       by the feedback thread, where all we do here
-    //       is generate the ticket and move on.
-
     SOS_msg_unzip(msg, &header, 0, &offset);
   
     SOS_pub   *pub           = NULL;
@@ -1481,83 +1471,38 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     pthread_mutex_lock(pub->lock);
     pthread_mutex_lock(SOSD.sync.global_cache_lock);
 
-    if (pub->cache_depth < cache_to_size) {
-        // Allow our cache depth to grow automatically as new
-        // values arrive.  (requires no immediate effort)
-        dlog(4, "Growing pub->cache_depth from %d to %d.\n",
-                pub->cache_depth, cache_to_size);
-        pub->cache_depth = cache_to_size;
-        cache_resized = true;
+    SOS_val_snap **new_cache = (SOS_val_snap **)
+        calloc(cache_to_size, sizeof(SOS_val_snap *));
+
+    int head_bytes = -1;
+    int tail_bytes = -1;
+
+    if (cache_to_size > pub->cache_depth) {
+        // GROW the cache:
+        head_bytes = (pub->cache_depth - pub->cache_head) * sizeof(SOS_val_snap *);
+        tail_bytes = (pub->cache_head * sizeof(SOS_val_snap *));
+        memcpy(new_cache, pub->cache[pub->cache_head], head_bytes);
+        // Grab the segment before the head, if any:
+        if (pub->cache_head > 0) {
+            memcpy((new_cache + head_bytes), pub->cache[0], tail_bytes);
+        }
     } else {
-        // Cache is being requested to shrink. Set the new size
-        // and then go inside and prune off any data beyond the new
-        // depth.
-        dlog(4, "Shrinking pub->cache_depth from %d to %d.\n",
-                pub->cache_depth, cache_to_size);
-        pub->cache_depth = cache_to_size;
-        cache_resized = true;
+        // SHRINK the cache:
+        // TODO: Let's make sure things work, nobody is shrinking yet.
+    }
 
-        int           elem = 0;
-        int           deep = 0;
-        SOS_val_snap *snap = NULL;
-        SOS_val_snap *next = NULL;
-        SOS_val_snap *last = NULL;
+    SOS_val_snap **old_cache = pub->cache;
+    pub->cache = new_cache;
+    pub->cache_head = 0;
+    pub->cache_depth = cache_to_size;
 
-        for (elem = 0; elem < pub->elem_count; elem++) {
-            snap = pub->data[elem]->cached_latest;
-            deep = 0;
-            while ((deep < pub->cache_depth)
-                && (snap != NULL)) {
-                // Roll through snaps until we find the end of
-                // data or go beyond the new limit.
-                last = snap;
-                snap = (SOS_val_snap *) snap->next_snap;
-                deep++;
-            }
-            if ((deep >= pub->cache_depth)
-                && (snap != NULL)) {
-                dlog(4, "Pruning...\n");
-                if (pub->data[elem]->cached_count > cache_to_size) {
-                    pub->data[elem]->cached_count = cache_to_size;
-                }
-                // We have a pointer to the beginning of the
-                // cache where we want to start removing values,
-                // AND there are values here to remove.
-                //
-                // Set the previous pointer's next_snap to NULL
-                // since it's the new end of the list
-                last->next_snap = NULL;
-                // Now proceed to wipe out the remainder of the snaps:
-                while (snap != NULL) {
-                    switch(snap->type) {
-                    case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
-                    case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
-                    case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
-                    case SOS_VAL_TYPE_STRING: free(snap->val.c_val); break;
-                    case SOS_VAL_TYPE_BYTES:  free(snap->val.bytes); break;
-                    }
-                    dlog(4, "    pub->data[%d]...snap->frame == %d\n",
-                            elem, snap->frame);
-                    next = (SOS_val_snap *) snap->next_snap;
-                    snap->next_snap = NULL;
-                    free(snap);     
-                    snap = next;
-                } //end: while (snap!=NULL)
-                if (pub->data[elem]->cached_latest != NULL) {
-                    pub->data[elem]->cached_latest->prev_snap = last;
-                }
-            } //end: if (snaps to free)
-        } //end: for (all elems in pub)
-        //
-        // Done shrinking cache.
-
-    } //end: if (pub cache being changed)
-
+    // Done adjusting cache.
     pthread_mutex_unlock(SOSD.sync.global_cache_lock);
     pthread_mutex_unlock(pub->lock);
 
-    if ((cache_resized)
-        && (SOS->role != SOS_ROLE_AGGREGATOR)) {
+    free(old_cache);
+
+    if (SOS->role != SOS_ROLE_AGGREGATOR) {
         //Enqueue this message to send to our aggregator
         SOSD_cloud_send(msg, (SOS_buffer *) NULL);
     }
