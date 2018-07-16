@@ -87,6 +87,9 @@ void SOSA_cache_to_results(
             frames_grabbed = 0;
             while ((read_pos != stop_pos) 
                 && (frames_grabbed < frame_depth_limit) ){
+                if (pub->cache[read_pos] == NULL) {
+                    break;
+                }
                 if (frame_head == -1) {
                     // We're good to continue at whatever this first frame is.
                     // ...so do nothing, fall through the next block.
