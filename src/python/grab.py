@@ -20,7 +20,7 @@ def demonstrateManifest():
     SOS.init()
     
     max_frame, manifest, col_names = SOS.request_pub_manifest("", sos_host, sos_port)
-    
+
     print "Manifest:"
     print (str(col_names)) 
     

@@ -69,6 +69,8 @@ void         SOS_expand_data(SOS_pub *pub);
  */
 void SOS_receiver_init(SOS_runtime *sos_context);
 
+char global_placeholder_RETURN_FAIL;
+char global_placeholder_RETURN_BUSY;
 
 /* Helper function to diagnose deadlocks. */
 /* set this define to enable the checks: */
@@ -104,6 +106,9 @@ static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
 #endif
     pthread_mutex_unlock(pub->lock);
 }
+
+
+
 
 /**
  * @brief Initialize the SOS library and register with the SOS runtime.
@@ -1688,30 +1693,18 @@ SOS_pack(SOS_pub *pub, const char *name,
         SOS_val_type type, const void *val)
 {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack");
+    int rc = -1;
 
     SOS_val_snap *snap = calloc(1, sizeof(SOS_val_snap));
     pthread_mutex_lock(pub->lock);
+   
+    rc = SOS_pack_snap_situate_in_pub(pub, snap, name, type, val);
+    if (rc < 0) { return rc; }
+
+    rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; } 
+    rc = SOS_pack_snap_into_pub_cache(pub, snap); if (rc < 0) { return rc; }
+    rc = SOS_pack_snap_into_val_queue(pub, snap); if (rc < 0) { return rc; }
     
-    int rc = SOS_pack_snap_situate_in_pub(pub, snap, name, type, val);
-    if (rc < 0) {
-        dlog(0, "Doing nothing.\n");
-        return rc;
-    }
-
-    // -----
-
-    rc = SOS_pack_snap_into_pub_cache(pub, snap);
-    if (rc < 0) {
-        dlog(0, "Doing nothing.\n");
-        return rc;
-    }
-    
-    rc = SOS_pack_snap_into_val_queue(pub, snap);
-    if (rc < 0) {
-        dlog(0, "Doing nothing.\n");
-        return rc;
-    }
-
     pthread_mutex_unlock(pub->lock);
     return snap->elem;
 }
@@ -1721,30 +1714,22 @@ SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
         SOS_val_type type, const void *val)
 {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack");
+    int rc = -1;
 
     SOS_val_snap *snap = calloc(1, sizeof(SOS_val_snap));
     pthread_mutex_lock(pub->lock);
-    
-    int rc = SOS_pack_snap_situate_in_pub(pub, snap, name, type, val);
-    if (rc < 0) {
-        dlog(0, "Doing nothing.\n");
-        return rc;
-    }
 
-    // -----
+    rc = SOS_pack_snap_situate_in_pub(pub, snap, name, type, val);
+    if (rc < 0) { return rc; }
+
+    // Apply additional metadata:
+    //
     snap->relation_id = relation_id;
+    //
 
-    rc = SOS_pack_snap_into_pub_cache(pub, snap);
-    if (rc < 0) {
-        dlog(0, "Doing nothing.\n");
-        return rc;
-    }
-    
-    rc = SOS_pack_snap_into_val_queue(pub, snap);
-    if (rc < 0) {
-        dlog(0, "Doing nothing.\n");
-        return rc;
-    }
+    rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; } 
+    rc = SOS_pack_snap_into_pub_cache(pub, snap); if (rc < 0) { return rc; }
+    rc = SOS_pack_snap_into_val_queue(pub, snap); if (rc < 0) { return rc; }
 
     pthread_mutex_unlock(pub->lock);
     return snap->elem;
@@ -1839,15 +1824,8 @@ int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
 } //end function: SOS_pack_snap_situate_in_pub()
 
 
-int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
-    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_into_pub_cache"); 
-   
-    // NOTE: For normal SOS clients this only updates the value
-    //       in the pub->data[snap->elem] position.
-    //       BUT... for SOS daemons, this will also push the value
-    //       down into the cache for this pub, if one exists.
-    //       This causes SOS_pack() to have the same data contract
-    //       as SOS_val_snap_queue_from_buffer() for daemons.
+int SOS_pack_snap_renew_pub_data(SOS_pub *pub, SOS_val_snap *snap) {
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_renew_pub_data"); 
 
     // Update the value in the pub->data[elem] position.
     SOS_data *data = pub->data[snap->elem]; 
@@ -1908,127 +1886,136 @@ int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
     data->state = SOS_VAL_STATE_DIRTY;
     SOS_TIME( data->time.pack );
     snap->time.pack = data->time.pack;
-    
-    // NOTE: Daemons can copy the snap into this pub's cache for rapid query.
-    //       This is done using a COPY of the snap rather than the same one
-    //       that is placed in the snap_queue for eventual publication,
-    //       because values in the cache may have entirely different
-    //       lifecycles, and we want to be able to free the snap that is sent
-    //       from the queue without coordinating with the pub *cache* queries.
-    //
-    //       i.e.   snap_queue != pub->data[elem]->cached_latest
-    //
-    //       All these copies of snaps might seem wasteful of memory but
-    //       usually when this is happening, the daemon is running without
-    //       a database active, which saves a lot of memory.
-    dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
-
-    if (((SOS->role == SOS_ROLE_AGGREGATOR) ||
-         (SOS->role == SOS_ROLE_LISTENER))
-       && pub->cache_depth > 0)
-    {
-        // ...
-        SOS_val_snap *snap_copy = 
-            (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
-        // Copy all the static member values of the snap:
-        memcpy(snap_copy, snap, sizeof(SOS_val_snap));
-        // Strings and Bytes need to be alloc'ed and copied in seperately:
-        switch (snap_copy->type) {
-            case SOS_VAL_TYPE_STRING: 
-                snap_copy->val.c_val =
-                    (char *) calloc(snap_copy->val_len, sizeof(char));
-                memcpy(snap_copy->val.c_val, snap->val.c_val, snap_copy->val_len);
-                break;
-            case SOS_VAL_TYPE_BYTES:
-                snap_copy->val.bytes =
-                    (void *) calloc(snap_copy->val_len, sizeof(unsigned char));
-                memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
-                break;
-        }
-
-        // We have a new snap, push it down into the pub
-        snap_copy->next_snap = pub->data[snap->elem]->cached_latest;
-        pub->data[snap->elem]->cached_latest = snap_copy;
-
-        // Now trace to the end of this element's cache and
-        //     see if we need to trim it off.
-        int snap_count = 0;
-        SOS_val_snap *tmp_snap = snap_copy;
-        while (tmp_snap != NULL) {
-            snap_count++;
-            if (snap_count >= pub->cache_depth) {
-                // tmp_snap currently points to what should be the final snap.
-                if (tmp_snap->next_snap == NULL) {
-                    //This is the last snap, the cache is currently full,
-                    //and we're done.
-                    break;
-                } else {
-                    // ...free() the next one (there will only be one more after
-                    // the one tmp_snap is pointing to), and make
-                    // tmp_snap->next_snap == NULL;
-                    SOS_val_snap *the_end = (SOS_val_snap *)tmp_snap->next_snap;
-
-                    switch (the_end->type) {
-                    case SOS_VAL_TYPE_STRING:
-                        if (the_end->val.c_val != NULL) {
-                            free(the_end->val.c_val);
-                        }
-                        break;
-                    case SOS_VAL_TYPE_BYTES:
-                        if (the_end->val.bytes != NULL) {
-                            free(the_end->val.bytes);
-                        }
-                        break;
-                    } //end switch
-                    // Wipe out the trailing snap.
-                    free(the_end);
-                    tmp_snap->next_snap = NULL;
-                }
-            } //end if (at the end of the cache)
-
-            // Advance to the next snap in the list, which will be NULL if we're
-            // at the end.
-            tmp_snap = tmp_snap->next_snap;
-        } //end while
-
-        // Cool. Cache is updated.  *high-fives-self*
-        // Let's print the whole thing while we debug.
-        tmp_snap = pub->data[snap->elem]->cached_latest;
-        snap_count = 0;
-        while (tmp_snap != NULL) {
-            switch (tmp_snap->type) {
-            case SOS_VAL_TYPE_INT:
-                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
-                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                        snap_count, tmp_snap->val.i_val);
-                break;
-            case SOS_VAL_TYPE_LONG:
-                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
-                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                        snap_count, tmp_snap->val.l_val);
-                break;
-            case SOS_VAL_TYPE_DOUBLE:
-                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
-                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                        snap_count, tmp_snap->val.d_val);
-                break;
-            case SOS_VAL_TYPE_STRING:
-                dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
-                        tmp_snap->elem, pub->data[tmp_snap->elem]->name,
-                        snap_count, tmp_snap->val.c_val);
-                break;
-            }
-            snap_count++;
-            tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
-        }
-
-    } //end if: (daemon && pub_cache)
-
 
     return snap->elem;
-} //end function: SOS_pack_snap_into_pub_cache
+}
 
+int SOS_pack_snap_into_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_into_pub_cache"); 
+  
+    if (SOS->role == SOS_ROLE_CLIENT) {
+        // Clients do not use this "searchable cache", only daemons.
+        return snap->elem;
+    }
+   
+    if (pub->cache_depth < 1) {
+        // This pub doesn't have a cache, no need to copy this snap in.
+        return snap->elem;
+    }
+    
+    // NOTE: Global cache mutex is already held by calling context..
 
+    // NOTE: Daemons COPY the snap into this pub's cache for rapid query.
+    //       This is done using a COPY of the snap rather than the same one
+    //       that is placed in the snap_queue for database ingestion.
+    //       because these two snaps have different lifecycles.
+    
+    dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
+
+    // ...
+    SOS_val_snap *snap_copy = 
+        (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
+    // Copy all the static member values of the snap:
+    memcpy(snap_copy, snap, sizeof(SOS_val_snap));
+    // Strings and Bytes need to be alloc'ed and copied in seperately:
+    switch (snap_copy->type) {
+        case SOS_VAL_TYPE_STRING: 
+            snap_copy->val.c_val =
+                (char *) calloc(snap_copy->val_len, sizeof(char));
+            memcpy(snap_copy->val.c_val, snap->val.c_val, snap_copy->val_len);
+            break;
+        case SOS_VAL_TYPE_BYTES:
+            snap_copy->val.bytes =
+                (void *) calloc(snap_copy->val_len, sizeof(unsigned char));
+            memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
+            break;
+    }
+
+    SOS_TIME(snap_copy->time.recv);
+
+    // We have a new snap, push it down into the pub
+    snap_copy->next_snap = pub->data[snap->elem]->cached_latest;
+    pub->data[snap->elem]->cached_latest = snap_copy;
+    SOS_val_snap *old_head = (SOS_val_snap *) snap_copy->next_snap;
+    //
+    if (old_head != NULL) {
+        snap_copy->prev_snap     = old_head->prev_snap;
+        old_head->prev_snap      = snap_copy;
+    } else {
+        snap_copy->prev_snap = snap_copy;
+    }
+
+    // See if we need to trim the cache tail
+    if (pub->data[snap->elem]->cached_count < pub->cache_depth) {
+        pub->data[snap->elem]->cached_count++;
+    } else {
+        SOS_val_snap *new_tail;
+        SOS_val_snap *del_tail;
+        // Trim off the tail.
+        if (pub->data[snap->elem]->cached_count > 2) {
+            // Adjust in the new tail pointers...
+            del_tail = (SOS_val_snap *) snap_copy->prev_snap;
+            new_tail = (SOS_val_snap *) del_tail->prev_snap;
+            new_tail->next_snap = NULL;
+            snap_copy->prev_snap = new_tail;
+        } else {
+            // There is no tail, just a head.
+            del_tail = (SOS_val_snap *) snap_copy->next_snap;
+            snap_copy->next_snap = NULL;
+        }
+
+        switch (del_tail->type) {
+            case SOS_VAL_TYPE_STRING:
+                if (del_tail->val.c_val != NULL) {
+                    free(del_tail->val.c_val);
+                } break;
+            case SOS_VAL_TYPE_BYTES:
+                if (del_tail->val.bytes != NULL) {
+                    free(del_tail->val.bytes);
+                } break;
+        }
+        free(del_tail);
+        del_tail = NULL;
+
+    }
+
+    // -----
+    // DEBUG loop to print out the entire cache for this element:
+    if (SOS_DEBUG > 0) {
+        SOS_val_snap *tmp_snap = pub->data[snap->elem]->cached_latest;
+        int snap_count = 0;
+        while (tmp_snap != NULL) {
+            switch (tmp_snap->type) {
+                case SOS_VAL_TYPE_INT:
+                    dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %d\n",
+                            tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                            snap_count, tmp_snap->val.i_val);
+                    break;
+                case SOS_VAL_TYPE_LONG:
+                    dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %ld\n",
+                            tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                            snap_count, tmp_snap->val.l_val);
+                    break;
+                case SOS_VAL_TYPE_DOUBLE:
+                    dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %lf\n",
+                            tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                            snap_count, tmp_snap->val.d_val);
+                    break;
+                case SOS_VAL_TYPE_STRING:
+                    dlog(8, "pub->data[%d].(%s)->CACHE[%d] == %s\n",
+                            tmp_snap->elem, pub->data[tmp_snap->elem]->name,
+                            snap_count, tmp_snap->val.c_val);
+                    break;
+            } // end: switch
+            snap_count++;
+            tmp_snap = (SOS_val_snap *) tmp_snap->next_snap;
+        } // end: while
+    } // end: DEBUG
+    // -----
+    //
+
+    return snap->elem;
+}
 
 int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_into_val_queue");
@@ -2040,7 +2027,6 @@ int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
     
     return snap->elem;
 }
-
 
 void SOS_val_snap_destroy(SOS_val_snap **snap_var) {
     SOS_val_snap *snap = *snap_var;
@@ -2394,156 +2380,48 @@ SOS_val_snap_queue_from_buffer(
                   snap->elem,
                   pub->guid);
             break;
-        }
+        } // end: switch
 
-        // NOTE: The below cache update code is duplicated in the SOS_pack()
-        //       internal utility functions so that cache will be updated even
-        //       when the pub is being created by the daemon itself.
+        // Make a COPY of this snapshot for the pub cache.
+        // NOTE: Cache being enabled is tested internally.
+        SOS_pack_snap_into_pub_cache(pub, snap);
+ 
+    }// end for (snap_index)
 
-        // NOTE: Daemons can copy the snap into this pub's cache for rapid query.
-        //       This is done using a COPY of the snap rather than the same one
-        //       that is placed in the snap_queue for eventual publication,
-        //       because values in the cache may have entirely different
-        //       lifecycles, and we want to be able to free the snap that is sent
-        //       from the queue without coordinating with the pub *cache* queries.
-        //
-        //       i.e.   snap_queue != pub->data[elem]->cached_latest
-        //
-        //       All these copies of snaps might seem wasteful of memory but
-        //       usually when this is happening, the daemon is running without
-        //       a database active, which saves a lot of memory.
-
-        dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
-        
-        snap_copy = NULL;
-        
-        if (((SOS->role == SOS_ROLE_AGGREGATOR) ||
-             (SOS->role == SOS_ROLE_LISTENER))
-                && pub->cache_depth > 0)
-        {
-
-            if (SOS->config.options->db_disabled == true) {
-                //The database INSERT code usually free()'s the
-                //val_snap once it is done, but it is disabled.
-                //Rather than make a copy of the snap to use for
-                //the cache, just use the one we already unpacked...
-                
-                snap_copy = snap;
-           
-            } else {
-                // ...
-                snap_copy = (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
-                // Copy all the static member values of the snap:
-                memcpy(snap_copy, snap, sizeof(SOS_val_snap));
-                // Strings and Bytes need to be alloc'ed and copied in seperately:
-                switch (snap_copy->type) {
-                    case SOS_VAL_TYPE_STRING: 
-                        snap_copy->val.c_val =
-                            (char *) calloc(snap_copy->val_len, sizeof(char));
-                        memcpy(snap_copy->val.c_val, snap->val.c_val, snap_copy->val_len);
-                        break;
-                    case SOS_VAL_TYPE_BYTES:
-                        snap_copy->val.bytes =
-                            (void *) calloc(snap_copy->val_len, sizeof(unsigned char));
-                        memcpy(snap_copy->val.bytes, snap->val.bytes, snap_copy->val_len);
-                        break;
-                }
-            }
-
-            SOS_TIME(snap_copy->time.recv);
-
-            // We have a new snap, push it down into the pub
-            snap_copy->next_snap = pub->data[snap->elem]->cached_latest;
-            pub->data[snap->elem]->cached_latest = snap_copy;
-            SOS_val_snap *old_head = (SOS_val_snap *) snap_copy->next_snap;
-            //
-            if (old_head != NULL) {
-                snap_copy->prev_snap     = old_head->prev_snap;
-                old_head->prev_snap      = snap_copy;
-            } else {
-                snap_copy->prev_snap = snap_copy;
-            }
-
-            // See if we need to trim the cache tail
-            if (pub->data[snap->elem]->cached_count < pub->cache_depth) {
-                pub->data[snap->elem]->cached_count++;
-            } else {
-                SOS_val_snap *new_tail;
-                SOS_val_snap *del_tail;
-                // Trim off the tail.
-                if (pub->data[snap->elem]->cached_count > 2) {
-                    // Adjust in the new tail pointers...
-                    del_tail = (SOS_val_snap *) snap_copy->prev_snap;
-                    new_tail = (SOS_val_snap *) del_tail->prev_snap;
-                    new_tail->next_snap = NULL;
-                    snap_copy->prev_snap = new_tail;
-                } else {
-                    // There is no tail, just a head.
-                    del_tail = (SOS_val_snap *) snap_copy->next_snap;
-                    snap_copy->next_snap = NULL;
-                }
-
-                switch (del_tail->type) {
+    //
+    // Place these snaps in the DB queue (if it is enabled):
+#ifdef SOSD_DAEMON_SRC
+    if (SOSD.sos_runtime->config->options.db_disabled == false) {
+        // Place these snapshots in the next queue stage:
+        dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
+        pthread_mutex_lock(snap_queue->sync_lock);
+        pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
+        snap_queue->elem_count += snap_count;
+        pthread_mutex_unlock( snap_queue->sync_lock );
+    } else {
+#endif
+        // Free the list of snapshots:
+        for (snap_index = 0; snap_index < snap_count; snap_index++) {
+            snap = snap_list[snap_index];
+            switch (snap->type) {
+                case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
+                case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
+                case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
                 case SOS_VAL_TYPE_STRING:
-                    if (del_tail->val.c_val != NULL) {
-                        free(del_tail->val.c_val);
-                    } break;
+                                          if (snap->val.c_val != NULL) {
+                                              free(snap->val.c_val);
+                                              snap->val.c_val = NULL;
+                                          }
+                                          break;
                 case SOS_VAL_TYPE_BYTES:
-                    if (del_tail->val.bytes != NULL) {
-                        free(del_tail->val.bytes);
-                    } break;
-                }
-                free(del_tail);
-                del_tail = NULL;
-
-            }
-
-
-
-        } //end if: (daemon && pub_cache)
-
-
-    }//for:snap_index
-
-    if (snap_copy != snap) {
-        // NOTE: The only time snap_copy == snap is when
-        //       the database is disabled and the value
-        //       has become cached.
-        //       In this case, we don't want to free it
-        //       AND we don't want to enqueue it.  So do
-        //       nothing.  :)
-
-        if (snap_queue != NULL) {
-            // Place these snapshots in the next queue stage:
-            dlog(6, "     ... pushing %d snaps down onto the queue.\n", snap_count);
-            pthread_mutex_lock(snap_queue->sync_lock);
-            pipe_push(snap_queue->intake, (void *) snap_list, snap_count);
-            snap_queue->elem_count += snap_count;
-            pthread_mutex_unlock( snap_queue->sync_lock );
-        } else {
-            // Free the list of snapshots:
-            for (snap_index = 0; snap_index < snap_count; snap_index++) {
-                snap = snap_list[snap_index];
-                switch (snap->type) {
-                    case SOS_VAL_TYPE_INT:    snap->val.i_val = 0;   break;
-                    case SOS_VAL_TYPE_LONG:   snap->val.l_val = 0;   break;
-                    case SOS_VAL_TYPE_DOUBLE: snap->val.d_val = 0.0; break;
-                    case SOS_VAL_TYPE_STRING:
-                                              if (snap->val.c_val != NULL) {
-                                                  free(snap->val.c_val);
-                                                  snap->val.c_val = NULL;
-                                              }
-                                              break;
-                    case SOS_VAL_TYPE_BYTES:
-                                              if (snap->val.bytes != NULL) {
-                                                  free(snap->val.bytes);
-                                                  snap->val.bytes = NULL;
-                                              }
-                                              break;
-                }
-            } // end: forall snaps
-        } //end: if no requeue...
-    } //end: if no need to free cached snap
+                                          if (snap->val.bytes != NULL) {
+                                              free(snap->val.bytes);
+                                              snap->val.bytes = NULL;
+                                          }
+                                          break;
+            } // end: switch
+        } // end: forall snaps
+    } //end: if no requeue...
 
 #ifdef SOSD_DAEMON_SRC
     if (pub->cache_depth > 0) {

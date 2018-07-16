@@ -306,8 +306,8 @@ static const char *SOS_LOCALE_str[] __attribute__((__unused__)) =        { FOREA
 
 // This allows pointers to be used as return values and explicitly tested for
 // these semantics, rather than relying on less stable or specific 'NULL's.
-char global_placeholder_RETURN_FAIL;
-char global_placeholder_RETURN_BUSY;
+extern char global_placeholder_RETURN_FAIL;
+extern char global_placeholder_RETURN_BUSY;
 #define SOS_RET_FAIL      &global_placeholder_RETURN_FAIL
 #define SOS_RET_BUSY      &global_placeholder_RETURN_BUSY
 
@@ -379,6 +379,10 @@ typedef struct {
     SOS_val_sync        sync;
     SOS_time            time;
     char                name[SOS_DEFAULT_STRING_LEN];
+    // New cache method:
+    // SLICE slice
+    
+    // Old cache method:
     SOS_val_snap       *cached_latest;  // only w/in daemons.
     int                 cached_count;
 } SOS_data;

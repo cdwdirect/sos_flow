@@ -83,6 +83,12 @@ void SOSA_cache_to_results(
             for (i = 0; i < pub->elem_count; i++) {
                 //if (SOS_re_matchp(val_regex, pub->data[i]->name)) {
                 if (strstr(pub->data[i]->name, val_filter_regex) != NULL) {
+                    
+                    //SLICE slice
+                    //TODO: Each element in the cache is a LIST of snapshots
+                    //      itself... not a single snapshot.
+                    //      ALSO: update the frames_grabbed variable only
+                    //            after the full list has been ingested.
                     SOS_val_snap *snap = pub->data[i]->cached_latest;
                     frames_grabbed = 0;
 
