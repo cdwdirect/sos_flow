@@ -80,7 +80,7 @@ void random_string(char *dest_str, size_t size) {
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*<>()[]{};:/,.-_=+";
     int charset_len = 0;
     int key;
-    int n;
+    size_t n;
 
     charset_len = (strlen(charset) - 1);
 

@@ -161,7 +161,7 @@ int main(int argc, char *argv[]) {
         SOS_TIME(rtt_at_reply);
         // -----=====-----
 
-        if (reply->len < sizeof(SOS_msg_header)) {
+        if (reply->len < (int)sizeof(SOS_msg_header)) {
             //fprintf(stderr, "[sosd_probe]: ERROR! Received short"
             //        " (useless) message from daemon!"
             //        "   (reply->len == %d)\n",
