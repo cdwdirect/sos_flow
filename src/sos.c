@@ -241,8 +241,6 @@ SOS_init_existing_runtime(
     dlog(1, "Initializing SOS ...\n");
     dlog(4, "  ... importing options into SOS->config.\n");
 
-    NEW_SOS->config.pub_cache_depth = opt->pub_cache_depth;
-
 #ifdef USE_MUNGE
     //Optionally grab a Munge credential:
     munge_ctx_t munge_ctx;
@@ -1397,7 +1395,7 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
     new_pub->meta.pri_hint    = SOS_PRI_DEFAULT;
     new_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
     new_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
-    new_pub->cache_depth      = SOS->config.pub_cache_depth;
+    new_pub->cache_depth      = SOS->config.options->pub_cache_depth;
 
     dlog(6, "  ... constructing cache ring buffer.\n");
     int cache_alloc_size = 1;
@@ -1927,7 +1925,10 @@ int SOS_pack_snap_list_into_pub_cache(SOS_pub *pub, SOS_val_snap **snap_list) {
     }
 
     // Free up any existing entries before inserting the new list:
-    SOS_val_snap *snap = pub->cache[insert_pos];
+    SOS_val_snap *snap;
+    SOS_val_snap *next_snap;
+
+    snap = pub->cache[insert_pos]; 
     while (snap != NULL) {
        SOS_val_snap *next_snap = snap->next_snap;
        SOS_val_snap_destroy(&snap);
@@ -2398,7 +2399,6 @@ SOS_val_snap_queue_from_buffer(
 
     }// end for (snap_index)
 
-#ifdef SOSD_DAEMON_SRC
     if (ynAddSnapsToCache) {
         // Link up the snap_copies in the array:
         for (snap_index = 0; snap_index < (snap_count - 1); snap_index++) {
@@ -2415,18 +2415,17 @@ SOS_val_snap_queue_from_buffer(
         snap_copy_list[(snap_count - 1)]->next_snap = NULL;
 
         // Place these values in the pub->cache, if it is enabled:
-        pthread_mutex_lock(SOSD.sync.global_cache_lock);
+        pthread_mutex_lock(SOS->task.global_cache_lock);
         //        
         SOS_pack_snap_list_into_pub_cache(pub, snap_copy_list);
         //
-        pthread_mutex_unlock(SOSD.sync.global_cache_lock);
+        pthread_mutex_unlock(SOS->task.global_cache_lock);
 
         // The individual snaps are now strung together as a linked list and
         // their head is referenced by the pub->cache handle, we can free
         // this explicitly defined list:
         free(snap_copy_list);
     }
-#endif
 
     //
     // Place these snaps in the DB queue (if it is enabled):
@@ -2685,6 +2684,14 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.scope_hint = %d\n", pub->meta.scope_hint);
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
+
+    if (pub->cache != NULL) {
+        dlog(1, "WARNING: Handling a re-announcement for"
+                " a pub with an existing cache.\n");
+    }
+    
+    pub->cache = (SOS_val_snap **)
+        calloc(pub->cache_depth, sizeof(SOS_val_snap *));
 
     // Ensure there is room in this pub to handle incoming data definitions.
     while(pub->elem_max < elem) {

@@ -357,8 +357,8 @@ int main(int argc, char *argv[])  {
     pthread_mutex_init(SOSD.sync.sense_list_lock, NULL);
 
     dlog(1, "   ... Creating mutex: global_cache_lock\n");
-    SOSD.sync.global_cache_lock = calloc(1, sizeof(pthread_mutex_t));
-    pthread_mutex_init(SOSD.sync.global_cache_lock, NULL);
+    SOSD.sos_context->task.global_cache_lock = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOSD.sos_context->task.global_cache_lock, NULL);
 
     dlog(1, "Entering listening loops...\n");
 
@@ -1453,12 +1453,9 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     SOS_buffer_unpack(msg, &offset, "g", &guid);
     SOS_buffer_unpack(msg, &offset, "i", &cache_to_size);
 
-    // IDEA: Allow for a guid of -1 to mean "resize cache for ALL pubs."
-   
     if (cache_to_size < 0) cache_to_size = 0;
 
     snprintf(guid_str, 124, "%" SOS_GUID_FMT, guid);
-
     pub = (SOS_pub *) SOSD.pub_table->get(SOSD.pub_table, guid_str);
 
     if (pub == NULL) {
@@ -1467,7 +1464,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     }
 
     pthread_mutex_lock(pub->lock);
-    pthread_mutex_lock(SOSD.sync.global_cache_lock);
+    pthread_mutex_lock(SOS->task.global_cache_lock);
 
     SOS_val_snap **new_cache = (SOS_val_snap **)
         calloc(cache_to_size, sizeof(SOS_val_snap *));
@@ -1494,11 +1491,11 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
     pub->cache_head = 0;
     pub->cache_depth = cache_to_size;
 
-    // Done adjusting cache.
-    pthread_mutex_unlock(SOSD.sync.global_cache_lock);
-    pthread_mutex_unlock(pub->lock);
-
     free(old_cache);
+
+    // Done adjusting cache.
+    pthread_mutex_unlock(SOS->task.global_cache_lock);
+    pthread_mutex_unlock(pub->lock);
 
     if (SOS->role != SOS_ROLE_AGGREGATOR) {
         //Enqueue this message to send to our aggregator

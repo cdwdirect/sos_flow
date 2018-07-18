@@ -34,11 +34,10 @@ void SOSA_cache_to_results(
     //SOS_re_t pub_regex = SOS_re_compile(pub_filter_str);
     //SOS_re_t val_regex = SOS_re_compile(val_filter_str);
 
-    SOS_pub *pub = NULL;
-    SOS_list_entry *entry = SOSD.pub_list_head;
-
     int row = 0;
 
+    int read_pos = -1;
+    int stop_pos = -1;
     int frames_grabbed = 0;
 
     int i = 0;
@@ -70,40 +69,60 @@ void SOSA_cache_to_results(
     char *val_str;
     char val_numeric_str  [128] = {0};
 
-    pthread_mutex_lock(SOSD.sync.global_cache_lock);
+    pthread_mutex_lock(SOS->task.global_cache_lock);
 
+    SOS_val_snap *snap      = NULL;
+    SOS_val_snap *next_snap = NULL;
+
+    SOS_pub *pub = NULL;
+    SOS_list_entry *entry = SOSD.pub_list_head;
+
+    // Scan through ALL known pubs:
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
-        if (pub == NULL) break;
+        if (pub == NULL) {
+            break;
+        }
         if ((pub->cache_depth > 0)
             && (strstr(pub->title, pub_filter_str) != NULL)) {
-            int read_pos = pub->cache_head;
-            int stop_pos = -1;
-            if (pub->cache_head == 0) {
-                stop_pos = (pub->cache_depth - 1);
-            } else {
-                stop_pos = pub->cache_head - 1;
-            }
             frames_grabbed = 0;
+            //
+            read_pos = pub->cache_head;
+            stop_pos = -1;
+
+            // Scan through THIS pub's cache:
             while ((read_pos != stop_pos) 
-                && (frames_grabbed < frame_depth_limit) ){
+                && ((frames_grabbed < frame_depth_limit)
+                    || (frame_depth_limit == -1)))
+            {
+                // Ensure that we roll through the cache entries until we get
+                // back to where we started.
+                stop_pos = pub->cache_head;
+                //
+                if (frame_head == -1) {
+                    // We're good to continue at whatever this first frame is.
+                    // ...so do nothing, fall through the next code block.
+                } else if (pub->cache[read_pos]->frame > frame_head) {
+                    // Skip deeper in the cache/older, looking for frame_head.
+                    read_pos++;
+                    if (read_pos == pub->cache_depth) {
+                        read_pos = 0;
+                    }
+                    continue;
+                }
+
                 if (pub->cache[read_pos] == NULL) {
                     break;
                 }
-                if (frame_head == -1) {
-                    // We're good to continue at whatever this first frame is.
-                    // ...so do nothing, fall through the next block.
-                } else if (pub->cache[read_pos]->frame > frame_head) {
-                    // Go deeper in the cache/older, looking for frame_head.
-                    read_pos++;
-                    if (read_pos == pub->cache_depth) { read_pos = 0; }
-                    continue;
-                }
                 
-                // Walk through the values and look for matching ones:
-                SOS_val_snap *snap = pub->cache[read_pos];
+                snap = pub->cache[read_pos];
+                
+                // Scan through all the VALUE SNAPS in this cached frame:
                 while (snap != NULL) {
-                    SOS_val_snap *next_snap = snap->next_snap;
+                    //
+                    next_snap = snap->next_snap;
+                    //
+
                     if (strstr(pub->data[snap->elem]->name, val_filter_str) == NULL) {
                         // This snap's name doesn't match.
                         snap = next_snap;
@@ -158,25 +177,32 @@ void SOSA_cache_to_results(
                         SOSA_results_put(results, 7,  row, time_recv_str);
                         SOSA_results_put(results, 8,  row, val_frame_str);
                         SOSA_results_put(results, 9,  row, val_relation_str);
-                        SOSA_results_put(results, 10, row, pub->data[i]->name);
+                        SOSA_results_put(results, 10, row, pub->data[snap->elem]->name);
                         SOSA_results_put(results, 11, row, val_type_str);
                         SOSA_results_put(results, 12, row, val_guid_str);
                         SOSA_results_put(results, 13, row, val_str);
 
-                        frames_grabbed++;
-
-                        snap = snap->next_snap;
+                        snap = next_snap;
                         row++;
                         results->row_count = row;
-                    }//while: snap
-                }//for: vals
-            }//end:if[name]
-        }//end:for[elems]
+                    } // end: matched snap
+
+                }// end: while snaps
+
+                frames_grabbed++;
+
+                read_pos++;
+                if (read_pos == pub->cache_depth) {
+                    read_pos = 0;
+                }
+
+            } // end: cache entries in pub
+        } // end: if pub->cache_depth > 0 && pub->title match
 
         entry = entry->next_entry; 
-    }//while: pubs
+    }//while: pub entries
 
-    pthread_mutex_unlock(SOSD.sync.global_cache_lock);
+    pthread_mutex_unlock(SOS->task.global_cache_lock);
 
     SOS_TIME(stop_time);
     results->exec_duration = (stop_time - start_time);

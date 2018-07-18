@@ -538,7 +538,6 @@ typedef struct {
     int                 receives_ready;
     bool                offline_test_mode;
     bool                runtime_utility;
-    int                 pub_cache_depth;
     double              time_of_init;
     char               *options_file;
     char               *options_class;
@@ -565,6 +564,7 @@ typedef struct {
     pthread_mutex_t    *feedback_lock;
     pthread_cond_t     *feedback_cond;
     qhashtbl_t         *sense_table;
+    pthread_mutex_t    *global_cache_lock;
 } SOS_task_set;
 
 typedef struct {
