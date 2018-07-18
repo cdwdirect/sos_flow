@@ -258,8 +258,6 @@ typedef struct {
     //
     pthread_mutex_t         *sense_list_lock;
     SOSD_sensitivity_entry  *sense_list_head;
-    //
-    pthread_mutex_t         *global_cache_lock;
 } SOSD_sync_set;
 
 
