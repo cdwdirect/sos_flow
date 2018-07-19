@@ -1404,11 +1404,9 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
     } else {
         cache_alloc_size = 1;
     }
-    new_pub->cache = (SOS_val_snap **)
-        calloc(cache_alloc_size, sizeof(SOS_val_snap *));
-    for (i = 0; i < cache_alloc_size; i++) {
-        new_pub->cache[i] = NULL;
-    }
+    /* Don't allocate the cache yet - wait until we know the depth
+     * from the client */
+    new_pub->cache = NULL;
     new_pub->cache_head = 0;
 
     dlog(6, "  ... zero-ing out the strings.\n");
@@ -2685,13 +2683,15 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
 
+    /* We shouldn't have a cache yet, so allocate it with the depth that
+     * the user has requested. */
     if (pub->cache != NULL) {
         dlog(1, "WARNING: Handling a re-announcement for"
                 " a pub with an existing cache.\n");
+    } else {
+        pub->cache = (SOS_val_snap **)
+            calloc(pub->cache_depth, sizeof(SOS_val_snap *));
     }
-    
-    pub->cache = (SOS_val_snap **)
-        calloc(pub->cache_depth, sizeof(SOS_val_snap *));
 
     // Ensure there is room in this pub to handle incoming data definitions.
     while(pub->elem_max < elem) {
