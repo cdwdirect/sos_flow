@@ -261,7 +261,7 @@ endif()
 ###########
 
 # Build the ADIOS examples?
-#find_package(ADIOS)
+find_package(ADIOS)
 
 ###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
@@ -375,5 +375,9 @@ subdirs (src tests)
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)
 endif(SOS_ENABLE_PYTHON)
+
+if(ADIOS_FOUND)
+    subdirs (src/clients)
+endif(ADIOS_FOUND)
 
 
