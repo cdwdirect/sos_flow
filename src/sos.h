@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 1
-#define SOS_VERSION_MINOR 21 
+#define SOS_VERSION_MINOR 25 
 
 // ...
 
