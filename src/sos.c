@@ -2683,8 +2683,8 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
 
-    /* We shouldn't have a cache yet, so allocate it with the depth that
-     * the user has requested. */
+    // We shouldn't have a cache yet, so allocate it with the depth that
+    // the user has requested. 
     if (pub->cache != NULL) {
         dlog(1, "WARNING: Handling a re-announcement for"
                 " a pub with an existing cache.\n");

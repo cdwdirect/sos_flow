@@ -261,7 +261,7 @@ endif()
 ###########
 
 # Build the ADIOS examples?
-find_package(ADIOS)
+#find_package(ADIOS)
 
 ###########
 # SOS_CLOUD_SYNC_WITH_MPI OPTIONS
