@@ -1,6 +1,6 @@
 
 /*
- * sosd_manifest.c
+ * client_app.c
  *
  */
 
@@ -10,7 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 
-#define USAGE "./sosd_manifest  [-l loop_delay_usec]\n" \
+#define USAGE "./client_app     [-l loop_delay_usec]\n" \
               "                 [-header on]\n"         \
               "                 [-o json]\n"
 
@@ -23,6 +23,51 @@
 int    GLOBAL_sleep_delay;
 int    GLOBAL_output_type;
 int    GLOBAL_header_on;
+
+SOS_runtime *my_sos = NULL;
+
+
+// NOTE: This is the callback function that processes
+//       TRIGGER/SQL/CACHE results:
+void
+client_feedback_handler(
+        int payload_type,
+        int payload_size,
+        void *payload_data)
+{
+    SOSA_results *results = NULL;    
+    
+    switch (payload_type) { 
+
+    case SOS_FEEDBACK_TYPE_QUERY:
+        SOSA_results_init(my_sos, &results);
+        SOSA_results_from_buffer(results, payload_data);
+        SOSA_results_output_to(stdout, results,
+                "client_app : (SQL QUERY)", SOSA_OUTPUT_W_HEADER);
+        SOSA_results_destroy(results);
+        break;
+
+    case SOS_FEEDBACK_TYPE_PAYLOAD:
+        printf("client_app : (TRIGGER) Received %d-byte payload --> \"%s\"\n",
+                payload_size,
+                (unsigned char *) payload_data);
+        fflush(stdout);
+        break;
+
+    case SOS_FEEDBACK_TYPE_CACHE:
+        SOSA_results_init(my_sos, &results);
+        SOSA_results_from_buffer(results, payload_data);
+        SOSA_results_output_to(stdout, results,
+                "client_app : (CACHE GRAB)", SOSA_OUTPUT_W_HEADER);
+        SOSA_results_destroy(results);
+        break; 
+    }
+    
+    return;
+} //end: client_feedback_handler
+
+
+
 
 int main(int argc, char *argv[]) {
     int   i;
@@ -59,12 +104,12 @@ int main(int argc, char *argv[]) {
         elem = next_elem + 1;
     }
 
-    SOS_runtime *my_sos = NULL;
-    SOS_init(&my_sos, SOS_ROLE_RUNTIME_UTILITY,
-            SOS_RECEIVES_NO_FEEDBACK, NULL);
+    SOS_init(&my_sos, SOS_ROLE_CLIENT,
+            SOS_RECEIVES_DIRECT_MESSAGES,
+            client_feedback_handler);
 
     if (my_sos == NULL) {
-        fprintf(stderr, "sosd_manifest: Unable to contact the SOS daemon. Terminating.\n");
+        fprintf(stderr, "client_app: Unable to contact the SOS daemon. Terminating.\n");
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
@@ -124,7 +169,6 @@ int main(int argc, char *argv[]) {
         SOSA_results_output_to(stdout, manifest, header_str, output_opts);
 
         if (GLOBAL_sleep_delay < 1) {
-            printf("\n");
             printf("Manifest generated in %1.6lf seconds.\n",
                 manifest->exec_duration);
         }
@@ -133,6 +177,30 @@ int main(int argc, char *argv[]) {
         manifest = NULL;
         max_frame_overall = -1;
 
+        // ----------------------------------------
+        // NOTE: Here is where we would add query/blocking
+        //       logic based on what we see in the manifest.
+        //
+        // EXAMPLE: Could do a g_done global boolean used
+        //          as a latch w/the callback function above,
+        //          the way that demo_app.c does it.
+        //                  - OR -
+        //          Look at ssos.c for an example (RECOMMENDED)
+        //          of a "results pool" that has a counter and
+        //          a function to claim an element from it in a
+        //          thread-safe way. This facilitates non-
+        //          blocking client_app <-> daemon interaction
+        //          and multi-threaded analysis in client_app.c
+
+
+
+        //...YOUR CODE HERE.... 
+
+
+
+        //
+        // ----------------------------------------
+        //
         if (GLOBAL_sleep_delay > 0) {
             usleep(GLOBAL_sleep_delay);
         } else {
