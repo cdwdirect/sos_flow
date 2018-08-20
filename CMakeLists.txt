@@ -271,7 +271,7 @@ message(STATUS "MPI:  Locating package...")
 if(NOT MPI_C_NO_INTERROGATE)
     find_package("MPI" QUIET REQUIRED)
 else()
-    set(MPI_FOUND ON)
+    set(MPI_FOUND OFF)
 endif(NOT MPI_C_NO_INTERROGATE)
 
 if(MPI_FOUND)
