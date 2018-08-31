@@ -473,8 +473,6 @@ SOS_init_existing_runtime(
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
             guid_pool_from, guid_pool_to);
 
-        //slice
-
         SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
         dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
 
@@ -491,6 +489,12 @@ SOS_init_existing_runtime(
          // SOSD_init(...) and SOSD_cloud_init(...) functions
          // in particular.
     }
+
+    // Initialize SOS's mechanism for sharing pointers across coupled
+    // components:
+    SOS->task.reference_table      = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOS->task.reference_table_lock = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOS->task.reference_table_lock, NULL);
 
     *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
@@ -518,6 +522,35 @@ SOS_init_existing_runtime(
     return;
 }
 
+
+void
+SOS_reference_set(SOS_runtime *sos_context, unsigned char *name, void *pointer)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_reference_set");
+
+    pthread_mutex_lock(SOS->task.reference_table_lock);
+    SOS->task.reference_table->put(
+            SOS->task.reference_table,
+            name,
+            pointer);
+    pthread_mutex_unlock(SOS->task.reference_table_lock);
+    return;
+}
+
+void*
+SOS_reference_get(SOS_runtime *sos_context, unsigned char *name)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_reference_get");
+
+    pthread_mutex_lock(SOS->task.reference_table_lock);
+    void *result = NULL;
+    result = (void *) SOS->task.reference_table->get(
+            SOS->task.reference_table,
+            name);
+    pthread_mutex_unlock(SOS->task.reference_table_lock);
+
+    return result;
+}
 
 
 void
@@ -898,6 +931,11 @@ void SOS_finalize(SOS_runtime *sos_context) {
     }
     free(SOS->config.node_id);
 
+    pthread_mutex_lock(SOS->task.reference_table_lock);
+    SOS->task.reference_table->free(SOS->task.reference_table);
+    pthread_mutex_unlock(SOS->task.reference_table_lock);
+    pthread_mutex_destroy(SOS->task.refrerence_table_lock);
+
     dlog(1, "Done!\n");
     free(SOS);
 
@@ -987,6 +1025,7 @@ SOS_THREAD_receives_direct(void *args)
                     " handler function.\n");
             if (SOS->config.feedback_handler != NULL) {
                 SOS->config.feedback_handler(
+                        SOS,
                         header.msg_type,
                         header.msg_size,
                         (void *)buffer);
@@ -1029,6 +1068,7 @@ SOS_THREAD_receives_direct(void *args)
             if (SOS->config.feedback_handler != NULL) {
                 dlog(5, "Sending payload to the feedback handler.\n");
                 SOS->config.feedback_handler(
+                        SOS,
                         payload_type,
                         payload_size,
                         payload_data);

@@ -147,6 +147,8 @@ extern "C" {
     int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
     // -----
 
+    void  SOS_reference_set(SOS_runtime *sos_context, unsigned char *name, void *pointer);
+    void* SOS_reference_get(SOS_runtime *sos_context, unsigned char *name);
 
     int SOS_pub_search(SOS_pub *pub, const char *name);
 

@@ -45,6 +45,7 @@ SOS_pub                 *g_pub = NULL;
 
 
 void SSOS_feedback_handler(
+        void *sos_context,
         int   payload_type,
         int   payload_size,
         void *payload_data)

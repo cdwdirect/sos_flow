@@ -65,6 +65,7 @@ SOS_runtime *my_sos;
 
 void
 DEMO_feedback_handler(
+        void *sos_context,
         int payload_type,
         int payload_size,
         void *payload_data)
