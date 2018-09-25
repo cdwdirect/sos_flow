@@ -1741,7 +1741,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
-    SOS_target_send_msg(SOSD.net, reply);
+    rc = SOS_target_send_msg(SOSD.net, reply);
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
             reply->len, rc);
     if (rc == -1) {

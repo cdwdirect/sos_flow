@@ -119,6 +119,7 @@ int main(int argc, char *argv[]) {
     SOS_pub *pub;
     double time_now;
     double time_start;
+    int    send_shutdown = 0;
 
     int    MAX_SEND_COUNT;
     int    ITERATION_SIZE;
@@ -146,10 +147,13 @@ int main(int argc, char *argv[]) {
     WAIT_FOR_FEEDBACK = 0;
 
     for (elem = 1; elem < argc; ) {
+    /*
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
             exit(1);
         }
+        */
+        next_elem = elem + 1;
 
         if ( strcmp(argv[elem], "-i"  ) == 0) {
             ITERATION_SIZE  = atoi(argv[next_elem]);
@@ -162,6 +166,10 @@ int main(int argc, char *argv[]) {
         } else if ( strcmp(argv[elem], "-d"  ) == 0) {
             DELAY_IN_USEC = strtod(argv[next_elem], NULL);
             DELAY_ENABLED = 1;
+        } else if ( strcmp(argv[elem], "-s"  ) == 0) {
+            printf("Sending shutdown at exit.\n");
+            next_elem = elem;
+            send_shutdown = 1;
         } else if ( strcmp(argv[elem], "--sql"  ) == 0) {
             WAIT_FOR_FEEDBACK = 1;
             SQL_QUERY = getenv(argv[next_elem]);
@@ -211,7 +219,6 @@ int main(int argc, char *argv[]) {
     char     var_string[100] = {0};
     int      var_int;
     double   var_double;
-    int      send_shutdown = 0;
     
     my_sos = NULL;
     
@@ -307,6 +314,10 @@ int main(int argc, char *argv[]) {
 
     }
 
+    if (send_shutdown == 1) {
+        send_shutdown_message(my_sos);
+    }
+
     SOS_finalize(my_sos);
 #if defined(USE_MPI)
     MPI_Finalize(); 
@@ -340,7 +351,7 @@ void random_string(char *dest_str, size_t size) {
     const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890!@#$%^&*<>()[]{};:/,.-_=+";
     int charset_len = 0;
     int key;
-    int n;
+    size_t n;
 
     charset_len = (strlen(charset) - 1);
 

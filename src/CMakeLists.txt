@@ -150,6 +150,10 @@ endif(MPI_FOUND)
 add_executable(demo_app ${MPI_SOURCE_FILES} demo_app.c)
 target_link_libraries(demo_app sos)
 
+#TARGET ---> tau_test (demonstration / example / unit test)
+add_executable(tau_test ${MPI_SOURCE_FILES} tau_test.c)
+target_link_libraries(tau_test sos)
+
 #TARGET ---> proc_app (demonstration / example)
 add_executable(proc_app proc_app.c)
 target_link_libraries(proc_app sos)
