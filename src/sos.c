@@ -524,7 +524,7 @@ SOS_init_existing_runtime(
 
 
 void
-SOS_reference_set(SOS_runtime *sos_context, unsigned char *name, void *pointer)
+SOS_reference_set(SOS_runtime *sos_context, const char *name, void *pointer)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_reference_set");
 
@@ -538,7 +538,7 @@ SOS_reference_set(SOS_runtime *sos_context, unsigned char *name, void *pointer)
 }
 
 void*
-SOS_reference_get(SOS_runtime *sos_context, unsigned char *name)
+SOS_reference_get(SOS_runtime *sos_context, const char *name)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_reference_get");
 
@@ -633,7 +633,7 @@ SOS_receiver_init(SOS_runtime *sos_context)
 
 
 void
-SOS_sense_register(SOS_runtime *sos_context, char *handle)
+SOS_sense_register(SOS_runtime *sos_context, const char *handle)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
 
@@ -934,7 +934,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
     pthread_mutex_lock(SOS->task.reference_table_lock);
     SOS->task.reference_table->free(SOS->task.reference_table);
     pthread_mutex_unlock(SOS->task.reference_table_lock);
-    pthread_mutex_destroy(SOS->task.refrerence_table_lock);
+    pthread_mutex_destroy(SOS->task.reference_table_lock);
 
     dlog(1, "Done!\n");
     free(SOS);

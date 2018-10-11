@@ -8,17 +8,17 @@
 
 // ############################################################################
 
-#define USAGE          "USAGE:   $ sosd  -l, --listeners <count>\n" \
-                       "                 -a, --aggregators <count>\n" \
-                       "                 -r, --role <listener | aggregator>\n" \
-                       "                 -k, --rank <rank within ALL sosd instances>\n" \
-                       "                [-w, --work_dir <full_path>]\n" \
-                       "                [-o, --options_file <full_path]\n"\
-                       "                [-c, --options_class <class>]\n"\
-                       "\n"\
-                       "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
-                       "                       from 0 to n-1 aggregators.\n" \
-                       "\n"
+#define USAGE "USAGE:   $ sosd  -l, --listeners <count>\n" \
+              "                 -a, --aggregators <count>\n" \
+              "                 -r, --role <listener | aggregator>\n" \
+              "                 -k, --rank <rank within ALL sosd instances>\n" \
+              "                [-w, --work_dir <full_path>]\n" \
+              "                [-o, --options_file <full_path]\n"\
+              "                [-c, --options_class <class>]\n"\
+              "\n"\
+              "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
+              "                       from 0 to n-1 aggregators.\n" \
+              "\n"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -886,15 +886,16 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             pthread_mutex_lock(SOSD.sync.sense_list_lock);
             SOSD_sensitivity_entry *sense = SOSD.sync.sense_list_head;
             SOSD_sensitivity_entry *prev_sense = NULL;
-            while(sense != NULL) {
+            while (sense != NULL) {
                 if (strcmp(payload->handle, sense->sense_handle) == 0) {
+                    // The name matches, attempt to connect to this client.
                     rc = SOS_target_connect(sense->target);
                     if (rc < 0) {
                         // Remove this target.
-                        //fprintf(stderr, "Removing missing target --> %s:%d\n",
-                        //        sense->remote_host,
-                        //        sense->remote_port);
-                        //fflush(stderr);
+                        fprintf(stderr, "Removing missing target --> %s:%d\n",
+                                sense->remote_host,
+                                sense->remote_port);
+                        fflush(stderr);
                         if (sense == SOSD.sync.sense_list_head) {
                             SOSD.sync.sense_list_head = sense->next_entry;
                         } else {
@@ -903,15 +904,19 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                         free(sense->remote_host);
                         free(sense->sense_handle);
                         SOS_target_destroy(sense->target);
-                        sense = NULL;
                         free(sense);
-                        sense = prev_sense->next_entry;
+
+                        if (prev_sense != NULL) {
+                            sense = prev_sense->next_entry;
+                        } else {
+                            sense = NULL;
+                        }
                         continue;
                     }
 
                     /*
                      *  Uncomment in case of emergency:
-                     *
+                     */
                     fprintf(stderr, "Message for the client at %s:%d  ...\n",
                             sense->remote_host, sense->remote_port);
                     fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
@@ -934,7 +939,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     fprintf(stderr, "   ...\n");
                     fprintf(stderr, "\n");
                     fflush(stderr);
-                    */
+                    /**/
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
                 }

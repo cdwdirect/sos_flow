@@ -100,7 +100,7 @@ extern "C" {
 
     void SOS_publish(SOS_pub *pub);
 
-    void SOS_sense_register(SOS_runtime *sos_context, char *handle);
+    void SOS_sense_register(SOS_runtime *sos_context, const char *handle);
 
     void SOS_sense_trigger(SOS_runtime *sos_context,
         char *handle, char *data, int data_length);
@@ -147,8 +147,8 @@ extern "C" {
     int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
     // -----
 
-    void  SOS_reference_set(SOS_runtime *sos_context, unsigned char *name, void *pointer);
-    void* SOS_reference_get(SOS_runtime *sos_context, unsigned char *name);
+    void  SOS_reference_set(SOS_runtime *sos_context, const char *name, void *pointer);
+    void* SOS_reference_get(SOS_runtime *sos_context, const char *name);
 
     int SOS_pub_search(SOS_pub *pub, const char *name);
 
