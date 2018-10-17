@@ -415,8 +415,8 @@ int main(int argc, char *argv[])  {
         dlog(1, "Exporting complete.\n");
     } // end: if DB enabled
 
-    // TODO: Send a trigger to the "SOS" channel to provide notice of shutdown...
-    // This is a really nice idea for coordinated shutdown. 
+    // TODO: Send a trigger to the "__SOS" channel to provide notice of shutdown.
+    //       This is a really nice idea for soft-coordinated shutdown.
 
 
     dlog(1, "Closing the sync queues:\n");
@@ -743,7 +743,6 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         switch(task->type) {
 
         case SOS_FEEDBACK_TYPE_CACHE:
-            //>>>>>
             dlog(6, "Processing feedback message for cache_grab!\n");
             cache = (SOSD_cache_grab_handle *) task->ref;
             
@@ -796,7 +795,6 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             free(cache);
 
             dlog(6, "Done processing feedback for cache_grab.\n");
-            //<<<<<
             break;
 
 
@@ -892,10 +890,10 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     rc = SOS_target_connect(sense->target);
                     if (rc < 0) {
                         // Remove this target.
-                        fprintf(stderr, "Removing missing target --> %s:%d\n",
-                                sense->remote_host,
-                                sense->remote_port);
-                        fflush(stderr);
+                        //fprintf(stderr, "Removing missing target --> %s:%d\n",
+                        //        sense->remote_host,
+                        //        sense->remote_port);
+                        //fflush(stderr);
                         if (sense == SOSD.sync.sense_list_head) {
                             SOSD.sync.sense_list_head = sense->next_entry;
                         } else {
@@ -916,7 +914,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
                     /*
                      *  Uncomment in case of emergency:
-                     */
+                     *
                     fprintf(stderr, "Message for the client at %s:%d  ...\n",
                             sense->remote_host, sense->remote_port);
                     fprintf(stderr, "   header.msg_size == %d\n", header.msg_size);
@@ -939,12 +937,14 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     fprintf(stderr, "   ...\n");
                     fprintf(stderr, "\n");
                     fflush(stderr);
-                    /**/
+                    **/
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
                 }
                 prev_sense = sense;
-                sense = sense->next_entry;
+                if (sense != NULL) {
+                    sense = sense->next_entry;
+                }
             }
 
             pthread_mutex_unlock(SOSD.sync.sense_list_lock);
@@ -1336,7 +1336,9 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
     int rc;
 
     // TODO: Remove the specific sensitivity GUID+handle combo.
-    //       This is currently handled
+    //       This is currently handled by the sending routine
+    //       when it fails to find a client it's attempting to
+    //       connect to, so this remains a stub for now.
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
@@ -1521,10 +1523,11 @@ SOSD_handle_unregister(SOS_buffer *msg) {
 
     // -- This message is sent when a client calls SOS_finalize();
     // TODO: Verify that all process-related tasks are concluded here
-    // 1. Stop collecting PID information
-    // 2. Inject a timestamp in the database
-    // 3. Destroy all pubs that belong to this GUID
-    // 4. Remove all sensitivities for this GUID
+    //     1. Stop collecting PID information
+    //     2. Inject a timestamp in the database
+    //     3. Destroy all pubs that belong to this GUID
+    //     4. Remove all sensitivities for this GUID
+    //     5. Scan for and purge any messages being held for this GUID
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
@@ -1639,6 +1642,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
 
+    // Send an ACK message to the trigger-pulling client.
     int rc;
     rc = SOS_target_send_msg(SOSD.net, reply);
 
@@ -1747,6 +1751,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
     SOS_target_send_msg(SOSD.net, reply);
+    rc = 0;
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
             reply->len, rc);
     if (rc == -1) {
@@ -1952,9 +1957,6 @@ void SOSD_handle_register(SOS_buffer *buffer) {
     }
 
     SOS_buffer_destroy(reply);
-
-    //TODO: Inject a timestamp in the database for this client.
-    //(Pub handle has it?)
 
     return;
 }
@@ -2204,7 +2206,15 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 }
 
 
-
+// TODO: { FEEDBACK, CHECKIN } This remains an incomplete concept.
+//      This can/will be turned into some kind of push/pull
+//      mechanism where clients can see if there are pending
+//      messages for them by polling the daemon, rather than
+//      spawning a thread and listening on a socket for direct
+//      feedback messages.  We may not want every client hosting 
+//      its own feedback handler function.  For now, this is
+//      stubbed out, since direct feedback or no feedback are the
+//      primary use-case behaviors we support.
 void SOSD_handle_check_in(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_check_in");
     SOS_msg_header header;
@@ -2234,8 +2244,6 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
 
-        // TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case.
-        // This needs to get turned into a 'mailbox' kind of system.
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",

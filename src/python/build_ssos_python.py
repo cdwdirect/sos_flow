@@ -109,7 +109,7 @@ if __name__ == "__main__":
     void SSOS_result_destroy(SSOS_query_results *results);
 
     void SSOS_sense_trigger(char *sense_handle,
-            int payload_size, void *payload_data); 
+            int payload_size, char *payload_data); 
 
     
     // --------------------

@@ -358,7 +358,7 @@ void
 SSOS_sense_trigger(
         char  *sense_handle,
         int    payload_size,
-        void  *payload_data)
+        char  *payload_data)
 {
     SSOS_CONFIRM_ONLINE("SSOS_sense_trigger");
     SOS_SET_CONTEXT(g_sos, "SSOS_sense_trigger");
