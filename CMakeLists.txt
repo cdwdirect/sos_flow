@@ -39,8 +39,8 @@ option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF
 
 # --- Other SOS options ---
 
-set(CMAKE_BUILD_TYPE Debug)
-#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+#set(CMAKE_BUILD_TYPE Debug)
+set(CMAKE_BUILD_TYPE RelWithDebInfo)
 #set(CMAKE_BUILD_TYPE Release)
 
 option(SOS_SECURE_WITH_MUNGE
@@ -271,7 +271,7 @@ message(STATUS "MPI:  Locating package...")
 if(NOT MPI_C_NO_INTERROGATE)
     find_package("MPI" QUIET REQUIRED)
 else()
-    set(MPI_FOUND ON)
+    set(MPI_FOUND OFF)
 endif(NOT MPI_C_NO_INTERROGATE)
 
 if(MPI_FOUND)

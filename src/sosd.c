@@ -229,6 +229,18 @@ int main(int argc, char *argv[])  {
         exit(EXIT_FAILURE);
     }
 
+    // Do some quick validation - if the user requested 0 aggregators, and this
+    // instance was launched as a listener, then silently change its role to
+    // aggregator.  All listeners will do the same.
+    if (SOSD.daemon.listener_count > 0 &&
+        SOSD.daemon.aggregator_count == 0) {
+        // swap the counts
+        SOSD.daemon.aggregator_count = SOSD.daemon.listener_count;
+        SOSD.daemon.listener_count = 0;
+        // change the role
+        my_role = SOS_ROLE_AGGREGATOR;
+    }
+
     // Done with param processing... fire things up.
 
     memset(&SOSD.daemon.pid_str, '\0', 256);
@@ -1750,8 +1762,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
-    SOS_target_send_msg(SOSD.net, reply);
-    rc = 0;
+    rc = SOS_target_send_msg(SOSD.net, reply);
     dlog(5, "replying with reply->len == %d bytes, rc == %d\n",
             reply->len, rc);
     if (rc == -1) {
