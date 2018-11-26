@@ -291,8 +291,7 @@ int main(int argc, char *argv[]) {
             for (i = 0; i < PUB_ELEM_COUNT; i++) {
                 snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
                 snprintf(var_string, 100, "%3.14lf", var_double);
-                //SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-                SOS_pack(pub, elem_name, SOS_VAL_TYPE_STRING, var_string);
+                SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
                 var_double += 1.00000001;
             }
             SOS_publish(pub);
