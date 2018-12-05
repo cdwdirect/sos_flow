@@ -139,7 +139,7 @@ void disconnect(void)
     return;
 }
 
-bool Apollo::isConnected(void)
+bool SimpleSOS::isConnected(void)
 {
     return ynConnectedToSOS;
 }
