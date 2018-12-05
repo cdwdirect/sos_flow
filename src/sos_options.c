@@ -18,14 +18,13 @@ int SOS_options_init(
     SOS_runtime *SOS_obj = sos_context;
 
     // NOTE: Options get loaded in three orders of priority:
-    //           evars
-    //           command line params (overrides evars)
-    //           config file (overrides command line and evars)
+    //           1. config file
+    //           2. environment variables (overrides config file)
+    //           3. command line params (overrides env.vars and config)
 
     //Initialize the options
     *sos_options_ptr_ref = (SOS_options *) calloc(1, sizeof(SOS_options));
     SOS_options *opt = *sos_options_ptr_ref;
-
 
     opt->sos_context    = sos_context;
     opt->role           = SOS_obj->role; 
@@ -53,28 +52,44 @@ int SOS_options_init(
 
     opt->pub_cache_depth    = 0;     //0 == No value cacheing
 
+    opt->batch_environment    = false;
+    opt->fwd_shutdown_to_agg  = false;
+
     opt->system_monitor_enabled   = false;
     opt->system_monitor_freq_usec = -1;
 
-
-    // STEP 1/3: Load any settings from environment variables:
-    SOS_options_load_evar(opt);
-
-    // STEP 2/3: If provided, load options from command line:
-    if ((SOS_obj->config.argc > 2)
-     && (SOS_obj->config.argv != NULL)) {
-        SOS_options_load_argv(opt);
-    }
-
-    // STEP 3/3: If provided, load options from a config file:
+    // STEP 1/3: If provided, load options from a config file:
     if (opt->options_file != NULL) {
         if (strlen(opt->options_file) > 0) {
             SOS_options_load_file(opt);
         }
     }
-       
+
+    // STEP 2/3: Load any settings from environment variables:
+    SOS_options_load_evar(opt);
+
+    // STEP 3/3: If provided, load options from command line:
+    if ((SOS_obj->config.argc > 2)
+     && (SOS_obj->config.argv != NULL)) {
+        SOS_options_load_argv(opt);
+    }
+
 
     return 0;
+}
+
+void SOS_options_load_file(SOS_options *opt)
+{
+    if (!SOS_file_exists(opt->options_file)) {
+        fprintf(stderr, "WARNING: Invalid path specified for"
+                " SOS options file.  Skipping.\n            "
+                " Path given: %s\n", opt->options_file);
+        return;
+    }
+
+    // TODO: Load and scan options file.
+
+    return;
 }
 
 
@@ -85,6 +100,12 @@ void SOS_options_load_evar(SOS_options *opt) {
         opt->batch_environment = true;
     } else {
         opt->batch_environment = false;
+    }
+
+    if (SOS_str_opt_is_enabled(getenv("SOS_FWD_SHUTDOWN_TO_AGG"))) {
+        opt->fwd_shutdown_to_agg = true;
+    } else {
+        opt->fwd_shutdown_to_agg = false;
     }
 
     if (getenv("SOS_DISCOVERY_DIR") != NULL) {
@@ -169,20 +190,6 @@ void SOS_options_load_argv(SOS_options *opt)
         // Nothing useful on the command line, skip.
         return;
     }
-
-    return;
-}
-
-void SOS_options_load_file(SOS_options *opt)
-{
-    if (!SOS_file_exists(opt->options_file)) {
-        fprintf(stderr, "WARNING: Invalid path specified for"
-                " SOS options file.  Skipping.\n            "
-                " Path given: %s\n", opt->options_file);
-        return;
-    }
-
-    // TODO: Load and scan options file.
 
     return;
 }

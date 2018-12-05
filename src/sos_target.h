@@ -23,6 +23,12 @@ extern "C" {
 
     int SOS_target_destroy(SOS_socket *target);
 
+    // Serialize information about this connection.
+    // NOTE: It makes sense to add this here because we'll
+    //       re-use it for discovery as well as utilities
+    int SOS_target_description_write(FILE *into_file, SOS_socket *from_target);
+    int SOS_target_description_read(SOS_socket *into_tgt, FILE *from_file);
+
 #ifdef __cplusplus
 }
 #endif

@@ -137,15 +137,17 @@ int main(int argc, char *argv[])  {
 #else
     if ( argc < 5 ) {
 #endif
-        fprintf(stderr, "ERROR: Invalid number of arguments supplied."
+        fprintf(stderr, "[sosd -> ERROR] Invalid number of arguments supplied."
                 "   (%d)\n\n%s\n", argc, USAGE);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
     //SOSD.net.listen_backlog = -1;
     for (elem = 1; elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
-            fprintf(stderr, "ERROR: Incorrect parameter"
+            fprintf(stderr, "[sosd -> ERROR] Incorrect parameter"
                     " pairing.\n\n%s\n", USAGE);
+            fflush(stderr);
             exit(EXIT_FAILURE);
         }
 
@@ -184,8 +186,9 @@ int main(int argc, char *argv[])  {
             } else if (strcmp(argv[next_elem], "aggregator") == 0) {
                 my_role = SOS_ROLE_AGGREGATOR;
             } else {
-                fprintf(stderr, "ERROR!  Invalid sosd role specified.  (%s)\n",
+                fprintf(stderr, "[sosd -> ERROR] Invalid sosd role specified.  (%s)\n",
                     argv[next_elem]);
+                fflush(stderr);
                 exit(EXIT_FAILURE);
             }
             fflush(stdout);
@@ -196,8 +199,9 @@ int main(int argc, char *argv[])  {
     }
 
     if ((SOSD.net->port_number < 1) && (my_role == SOS_ROLE_UNASSIGNED)) {
-        fprintf(stderr, "ERROR: No port was specified for the daemon"
+        fprintf(stderr, "[sosd -> ERROR] No port was specified for the daemon"
                 " to monitor.\n\n%s\n", USAGE);
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
@@ -2182,7 +2186,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
     dlog(5, "Replying to the client who submitted the shutdown"
-            " request in situ...\n");
+            " request...\n");
     SOSD_PACK_ACK(reply);
     i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
             reply->len, 0);
@@ -2192,8 +2196,17 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
         dlog(5, "  ... send() returned the following bytecount: %d\n", i);
         SOSD_countof(socket_bytes_sent += i);
     }
+
+    int override_fwd_shutdown_to_agg = -1;
+    int senders_fwd_shutdown_setting = -1;
+
+    SOS_buffer_unpack(buffer, &offset, "ii",
+            &override_fwd_shutdown_to_agg,
+            &senders_fwd_shutdown_setting);
+
 #if (SOSD_CLOUD_SYNC > 0)
-    if (SOS->role == SOS_ROLE_LISTENER) {
+    if (   (SOS->role == SOS_ROLE_LISTENER)
+        && (SOS->config.options->fwd_shutdown_to_agg == true)) {
         // Listeners determine if they need to relay the
         // shutdown notice to Aggregators...
         SOSD_cloud_shutdown_notice();
@@ -2201,6 +2214,9 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 #endif
 
     SOSD.daemon.running = 0;
+
+    // TODO: This is where two-phase shutdown protocol will be implemented
+    //       with something like a SOS_STATUS_SHUTDOWN_PENDING (etc)
     SOS->status = SOS_STATUS_SHUTDOWN;
 
     SOS_buffer_destroy(reply);

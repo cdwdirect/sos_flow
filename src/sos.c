@@ -435,9 +435,6 @@ SOS_init_existing_runtime(
         SOS_buffer_unpack(buffer, &offset, "i",
                 &server_uid);
 
-        //TODO: Make UID validation a runtime setting.
-        //      If it is disabled, emit a non-scary notification anyway.
-
         if (server_uid != client_uid) {
             fprintf(stderr, "ERROR: SOS daemon's UID (%d) does not"
                     " match yours (%d)!  Connection refused.\n",
@@ -463,8 +460,6 @@ SOS_init_existing_runtime(
             fflush(stderr);
         }
 
-
-
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(4, "  ... configuring uid sets.\n");
@@ -472,8 +467,6 @@ SOS_init_existing_runtime(
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
             guid_pool_from, guid_pool_to);
-
-        //slice
 
         SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
         dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -1608,8 +1601,28 @@ void SOS_expand_data( SOS_pub *pub ) {
  * @return 1 == file exists, 0 == file does not exist.
  */
 int SOS_file_exists(char *filepath) {
-    struct stat   buffer;
-    return (stat(filepath, &buffer) == 0);
+    struct stat sb;
+    int valid_path = (stat(filepath, &sb) == 0);
+    if (valid_path && S_ISDIR(sb.st_mode)) {
+        return 0;
+    }
+    if (valid_path) {
+        return 1;
+    }
+    return 0;
+}
+
+/**
+ * @brief Internal utility function to see if a directory exists.
+ * @return 1 == directory exists, 0 == directory does not exist.
+ */
+int SOS_dir_exists(char *dirpath) {
+    struct stat sb;
+    int valid_path = (stat(dirpath, &sb) == 0);
+    if (valid_path && S_ISDIR(sb.st_mode)) {
+        return 1;
+    }
+    return 0;
 }
 
 void SOS_str_strip_ext(char *str) {

@@ -116,7 +116,8 @@ extern "C" {
         SOS_runtime **runtime, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
-    int SOS_file_exists(char *path);
+    int SOS_file_exists(char *file_path);
+    int SOS_dir_exists( char *dir_path);
 
     void SOS_pub_init_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
         const char *pub_title, SOS_nature nature, int new_size);
