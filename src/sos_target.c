@@ -132,7 +132,7 @@ SOS_target_setup_for_accept(SOS_socket *target)
     // Enforce that this is a BLOCKING socket:
     opts = fcntl(target->local_socket_fd, F_GETFL);
     if (opts < 0) {
-        dlog(0, "ERROR!  Cannot call fcntl() on the"
+        dlog(0, "ERROR: Cannot call fcntl() on the"
                 " local_socket_fd to get its options.  Carrying on.  (%s)\n",
                 strerror(errno));
     }
@@ -140,7 +140,7 @@ SOS_target_setup_for_accept(SOS_socket *target)
     opts = opts & !(O_NONBLOCK);
     i    = fcntl(target->local_socket_fd, F_SETFL, opts);
     if (i < 0) {
-        dlog(0, "ERROR!  Cannot use fcntl() to set the"
+        dlog(0, "ERROR: Cannot use fcntl() to set the"
                 " local_socket_fd to BLOCKING more.  Carrying on.  (%s).\n",
                 strerror(errno));
     }
@@ -226,7 +226,7 @@ int
 SOS_target_init(
         SOS_runtime       *sos_context,
         SOS_socket       **target,
-        char              *target_host,
+        const char        *target_host,
         int                target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_target_init");
@@ -401,6 +401,11 @@ SOS_target_send_msg(
     SOS_TIME(time_start);
     while (more_to_send) {
         if (failed_send_count >= 8) {
+            fprintf(stderr, "ERROR: Unable to contact target (%s:%s) after %d attempts.\n",
+                    target->remote_host,
+                    target->remote_port,
+                    failed_send_count);
+            fflush(stderr);
             dlog(0, "ERROR: Unable to contact target after 8 attempts.\n");
             more_to_send = 0;
             pthread_mutex_unlock(target->send_lock);

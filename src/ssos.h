@@ -36,7 +36,7 @@
 // These option keys can be used to set values inside of
 // the various objects SOS uses to track application and
 // publication metadata.  They are used as the first parameter
-// of the SSOS_set_option(int key, char *value) function:
+// of the SSOS_set_option(int key, const char *value) function:
 #define SSOS_OPT_PROG_VERSION   1
 #define SSOS_OPT_COMM_RANK      2 
 
@@ -68,38 +68,39 @@ typedef struct {
 extern "C" {
 #endif
 
-    void SSOS_init(char *prog_name);
+    void SSOS_init(const char *prog_name);
     void SSOS_is_online(int *addr_of_YN_int_flag);
-    void SSOS_set_option(int option_key, char *option_value);
+    void SSOS_set_option(int option_key, const char *option_value);
 
-    void SSOS_pack(char *name, int pack_type, void *addr_of_value);
+    void SSOS_pack(const char *name, int pack_type, void *addr_of_value);
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
 
-    void SSOS_query_exec(char *sql, char *target_host, int target_port);
+    void SSOS_query_exec(const char *sql, const char *target_host, int target_port);
     //
     void SSOS_request_pub_manifest(
         SSOS_query_results *manifest_var,
         int  *max_frame_overall_var,
-        char *pub_title_filter,
-        char *target_host,
+        const char *pub_title_filter,
+        const char *target_host,
         int  target_port);
     //
     void SSOS_cache_grab(
-        char *pub_filter,
-        char *val_filter,
+        const char *pub_filter,
+        const char *val_filter,
         int   frame_head,
         int   frame_depth_limit,
-        char *target_host,
+        const char *target_host,
         int   target_port);
     //
     void SSOS_result_pool_size(int *addr_of_counter_int);
     void SSOS_result_claim(SSOS_query_results *results);
     void SSOS_result_destroy(SSOS_query_results *results);
 
-    void SSOS_sense_trigger(char *sense_handle,
-            int payload_size, char *payload_data); 
+    void SSOS_sense_trigger(
+            const char *sense_handle,
+            int payload_size, void *payload_data); 
 
 #ifdef __cplusplus
 }

@@ -44,11 +44,11 @@ SOS_pub                 *g_pub = NULL;
 };
 
 
-void SSOS_feedback_handler(
-        void *sos_context,
-        int   payload_type,
-        int   payload_size,
-        void *payload_data)
+void
+SSOS_feedback_handler(
+        int         payload_type,
+        int         payload_size,
+        void       *payload_data)
 {
     SOS_SET_CONTEXT(g_sos, "SSOS_feedback_handler");
     if (payload_type != SOS_FEEDBACK_TYPE_QUERY) {
@@ -98,7 +98,10 @@ void SSOS_feedback_handler(
 }
 
 
-void SSOS_result_pool_size(int *addr_of_counter_int) {
+void
+SSOS_result_pool_size(
+    int            *addr_of_counter_int)
+{
     *addr_of_counter_int = g_result_pool_size;
     return;
 }
@@ -106,7 +109,8 @@ void SSOS_result_pool_size(int *addr_of_counter_int) {
 
 
 void
-SSOS_result_claim(SSOS_query_results *results)
+SSOS_result_claim(
+    SSOS_query_results     *results)
 {
     SSOS_CONFIRM_ONLINE("SSOS_query_claim_results");
     SOS_SET_CONTEXT(g_sos, "SSOS_query_claim_results");
@@ -159,7 +163,10 @@ SSOS_result_claim(SSOS_query_results *results)
     return;
 }
 
-void SSOS_result_destroy(SSOS_query_results *results) {
+void
+SSOS_result_destroy(
+        SSOS_query_results     *results)
+{
     SSOS_CONFIRM_ONLINE("SSOS_results_destroy");
     SOS_SET_CONTEXT(g_sos, "SSOS_results_destroy");
 
@@ -188,11 +195,11 @@ void SSOS_result_destroy(SSOS_query_results *results) {
 
 void
 SSOS_request_pub_manifest(
-        SSOS_query_results  *manifest_var,
-        int                 *max_frame_overall_var,
-        char                *pub_title_filter,
-        char                *target_host,
-        int                 target_port)
+        SSOS_query_results     *manifest_var,
+        int                    *max_frame_overall_var,
+        const char             *pub_title_filter,
+        const char             *target_host,
+        int                     target_port)
 {
     SSOS_CONFIRM_ONLINE("SSOS_request_pub_manifest");
     SOS_SET_CONTEXT(g_sos, "SSOS_request_pub_manifest");
@@ -213,12 +220,12 @@ SSOS_request_pub_manifest(
 
 void
 SSOS_cache_grab(
-        char *pub_filter,
-        char *val_filter,
-        int frame_head,
-        int frame_depth_limit,
-        char *target_host,
-        int target_port)
+        const char             *pub_filter,
+        const char             *val_filter,
+        int                     frame_head,
+        int                     frame_depth_limit,
+        const char             *target_host,
+        int                     target_port)
 {
     SSOS_CONFIRM_ONLINE("SSOS_cache_grab");
     SOS_SET_CONTEXT(g_sos, "SSOS_cache_grab");
@@ -233,7 +240,10 @@ SSOS_cache_grab(
 
 
 void
-SSOS_query_exec(char *sql, char *target_host, int target_port)
+SSOS_query_exec(
+        const char     *sql,
+        const char     *target_host,
+        int             target_port)
 {
     SSOS_CONFIRM_ONLINE("SSOS_query_exec");
     SOS_SET_CONTEXT(g_sos, "SSOS_query_exec");
@@ -256,7 +266,10 @@ SSOS_query_exec(char *sql, char *target_host, int target_port)
 
 
 
-void SSOS_init(char *prog_name) {
+void
+SSOS_init(
+        const char     *prog_name)
+{
     g_sos_is_online = 0;
 
     g_sos = NULL;
@@ -294,14 +307,22 @@ void SSOS_init(char *prog_name) {
     return;
 }
 
-void SSOS_is_online(int *addr_of_flag) {
+void
+SSOS_is_online(
+        int         *addr_of_flag)
+{
     *addr_of_flag = g_sos_is_online;
     return;
 }
 
 
 
-void SSOS_pack(char *name, int pack_type, void *pack_val) {
+void
+SSOS_pack(
+        const char     *name,
+        int             pack_type,
+        void           *pack_val)
+{
     SSOS_CONFIRM_ONLINE("SSOS_pack");
     SOS_SET_CONTEXT(g_sos, "SSOS_pack");
 
@@ -320,19 +341,25 @@ void SSOS_pack(char *name, int pack_type, void *pack_val) {
     return;
 }
 
-void SSOS_announce(void) {
+void
+SSOS_announce(void)
+{
     SSOS_CONFIRM_ONLINE("SSOS_announce");
     SOS_announce(g_pub);
     return;
 }
 
-void SSOS_publish(void) {
+void
+SSOS_publish(void)
+{
     SSOS_CONFIRM_ONLINE("SSOS_publish");
     SOS_publish(g_pub);
     return;
 }
 
-void SSOS_finalize(void) {
+void
+SSOS_finalize(void)
+{
     SSOS_CONFIRM_ONLINE("SSOS_finalize");
     g_sos_is_online = 0;
 
@@ -356,9 +383,9 @@ void SSOS_finalize(void) {
 
 void
 SSOS_sense_trigger(
-        char  *sense_handle,
-        int    payload_size,
-        char  *payload_data)
+    const char         *sense_handle,
+    int                 payload_size,
+    void               *payload_data)
 {
     SSOS_CONFIRM_ONLINE("SSOS_sense_trigger");
     SOS_SET_CONTEXT(g_sos, "SSOS_sense_trigger");
@@ -370,7 +397,11 @@ SSOS_sense_trigger(
 }
 
 
-void SSOS_set_option(int option_key, char *option_value) {
+void
+SSOS_set_option(
+    int                 option_key,
+    const char         *option_value)
+{
     SSOS_CONFIRM_ONLINE("SSOS_set_option");
     SOS_SET_CONTEXT(g_sos, "SSOS_set_option");
 

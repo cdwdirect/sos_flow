@@ -78,11 +78,11 @@ if __name__ == "__main__":
     // ease of use by the ssos.py script, but can be called
     // directly if desired:
     
-    void SSOS_init(char *prog_name);
+    void SSOS_init(const char *prog_name);
     void SSOS_is_online(int *addr_of_YN_int_flag);
-    void SSOS_set_option(int option_key, char *option_value);
+    void SSOS_set_option(int option_key, const char *option_value);
 
-    void SSOS_pack(char *name, int pack_type, void *addr_of_value);
+    void SSOS_pack(const char *name, int pack_type, void *addr_of_value);
     void SSOS_announce(void);
     void SSOS_publish(void);
     void SSOS_finalize(void);
@@ -92,24 +92,24 @@ if __name__ == "__main__":
     void SSOS_request_pub_manifest(
         SSOS_query_results *manifest_var,
         int  *max_frame_overall_var,
-        char *pub_title_filter,
-        char *target_host,
+        const char *pub_title_filter,
+        const char *target_host,
         int   target_port);
     //
     void SSOS_cache_grab(
-        char *pub_filter,
-        char *val_filter,
-        int   frame_head,
-        int   frame_depth_limit,
-        char *target_host,
-        int   target_port);
+        const char *pub_filter,
+        const char *val_filter,
+        int         frame_head,
+        int         frame_depth_limit,
+        const char *target_host,
+        int         target_port);
     //
     void SSOS_result_pool_size(int *addr_of_counter_int);
     void SSOS_result_claim(SSOS_query_results *results);
     void SSOS_result_destroy(SSOS_query_results *results);
 
-    void SSOS_sense_trigger(char *sense_handle,
-            int payload_size, char *payload_data); 
+    void SSOS_sense_trigger(const char *sense_handle,
+            int payload_size, void *payload_data); 
 
     
     // --------------------

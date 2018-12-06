@@ -671,7 +671,7 @@ SOS_sense_register(SOS_runtime *sos_context, const char *handle)
 
 void
 SOS_sense_trigger(SOS_runtime *sos_context,
-    char *handle, char *data, int data_length)
+    const char *handle, const char *data, int data_length)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_trigger");
 

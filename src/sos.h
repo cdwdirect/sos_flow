@@ -103,7 +103,7 @@ extern "C" {
     void SOS_sense_register(SOS_runtime *sos_context, const char *handle);
 
     void SOS_sense_trigger(SOS_runtime *sos_context,
-        char *handle, char *data, int data_length);
+        const char *handle, const char *data, int data_length);
 
 
     void SOS_finalize(SOS_runtime *sos_context);
