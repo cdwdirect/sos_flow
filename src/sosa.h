@@ -42,12 +42,13 @@ extern "C" {
 
     // SQL: Submit an SQL query to a SOS daemon over the socket:
     SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
-            char *sql_string, char *target_host, int target_port);
+            const char *sql_string, const char *target_host, int target_port);
 
     // MANIFEST: Efficient way to ping daemons and find out what frame
     //           all the pubs are at.
     SOS_guid SOSA_request_pub_manifest(SOS_runtime *sos_context, SOSA_results *results,
-            int *max_frame_overall, char *pub_title_filter, char *target_host, int target_port);
+            int *max_frame_overall, const char *pub_title_filter,
+            const char *target_host, int target_port);
 
     void SOSA_pub_manifest_to_buffer(SOS_runtime *sos_context, SOS_buffer **reply,
             SOS_buffer *request);
@@ -59,12 +60,12 @@ extern "C" {
     //          How many frames may be included (-1 || 0 == NO LIMIT)
     //
     SOS_guid SOSA_cache_grab(SOS_runtime *sos_context,
-            char *pub_filter_regex, char *val_filter_regex,
+            const char *pub_filter_regex, const char *val_filter_regex,
             int frame_head, int frame_depth_limit,
-            char *target_host, int target_port);
+            const char *target_host, int target_port);
     //
     void SOSA_cache_to_results(SOS_runtime *sos_context, SOSA_results *results,
-            char *pub_filter_regex, char *val_filter_regex,
+            const char *pub_filter, const char *val_filter,
             int frame_head, int frame_depth_limit);
 
     // Utilities for working with result sets:
@@ -75,7 +76,7 @@ extern "C" {
     void SOSA_results_put_name(SOSA_results *results, int col, const char *name);
     void SOSA_results_put(SOSA_results *results, int col, int row, const char *value);
     void SOSA_results_output_to(FILE *file,
-            SOSA_results *results, char *title, int options);
+            SOSA_results *results, const char *title, int options);
     void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results);
     void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer);
     void SOSA_results_wipe(SOSA_results *results_object);
