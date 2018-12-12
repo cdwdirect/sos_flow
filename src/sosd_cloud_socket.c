@@ -444,7 +444,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     //Conserve this: SOSD_evpath_ready_to_listen = true;
     SOS_socket *tgt = NULL;
     SOS_target_init(SOS, &tgt,
-            SOS_DEFAULT_SERVER_HOST,
+            SOS->config.daemon_host,
             SOSD_DEFAULT_CLOUD_PORT);
     SOS_target_setup_for_accept(tgt);
 

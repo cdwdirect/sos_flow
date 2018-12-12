@@ -24,6 +24,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+// For scanning a path's files:
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <dirent.h>
+
 #if defined(USE_MPI)
 #include <mpi.h>
 #endif
@@ -40,10 +45,11 @@
                     "           Default:   Shut down this node's daemon.\n" \
                     "           Options:\n" \
                     "                      [-m, --meetup <path to .key files>\n" \
-                    "                       -r, --roles  <aggregator | listener | all>]  (default: all)\n" \
-                    "\n" \
-                    "                      [-f, --forward <bool: listeners relay shutdown to aggregator>\n" \
-                    ""
+                    "                       -r, --roles  <aggregator | listener | all>]  (default: all)\n"
+
+                    //"\n" \
+                    //"                      [-f, --forward <bool: listeners relay shutdown to aggregator>\n" \
+                    //""
 
 
 typedef enum SOSD_STOP_ROLES {
@@ -78,6 +84,7 @@ int main(int argc, char *argv[]) {
     meetup_dir = NULL;
     send_to_roles = SOSD_ALL;
 
+    int i = 0;
     int rc = 0;
 
     // Process command line arguments
@@ -154,6 +161,59 @@ int main(int argc, char *argv[]) {
 
 
 void SOSD_STOP_remote_daemons(int argc, char **argv) {
+
+    struct dirent *dp;
+    DIR *dfd;
+
+    if ((dfd = opendir(meetup_dir)) == NULL) {
+        fprintf(stderr, "[sosd_stop -> ERROR] Cannot open meetup directory:\n\t%s\n",
+                meetup_dir);
+        fflush(stderr);
+        exit(EXIT_FAILURE);
+    }
+
+    char filename_qfd[PATH_MAX];
+    
+    // For each entry in this directory
+    while ((dp = readdir(dfd)) != NULL) {
+        struct stat stbuf;
+        sprintf(filename_qfd, "%s/%s", meetup_dir, dp->d_name);
+        if (stat(filename_qfd, &stbuf) == -1) {
+            fprintf(stderr, "[sosd_stop -> ERROR] Cannot stat file:\n\t%s\n",
+                    filename_qfd);
+            fflush(stderr);
+            continue;
+        }
+        //Skip directories.
+        if ((stbuf.st_mode & S_IFMT) == S_IFDIR) {
+            continue;
+        } else {
+            if (    (strncmp(filename_qfd, "sosd.", 5) == 0)
+                 && (strstr(filename_qfd, ".key") != NULL)) {
+                // This appears to be a key file.
+
+                int length = 256;
+                int bytes = 0;
+                
+                char *sosd_host;
+                sosd_host = calloc(length, sizeof(char));
+
+                FILE *keyfile;
+                keyfile = fopen(keyfile, "r");
+                // Skip cloud connection
+                bytes = getline(&sosd_host, &length, keyfile);
+                bytes = getline(&sosd_host, &length, keyfile);
+                sosd_host[bytes - 1] = '\0';
+                
+                printf("Sending shutdown message to %s...\n", sosd_host);
+
+            
+            
+            }
+        }
+
+    }
+
     return;
 }
 
@@ -164,6 +224,9 @@ void SOSD_STOP_local_daemon(void) {
     SOS_buffer     *buffer;
     SOS_runtime    *my_SOS;
     int             offset;
+
+    int rc;
+    int i;
 
     my_SOS = NULL;
     SOS_init(&my_SOS, SOS_ROLE_RUNTIME_UTILITY, SOS_RECEIVES_NO_FEEDBACK, NULL);
