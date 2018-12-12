@@ -45,11 +45,10 @@
                     "           Default:   Shut down this node's daemon.\n" \
                     "           Options:\n" \
                     "                      [-m, --meetup <path to .key files>\n" \
-                    "                       -r, --roles  <aggregator | listener | all>]  (default: all)\n"
-
-                    //"\n" \
-                    //"                      [-f, --forward <bool: listeners relay shutdown to aggregator>\n" \
-                    //""
+                    "                       -r, --roles  <aggregator | listener | all>]  (default: all)\n" \
+                    "\n" \
+                    "                      [-f, --forward <bool: listeners relay shutdown to aggregator>]\n" \
+                    ""
 
 
 typedef enum SOSD_STOP_ROLES {
@@ -84,12 +83,15 @@ int main(int argc, char *argv[]) {
     meetup_dir = NULL;
     send_to_roles = SOSD_ALL;
 
-    int i = 0;
+    //int i = 0;
+    //int j = 0;
     int rc = 0;
 
     // Process command line arguments
-    int elem, next_elem;
-    for (elem = 2; i < argc; ) {
+    int elem = 2;
+    int next_elem = 3;
+
+    for (elem = 2; next_elem < argc; ) {
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
             exit(EXIT_FAILURE);
@@ -125,7 +127,7 @@ int main(int argc, char *argv[]) {
                 send_to_roles = SOSD_AGGREGATOR;
             } else if ((strcmp(argv[next_elem], "listener") == 0)) {
                 send_to_roles = SOSD_LISTENER;
-            } else if ((strcmp(argc[next_elem], "all") == 0)) {
+            } else if ((strcmp(argv[next_elem], "all") == 0)) {
                 send_to_roles = SOSD_ALL;
             } else {
                 fprintf(stderr, "[sosd_stop -> ERROR] Invalid SOS daemon role specified: %s\n\n", argv[next_elem]);
@@ -136,7 +138,7 @@ int main(int argc, char *argv[]) {
            
         }
         else {
-            fprintf(stderr, "[sosd_stop -> ERROR] Unknown flag: %s %s\n\n", argv[i], argv[j]);
+            fprintf(stderr, "[sosd_stop -> ERROR] Unknown flag: %s %s\n\n", argv[elem], argv[next_elem]);
             fprintf(stderr, "%s\n", USAGE);
             fflush(stderr);
             exit(EXIT_FAILURE);
@@ -161,7 +163,14 @@ int main(int argc, char *argv[]) {
 
 
 void SOSD_STOP_remote_daemons(int argc, char **argv) {
+    SOS_msg_header  header;
+    SOS_buffer     *msg;
+    SOS_runtime    *my_SOS;
+    int             offset;
 
+    SOS_socket *tgt;
+
+    bool initialized = false;
     struct dirent *dp;
     DIR *dfd;
 
@@ -174,6 +183,12 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
 
     char filename_qfd[PATH_MAX];
     
+    ssize_t length = 256;
+    int bytes = 0;
+    char *sosd_host;
+    char *sosd_host_registered_to;
+    sosd_host = calloc(length, sizeof(char));
+
     // For each entry in this directory
     while ((dp = readdir(dfd)) != NULL) {
         struct stat stbuf;
@@ -192,27 +207,72 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
                  && (strstr(filename_qfd, ".key") != NULL)) {
                 // This appears to be a key file.
 
-                int length = 256;
-                int bytes = 0;
-                
-                char *sosd_host;
-                sosd_host = calloc(length, sizeof(char));
-
                 FILE *keyfile;
-                keyfile = fopen(keyfile, "r");
+                keyfile = fopen(filename_qfd, "r");
                 // Skip cloud connection
                 bytes = getline(&sosd_host, &length, keyfile);
                 bytes = getline(&sosd_host, &length, keyfile);
                 sosd_host[bytes - 1] = '\0';
                 
+                if (initialized == false) {
+                    
+                    my_SOS = NULL;
+                    SOS_init_remote(&my_SOS, sosd_host,
+                            SOS_ROLE_RUNTIME_UTILITY,
+                            SOS_RECEIVES_NO_FEEDBACK,
+                            NULL);
+
+                    SOS_buffer_init(my_SOS, &msg);
+
+                    header.msg_size = -1;
+                    header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
+                    header.msg_from = my_SOS->my_guid;
+                    header.ref_guid = 0;
+
+                    SOS_buffer_pack(msg, &offset, "ii",
+                            override_fwd_shutdown_to_agg,
+                            senders_fwd_shutdown_setting);
+
+                    offset = 0;
+                    SOS_msg_zip(msg, header, 0, &offset);
+
+                    header.msg_size = offset;
+                    offset = 0;
+                    SOS_msg_zip(msg, header, 0, &offset);
+
+                    //Shut down the daemon we registered with last.
+                    sosd_host_registered_to = strdup(sosd_host);
+
+                    initialized = true;
+
+                    continue;
+                } //if: initialized == false
+            
                 printf("Sending shutdown message to %s...\n", sosd_host);
 
-            
-            
-            }
+                SOS_target_init(my_SOS, &tgt, sosd_host, atoi(SOS_DEFAULT_SERVER_PORT));
+                SOS_target_connect(tgt);
+                SOS_target_send_msg(tgt, msg); 
+                SOS_target_disconnect(tgt);
+                SOS_target_destroy(tgt);
+
+            } //if: this is a keyfile
         }
 
+    } //foreach file in directory
+
+    if (initialized) {
+        printf("Sending shutdown message to %s...\n", sosd_host_registered_to);
+        SOS_target_init(my_SOS, &tgt, sosd_host_registered_to, atoi(SOS_DEFAULT_SERVER_PORT));
+        SOS_target_connect(tgt);
+        SOS_target_send_msg(tgt, msg); 
+        SOS_target_disconnect(tgt);
+        SOS_target_destroy(tgt);
+        
+        free(sosd_host_registered_to);
     }
+
+    free(sosd_host);
 
     return;
 }
@@ -235,12 +295,11 @@ void SOSD_STOP_local_daemon(void) {
                 " daemon at port %s.\n", getenv("SOS_CMD_PORT"));
         exit(EXIT_FAILURE);
     }
-
-    SOS_buffer_init(SOS, &buffer);
+    SOS_buffer_init(my_SOS, &buffer);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
-    header.msg_from = SOS->my_guid;
+    header.msg_from = my_SOS->my_guid;
     header.ref_guid = 0;
 
     SOS_buffer_pack(buffer, &offset, "ii",
@@ -254,22 +313,21 @@ void SOSD_STOP_local_daemon(void) {
     offset = 0;
     SOS_msg_zip(buffer, header, 0, &offset);
 
-    dlog(1, "Sending SOS_MSG_TYPE_SHUTDOWN ...\n");
-
-    rc = SOS_target_connect(SOS->daemon);
+    rc = SOS_target_connect(my_SOS->daemon);
     if (rc != 0) {
-        dlog(1, "sosd_stop: Unable to connect to an SOSflow"
+        fprintf(stderr, "sosd_stop: Unable to connect to an SOSflow"
                 " daemon at port %s. (after successful init)\n", getenv("SOS_CMD_PORT"));
+        fflush(stderr);
         exit(EXIT_FAILURE);
     }
     
-    SOS_target_send_msg(SOS->daemon, buffer);
-    SOS_target_disconnect(SOS->daemon);
+    SOS_target_send_msg(my_SOS->daemon, buffer);
+    SOS_target_disconnect(my_SOS->daemon);
 
     SOS_buffer_destroy(buffer);
     dlog(1, "Done.\n");
 
-    SOS_finalize(SOS);
+    SOS_finalize(my_SOS);
 
     return;
 }

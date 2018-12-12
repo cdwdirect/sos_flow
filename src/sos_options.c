@@ -135,7 +135,6 @@ void SOS_options_load_evar(SOS_options *opt) {
 
     if (getenv("SOS_PUB_CACHE_DEPTH") != NULL) {
         opt->pub_cache_depth = atoi(getenv("SOS_PUB_CACHE_DEPTH"));
-        printf("opt->pub_cache_depth == %d\n", opt->pub_cache_depth);
         if (opt->pub_cache_depth < 0) {
             opt->pub_cache_depth = 0;
         } else if (opt->pub_cache_depth > 100000) {

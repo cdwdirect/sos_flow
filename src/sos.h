@@ -112,11 +112,16 @@ extern "C" {
 
     // ---------- internal / utility functions -----------------
 
+    void SOS_init_remote(
+        SOS_runtime **runtime, const char *remote_hostname, SOS_role role,
+        SOS_receives receives, SOS_feedback_handler_f handler);
+
     void SOS_init_existing_runtime(
         SOS_runtime **runtime, SOS_role role,
         SOS_receives receives, SOS_feedback_handler_f handler);
 
     int SOS_file_exists(char *path);
+    int SOS_dir_exists(char *path);
 
     void SOS_pub_init_sized(SOS_runtime *sos_context, SOS_pub **pub_handle,
         const char *pub_title, SOS_nature nature, int new_size);

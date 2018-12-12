@@ -111,7 +111,7 @@ static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
 void
 SOS_init_remote(
         SOS_runtime **sos_runtime,
-        char *remote_host,
+        const char *remote_host,
         SOS_role role,
         SOS_receives receives,
         SOS_feedback_handler_f handler)
@@ -1634,9 +1634,30 @@ void SOS_expand_data( SOS_pub *pub ) {
  * @return 1 == file exists, 0 == file does not exist.
  */
 int SOS_file_exists(char *filepath) {
-    struct stat   buffer;
-    return (stat(filepath, &buffer) == 0);
+    struct stat sb;
+    int valid_path = (stat(filepath, &sb) == 0);
+    if (valid_path && S_ISDIR(sb.st_mode)) {
+        return 0;
+    }
+    if (valid_path) {
+        return 1;
+    }
+    return 0;
 }
+
+/**
+ * @brief Internal utility function to see if a directory exists.
+ * @return 1 == directory exists, 0 == directory does not exist.
+ */
+int SOS_dir_exists(char *dirpath) {
+    struct stat sb;
+    int valid_path = (stat(dirpath, &sb) == 0);
+    if (valid_path && S_ISDIR(sb.st_mode)) {
+        return 1;
+    }
+    return 0;
+}
+
 
 void SOS_str_strip_ext(char *str) {
     int i, len;
