@@ -108,6 +108,31 @@ static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
 }
 
 
+void
+SOS_init_remote(
+        SOS_runtime **sos_runtime,
+        const char *remote_host,
+        SOS_role role,
+        SOS_receives receives,
+        SOS_feedback_handler_f handler)
+{
+    *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
+     memset(*sos_runtime, '\0', sizeof(SOS_runtime));
+
+    // If these are needed (as in daemons) then call
+    // SOS_init_existing_runtime() after setting things
+    // up yourself, as in sosd.c:
+    snprintf((*sos_runtime)->config.daemon_host, NI_MAXHOST, "%s", remote_host);
+    (*sos_runtime)->config.argc = -1;
+    (*sos_runtime)->config.argv = NULL;
+    (*sos_runtime)->config.options_file  = getenv("SOS_OPTIONS_FILE");
+    (*sos_runtime)->config.options_class = getenv("SOS_OPTIONS_CLASS");
+
+    SOS_init_existing_runtime(sos_runtime, role, receives, handler);
+    return;
+    
+}
+
 
 
 /**
@@ -145,6 +170,7 @@ SOS_init(SOS_runtime **sos_runtime,
     // If these are needed (as in daemons) then call
     // SOS_init_existing_runtime() after setting things
     // up yourself, as in sosd.c:
+    snprintf((*sos_runtime)->config.daemon_host, NI_MAXHOST, "%s", SOS_DEFAULT_SERVER_HOST);
     (*sos_runtime)->config.argc = -1;
     (*sos_runtime)->config.argv = NULL;
     (*sos_runtime)->config.options_file  = getenv("SOS_OPTIONS_FILE");
@@ -334,7 +360,7 @@ SOS_init_existing_runtime(
         if (portStr == NULL) {
             portStr = SOS_DEFAULT_SERVER_PORT;
         }
-        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
+        SOS_target_init(SOS, &SOS->daemon, SOS->config.daemon_host,
                 atoi(portStr));
         rc = SOS_target_connect(SOS->daemon);
 
@@ -593,7 +619,7 @@ SOS_receiver_init(SOS_runtime *sos_context)
 
 
 void
-SOS_sense_register(SOS_runtime *sos_context, char *handle)
+SOS_sense_register(SOS_runtime *sos_context, const char *handle)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_register");
 
@@ -631,7 +657,7 @@ SOS_sense_register(SOS_runtime *sos_context, char *handle)
 
 void
 SOS_sense_trigger(SOS_runtime *sos_context,
-    char *handle, char *data, int data_length)
+    const char *handle, const char *data, int data_length)
 {
     SOS_SET_CONTEXT(sos_context, "SOS_sense_trigger");
 
@@ -835,7 +861,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             dlog(1, "  ... This client RECEIVES_DIRECT_MESSAGES:\n");
             dlog(1, "      ... establishing connection it self...\n");
             SOS_socket *target = NULL;
-            SOS_target_init(SOS, &target, SOS_DEFAULT_SERVER_HOST, SOS->config.receives_port);
+            SOS_target_init(SOS, &target, SOS->config.daemon_host, SOS->config.receives_port);
             dlog(1, "      ... connecting to self...\n");
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;
@@ -920,7 +946,7 @@ SOS_THREAD_receives_direct(void *args)
     char local_hostname[NI_MAXHOST];
 
     insock = NULL;
-    SOS_target_init(SOS, &insock, SOS_DEFAULT_SERVER_HOST, 0);
+    SOS_target_init(SOS, &insock, SOS->config.daemon_host, 0);
     SOS_target_setup_for_accept(insock);
 
     //Gather some information about this socket:
@@ -1624,6 +1650,7 @@ int SOS_dir_exists(char *dirpath) {
     }
     return 0;
 }
+
 
 void SOS_str_strip_ext(char *str) {
     int i, len;

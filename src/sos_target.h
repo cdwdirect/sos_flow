@@ -7,7 +7,7 @@ extern "C" {
 #endif
 
     int SOS_target_init(SOS_runtime *sos_context, SOS_socket **target,
-            char *host, int port);
+            const char *host, int port);
 
     int SOS_target_connect(SOS_socket *target);
 
