@@ -2209,8 +2209,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
         && (SOS->config.options->fwd_shutdown_to_agg == true)) {
         // Listeners determine if they need to relay the
         // shutdown notice to Aggregators...
-		/* For now, don't propagate the the mssage on to the aggregator. */
-        // SOSD_cloud_shutdown_notice();
+        SOSD_cloud_shutdown_notice();
     }
 #endif
 
