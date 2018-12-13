@@ -88,10 +88,10 @@ int main(int argc, char *argv[]) {
     int rc = 0;
 
     // Process command line arguments
-    int elem = 2;
-    int next_elem = 3;
+    int elem = 1;
+    int next_elem = 2;
 
-    for (elem = 2; next_elem < argc; ) {
+    for (elem = 1; elem < (argc - 1); ) {
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
             exit(EXIT_FAILURE);
@@ -203,8 +203,8 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
         if ((stbuf.st_mode & S_IFMT) == S_IFDIR) {
             continue;
         } else {
-            if (    (strncmp(filename_qfd, "sosd.", 5) == 0)
-                 && (strstr(filename_qfd, ".key") != NULL)) {
+            if (    (strncmp(dp->d_name, "sosd.", 5) == 0)
+                 && (strstr(dp->d_name, ".key") != NULL)) {
                 // This appears to be a key file.
 
                 FILE *keyfile;
