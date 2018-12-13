@@ -461,9 +461,6 @@ SOS_init_existing_runtime(
         SOS_buffer_unpack(buffer, &offset, "i",
                 &server_uid);
 
-        //TODO: Make UID validation a runtime setting.
-        //      If it is disabled, emit a non-scary notification anyway.
-
         if (server_uid != client_uid) {
             fprintf(stderr, "ERROR: SOS daemon's UID (%d) does not"
                     " match yours (%d)!  Connection refused.\n",
@@ -489,8 +486,6 @@ SOS_init_existing_runtime(
             fflush(stderr);
         }
 
-
-
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(4, "  ... configuring uid sets.\n");
@@ -498,8 +493,6 @@ SOS_init_existing_runtime(
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
             guid_pool_from, guid_pool_to);
-
-        //slice
 
         SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
         dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
