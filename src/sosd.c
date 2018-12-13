@@ -2196,7 +2196,8 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
     if (SOS->role == SOS_ROLE_LISTENER) {
         // Listeners determine if they need to relay the
         // shutdown notice to Aggregators...
-        SOSD_cloud_shutdown_notice();
+		/* For now, don't propagate the the mssage on to the aggregator. */
+        // SOSD_cloud_shutdown_notice();
     }
 #endif
 
