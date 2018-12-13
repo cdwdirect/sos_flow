@@ -23,6 +23,7 @@ export SOS_SHUTDOWN="FALSE"
 export SOS_BATCH_ENVIRONMENT="FALSE"
 #
 export SOS_OPTIONS_FILE=""
+export SOS_FWD_SHUTDOWN_TO_AGG="FALSE"
 export SOS_EVPATH_MEETUP=$SOS_WORK
 #
 export SOS_DB_DISABLED="FALSE"
@@ -54,6 +55,7 @@ echo "SOSflow runtime options:"
 echo "     \$SOS_SHUTDOWN            = $SOS_SHUTDOWN"
 echo "     \$SOS_OPTIONS_FILE        = $SOS_OPTIONS_FILE"
 echo "     \$SOS_BATCH_ENVIRONMENT   = $SOS_BATCH_ENVIRONMENT"
+echo "     \$SOS_FWD_SHUTDOWN_TO_AGG = $SOS_FWD_SHUTDOWN_TO_AGG"
 echo ""
 echo "     \$SOS_DB_DISABLED         = $SOS_DB_DISABLED"
 echo "     \$SOS_IN_MEMORY_DATABASE  = $SOS_IN_MEMORY_DATABASE"

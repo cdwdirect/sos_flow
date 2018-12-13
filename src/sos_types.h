@@ -514,6 +514,7 @@ typedef struct {
     int                 pub_cache_depth;
     //
     bool                batch_environment;
+    bool                fwd_shutdown_to_agg;
     //
     bool                system_monitor_enabled;
     int                 system_monitor_freq_usec;
@@ -521,6 +522,7 @@ typedef struct {
 
 
 typedef struct {
+    char                daemon_host[NI_MAXHOST];
     char               *node_id;
     int                 comm_rank;
     int                 comm_size;

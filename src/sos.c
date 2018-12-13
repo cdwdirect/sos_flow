@@ -108,6 +108,31 @@ static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
 }
 
 
+void
+SOS_init_remote(
+        SOS_runtime **sos_runtime,
+        const char *remote_host,
+        SOS_role role,
+        SOS_receives receives,
+        SOS_feedback_handler_f handler)
+{
+    *sos_runtime = (SOS_runtime *) malloc(sizeof(SOS_runtime));
+     memset(*sos_runtime, '\0', sizeof(SOS_runtime));
+
+    // If these are needed (as in daemons) then call
+    // SOS_init_existing_runtime() after setting things
+    // up yourself, as in sosd.c:
+    snprintf((*sos_runtime)->config.daemon_host, NI_MAXHOST, "%s", remote_host);
+    (*sos_runtime)->config.argc = -1;
+    (*sos_runtime)->config.argv = NULL;
+    (*sos_runtime)->config.options_file  = getenv("SOS_OPTIONS_FILE");
+    (*sos_runtime)->config.options_class = getenv("SOS_OPTIONS_CLASS");
+
+    SOS_init_existing_runtime(sos_runtime, role, receives, handler);
+    return;
+    
+}
+
 
 
 /**
@@ -145,6 +170,7 @@ SOS_init(SOS_runtime **sos_runtime,
     // If these are needed (as in daemons) then call
     // SOS_init_existing_runtime() after setting things
     // up yourself, as in sosd.c:
+    snprintf((*sos_runtime)->config.daemon_host, NI_MAXHOST, "%s", SOS_DEFAULT_SERVER_HOST);
     (*sos_runtime)->config.argc = -1;
     (*sos_runtime)->config.argv = NULL;
     (*sos_runtime)->config.options_file  = getenv("SOS_OPTIONS_FILE");
@@ -334,7 +360,7 @@ SOS_init_existing_runtime(
         if (portStr == NULL) {
             portStr = SOS_DEFAULT_SERVER_PORT;
         }
-        SOS_target_init(SOS, &SOS->daemon, SOS_DEFAULT_SERVER_HOST,
+        SOS_target_init(SOS, &SOS->daemon, SOS->config.daemon_host,
                 atoi(portStr));
         rc = SOS_target_connect(SOS->daemon);
 
@@ -435,9 +461,6 @@ SOS_init_existing_runtime(
         SOS_buffer_unpack(buffer, &offset, "i",
                 &server_uid);
 
-        //TODO: Make UID validation a runtime setting.
-        //      If it is disabled, emit a non-scary notification anyway.
-
         if (server_uid != client_uid) {
             fprintf(stderr, "ERROR: SOS daemon's UID (%d) does not"
                     " match yours (%d)!  Connection refused.\n",
@@ -463,8 +486,6 @@ SOS_init_existing_runtime(
             fflush(stderr);
         }
 
-
-
         dlog(4, "  ... received guid range from %" SOS_GUID_FMT " to %"
             SOS_GUID_FMT ".\n", guid_pool_from, guid_pool_to);
         dlog(4, "  ... configuring uid sets.\n");
@@ -472,8 +493,6 @@ SOS_init_existing_runtime(
         SOS_uid_init(SOS, &SOS->uid.local_serial, 0, SOS_DEFAULT_UID_MAX);
         SOS_uid_init(SOS, &SOS->uid.my_guid_pool,
             guid_pool_from, guid_pool_to);
-
-        //slice
 
         SOS->my_guid = SOS_uid_next(SOS->uid.my_guid_pool);
         dlog(4, "  ... SOS->my_guid == %" SOS_GUID_FMT "\n", SOS->my_guid);
@@ -842,7 +861,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
             dlog(1, "  ... This client RECEIVES_DIRECT_MESSAGES:\n");
             dlog(1, "      ... establishing connection it self...\n");
             SOS_socket *target = NULL;
-            SOS_target_init(SOS, &target, SOS_DEFAULT_SERVER_HOST, SOS->config.receives_port);
+            SOS_target_init(SOS, &target, SOS->config.daemon_host, SOS->config.receives_port);
             dlog(1, "      ... connecting to self...\n");
             SOS_target_connect(target);
             SOS_buffer *msg = NULL;
@@ -927,7 +946,7 @@ SOS_THREAD_receives_direct(void *args)
     char local_hostname[NI_MAXHOST];
 
     insock = NULL;
-    SOS_target_init(SOS, &insock, SOS_DEFAULT_SERVER_HOST, 0);
+    SOS_target_init(SOS, &insock, SOS->config.daemon_host, 0);
     SOS_target_setup_for_accept(insock);
 
     //Gather some information about this socket:
@@ -1608,9 +1627,30 @@ void SOS_expand_data( SOS_pub *pub ) {
  * @return 1 == file exists, 0 == file does not exist.
  */
 int SOS_file_exists(char *filepath) {
-    struct stat   buffer;
-    return (stat(filepath, &buffer) == 0);
+    struct stat sb;
+    int valid_path = (stat(filepath, &sb) == 0);
+    if (valid_path && S_ISDIR(sb.st_mode)) {
+        return 0;
+    }
+    if (valid_path) {
+        return 1;
+    }
+    return 0;
 }
+
+/**
+ * @brief Internal utility function to see if a directory exists.
+ * @return 1 == directory exists, 0 == directory does not exist.
+ */
+int SOS_dir_exists(char *dirpath) {
+    struct stat sb;
+    int valid_path = (stat(dirpath, &sb) == 0);
+    if (valid_path && S_ISDIR(sb.st_mode)) {
+        return 1;
+    }
+    return 0;
+}
+
 
 void SOS_str_strip_ext(char *str) {
     int i, len;
