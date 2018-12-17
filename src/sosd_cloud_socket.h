@@ -1,11 +1,10 @@
-#ifndef SOS_CLOUD_EVPATH_H
-#define SOS_CLOUD_EVPATH_H
+#ifndef SOS_CLOUD_SOCKET_H
+#define SOS_CLOUD_SOCKET_H
 
 #include "sos.h"
 #include "sos_types.h"
 #include "sos_debug.h"
 #include "sosd.h"
-#include "evpath.h"
 #include "string.h"
 
 
