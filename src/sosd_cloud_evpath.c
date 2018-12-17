@@ -499,9 +499,10 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         SOSD.sos_context->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
         gethostname( SOSD.sos_context->config.node_id, SOS_DEFAULT_STRING_LEN );
         contact_file = fopen(contact_filename, "w");
-        fprintf(contact_file, "%s\n%s\n",
+        fprintf(contact_file, "%s\n%s\n%s",
                 evp->recv.contact_string,
-                SOSD.sos_context->config.node_id);
+                SOSD.sos_context->config.node_id,
+                SOSD.net->local_port);
         fflush(contact_file);
         fclose(contact_file);
 

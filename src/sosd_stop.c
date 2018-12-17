@@ -9,16 +9,6 @@
  *       analysis nodes, etc.
 */
 
-/*
-    TODO:
-
-        [_] Make sure all includes exist.
-        [_] Command line parameters are compatible with $sosd command.
-        [_] Test both on-and-off-node
-        [_] Shutdown data structure respects future protocol plans.
-
-   */
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -91,6 +81,11 @@ int main(int argc, char *argv[]) {
     int elem = 1;
     int next_elem = 2;
 
+    if (argc < 2) {
+        SOSD_STOP_local_daemon();
+        return EXIT_SUCCESS;
+    }
+
     for (elem = 1; elem < (argc - 1); ) {
         if ((next_elem = elem + 1) == argc) {
             fprintf(stderr, "%s\n", USAGE);
@@ -144,6 +139,7 @@ int main(int argc, char *argv[]) {
             exit(EXIT_FAILURE);
         }
         elem = next_elem + 1;
+        next_elem = elem + 1;
     }
 
     if (meetup_dir == NULL) {
@@ -183,11 +179,15 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
 
     char filename_qfd[PATH_MAX];
     
-    ssize_t length = 256;
+    ssize_t host_len = 256;
+    ssize_t port_len = 256;
     int bytes = 0;
     char *sosd_host;
+    char *sosd_port;
     char *sosd_host_registered_to;
-    sosd_host = calloc(length, sizeof(char));
+    char *sosd_port_registered_to;
+    sosd_host = calloc(host_len, sizeof(char));
+    sosd_port = calloc(port_len, sizeof(char));
 
     // For each entry in this directory
     while ((dp = readdir(dfd)) != NULL) {
@@ -210,10 +210,11 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
                 FILE *keyfile;
                 keyfile = fopen(filename_qfd, "r");
                 // Skip cloud connection
-                bytes = getline(&sosd_host, &length, keyfile);
-                bytes = getline(&sosd_host, &length, keyfile);
+                bytes = getline(&sosd_host, &host_len, keyfile);
+                bytes = getline(&sosd_host, &host_len, keyfile);
                 sosd_host[bytes - 1] = '\0';
-                
+                bytes = getline(&sosd_port, &port_len, keyfile);
+                sosd_port[bytes - 1] = '\0'; 
                 if (initialized == false) {
                     
                     my_SOS = NULL;
@@ -242,7 +243,7 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
 
                     //Shut down the daemon we registered with last.
                     sosd_host_registered_to = strdup(sosd_host);
-
+                    sosd_port_registered_to = strdup(sosd_port);
                     initialized = true;
 
                     continue;
@@ -250,7 +251,7 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
             
                 printf("Sending shutdown message to %s...\n", sosd_host);
 
-                SOS_target_init(my_SOS, &tgt, sosd_host, atoi(SOS_DEFAULT_SERVER_PORT));
+                SOS_target_init(my_SOS, &tgt, sosd_host, atoi(sosd_port));
                 SOS_target_connect(tgt);
                 SOS_target_send_msg(tgt, msg); 
                 SOS_target_disconnect(tgt);
@@ -262,14 +263,16 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
     } //foreach file in directory
 
     if (initialized) {
-        printf("Sending shutdown message to %s...\n", sosd_host_registered_to);
-        SOS_target_init(my_SOS, &tgt, sosd_host_registered_to, atoi(SOS_DEFAULT_SERVER_PORT));
+        printf("Sending shutdown message to %s:%s...\n", sosd_host_registered_to,
+                sosd_port_registered_to);
+        SOS_target_init(my_SOS, &tgt, sosd_host_registered_to, atoi(sosd_port_registered_to));
         SOS_target_connect(tgt);
         SOS_target_send_msg(tgt, msg); 
         SOS_target_disconnect(tgt);
         SOS_target_destroy(tgt);
         
         free(sosd_host_registered_to);
+        free(sosd_port_registered_to);
     }
 
     free(sosd_host);
