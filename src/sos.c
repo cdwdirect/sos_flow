@@ -255,11 +255,20 @@ SOS_init_existing_runtime(
     NEW_SOS->config.process_id = (int) getpid();
 
     NEW_SOS->config.program_name = (char *) calloc(PATH_MAX, sizeof(char));
+#ifdef __APPLE__
+    // OSX doesn't have /proc/self
+    uint32_t tmp_size = PATH_MAX;
+    if (_NSGetExecutablePath(NEW_SOS->config.program_name, &tmp_size) != 0) {
+        fprintf (stderr, "ERROR: Unable to read executable path, buffer needs to be %u bytes\n", tmp_size);
+        exit (EXIT_FAILURE);
+    }
+#else
     rc = readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
     if (rc < 0) { 
         fprintf (stderr, "ERROR: Unable to read /proc/self/exe\n");
         exit (EXIT_FAILURE);
     }
+#endif
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
