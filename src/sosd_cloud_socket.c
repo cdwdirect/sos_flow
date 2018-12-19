@@ -13,6 +13,7 @@ bool SOSD_sockets_ready_to_listen = false;
 void SOSD_socket_register_connection(SOS_buffer *msg);
 
 void SOSD_cloud_listen_loop(void) {
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop");
     // NOTE: This is a thread launched from sosd.c
     while (SOSD_sockets_ready_to_listen == false) {
         usleep (500000);
@@ -470,6 +471,8 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             calloc(NI_MAXHOST, sizeof(char));
 		gethostname(SOSD.sos_context->config.node_id, NI_MAXHOST);
         contact_file = fopen(contact_filename, "w");
+        strcpy(SOSD.daemon.cloud_inlet->local_port, SOSD.net->local_port);
+        SOSD.daemon.cloud_inlet->port_number = atoi(SOSD.net->local_port);
         fprintf(contact_file, "%s\n%s\n%d\n",
                 SOSD.daemon.cloud_inlet->local_host,
                 SOSD.daemon.cloud_inlet->local_port,
@@ -512,6 +515,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         dlog(0, "   ... targeting aggregator at: %s:%s\n",
                 remote_host, remote_port);
         dlog(0, "done.\n");
+        sprintf(tgt->local_host, "%s", remote_host);
+        sprintf(tgt->local_port, "%s", remote_port);
+        if (SOSD.daemon.cloud_aggregator == NULL) {
+            SOS_target_init(SOS, &(SOSD.daemon.cloud_aggregator), remote_host, atoi(remote_port));
+        }
 
         // evp->send.src is where we drop messages to send...
         // Example:  EVsubmit(evp->source, &msg, NULL);
