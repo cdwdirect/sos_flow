@@ -325,7 +325,7 @@ void SOSD_STOP_local_daemon(void) {
     SOS_target_disconnect(my_SOS->daemon);
 
     SOS_buffer_destroy(buffer);
-    dlog(1, "Done.\n");
+    printf("Done.\n");
 
     SOS_finalize(my_SOS);
 
