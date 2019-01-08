@@ -14,6 +14,9 @@
 bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway = false;
 
+// Only need ONE of each of these things.
+static CManager _cm = NULL;
+
 // Extract the buffer from EVPath and drop it into the SOSD
 // message processing queue:
 static int
@@ -155,19 +158,21 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
 
 
     dlog(3, "   ... constructing stone path: ");
-    node->cm = CManager_create();
-    CMlisten(node->cm);
-    CMfork_comm_thread(node->cm);
+    if (_cm == NULL) {
+        _cm = CManager_create();
+        CMlisten(_cm);
+        CMfork_comm_thread(_cm);
+    }
 
-    node->out_stone    = EValloc_stone(node->cm);
+    node->out_stone    = EValloc_stone(_cm);
     node->contact_list = attr_list_from_string(node->contact_string);
     EVassoc_bridge_action(
-        node->cm,
+        _cm,
         node->out_stone,
         node->contact_list,
         node->rmt_stone);
     node->src = EVcreate_submit_handle(
-        node->cm,
+        _cm,
         node->out_stone,
         SOSD_buffer_format_list);
 
@@ -444,29 +449,28 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     dlog(1, "   ... creating connection manager:\n");
     dlog(1, "      ... evp->recv.cm\n");
-    evp->recv.cm = CManager_create();
-    CMlisten(evp->recv.cm);
+    if (_cm == NULL) {
+        _cm = CManager_create();
+        CMlisten(_cm);
+        CMfork_comm_thread(_cm);
+    }
     SOSD_evpath_ready_to_listen = true;
-    CMfork_comm_thread(evp->recv.cm);
     dlog(1, "      ... configuring stones:\n");
-    evp->recv.out_stone = EValloc_stone(evp->recv.cm);
+    evp->recv.out_stone = EValloc_stone(_cm);
     EVassoc_terminal_action(
-            evp->recv.cm,
+            _cm,
             evp->recv.out_stone,
             SOSD_buffer_format_list,
             SOSD_evpath_message_handler,
             NULL);
     dlog(1, "      ... evp->send.cm\n");
-    evp->send.cm = CManager_create();
-    CMlisten(evp->send.cm);
-    CMfork_comm_thread(evp->send.cm);
-    evp->send.out_stone = EValloc_stone(evp->send.cm);
+    evp->send.out_stone = EValloc_stone(_cm);
     dlog(1, "      ... done.\n");
     dlog(1, "  ... done.\n");
 
     // Get the location we're listening on...
     evp->recv.contact_string =
-        attr_list_to_string(CMget_contact_list(evp->recv.cm));
+        attr_list_to_string(CMget_contact_list(_cm));
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
@@ -536,13 +540,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         evp->send.contact_list = attr_list_from_string(evp->send.contact_string);
         dlog(1, "      ... try: bridge action.\n");
         EVassoc_bridge_action(
-                evp->send.cm,
+                _cm,
                 evp->send.out_stone,
                 evp->send.contact_list,
                 evp->send.rmt_stone);
         dlog(1, "      ... try: submit handle.\n");
         evp->send.src = EVcreate_submit_handle(
-                evp->send.cm,
+                _cm,
                 evp->send.out_stone,
                 SOSD_buffer_format_list);
         dlog(1, "done.\n");
