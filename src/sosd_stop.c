@@ -214,7 +214,8 @@ void SOSD_STOP_remote_daemons(int argc, char **argv) {
                 bytes = getline(&sosd_host, &host_len, keyfile);
                 sosd_host[bytes - 1] = '\0';
                 bytes = getline(&sosd_port, &port_len, keyfile);
-                sosd_port[bytes - 1] = '\0'; 
+                sosd_port[bytes] = '\0'; 
+                printf("Connecting to %s : %s...\n", sosd_host, sosd_port);
                 if (initialized == false) {
                     
                     my_SOS = NULL;
@@ -328,7 +329,7 @@ void SOSD_STOP_local_daemon(void) {
     SOS_target_disconnect(my_SOS->daemon);
 
     SOS_buffer_destroy(buffer);
-    dlog(1, "Done.\n");
+    printf("Done.\n");
 
     SOS_finalize(my_SOS);
 

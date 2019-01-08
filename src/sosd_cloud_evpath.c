@@ -157,23 +157,31 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
         node->contact_string);
 
 
-    dlog(3, "   ... constructing stone path: ");
+    dlog(3, "   ... constructing stone path: \n");
     if (_cm == NULL) {
         _cm = CManager_create();
-        CMlisten(_cm);
+        //CMlisten(_cm);
+        atom_t CM_TRANSPORT = attr_atom_from_string("CM_TRANSPORT");
+        attr_list listen_list = create_attr_list();
+        add_attr(listen_list, CM_TRANSPORT, Attr_String, (attr_value) strdup("enet"));
+        CMlisten_specific(_cm, listen_list);
         CMfork_comm_thread(_cm);
     }
 
-    node->out_stone    = EValloc_stone(_cm);
+    //node->out_stone    = EValloc_stone(_cm);
+    //node->out_stone    = evp->send.out_stone;
     node->contact_list = attr_list_from_string(node->contact_string);
+
     EVassoc_bridge_action(
         _cm,
-        node->out_stone,
+        //node->out_stone,
+		evp->send.out_stone,
         node->contact_list,
         node->rmt_stone);
     node->src = EVcreate_submit_handle(
         _cm,
-        node->out_stone,
+        //node->out_stone,
+        evp->send.out_stone,
         SOSD_buffer_format_list);
 
     node->active = true;
@@ -451,8 +459,20 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(1, "      ... evp->recv.cm\n");
     if (_cm == NULL) {
         _cm = CManager_create();
-        CMlisten(_cm);
+        //CMlisten(_cm);
+        atom_t CM_TRANSPORT = attr_atom_from_string("CM_TRANSPORT");
+        attr_list listen_list = create_attr_list();
+        add_attr(listen_list, CM_TRANSPORT, Attr_String, (attr_value) strdup("enet"));
+        CMlisten_specific(_cm, listen_list);
         CMfork_comm_thread(_cm);
+	    char *actual_transport = NULL;
+	    get_string_attr(CMget_contact_list(_cm), CM_TRANSPORT, &actual_transport);
+	    if (!actual_transport || 
+            (strncmp(actual_transport, "enet", strlen(actual_transport)) != 0)) {
+		    printf("Failed to load transport \"%s\"\n", "enet");
+		    printf("Got transport \"%s\"\n", actual_transport);
+	    }
+
     }
     SOSD_evpath_ready_to_listen = true;
     dlog(1, "      ... configuring stones:\n");
