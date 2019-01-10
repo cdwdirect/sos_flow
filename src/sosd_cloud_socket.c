@@ -384,7 +384,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         SOSD.daemon.aggregator_count + 
         SOSD.daemon.listener_count;
 
-    SOS->config.comm_size = expected_node_count;;
+    SOS->config.comm_size = expected_node_count;
     SOS->config.comm_support = -1; // Used for MPI only.
 
     // Do some sanity checks.
@@ -442,13 +442,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(1, "   ... contact_filename: %s\n", contact_filename);
 
 
-    //Conserve this: SOSD_evpath_ready_to_listen = true;
+    //Conserve this behavior: SOSD_evpath_ready_to_listen = true;
+    
     SOS_socket *tgt = NULL;
     SOS_target_init(SOS, &tgt,
             SOS->config.daemon_host,
-            SOSD_DEFAULT_CLOUD_PORT);
+            SOSD_DEFAULT_CLOUD_PORT); //NOTE: _CLOUD_PORT 
     SOS_target_setup_for_accept(tgt);
-
     SOSD.daemon.cloud_inlet = tgt;
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
