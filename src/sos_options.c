@@ -53,6 +53,7 @@ int SOS_options_init(
 
     opt->pub_cache_depth    = 0;     //0 == No value cacheing
     opt->batch_environment    = false;
+    opt->udp_enabled          = false;
     opt->fwd_shutdown_to_agg  = false;
 
  
@@ -65,8 +66,6 @@ int SOS_options_init(
             SOS_options_load_file(opt);
         }
     }
-
-
 
     // STEP 2/3: Load any settings from environment variables:
     SOS_options_load_evar(opt);
@@ -167,6 +166,12 @@ void SOS_options_load_evar(SOS_options *opt) {
     } else {
         // No pub cache depth is selected.
         opt->pub_cache_depth = 0;
+    }
+
+    if (SOS_str_opt_is_enabled(getenv("SOS_UDP_ENABLED"))) {
+        opt->udp_enabled = true;
+    } else {
+        opt->udp_enabled = false;
     }
 
     if (SOS_str_opt_is_enabled(getenv("SOS_SYSTEM_MONITOR_ENABLED"))) {

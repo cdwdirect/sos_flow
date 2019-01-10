@@ -162,19 +162,31 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
     dlog(3, "   ... constructing stone path: \n");
 
     node->out_stone    = EValloc_stone(_cm);
-    //node->out_stone    = evp->send.out_stone;
     node->contact_list = attr_list_from_string(node->contact_string);
 
-    EVassoc_bridge_action(
-        _cm,
-        node->out_stone,
-		//evp->send.out_stone,
-        node->contact_list,
-        node->rmt_stone);
+    // UDP requires a longer time out with EVPath
+    static atom_t CM_ENET_CONN_TIMEOUT = -1;
+    CM_ENET_CONN_TIMEOUT = attr_atom_from_string("CM_ENET_CONN_TIMEOUT");
+    set_int_attr(node->contact_list, CM_ENET_CONN_TIMEOUT, 60000); /* 60 seconds */
+    EVaction rc;
+    srand(getpid());
+    struct timespec delay;
+    delay.tv_sec = 0;
+    delay.tv_nsec = 100000000ULL * rand() / RAND_MAX;
+    do {
+        rc = EVassoc_bridge_action(
+            _cm,
+            node->out_stone,
+            node->contact_list,
+            node->rmt_stone);
+        if (rc == -1) {
+            printf("SOSD listener %d: failed to connect, trying again in %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
+            nanosleep(&delay, NULL);
+        }
+    } while (rc == -1)
     node->src = EVcreate_submit_handle(
         _cm,
         node->out_stone,
-        //evp->send.out_stone,
         SOSD_buffer_format_list);
 
     node->active = true;
@@ -450,25 +462,33 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     dlog(1, "   ... creating connection manager:\n");
     dlog(1, "      ... evp->recv.cm\n");
+
     if (_cm == NULL) {
         _cm = CManager_create();
-		/*
-        atom_t CM_TRANSPORT = attr_atom_from_string("CM_TRANSPORT");
-        attr_list listen_list = create_attr_list();
-        add_attr(listen_list, CM_TRANSPORT, Attr_String, (attr_value) strdup("enet"));
-        CMlisten_specific(_cm, listen_list);
-	    char *actual_transport = NULL;
-	    get_string_attr(CMget_contact_list(_cm), CM_TRANSPORT, &actual_transport);
-	    if (!actual_transport || 
-            (strncmp(actual_transport, "enet", strlen(actual_transport)) != 0)) {
-		    printf("Failed to load transport \"%s\"\n", "enet");
-		    printf("Got transport \"%s\"\n", actual_transport);
-	    }
-		*/
-        CMlisten(_cm);
-        CMfork_comm_thread(_cm);
+        //...
+        if (SOSD.sos_context->config.options->udp_enabled == true) {
+            // UDP-style EVPath behavior.  (Potentially lossy?)
+            atom_t CM_TRANSPORT = attr_atom_from_string("CM_TRANSPORT");
+            attr_list listen_list = create_attr_list();
+            add_attr(listen_list, CM_TRANSPORT, Attr_String, (attr_value) strdup("enet"));
+            CMlisten_specific(_cm, listen_list);
+            // Sanity check for this style of connection.
+            char *actual_transport = NULL;
+            get_string_attr(CMget_contact_list(_cm), CM_TRANSPORT, &actual_transport);
+            if (!actual_transport || 
+                    (strncmp(actual_transport, "enet", strlen(actual_transport)) != 0)) {
+                printf("Failed to load transport \"%s\"\n", "enet");
+                printf("Got transport \"%s\"\n", actual_transport);
+            }
+        } else {
+            // ...
+            // Traditional EVPath communication (TCP/IP)
+            CMlisten(_cm);
+        }
 
+        CMfork_comm_thread(_cm);
     }
+    
     SOSD_evpath_ready_to_listen = true;
     dlog(1, "      ... configuring stones:\n");
     evp->recv.out_stone = EValloc_stone(_cm);
@@ -557,26 +577,23 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         EVaction rc;
         srand(getpid());
         struct timespec delay;
+        static atom_t CM_ENET_CONN_TIMEOUT = -1;
+        CM_ENET_CONN_TIMEOUT = attr_atom_from_string("CM_ENET_CONN_TIMEOUT");
+        set_int_attr(evp->send.contact_list, CM_ENET_CONN_TIMEOUT, 60000); /* 60 seconds */
         delay.tv_sec = 0;
         delay.tv_nsec = 100000000ULL * rand() / RAND_MAX;
         printf("SOSD listener %d: sleeping for %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
-        nanosleep(&delay, NULL);
-		do {
-            static atom_t CM_ENET_CONN_TIMEOUT = -1;
-            CM_ENET_CONN_TIMEOUT = attr_atom_from_string("CM_ENET_CONN_TIMEOUT");
-            set_int_attr(evp->send.contact_list, CM_ENET_CONN_TIMEOUT, 60000); /* 60 seconds */
+        do {
+            nanosleep(&delay, NULL);
             rc = EVassoc_bridge_action(
                     _cm,
                     evp->send.out_stone,
                     evp->send.contact_list,
                     evp->send.rmt_stone);
             if (rc == -1) {
-                delay.tv_sec = 0;
-                delay.tv_nsec = 100000000ULL * rand() / RAND_MAX;
                 printf("SOSD listener %d: failed to connect, trying again in %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
-                nanosleep(&delay, NULL);
-			}
-		} while (rc == -1);
+            }
+        } while (rc == -1);
         dlog(1, "      ... try: submit handle.\n");
         evp->send.src = EVcreate_submit_handle(
                 _cm,

@@ -514,6 +514,7 @@ typedef struct {
     int                 pub_cache_depth;
     //
     bool                batch_environment;
+    bool                udp_enabled;
     bool                fwd_shutdown_to_agg;
     //
     bool                system_monitor_enabled;
