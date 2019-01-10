@@ -1098,7 +1098,9 @@ void* SOSD_THREAD_db_sync(void *args) {
 
         pthread_mutex_lock(my->queue->sync_lock);
 
-        queue_depth = my->queue->elem_count;
+        // use the minimum of the current element count or 256, so we can break it up
+        //queue_depth = my->queue->elem_count;
+        queue_depth = (my->queue->elem_count < 256) ? my->queue->elem_count : 256;
         if (queue_depth > 0) {
             task_list = (SOSD_db_task **) calloc(sizeof(SOSD_db_task *),
                     queue_depth);
