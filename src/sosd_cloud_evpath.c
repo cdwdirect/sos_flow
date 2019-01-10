@@ -10,6 +10,8 @@
 
 #include "evpath.h"
 #include <errno.h>
+#include <time.h> // nanosleep
+#include <stdlib.h> // srand, rand
 
 bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway = false;
@@ -158,30 +160,21 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
 
 
     dlog(3, "   ... constructing stone path: \n");
-    if (_cm == NULL) {
-        _cm = CManager_create();
-        //CMlisten(_cm);
-        atom_t CM_TRANSPORT = attr_atom_from_string("CM_TRANSPORT");
-        attr_list listen_list = create_attr_list();
-        add_attr(listen_list, CM_TRANSPORT, Attr_String, (attr_value) strdup("enet"));
-        CMlisten_specific(_cm, listen_list);
-        CMfork_comm_thread(_cm);
-    }
 
-    //node->out_stone    = EValloc_stone(_cm);
+    node->out_stone    = EValloc_stone(_cm);
     //node->out_stone    = evp->send.out_stone;
     node->contact_list = attr_list_from_string(node->contact_string);
 
     EVassoc_bridge_action(
         _cm,
-        //node->out_stone,
-		evp->send.out_stone,
+        node->out_stone,
+		//evp->send.out_stone,
         node->contact_list,
         node->rmt_stone);
     node->src = EVcreate_submit_handle(
         _cm,
-        //node->out_stone,
-        evp->send.out_stone,
+        node->out_stone,
+        //evp->send.out_stone,
         SOSD_buffer_format_list);
 
     node->active = true;
@@ -459,12 +452,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(1, "      ... evp->recv.cm\n");
     if (_cm == NULL) {
         _cm = CManager_create();
-        //CMlisten(_cm);
+		/*
         atom_t CM_TRANSPORT = attr_atom_from_string("CM_TRANSPORT");
         attr_list listen_list = create_attr_list();
         add_attr(listen_list, CM_TRANSPORT, Attr_String, (attr_value) strdup("enet"));
         CMlisten_specific(_cm, listen_list);
-        CMfork_comm_thread(_cm);
 	    char *actual_transport = NULL;
 	    get_string_attr(CMget_contact_list(_cm), CM_TRANSPORT, &actual_transport);
 	    if (!actual_transport || 
@@ -472,6 +464,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 		    printf("Failed to load transport \"%s\"\n", "enet");
 		    printf("Got transport \"%s\"\n", actual_transport);
 	    }
+		*/
+        CMlisten(_cm);
+        CMfork_comm_thread(_cm);
 
     }
     SOSD_evpath_ready_to_listen = true;
@@ -559,11 +554,29 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         dlog(1, "   ... configuring stones:\n");
         evp->send.contact_list = attr_list_from_string(evp->send.contact_string);
         dlog(1, "      ... try: bridge action.\n");
-        EVassoc_bridge_action(
-                _cm,
-                evp->send.out_stone,
-                evp->send.contact_list,
-                evp->send.rmt_stone);
+        EVaction rc;
+        srand(getpid());
+        struct timespec delay;
+        delay.tv_sec = 0;
+        delay.tv_nsec = 100000000ULL * rand() / RAND_MAX;
+        printf("SOSD listener %d: sleeping for %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
+        nanosleep(&delay, NULL);
+		do {
+            static atom_t CM_ENET_CONN_TIMEOUT = -1;
+            CM_ENET_CONN_TIMEOUT = attr_atom_from_string("CM_ENET_CONN_TIMEOUT");
+            set_int_attr(evp->send.contact_list, CM_ENET_CONN_TIMEOUT, 60000); /* 60 seconds */
+            rc = EVassoc_bridge_action(
+                    _cm,
+                    evp->send.out_stone,
+                    evp->send.contact_list,
+                    evp->send.rmt_stone);
+            if (rc == -1) {
+                delay.tv_sec = 0;
+                delay.tv_nsec = 100000000ULL * rand() / RAND_MAX;
+                printf("SOSD listener %d: failed to connect, trying again in %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
+                nanosleep(&delay, NULL);
+			}
+		} while (rc == -1);
         dlog(1, "      ... try: submit handle.\n");
         evp->send.src = EVcreate_submit_handle(
                 _cm,
