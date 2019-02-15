@@ -183,7 +183,7 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
             printf("SOSD listener %d: failed to connect, trying again in %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
             nanosleep(&delay, NULL);
         }
-    } while (rc == -1)
+    } while (rc == -1);
     node->src = EVcreate_submit_handle(
         _cm,
         node->out_stone,
