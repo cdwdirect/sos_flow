@@ -242,7 +242,7 @@ extern "C" {
     SOS_runtime *SOS;                                           \
     SOS = (SOS_runtime *) __SOS_context;                        \
     if (SOS == NULL) {                                          \
-        printf("(%s:%s) ERROR: SOS_runtime *sos_context"        \
+        fprintf(stderr, "(%s:%s) WARNING: SOS_runtime *sos_context" \
                 " provided to SOS_SET_CONTEXT() is null!\n",    \
                __FILE__, __LINE__);                             \
         exit(EXIT_FAILURE);                                     \
@@ -252,7 +252,7 @@ extern "C" {
     SOS_runtime *SOS;                                           \
     SOS = (SOS_runtime *) __SOS_context;                        \
     if (SOS == NULL) {                                          \
-        printf("ERROR: SOS_runtime *sos_context provided"       \
+        fprintf(stderr, "ERROR: SOS_runtime *sos_context provided" \
                 " provided to SOS_SET_CONTEXT() is null!"       \
                 "  (%s)\n", __SOS_str_funcname);                \
         exit(EXIT_FAILURE);                                     \
