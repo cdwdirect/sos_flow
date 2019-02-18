@@ -46,6 +46,7 @@ SOS_pub                 *g_pub = NULL;
 
 void
 SSOS_feedback_handler(
+        void       *sos_context,
         int         payload_type,
         int         payload_size,
         void       *payload_data)
@@ -248,11 +249,33 @@ SSOS_query_exec(
     SSOS_CONFIRM_ONLINE("SSOS_query_exec");
     SOS_SET_CONTEXT(g_sos, "SSOS_query_exec");
 
-    //New way, supporting parallel submission of queries:
+    //How this works NOW, supporting parallel submission of queries:
     //  1. Submit the query and return
     //  2. Results come back in and go into the pool.
     //  3. Client/lib wrapper claims them w/indeterminate order.
-    
+
+    //What's next...
+    //TODO: Keep track of all the GUIDs assigned to submitted queries
+    //      and allow the client/lib wrapper to wait to claim a specific
+    //      query ID. Note that this could cause concerns with
+    //      SOME results being claimed under the "give me whatever comes
+    //      in first" function call mixed in with some thread asking
+    //      for some specific one, where the one asking for anything
+    //      claims a specific ID that someone else is requesting.
+    //TODO: The request/reply pool is process-specific, so as long as
+    //pt.2  the client uses one OR the other type of function call
+    //      things are going to be fine. This should be tracked with
+    //      a flag set depending on which kind of call is made first,
+    //      with a loud warning displayed if type B is called after
+    //      type A, etc.
+    //TODO: Since we'd be tracking all outstanding queries, we should
+    //pt.3  have an API call to return that manifest, including time
+    //      of submission and whether it was sent on or off node,
+    //      to an aggregator or a listener, etc. This could be used
+    //      later on to facilitate automatic distributed query
+    //      throughput/balancing. We could track a rolling average of
+    //      delay per destination.
+
     //Send the query to the daemon:
     int rc = SOSA_exec_query(g_sos, sql, target_host, target_port);
     if (rc < 0 && g_sos_is_online) {

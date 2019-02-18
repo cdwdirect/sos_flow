@@ -40,8 +40,8 @@ option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF
 # --- Other SOS options ---
 
 #set(CMAKE_BUILD_TYPE Debug)
-set(CMAKE_BUILD_TYPE RelWithDebInfo)
-#set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE RelWithDebInfo)
+set(CMAKE_BUILD_TYPE Release)
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"

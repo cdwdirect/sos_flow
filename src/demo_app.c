@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
         //--- Do a CACHE_GRAB for all values w/names matching a pattern:
         printf("demo_app: Sending cache_grab."
                 "  (val_name contains \"%s\")\n", SQL_QUERY);
-        SOSA_cache_grab(SOS, "", "", -1, -1, SOS_DEFAULT_SERVER_HOST, 22500);
+        SOSA_cache_grab(SOS, "", SQL_QUERY, -1, -1, SOS_DEFAULT_SERVER_HOST, 22500);
         while (!g_done) {
             usleep(100000);
         }

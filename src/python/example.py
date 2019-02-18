@@ -34,7 +34,7 @@ def demonstrateSOS():
     results, col_names = SOS.query(sql_string, sos_host, sos_port)
     print "Results:"
     print "    Output.........: "
-    print str(results)
+    tablePrint(results)
     print ""
     print "    Row count......: " + str(len(results))
     print "    Column count...: " + str(len(col_names)) 
@@ -46,6 +46,16 @@ def demonstrateSOS():
     SOS.finalize();
     print "   ...DONE!"
     print 
+    return
+
+
+##########
+def tablePrint(results):
+    # Print out the results in a pretty column-aligned way:
+    widths = [max(map(len, str(col))) for col in zip(*results)]
+    for row in results: 
+        print "  ".join((val.ljust(width) for val, width in zip(row, widths)))
+    return
 
 if __name__ == "__main__":
     demonstrateSOS()
