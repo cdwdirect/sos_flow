@@ -328,7 +328,7 @@ endif()
 ###########
 
 if(SOS_ENABLE_PYTHON)
-    #pkg_search_module(PYTHON REQUIRED python QUIET)
+    pkg_search_module(PYTHON REQUIRED python QUIET)
     message(STATUS "PYTHON:  Locating package...")
     if(PYTHON_FOUND)
     message(STATUS "PYTHON:  Found!")
