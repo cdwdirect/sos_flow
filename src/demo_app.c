@@ -83,6 +83,8 @@ DEMO_feedback_handler(
         break;
 
     case SOS_FEEDBACK_TYPE_PAYLOAD:
+        // NOTE: The SOS feedback dispatcher will free the buffer when we
+        //       return from this function.
         printf("demo_app : Received %d-byte payload --> \"%s\"\n",
                 payload_size,
                 (unsigned char *) payload_data);

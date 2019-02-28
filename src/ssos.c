@@ -195,6 +195,17 @@ SSOS_result_destroy(
 }
 
 void
+SSOS_get_guid(void *addr_of_uint64)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_get_guid");
+    SOS_SET_CONTEXT(g_sos, "SSOS_get_guid");
+    uint64_t *place = addr_of_uint64;
+    *place = SOS_uid_next(g_sos->uid.my_guid_pool);
+    return;
+}
+
+
+void
 SSOS_request_pub_manifest(
         SSOS_query_results     *manifest_var,
         int                    *max_frame_overall_var,

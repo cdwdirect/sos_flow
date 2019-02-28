@@ -81,6 +81,7 @@ if __name__ == "__main__":
     void SSOS_init(const char *prog_name);
     void SSOS_is_online(int *addr_of_YN_int_flag);
     void SSOS_set_option(int option_key, const char *option_value);
+    void SSOS_get_guid(void *addr_of_uint64);
 
     void SSOS_pack(const char *name, int pack_type, void *addr_of_value);
     void SSOS_announce(void);
