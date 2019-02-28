@@ -682,8 +682,11 @@ SOS_sense_trigger(SOS_runtime *sos_context,
 
     msg = NULL;
     reply = NULL;
-    SOS_buffer_init_sized(SOS, &msg, SOS_DEFAULT_BUFFER_MAX);
+    SOS_buffer_init_sized(SOS, &msg, data_length + 256);
     SOS_buffer_init_sized(SOS, &reply, 256);
+
+    SOS_buffer_wipe(msg);
+    SOS_buffer_wipe(reply);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
@@ -946,6 +949,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
 void*
 SOS_THREAD_receives_direct(void *args)
 {
+    // NOTE: This is the only supported feedback handler function.
     SOS_SET_CONTEXT((SOS_runtime *) args, "SOS_THREAD_receives_direct");
 
     SOS->config.receives_ready = -1;
@@ -1076,6 +1080,7 @@ SOS_THREAD_receives_direct(void *args)
                 fprintf(stderr, "WARNING: Feedback (PAYLOAD) received but"
                         " no handler has been set. Doing nothing.\n");
             }
+            free(payload_data);
         }
         SOS_target_disconnect(insock);
     } // while
@@ -1087,6 +1092,9 @@ SOS_THREAD_receives_direct(void *args)
 
 
 void* SOS_THREAD_receives_timed(void *args) {
+    // * * *
+    // NOTE: This function is currently unused.
+    // * * *
     SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
     SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_timed");
     struct timespec ts;

@@ -69,18 +69,18 @@ echo "Updating paths:"
 echo "     \$PATH            += \$SOS_ROOT/scripts"
 export PATH="${PATH}:$SOS_ROOT/scripts"
 
-echo "     \$PYTHONPATH      += \$SOS_ROOT/src/python"
+echo "     \$PYTHONPATH      += \$SOS_BUILD_DIR/lib"
 if [ "x$PYTHONPATH" == "x" ] ; then
   PYTHONPATH=$SOS_ROOT/src/python
 else
   PYTHONPATH=$SOS_ROOT/src/python:$PYTHONPATH
 fi
 
-echo "     \$LD_LIBRARY_PATH += \$SOS_BUILD_DIR/lib:\$SOS_ROOT/src/python"
+echo "     \$LD_LIBRARY_PATH += \$SOS_BUILD_DIR/lib"
 if [ "x$LD_LIBRARY_PATH" == "x" ] ; then
-  LD_LIBRARY_PATH=$SOS_ROOT/src/python
+  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib
 else
-  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib:$SOS_ROOT/src/python:$LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib:$LD_LIBRARY_PATH
 fi
 
 echo ""
