@@ -865,12 +865,20 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
 
 
 void SOS_finalize(SOS_runtime *sos_context) {
+    if (sos_context == NULL) {
+        fprintf(stderr, "WARNING: SOS_finalize() has been called"
+                " with a NULL runtime pointer.\n"
+                "WARNING:    ...you are likely calling SOS_finalize() twice!\n"
+                "WARNING:    ...doing nothing and returning.\n");
+        fflush(stderr);
+        return;
+    }
+    
     SOS_SET_CONTEXT(sos_context, "SOS_finalize");
 
     // Any SOS threads will leave their loops next time they wake up.
     dlog(1, "SOS->status = SOS_STATUS_SHUTDOWN\n");
     SOS->status = SOS_STATUS_SHUTDOWN;
-
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         dlog(1, "    Closing down client-related items...\n");
@@ -940,6 +948,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
     pthread_mutex_destroy(SOS->task.reference_table_lock);
 
     dlog(1, "Done!\n");
+    memset(SOS, sizeof(SOS_runtime), '\0');
     free(SOS);
 
     return;
