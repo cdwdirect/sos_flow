@@ -56,6 +56,11 @@ if(ADIOS_FOUND)
         target_link_libraries("sosa_extract_to_adios" "sos" stdc++ ${MPI_CXX_LIBRARIES})
         set_target_properties("sosa_extract_to_adios" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
         set_target_properties("sosa_extract_to_adios" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
+
+        add_executable("sosa_extract_from_cache_to_adios" "extract_from_cache_to_adios.cpp")
+        target_link_libraries("sosa_extract_from_cache_to_adios" "sos" stdc++ ${MPI_CXX_LIBRARIES})
+        set_target_properties("sosa_extract_from_cache_to_adios" PROPERTIES COMPILE_FLAGS "${MPI_CXX_COMPILE_FLAGS}")
+        set_target_properties("sosa_extract_from_cache_to_adios" PROPERTIES LINK_FLAGS "${MPI_CXX_LINK_FLAGS}")
     endif(MPI_FOUND)
 endif(ADIOS_FOUND)
 

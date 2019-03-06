@@ -447,7 +447,8 @@ typedef struct {
 
 // NOTE: Function signature for feedback handlers
 typedef void (*SOS_feedback_handler_f)
-    (int   payload_type,
+    (void *sos_context,
+     int   payload_type,
      int   payload_size,
      void *payload_data);
 
@@ -567,6 +568,8 @@ typedef struct {
     pthread_mutex_t    *feedback_lock;
     pthread_cond_t     *feedback_cond;
     qhashtbl_t         *sense_table;
+    qhashtbl_t         *reference_table;
+    pthread_mutex_t    *reference_table_lock;
     pthread_mutex_t    *global_cache_lock;
 } SOS_task_set;
 

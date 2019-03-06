@@ -139,6 +139,10 @@ target_link_libraries(sosd_trigger sos)
 add_executable(sosd_probe sosd_probe.c)
 target_link_libraries(sosd_probe sos)
 
+#TARGET ---> sosd_manifest (list of pubs this daemon is aware of, w/latest frame #)
+add_executable(sosd_manifest sosd_manifest.c)
+target_link_libraries(sosd_manifest sos)
+
 # sosd_spawn is used to spawn a listener if one isn't running
 if(MPI_FOUND)
     SET(MPI_SOURCE_FILES "sosd_spawn.cpp")
@@ -179,7 +183,14 @@ INSTALL(FILES sos.h
               sos_re.h
               DESTINATION include)
 INSTALL(TARGETS
-    sos sosd_stop sosd_probe proc_app demo_app sosd sosd_trigger
+    sos
+    sosd
+    sosd_stop
+    sosd_probe
+    sosd_manifest
+    sosd_trigger
+    proc_app
+    demo_app
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)

@@ -28,5 +28,15 @@ endif()
 
 #TARGET ---> test
 add_executable(sos_test test.c pack.c buffer.c pub.c)
-
 target_link_libraries(sos_test sos)
+
+#TARGET ---> kevin_test
+add_executable(kevin_test kevin_test.c)
+target_link_libraries(kevin_test sos)
+
+INSTALL(TARGETS
+    sos_test kevin_test
+    RUNTIME DESTINATION bin
+    LIBRARY DESTINATION lib
+    ARCHIVE DESTINATION lib)
+

@@ -39,9 +39,9 @@ option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)" OFF
 
 # --- Other SOS options ---
 
-set(CMAKE_BUILD_TYPE Debug)
+#set(CMAKE_BUILD_TYPE Debug)
 #set(CMAKE_BUILD_TYPE RelWithDebInfo)
-#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release)
 
 option(SOS_SECURE_WITH_MUNGE
     "Use the Munge library to verify SOSflow messages?"
@@ -328,7 +328,7 @@ endif()
 ###########
 
 if(SOS_ENABLE_PYTHON)
-    #pkg_search_module(PYTHON REQUIRED python QUIET)
+    pkg_search_module(PYTHON REQUIRED python QUIET)
     message(STATUS "PYTHON:  Locating package...")
     if(PYTHON_FOUND)
     message(STATUS "PYTHON:  Found!")
@@ -375,5 +375,9 @@ subdirs (src tests)
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)
 endif(SOS_ENABLE_PYTHON)
+
+if(ADIOS_FOUND)
+    subdirs (src/clients)
+endif(ADIOS_FOUND)
 
 

@@ -65,6 +65,7 @@ SOS_runtime *my_sos;
 
 void
 DEMO_feedback_handler(
+        void *sos_context,
         int payload_type,
         int payload_size,
         void *payload_data)
@@ -82,6 +83,8 @@ DEMO_feedback_handler(
         break;
 
     case SOS_FEEDBACK_TYPE_PAYLOAD:
+        // NOTE: The SOS feedback dispatcher will free the buffer when we
+        //       return from this function.
         printf("demo_app : Received %d-byte payload --> \"%s\"\n",
                 payload_size,
                 (unsigned char *) payload_data);
@@ -297,8 +300,7 @@ int main(int argc, char *argv[]) {
             for (i = 0; i < PUB_ELEM_COUNT; i++) {
                 snprintf(elem_name, SOS_DEFAULT_STRING_LEN, "example_dbl_%d", i);
                 snprintf(var_string, 100, "%3.14lf", var_double);
-                //SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
-                SOS_pack(pub, elem_name, SOS_VAL_TYPE_STRING, var_string);
+                SOS_pack(pub, elem_name, SOS_VAL_TYPE_DOUBLE, &var_double);
                 var_double += 1.00000001;
             }
             SOS_publish(pub);

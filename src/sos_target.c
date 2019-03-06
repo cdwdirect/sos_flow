@@ -197,6 +197,9 @@ SOS_target_recv_msg(
     while (header.msg_size > reply->len) {
         int old = reply->len;
         while (header.msg_size > reply->max) {
+            //fprintf(stderr, "GROWING:   header.msg_size == %d  >  reply->max == %d\n",
+            //        header.msg_size, reply->max);
+            //fflush(stderr);
             SOS_buffer_grow(reply, 1 + (header.msg_size - reply->max),
                     SOS_WHOAMI);
         }

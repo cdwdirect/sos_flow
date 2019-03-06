@@ -176,8 +176,13 @@ void SOS_buffer_wipe(SOS_buffer *buffer) {
 void SOS_buffer_grow(SOS_buffer *buffer, size_t grow_amount, char *from_func) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_grow");
 
+    // Always allocate an extra byte, just to be safe.
+    grow_amount += 1;
+
     buffer->max += grow_amount;
     buffer->data = (unsigned char *) realloc(buffer->data, buffer->max);
+
+    memset(buffer->data + (buffer->max - grow_amount), '\0', grow_amount);
 
     if (buffer->data == NULL) {
         dlog(10, "ERROR: Unable to expand buffer!  (called by: %s)\n", from_func);
@@ -551,17 +556,14 @@ SOS_buffer_pack_bytes(SOS_buffer *buffer, int *offset, int byte_count, void *sou
         source = &false_b;
     }
 
-    /* Check if the offset is more than half the buffer. this is
-     * VERY conservative, but we likely won't have to check when
-     * packing strings, later. */
     if (*offset > ((buffer->max) >> 1)) {
-        SOS_buffer_grow(buffer, *offset, SOS_WHOAMI);
+        SOS_buffer_grow(buffer, SOS_DEFAULT_BUFFER_MAX, SOS_WHOAMI);
         // just in case the buffer moved.
         buf = (buffer->data + *offset);
     }
 
     while ((*offset + 4 + byte_count) > (buffer->max + 1)) {
-        SOS_buffer_grow(buffer, (*offset + byte_count + 4 + 1), SOS_WHOAMI);
+        SOS_buffer_grow(buffer, SOS_DEFAULT_BUFFER_MAX, SOS_WHOAMI);
         // just in case the buffer moved.
         buf = (buffer->data + *offset);
     }
@@ -714,7 +716,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
 // NOTE: Shortcut routine, since this sort of thing is helpful all over SOS.
 void SOS_buffer_unpack_safestr(SOS_buffer *buffer, int *offset, char **dest) {
-    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack_string_safely");
+    SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_unpack_safestr");
 
     int tmp_offset = *offset;
     int str_length  = 0;

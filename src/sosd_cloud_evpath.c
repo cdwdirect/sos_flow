@@ -247,7 +247,9 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
     if ((SOS->role == SOS_ROLE_AGGREGATOR)
      && (SOS->config.comm_size > 1)) {
-
+        // TODO { EVPATH }: This is not a robust way to determine
+        //                  if *this* aggregator has listeners, we might not.
+        
         dlog(4, "I am an aggregator, and I have some"
                 " listener[s] to notify.\n");
 
@@ -286,6 +288,10 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             header.msg_size);
 
 
+        
+        // TODO: { FEEDBACK, MEMORY LEAK } Does this leak the wrapped_msg
+        // struct?  We might need to use raw-allocated memory for the data
+        // since EVPath is going to free it internally after transmission.
         int id = 0;
         for (id = 0; id < SOS->config.comm_size; id++) {
             if (evp->node[id]->active == true) {
@@ -311,6 +317,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     SOS_buffer_unpack(msg, &offset, "i", &message_len);
     SOS_buffer_unpack_safestr(msg, &offset, &message);
 
+    // SLICE
     //fprintf(stderr, "sosd(%d) got a TRIGGERPULL message from"
     //        " sosd(%" SOS_GUID_FMT ") of %d bytes in length.\n",
     //        SOS->config.comm_rank,
@@ -326,16 +333,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     payload->handle = handle;
     payload->size = message_len;
     payload->data = (void *) message;
-
-    //fprintf(stderr, "sosd(%d) enquing the following task->ref:\n"
-    //        "   payload->handle == %s\n"
-    //        "   payload->size   == %d\n"
-    //        "   payload->data   == \"%s\"\n",
-    //        SOSD.sos_context->config.comm_rank,
-    //        payload->handle,
-    //        payload->size,
-    //        (char*) payload->data);
-    //fflush(stderr);
 
     task->ref = (void *) payload;
     pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);

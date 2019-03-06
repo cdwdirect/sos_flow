@@ -14,7 +14,7 @@
 //       client and server.
 
 #define SOS_VERSION_MAJOR 1
-#define SOS_VERSION_MINOR 21 
+#define SOS_VERSION_MINOR 25 
 
 // ...
 
@@ -152,6 +152,8 @@ extern "C" {
     int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap);
     // -----
 
+    void  SOS_reference_set(SOS_runtime *sos_context, const char *name, void *pointer);
+    void* SOS_reference_get(SOS_runtime *sos_context, const char *name);
 
     int SOS_pub_search(SOS_pub *pub, const char *name);
 

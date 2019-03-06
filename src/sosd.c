@@ -8,17 +8,17 @@
 
 // ############################################################################
 
-#define USAGE          "USAGE:   $ sosd  -l, --listeners <count>\n" \
-                       "                 -a, --aggregators <count>\n" \
-                       "                 -r, --role <listener | aggregator>\n" \
-                       "                 -k, --rank <rank within ALL sosd instances>\n" \
-                       "                [-w, --work_dir <full_path>]\n" \
-                       "                [-o, --options_file <full_path]\n"\
-                       "                [-c, --options_class <class>]\n"\
-                       "\n"\
-                       "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
-                       "                       from 0 to n-1 aggregators.\n" \
-                       "\n"
+#define USAGE "USAGE:   $ sosd  -l, --listeners <count>\n" \
+              "                 -a, --aggregators <count>\n" \
+              "                 -r, --role <listener | aggregator>\n" \
+              "                 -k, --rank <rank within ALL sosd instances>\n" \
+              "                [-w, --work_dir <full_path>]\n" \
+              "                [-o, --options_file <full_path]\n"\
+              "                [-c, --options_class <class>]\n"\
+              "\n"\
+              "                 NOTE: Aggregator ranks [-k #] need to be contiguous\n"\
+              "                       from 0 to n-1 aggregators.\n" \
+              "\n"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -431,8 +431,8 @@ int main(int argc, char *argv[])  {
         dlog(1, "Exporting complete.\n");
     } // end: if DB enabled
 
-    // TODO: Send a trigger to the "SOS" channel to provide notice of shutdown...
-    // This is a really nice idea for coordinated shutdown. 
+    // TODO: Send a trigger to the "__SOS" channel to provide notice of shutdown.
+    //       This is a really nice idea for soft-coordinated shutdown.
 
 
     dlog(1, "Closing the sync queues:\n");
@@ -759,7 +759,6 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         switch(task->type) {
 
         case SOS_FEEDBACK_TYPE_CACHE:
-            //>>>>>
             dlog(6, "Processing feedback message for cache_grab!\n");
             cache = (SOSD_cache_grab_handle *) task->ref;
             
@@ -812,7 +811,6 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             free(cache);
 
             dlog(6, "Done processing feedback for cache_grab.\n");
-            //<<<<<
             break;
 
 
@@ -902,8 +900,9 @@ void* SOSD_THREAD_feedback_sync(void *args) {
             pthread_mutex_lock(SOSD.sync.sense_list_lock);
             SOSD_sensitivity_entry *sense = SOSD.sync.sense_list_head;
             SOSD_sensitivity_entry *prev_sense = NULL;
-            while(sense != NULL) {
+            while (sense != NULL) {
                 if (strcmp(payload->handle, sense->sense_handle) == 0) {
+                    // The name matches, attempt to connect to this client.
                     rc = SOS_target_connect(sense->target);
                     if (rc < 0) {
                         // Remove this target.
@@ -919,9 +918,13 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                         free(sense->remote_host);
                         free(sense->sense_handle);
                         SOS_target_destroy(sense->target);
-                        sense = NULL;
                         free(sense);
-                        sense = prev_sense->next_entry;
+
+                        if (prev_sense != NULL) {
+                            sense = prev_sense->next_entry;
+                        } else {
+                            sense = NULL;
+                        }
                         continue;
                     }
 
@@ -950,12 +953,14 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     fprintf(stderr, "   ...\n");
                     fprintf(stderr, "\n");
                     fflush(stderr);
-                    */
+                    **/
                     SOS_target_send_msg(sense->target, delivery);
                     SOS_target_disconnect(sense->target);
                 }
                 prev_sense = sense;
-                sense = sense->next_entry;
+                if (sense != NULL) {
+                    sense = sense->next_entry;
+                }
             }
 
             pthread_mutex_unlock(SOSD.sync.sense_list_lock);
@@ -1349,7 +1354,9 @@ SOSD_handle_desensitize(SOS_buffer *msg) {
     int rc;
 
     // TODO: Remove the specific sensitivity GUID+handle combo.
-    //       This is currently handled
+    //       This is currently handled by the sending routine
+    //       when it fails to find a client it's attempting to
+    //       connect to, so this remains a stub for now.
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
@@ -1534,10 +1541,11 @@ SOSD_handle_unregister(SOS_buffer *msg) {
 
     // -- This message is sent when a client calls SOS_finalize();
     // TODO: Verify that all process-related tasks are concluded here
-    // 1. Stop collecting PID information
-    // 2. Inject a timestamp in the database
-    // 3. Destroy all pubs that belong to this GUID
-    // 4. Remove all sensitivities for this GUID
+    //     1. Stop collecting PID information
+    //     2. Inject a timestamp in the database
+    //     3. Destroy all pubs that belong to this GUID
+    //     4. Remove all sensitivities for this GUID
+    //     5. Scan for and purge any messages being held for this GUID
 
     SOS_buffer *reply = NULL;
     SOS_buffer_init_sized_locking(SOS, &reply, 64, false);
@@ -1652,6 +1660,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_buffer_init_sized(SOS, &reply, SOS_DEFAULT_REPLY_LEN);
     SOSD_PACK_ACK(reply);
 
+    // Send an ACK message to the trigger-pulling client.
     int rc;
     rc = SOS_target_send_msg(SOSD.net, reply);
 
@@ -1966,9 +1975,6 @@ void SOSD_handle_register(SOS_buffer *buffer) {
 
     SOS_buffer_destroy(reply);
 
-    //TODO: Inject a timestamp in the database for this client.
-    //(Pub handle has it?)
-
     return;
 }
 
@@ -2229,7 +2235,15 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 }
 
 
-
+// TODO: { FEEDBACK, CHECKIN } This remains an incomplete concept.
+//      This can/will be turned into some kind of push/pull
+//      mechanism where clients can see if there are pending
+//      messages for them by polling the daemon, rather than
+//      spawning a thread and listening on a socket for direct
+//      feedback messages.  We may not want every client hosting 
+//      its own feedback handler function.  For now, this is
+//      stubbed out, since direct feedback or no feedback are the
+//      primary use-case behaviors we support.
 void SOSD_handle_check_in(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOSD_handle_check_in");
     SOS_msg_header header;
@@ -2259,8 +2273,6 @@ void SOSD_handle_check_in(SOS_buffer *buffer) {
         offset = 0;
         SOS_msg_zip(reply, header, 0, &offset);
 
-        // TODO: { FEEDBACK } Currently this is a hard-coded 'exec function' case.
-        // This needs to get turned into a 'mailbox' kind of system.
         snprintf(function_name, SOS_DEFAULT_STRING_LEN, "demo_function");
 
         SOS_buffer_pack(reply, &offset, "is",

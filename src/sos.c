@@ -520,6 +520,12 @@ SOS_init_existing_runtime(
          // in particular.
     }
 
+    // Initialize SOS's mechanism for sharing pointers across coupled
+    // components:
+    SOS->task.reference_table      = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOS->task.reference_table_lock = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOS->task.reference_table_lock, NULL);
+
     *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
 
@@ -546,6 +552,35 @@ SOS_init_existing_runtime(
     return;
 }
 
+
+void
+SOS_reference_set(SOS_runtime *sos_context, const char *name, void *pointer)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_reference_set");
+
+    pthread_mutex_lock(SOS->task.reference_table_lock);
+    SOS->task.reference_table->put(
+            SOS->task.reference_table,
+            name,
+            pointer);
+    pthread_mutex_unlock(SOS->task.reference_table_lock);
+    return;
+}
+
+void*
+SOS_reference_get(SOS_runtime *sos_context, const char *name)
+{
+    SOS_SET_CONTEXT(sos_context, "SOS_reference_get");
+
+    pthread_mutex_lock(SOS->task.reference_table_lock);
+    void *result = NULL;
+    result = (void *) SOS->task.reference_table->get(
+            SOS->task.reference_table,
+            name);
+    pthread_mutex_unlock(SOS->task.reference_table_lock);
+
+    return result;
+}
 
 
 void
@@ -677,8 +712,11 @@ SOS_sense_trigger(SOS_runtime *sos_context,
 
     msg = NULL;
     reply = NULL;
-    SOS_buffer_init_sized(SOS, &msg, SOS_DEFAULT_BUFFER_MAX);
+    SOS_buffer_init_sized(SOS, &msg, data_length + 256);
     SOS_buffer_init_sized(SOS, &reply, 256);
+
+    SOS_buffer_wipe(msg);
+    SOS_buffer_wipe(reply);
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
@@ -857,12 +895,20 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
 
 
 void SOS_finalize(SOS_runtime *sos_context) {
+    if (sos_context == NULL) {
+        fprintf(stderr, "WARNING: SOS_finalize() has been called"
+                " with a NULL runtime pointer.\n"
+                "WARNING:    ...you are likely calling SOS_finalize() twice!\n"
+                "WARNING:    ...doing nothing and returning.\n");
+        fflush(stderr);
+        return;
+    }
+    
     SOS_SET_CONTEXT(sos_context, "SOS_finalize");
 
     // Any SOS threads will leave their loops next time they wake up.
     dlog(1, "SOS->status = SOS_STATUS_SHUTDOWN\n");
     SOS->status = SOS_STATUS_SHUTDOWN;
-
 
     if (SOS->role == SOS_ROLE_CLIENT) {
         dlog(1, "    Closing down client-related items...\n");
@@ -926,7 +972,13 @@ void SOS_finalize(SOS_runtime *sos_context) {
     }
     free(SOS->config.node_id);
 
+    pthread_mutex_lock(SOS->task.reference_table_lock);
+    SOS->task.reference_table->free(SOS->task.reference_table);
+    pthread_mutex_unlock(SOS->task.reference_table_lock);
+    pthread_mutex_destroy(SOS->task.reference_table_lock);
+
     dlog(1, "Done!\n");
+    memset(SOS, sizeof(SOS_runtime), '\0');
     free(SOS);
 
     return;
@@ -936,6 +988,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
 void*
 SOS_THREAD_receives_direct(void *args)
 {
+    // NOTE: This is the only supported feedback handler function.
     SOS_SET_CONTEXT((SOS_runtime *) args, "SOS_THREAD_receives_direct");
 
     SOS->config.receives_ready = -1;
@@ -1015,6 +1068,7 @@ SOS_THREAD_receives_direct(void *args)
                     " handler function.\n");
             if (SOS->config.feedback_handler != NULL) {
                 SOS->config.feedback_handler(
+                        SOS,
                         header.msg_type,
                         header.msg_size,
                         (void *)buffer);
@@ -1057,6 +1111,7 @@ SOS_THREAD_receives_direct(void *args)
             if (SOS->config.feedback_handler != NULL) {
                 dlog(5, "Sending payload to the feedback handler.\n");
                 SOS->config.feedback_handler(
+                        SOS,
                         payload_type,
                         payload_size,
                         payload_data);
@@ -1064,6 +1119,7 @@ SOS_THREAD_receives_direct(void *args)
                 fprintf(stderr, "WARNING: Feedback (PAYLOAD) received but"
                         " no handler has been set. Doing nothing.\n");
             }
+            free(payload_data);
         }
         SOS_target_disconnect(insock);
     } // while
@@ -1075,6 +1131,9 @@ SOS_THREAD_receives_direct(void *args)
 
 
 void* SOS_THREAD_receives_timed(void *args) {
+    // * * *
+    // NOTE: This function is currently unused.
+    // * * *
     SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
     SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_timed");
     struct timespec ts;
@@ -2732,8 +2791,8 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->meta.retain_hint = %d\n", pub->meta.retain_hint);
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
 
-    /* We shouldn't have a cache yet, so allocate it with the depth that
-     * the user has requested. */
+    // We shouldn't have a cache yet, so allocate it with the depth that
+    // the user has requested. 
     if (pub->cache != NULL) {
         dlog(1, "WARNING: Handling a re-announcement for"
                 " a pub with an existing cache.\n");

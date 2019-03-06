@@ -542,10 +542,6 @@ SOSA_request_pub_manifest(
 
     SOS_buffer_destroy(msg);
 
-    // TODO: Unzip the reply and see if there are results.
-    // TODO: Initialize the result set.
-    // TODO: Unroll the reply into the result set.
-
     dlog(7, "   ... unpacking the manifest for to make a SOS_results"
             " object containing the data.\n");
 
@@ -559,7 +555,9 @@ SOSA_request_pub_manifest(
             &matching_pubs,
             &time_to_execute,
             max_frame_overall_var);
-  
+
+    manifest->exec_duration = time_to_execute;
+
     SOSA_results_put_name(manifest, 0, "pub_guid");
     SOSA_results_put_name(manifest, 1, "pub_title");
     SOSA_results_put_name(manifest, 2, "pub_comm_rank");
@@ -919,7 +917,7 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, const char *title
             //fprintf(fptr, "col_count  : \"%d\"\n",  results->col_count);
             //fprintf(fptr, "row_count  : \"%d\"\n",  results->row_count);
             //fprintf(fptr, "----------\n");
-            fprintf(fptr, "\"result_row\",");
+            fprintf(fptr, "\"%s\",", title);
             for (col = 0; col < results->col_count; col++) {
                 fprintf(fptr, "\"%s\"", results->col_names[col]);
                 if (col == (results->col_count - 1)) { fprintf(fptr, "\n"); }
@@ -940,9 +938,6 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, const char *title
 
     }//select
 
-    printf("\n");
-    printf("Query executed in %lf seconds.\n",
-            results->exec_duration);
 
     return;
 }

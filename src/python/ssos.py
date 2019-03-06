@@ -47,6 +47,12 @@ class SSOS:
         lib.SSOS_is_query_done(is_query_done_flag)
         return bool(is_query_done_flag[0])
 
+    def get_guid(self):
+        new_guid = ffi.new("uint64_t*")
+        new_guid[0] = 0
+        lib.SSOS_get_guid(new_guid)
+        return new_guid[0]
+
     def pack(self, pyentry_name, entry_type, pyentry_value):
         entry_name = ffi.new("char[]", pyentry_name.encode('ascii'))
         if (entry_type == self.INT):
@@ -169,6 +175,7 @@ class SSOS:
     def trigger(self, handle, payload_size, payload_data):
         c_handle = ffi.new("char[]", handle.encode('ascii'))
         c_payload_size = ffi.new("int*", payload_size)
+        c_payload_data = ffi.new("char[]", payload_data)
         c_payload_data = ffi.new("unsigned char[]", payload_data.encode('ascii'))
         lib.SSOS_sense_trigger(c_handle, c_payload_size[0], c_payload_data)
 
