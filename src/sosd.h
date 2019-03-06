@@ -276,7 +276,7 @@ typedef struct {
  *
  *  Daemon root 'global' data structure:
  */
-SOSD_global SOSD;
+extern SOSD_global SOSD;
 
 
 /* Required if included by C++ code. */

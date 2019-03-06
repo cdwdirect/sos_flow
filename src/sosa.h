@@ -51,7 +51,7 @@ extern "C" {
             const char *target_host, int target_port);
 
     void SOSA_pub_manifest_to_buffer(SOS_runtime *sos_context, SOS_buffer **reply,
-            SOS_buffer *request);
+            SOS_buffer *request, SOS_list_entry *entry);
 
     // CACHE: Gather current values belonging to matching pub and value names:
     //      frame_head:
@@ -66,7 +66,7 @@ extern "C" {
     //
     void SOSA_cache_to_results(SOS_runtime *sos_context, SOSA_results *results,
             const char *pub_filter, const char *val_filter,
-            int frame_head, int frame_depth_limit);
+            int frame_head, int frame_depth_limit, SOS_list_entry *entry);
 
     // Utilities for working with result sets:
     void SOSA_results_init(SOS_runtime *sos_context,

@@ -23,7 +23,8 @@ void SOSA_cache_to_results(
         const char         *pub_filter_str,
         const char         *val_filter_str,
         int                 frame_head,
-        int                 frame_depth_limit)
+        int                 frame_depth_limit,
+        SOS_list_entry     *entry)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_cache_to_results");
     double start_time = 0.0;
@@ -75,7 +76,6 @@ void SOSA_cache_to_results(
     SOS_val_snap *next_snap = NULL;
 
     SOS_pub *pub = NULL;
-    SOS_list_entry *entry = SOSD.pub_list_head;
 
     // Scan through ALL known pubs:
     while (entry != NULL) {
@@ -377,9 +377,10 @@ SOSA_exec_query(
 
 void
 SOSA_pub_manifest_to_buffer(
-        SOS_runtime   *sos_context,
-        SOS_buffer   **reply_ptr,
-        SOS_buffer    *request)
+        SOS_runtime    *sos_context,
+        SOS_buffer    **reply_ptr,
+        SOS_buffer     *request,
+        SOS_list_entry *entry)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_pub_manifest_to_buffer");    
 
@@ -430,7 +431,6 @@ SOSA_pub_manifest_to_buffer(
 
     matching_pubs = 0;
     SOS_pub *pub = NULL;
-    SOS_list_entry *entry = SOSD.pub_list_head;
     while (entry != NULL) {
         pub = (SOS_pub *) entry->ref;
         if (pub == NULL) break;

@@ -62,6 +62,12 @@
 #include "sos_buffer.h"
 #include "sos_target.h"
 
+/* ----------
+ *
+ *  Daemon root 'global' data structure:
+ */
+SOSD_global SOSD;
+
 void SOSD_display_logo(void);
 
 int main(int argc, char *argv[])  {
@@ -1407,7 +1413,7 @@ SOSD_handle_cache_grab(SOS_buffer *msg) {
     // NOTE: Immediately service this cache grab operation, keep an eye on this.
     SOSA_cache_to_results(SOSD.sos_context, cache_grab->results,
         cache_grab->pub_filter_regex, cache_grab->val_filter_regex,
-        cache_grab->frame_head, cache_grab->frame_depth_limit);
+        cache_grab->frame_head, cache_grab->frame_depth_limit, SOSD.pub_list_head);
     
     SOSD_feedback_task *new_task =
         (SOSD_feedback_task *) calloc(1, sizeof(SOSD_feedback_task));
@@ -2432,7 +2438,7 @@ void SOSD_handle_manifest(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_handle_manifest");
 
     SOS_buffer *reply = NULL;
-    SOSA_pub_manifest_to_buffer(SOSD.sos_context, &reply, buffer);
+    SOSA_pub_manifest_to_buffer(SOSD.sos_context, &reply, buffer, SOSD.pub_list_head);
 
     int i = -1;
     i = send(SOSD.net->remote_socket_fd, (void *) reply->data,
