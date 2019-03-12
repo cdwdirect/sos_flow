@@ -109,10 +109,9 @@ int main(int argc, char *argv[]) {
     while (true) {
 
         manifest = NULL;
-        SOSA_results_init(my_sos, &manifest);
         SOSA_request_pub_manifest(
             my_sos,
-            (SOSA_results *) manifest,
+            (SOSA_results **) &manifest,
             &max_frame_overall,
             pub_title_filter,
             my_sos->daemon->remote_host,

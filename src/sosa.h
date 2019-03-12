@@ -46,7 +46,10 @@ extern "C" {
 
     // MANIFEST: Efficient way to ping daemons and find out what frame
     //           all the pubs are at.
-    SOS_guid SOSA_request_pub_manifest(SOS_runtime *sos_context, SOSA_results *results,
+    SOS_guid SOSA_request_pub_manifest(SOS_runtime *sos_context, SOSA_results **results,
+            int *max_frame_overall, const char *pub_title_filter,
+            const char *target_host, int target_port);
+    SOS_guid SOSA_refresh_pub_manifest(SOS_runtime *sos_context, SOSA_results *results,
             int *max_frame_overall, const char *pub_title_filter,
             const char *target_host, int target_port);
 

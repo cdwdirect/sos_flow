@@ -468,8 +468,30 @@ SOSA_pub_manifest_to_buffer(
     return;
 }
 
+
 SOS_guid
 SOSA_request_pub_manifest(
+        SOS_runtime   *sos_context,
+        SOSA_results **manifest,
+        int           *max_frame_overall_var,
+        const char    *pub_title_filter,
+        const char    *target_host,
+        int            target_port)
+{
+    SOS_guid request_id;
+
+    //Initialize a new result object and pass thru to the manifest refresh code
+    SOSA_results_init_sized(sos_context, manifest, 512, 7);
+    
+    request_id = SOSA_refresh_pub_manifest(
+                    sos_context, *manifest, max_frame_overall_var,
+                    pub_title_filter, target_host, target_port);
+
+    return request_id;
+}
+
+SOS_guid
+SOSA_refresh_pub_manifest(
         SOS_runtime   *sos_context,
         SOSA_results  *manifest,
         int           *max_frame_overall_var,
@@ -478,6 +500,8 @@ SOSA_request_pub_manifest(
         int            target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_request_pub_manifest");
+
+    SOSA_results_wipe(manifest);
 
     dlog(7, "Submitting request for a pub manifest with pub->title"
             " containing \"%s\" ...\n",

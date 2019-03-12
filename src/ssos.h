@@ -81,12 +81,18 @@ extern "C" {
     void SSOS_query_exec(const char *sql, const char *target_host, int target_port);
     //
     void SSOS_request_pub_manifest(
-        SSOS_query_results *manifest_var,
+        SSOS_query_results **addr_of_manifest_var,
         int  *max_frame_overall_var,
         const char *pub_title_filter,
         const char *target_host,
         int  target_port);
-    //
+    void SSOS_refresh_pub_manifest(
+        SSOS_query_results *manifest,
+        int  *max_frame_overall_var,
+        const char *pub_title_filter,
+        const char *target_host,
+        int  target_port);
+//
     void SSOS_cache_grab(
         const char *pub_filter,
         const char *val_filter,
