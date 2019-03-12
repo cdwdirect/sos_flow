@@ -12,6 +12,11 @@
 #include <unistd.h>
 #include <inttypes.h>
 #include <pthread.h>
+#ifdef __APPLE__
+#include <dispatch/dispatch.h>
+#else
+#include <semaphore.h>
+#endif
 
 #include "sos.h"
 #include "sosa.h"
@@ -32,6 +37,11 @@ SSOS_result_pool_entry  *g_result_pool_head;
 SOS_runtime             *g_sos = NULL;
 SOS_pub                 *g_pub = NULL;
 
+#ifdef __APPLE__
+dispatch_semaphore_t    g_results_ready;
+#else
+sem_t                   g_results_ready;
+#endif
 
 #define SSOS_CONFIRM_ONLINE(__where)                        \
 {                                                           \
@@ -92,6 +102,11 @@ SSOS_feedback_handler(
     //        g_result_pool_size, entry->buffer->len);
 
     pthread_mutex_unlock(g_result_pool_lock);
+#ifdef __APPLE__
+    dispatch_semaphore_signal(g_results_ready);
+#else
+    sem_post(&g_results_ready);
+#endif
 
     //Done.  (Results are claimed with SSOS_result_claim() function.)
 
@@ -119,10 +134,11 @@ SSOS_result_claim(
     //This function 'soft-blocks' until results are available.
 
     while (g_sos_is_online) {
-        if (g_result_pool_size < 1) {
-            usleep(10000);
-            continue;
-        }
+#ifdef __APPLE__
+        dispatch_semaphore_wait(g_results_ready, DISPATCH_TIME_FOREVER);
+#else
+        sem_wait(&g_results_ready);
+#endif
         //Grab the lock
         pthread_mutex_lock(g_result_pool_lock);
         //Check to make sure that our test for results
@@ -306,6 +322,12 @@ SSOS_init(
 {
     g_sos_is_online = 0;
 
+#ifdef __APPLE__
+    g_results_ready = dispatch_semaphore_create(0);
+#else
+    sem_init(&g_results_ready, 0, 1);
+#endif
+
     g_sos = NULL;
     while (g_sos == NULL) {
 
@@ -409,6 +431,10 @@ SSOS_finalize(void)
         free(entry);
         entry = next_entry;
     }
+#ifdef __APPLE__
+#else
+    sem_destroy(&g_results_ready);
+#endif
     pthread_mutex_destroy(g_result_pool_lock);
 
     SOS_finalize(g_sos);
