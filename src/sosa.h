@@ -46,7 +46,10 @@ extern "C" {
 
     // MANIFEST: Efficient way to ping daemons and find out what frame
     //           all the pubs are at.
-    SOS_guid SOSA_request_pub_manifest(SOS_runtime *sos_context, SOSA_results *results,
+    SOS_guid SOSA_request_pub_manifest(SOS_runtime *sos_context, SOSA_results **results,
+            int *max_frame_overall, const char *pub_title_filter,
+            const char *target_host, int target_port);
+    SOS_guid SOSA_refresh_pub_manifest(SOS_runtime *sos_context, SOSA_results *results,
             int *max_frame_overall, const char *pub_title_filter,
             const char *target_host, int target_port);
 
@@ -71,6 +74,9 @@ extern "C" {
     // Utilities for working with result sets:
     void SOSA_results_init(SOS_runtime *sos_context,
             SOSA_results **results_object_ptraddr);
+    void SOSA_results_init_sized(SOS_runtime *sos_context,
+            SOSA_results **results_obj_ptraddr, int rows, int cols);
+    //
     void SOSA_results_label(SOSA_results *results, SOS_guid guid, const char *sql);
     void SOSA_results_grow_to(SOSA_results *results, int new_col_max, int new_row_max);
     void SOSA_results_put_name(SOSA_results *results, int col, const char *name);

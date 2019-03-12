@@ -468,8 +468,30 @@ SOSA_pub_manifest_to_buffer(
     return;
 }
 
+
 SOS_guid
 SOSA_request_pub_manifest(
+        SOS_runtime   *sos_context,
+        SOSA_results **manifest,
+        int           *max_frame_overall_var,
+        const char    *pub_title_filter,
+        const char    *target_host,
+        int            target_port)
+{
+    SOS_guid request_id;
+
+    //Initialize a new result object and pass thru to the manifest refresh code
+    SOSA_results_init_sized(sos_context, manifest, 512, 7);
+    
+    request_id = SOSA_refresh_pub_manifest(
+                    sos_context, *manifest, max_frame_overall_var,
+                    pub_title_filter, target_host, target_port);
+
+    return request_id;
+}
+
+SOS_guid
+SOSA_refresh_pub_manifest(
         SOS_runtime   *sos_context,
         SOSA_results  *manifest,
         int           *max_frame_overall_var,
@@ -478,6 +500,8 @@ SOSA_request_pub_manifest(
         int            target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_request_pub_manifest");
+
+    SOSA_results_wipe(manifest);
 
     dlog(7, "Submitting request for a pub manifest with pub->title"
             " containing \"%s\" ...\n",
@@ -989,8 +1013,23 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
 }
 
 
-void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr) {
+void SOSA_results_init(SOS_runtime *sos_context,
+        SOSA_results **results_obj_ptraddr) {
     SOS_SET_CONTEXT(sos_context, "SOSA_results_init");
+    SOSA_results_init_sized(sos_context, 
+            results_obj_ptraddr,
+            SOSA_DEFAULT_RESULT_ROW_MAX,
+            SOSA_DEFAULT_RESULT_COL_MAX);
+    return;
+}
+
+
+void SOSA_results_init_sized(SOS_runtime *sos_context,
+        SOSA_results **results_object_ptraddr,
+        int rows_incoming,
+        int cols_incoming)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_results_init_sized");
     int col = 0;
     int row = 0;
 
@@ -1012,8 +1051,8 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
     results->col_count   = 0;
     results->row_count   = 0;
-    results->col_max     = SOSA_DEFAULT_RESULT_COL_MAX;
-    results->row_max     = SOSA_DEFAULT_RESULT_ROW_MAX;
+    results->col_max     = cols_incoming;
+    results->row_max     = rows_incoming; 
 
     results->data = (char ***) calloc(results->row_max, sizeof(char **));
     for (row = 0; row < results->row_max; row++) {
@@ -1150,8 +1189,8 @@ void SOSA_results_wipe(SOSA_results *results) {
         results->query_sql = NULL;
     }
 
-    for (row = 0; row < results->row_max; row++) {
-        for (col = 0; col < results->col_max; col++) {
+    for (row = 0; row < results->row_count; row++) {
+        for (col = 0; col < results->col_count; col++) {
             if (results->data[row][col] != NULL) {
                 free(results->data[row][col]);
                 results->data[row][col] = NULL;
@@ -1159,7 +1198,7 @@ void SOSA_results_wipe(SOSA_results *results) {
         }
     }
 
-    for (col = 0; col < results->col_max; col++) {
+    for (col = 0; col < results->col_count; col++) {
         if (results->col_names[col] != NULL) {
             free(results->col_names[col]);
             results->col_names[col] = NULL;
