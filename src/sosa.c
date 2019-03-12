@@ -1150,8 +1150,8 @@ void SOSA_results_wipe(SOSA_results *results) {
         results->query_sql = NULL;
     }
 
-    for (row = 0; row < results->row_max; row++) {
-        for (col = 0; col < results->col_max; col++) {
+    for (row = 0; row < results->row_count; row++) {
+        for (col = 0; col < results->col_count; col++) {
             if (results->data[row][col] != NULL) {
                 free(results->data[row][col]);
                 results->data[row][col] = NULL;
@@ -1159,7 +1159,7 @@ void SOSA_results_wipe(SOSA_results *results) {
         }
     }
 
-    for (col = 0; col < results->col_max; col++) {
+    for (col = 0; col < results->col_count; col++) {
         if (results->col_names[col] != NULL) {
             free(results->col_names[col]);
             results->col_names[col] = NULL;
