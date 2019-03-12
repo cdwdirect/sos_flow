@@ -25,6 +25,9 @@
 
 typedef struct {
     SOS_buffer  *buffer;
+    SOS_guid     query_guid;
+    int          row_incoming;
+    int          col_incoming;
     void        *next;
 } SSOS_result_pool_entry;
 
@@ -52,6 +55,14 @@ sem_t                   g_results_ready;
         return;                                             \
     };                                                      \
 };
+
+
+void
+SSOS_get_runtime(void *addr_of_runtime_ptr_var) {
+    SOS_runtime **place_here = (SOS_runtime **) addr_of_runtime_ptr_var;
+    *place_here = g_sos;
+    return;
+}
 
 
 void
@@ -92,6 +103,21 @@ SSOS_feedback_handler(
     memcpy(entry->buffer->data, incoming_buffer->data, payload_size);
     entry->buffer->len = payload_size;
 
+    //Unpack result metadata and add it to the entry.
+    SOS_msg_header header;
+    int offset = 0;
+    int skip_length = 0;
+    double skip_dbl_val = 0.0;
+    SOS_msg_unzip(incoming_buffer, &header, 0, &offset);
+    SOS_buffer_unpack(incoming_buffer, &offset, "i", &skip_length);
+    offset += skip_length;  //skip the embedded SQL string
+    SOS_buffer_unpack(incoming_buffer, &offset, "g",
+                      &entry->query_guid);
+    SOS_buffer_unpack(incoming_buffer, &offset, "d", &skip_dbl_val); //duration 
+    SOS_buffer_unpack(incoming_buffer, &offset, "ii",
+                      &entry->col_incoming,
+                      &entry->row_incoming);
+
     //Add the entry to the result pool. 
     pthread_mutex_lock(g_result_pool_lock);
     entry->next = g_result_pool_head;
@@ -128,8 +154,22 @@ void
 SSOS_result_claim(
     SSOS_query_results     *results)
 {
-    SSOS_CONFIRM_ONLINE("SSOS_query_claim_results");
-    SOS_SET_CONTEXT(g_sos, "SSOS_query_claim_results");
+    SSOS_CONFIRM_ONLINE("SSOS_result_claim");
+    SOS_SET_CONTEXT(g_sos, "SSOS_result_claim");
+
+    // 1 = true = create a new result object...
+    SSOS_result_claim_initialized(results, 1);
+
+    return;
+}
+
+void
+SSOS_result_claim_initialized(
+    SSOS_query_results     *results,
+    int                     YN_initialize_result_object)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_results_claim");
+    SOS_SET_CONTEXT(g_sos, "SSOS_results_claim");
 
     //This function 'soft-blocks' until results are available.
 
@@ -162,7 +202,17 @@ SSOS_result_claim(
         //The pool is now open for other threads and we can
         //process this entry.
         // printf( "Initializing the results object...\n");
-        SOSA_results_init(g_sos, (SOSA_results **) &results);
+        if (YN_initialize_result_object == 1) {
+            SOSA_results_init_sized(g_sos,
+                    (SOSA_results **) &results,
+                    entry->row_incoming,
+                    entry->col_incoming);
+        } else {
+            SOSA_results_wipe((SOSA_results *) results);
+            SOSA_results_grow_to((SOSA_results *) results, 
+                entry->col_incoming,
+                entry->row_incoming);
+        }
 
         // printf( "Building results from buffer...\n");
         SOSA_results_from_buffer((SOSA_results *) results, entry->buffer);

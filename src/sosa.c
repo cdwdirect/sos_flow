@@ -989,8 +989,23 @@ void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid) {
 }
 
 
-void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_ptraddr) {
+void SOSA_results_init(SOS_runtime *sos_context,
+        SOSA_results **results_obj_ptraddr) {
     SOS_SET_CONTEXT(sos_context, "SOSA_results_init");
+    SOSA_results_init_sized(sos_context, 
+            results_obj_ptraddr,
+            SOSA_DEFAULT_RESULT_ROW_MAX,
+            SOSA_DEFAULT_RESULT_COL_MAX);
+    return;
+}
+
+
+void SOSA_results_init_sized(SOS_runtime *sos_context,
+        SOSA_results **results_object_ptraddr,
+        int rows_incoming,
+        int cols_incoming)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_results_init_sized");
     int col = 0;
     int row = 0;
 
@@ -1012,8 +1027,8 @@ void SOSA_results_init(SOS_runtime *sos_context, SOSA_results **results_object_p
 
     results->col_count   = 0;
     results->row_count   = 0;
-    results->col_max     = SOSA_DEFAULT_RESULT_COL_MAX;
-    results->row_max     = SOSA_DEFAULT_RESULT_ROW_MAX;
+    results->col_max     = cols_incoming;
+    results->row_max     = rows_incoming; 
 
     results->data = (char ***) calloc(results->row_max, sizeof(char **));
     for (row = 0; row < results->row_max; row++) {

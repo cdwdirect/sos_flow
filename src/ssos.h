@@ -97,11 +97,15 @@ extern "C" {
     //
     void SSOS_result_pool_size(int *addr_of_counter_int);
     void SSOS_result_claim(SSOS_query_results *results);
+    void SSOS_result_claim_initialized(SSOS_query_results *results,
+            int YN_initialize_result_object);
     void SSOS_result_destroy(SSOS_query_results *results);
 
     void SSOS_sense_trigger(
             const char *sense_handle,
             int payload_size, void *payload_data); 
+
+    void SSOS_get_runtime(void *addr_of_runtime_ptr_var);
 
 #ifdef __cplusplus
 }
