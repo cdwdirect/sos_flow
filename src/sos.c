@@ -1084,8 +1084,11 @@ SOS_THREAD_receives_direct(void *args)
             int            payload_size = -1;
             void          *payload_data = NULL;
 
+            // Tack on an extra byte for good measure, in case someone
+            // accidentally treats this like a string in the client.
+            // Not that I've ever done that... -Chad
             SOS_buffer_unpack(buffer, &offset, "i", &payload_size);
-            payload_data = calloc(payload_size, sizeof(unsigned char));
+            payload_data = calloc((payload_size + 1), sizeof(unsigned char));
             memcpy(payload_data, buffer->data + offset, payload_size);
             offset += payload_size;
 
