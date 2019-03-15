@@ -552,7 +552,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             usleep(100000);
         }
 
-        evp->send.contact_string = (char *)calloc(1024, sizeof(char));
+        evp->send.contact_string = (char *)calloc(1025, sizeof(char));
         while(strnlen(evp->send.contact_string, 1024) < 1) {
             FILE *contact_file;
             contact_file = fopen(contact_filename, "r");
