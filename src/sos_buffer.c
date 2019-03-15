@@ -676,7 +676,11 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             if (count > 0) {
                 memcpy(s, buf, count);
             }
+            /* Not necessary, because you calloc'ed the memory.
+             * Also, the sanitizer says this is walking off the end
+             * of the array 
             s[count] = '\0';
+            */
             dlog(18, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)   [STRING]\n", packed_bytes, s, len);
             buf += len;
             packed_bytes += len;
