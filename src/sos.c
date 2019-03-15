@@ -978,8 +978,15 @@ void SOS_finalize(SOS_runtime *sos_context) {
     pthread_mutex_destroy(SOS->task.reference_table_lock);
 
     dlog(1, "Done!\n");
+    /* Disabling this code, because of a race condition.
+     * We need to make sure that the spawned threads have
+     * all terminated before this happens, because we can't
+     * delete a global object until they are done.  OTOH,
+     * this is a tiny memory leak at exit, so not the end
+     * of the world.
     memset(SOS, sizeof(SOS_runtime), '\0');
     free(SOS);
+    */
 
     return;
 }
