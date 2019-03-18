@@ -210,6 +210,7 @@
 
 #define FOREACH_NATURE(NATURE)                  \
     NATURE(SOS_NATURE_DEFAULT)                  \
+    NATURE(SOS_NATURE_DAEMON_INTERNAL)          \
     NATURE(SOS_NATURE_CREATE_INPUT)             \
     NATURE(SOS_NATURE_CREATE_OUTPUT)            \
     NATURE(SOS_NATURE_CREATE_VIZ)               \
