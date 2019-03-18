@@ -296,48 +296,35 @@ extern "C" void SOSD_setup_system_data(void) {
 void SOSD_setup_system_monitor_pub(void) {
     SOS_runtime *SOS = SOSD.sos_context;
 
-    char * pub_title = strdup("system monitor");
+    char *pub_title = strdup("system monitor");
     SOS_pub_init(SOSD.sos_context, &pub, pub_title, SOS_NATURE_SOS);
     SOS_pipe_init(SOSD.sos_context, &(pub->snap_queue), sizeof(SOS_val_snap *));
-    std::stringstream version;
-    version << STRINGIFY(SOS_VERSION_MAJOR) << "." << STRINGIFY(SOS_VERSION_MINOR);
-    strcpy (pub->prog_ver, version.str().c_str());
-    pub->meta.channel     = 1;
-    pub->meta.nature      = SOS_NATURE_EXEC_WORK;
-    pub->meta.layer       = SOS_LAYER_APP;
-    pub->meta.pri_hint    = SOS_PRI_DEFAULT;
-    pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
-    pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
 
+    SOS_announce(pub);
+    
     pids.insert(0);
 }
 
 extern "C" void SOSD_add_pid_to_track(SOS_pub *pid_pub) {
-  auto it = pids.find(pid_pub->process_id);
-  if (it != pids.end()) { return; }
-  if (pid_pub == pub) { return; }
-  /* make our pub */
-  SOS_pub * my_pub;
-  std::stringstream pub_title;
-  pub_title << "process monitor: " << pid_pub->title;
-  SOS_pub_init(SOSD.sos_context, &my_pub, const_cast<char*>(pub_title.str().c_str()), SOS_NATURE_CREATE_OUTPUT);
-  std::stringstream version;
-  version << STRINGIFY(SOS_VERSION_MAJOR) << "." << STRINGIFY(SOS_VERSION_MINOR);
-  strcpy (my_pub->prog_ver, version.str().c_str());
-  my_pub->meta.channel     = 1;
-  my_pub->meta.nature      = SOS_NATURE_EXEC_WORK;
-  my_pub->meta.layer       = SOS_LAYER_APP;
-  my_pub->meta.pri_hint    = SOS_PRI_DEFAULT;
-  my_pub->meta.scope_hint  = SOS_SCOPE_DEFAULT;
-  my_pub->meta.retain_hint = SOS_RETAIN_DEFAULT;
-  my_pub->process_id = pid_pub->process_id;
-  strcpy(my_pub->prog_name, pid_pub->prog_name);
+    return;
+    auto it = pids.find(pid_pub->process_id);
+    if (it != pids.end()) { return; }
+    if (pid_pub == pub) { return; }
+    /* make our pub */
+    SOS_pub * my_pub;
+    std::stringstream pub_title;
+    pub_title << "process monitor: " << pid_pub->title;
+    char *pub_title_copy = strdup(pub_title.str().c_str());
 
-  /* do some other setup, because we aren't a regular client */
-  SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
-  
-  pubs.insert(my_pub);
-  pids.insert(pid_pub->process_id);
+    SOS_pub_init(SOSD.sos_context, &my_pub, pub_title_copy, SOS_NATURE_CREATE_OUTPUT);
+    SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
+    my_pub->process_id = pid_pub->process_id;
+    strncpy(my_pub->prog_name, pid_pub->prog_name, SOS_DEFAULT_STRING_LEN);
+
+    SOS_announce(my_pub);
+
+    pubs.insert(my_pub);
+    pids.insert(pid_pub->process_id);
 }
 
 extern "C" void SOSD_read_system_data(void) {

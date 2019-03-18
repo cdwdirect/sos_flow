@@ -1482,7 +1482,8 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
     new_pub->thread_id    = 0;
     new_pub->comm_rank    = SOS->config.comm_rank;
     new_pub->pragma_len   = 0;
-    strcpy(new_pub->title, title);
+    memset(new_pub->title, 0, SOS_DEFAULT_STRING_LEN);
+    strncpy(new_pub->title, title, SOS_DEFAULT_STRING_LEN);
     new_pub->announced           = 0;
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
