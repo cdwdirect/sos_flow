@@ -47,11 +47,12 @@ inline bool file_exists (const std::string& name) {
  * This was a quick hack to get basic support for KNL.
  */
 inline long long read_package0 (void) {
-  long long tmplong;
+  long long tmplong = 0;
   FILE *fff;
   fff=fopen("/sys/class/powercap/intel-rapl/intel-rapl:0/energy_uj","r");
   if (fff==NULL) {
-    std::cerr << "Error opening package0!" << std::endl;
+    //std::cerr << "Error opening package0!" << std::endl;
+    return 0LL;
   } else {
     int num = fscanf(fff,"%lld",&tmplong);
     if (num <= 0) {
@@ -64,11 +65,12 @@ inline long long read_package0 (void) {
 
 inline long long  read_dram (void) {
   //std::cout << "Reading dram" << std::endl;
-  long long  tmplong;
+  long long  tmplong = 0;
   FILE *fff;
   fff=fopen("/sys/class/powercap/intel-rapl/intel-rapl:0/intel-rapl:0:0/energy_uj","r");
   if (fff==NULL) {
-    std::cerr << "Error opening dram!" << std::endl;
+    // std::cerr << "Error opening dram!" << std::endl;
+    return 0LL;
   } else {
     int num = fscanf(fff,"%lld",&tmplong);
     if (num <= 0) {
