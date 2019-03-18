@@ -294,10 +294,9 @@ extern "C" void SOSD_setup_system_data(void) {
 }
 
 void SOSD_setup_system_monitor_pub(void) {
-    SOS_runtime *SOS = SOSD.sos_context;
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_setup_system_monitor");
 
-    char *pub_title = strdup("system monitor");
-    SOS_pub_init(SOSD.sos_context, &pub, pub_title, SOS_NATURE_SOS);
+    SOS_pub_init(SOSD.sos_context, &pub, "system monitor", SOS_NATURE_DAEMON_INTERNAL);
     SOS_pipe_init(SOSD.sos_context, &(pub->snap_queue), sizeof(SOS_val_snap *));
 
     SOS_announce(pub);
@@ -316,7 +315,7 @@ extern "C" void SOSD_add_pid_to_track(SOS_pub *pid_pub) {
     pub_title << "process monitor: " << pid_pub->title;
     char *pub_title_copy = strdup(pub_title.str().c_str());
 
-    SOS_pub_init(SOSD.sos_context, &my_pub, pub_title_copy, SOS_NATURE_CREATE_OUTPUT);
+    SOS_pub_init(SOSD.sos_context, &my_pub, pub_title_copy, SOS_NATURE_DAEMON_INTERNAL);
     SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
     my_pub->process_id = pid_pub->process_id;
     strncpy(my_pub->prog_name, pid_pub->prog_name, SOS_DEFAULT_STRING_LEN);

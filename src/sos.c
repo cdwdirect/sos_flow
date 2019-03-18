@@ -1467,11 +1467,7 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
 
     new_pub->sync_pending = 0; // Used by daemon/db to coordinate db injection.
 
-    if (SOS->role == SOS_ROLE_AGGREGATOR) {
-        new_pub->guid = -1;
-    } else {
-        new_pub->guid = SOS_uid_next( SOS->uid.my_guid_pool );
-    }
+    new_pub->guid = SOS_uid_next( SOS->uid.my_guid_pool );
 
     snprintf(new_pub->guid_str, SOS_DEFAULT_STRING_LEN,
             "%" SOS_GUID_FMT, new_pub->guid);

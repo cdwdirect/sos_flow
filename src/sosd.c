@@ -306,6 +306,8 @@ int main(int argc, char *argv[])  {
 
     dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();
+    SOSD.sos_context->uid.my_guid_pool = SOSD.guid;
+
     dlog(1, "   ... done. (SOSD_init + SOS_init are complete)\n");
 
     if (SOS->config.comm_rank == 0) {
