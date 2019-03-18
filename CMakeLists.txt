@@ -68,7 +68,7 @@ option(SOS_FORCE_RPATH
 
 option(SOS_SANITIZE_ADDRESS
     "Enable address sanitizer compiler flags"
-    ON)
+    OFF)
 
 option(SOS_SANITIZE_THREAD
     "Enable thread sanitizer compiler flags"
