@@ -2665,11 +2665,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     
     SOS_TIME( send_time );
 
-    if (SOS->role == SOS_ROLE_CLIENT) {
-        // Only CLIENT updates the frame when sending, in case this is re-used
-        // internally / on the backplane by the LISTENER / AGGREGATOR. */
-        this_frame = pub->frame++;
-    }
+    this_frame = pub->frame++;
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_PUBLISH;
