@@ -127,37 +127,29 @@ bool parse_proc_self_status(SOS_pub *pid_pub) {
 }
 
 bool parse_proc_meminfo() {
-  FILE *f = fopen("/proc/meminfo", "r");
-  if (f) {
-    char line[4096] = {0};
-    while ( fgets( line, 4096, f)) {
-        string tmp(line);
-        /*
-        const std::regex separator(":");
-        std::sregex_token_iterator token(tmp.begin(), tmp.end(), separator, -1);
-        std::sregex_token_iterator end;
-        string name = *token++;
-        if (token != end) {
-            string value = *token;
-            char* pEnd;
-            double d1 = strtod (value.c_str(), &pEnd);
-            string mname("meminfo:" + name);
-            if (pEnd) { sample_value(mname, d1); }
-        } */
-            char * str = strdup(tmp.c_str());
-            char * name = strtok(str, ":");
+    FILE *f = fopen("/proc/meminfo", "r");
+    if (f) {
+        char line[4096] = {0};
+        while ( fgets( line, 4096, f)) {
+            string tmp(line);
+            if (tmp.find("Mem") != 0) {
+                continue;
+            }
+            char *str = strdup(tmp.c_str());
+            char *name = strtok(str, ":");
             if (name == NULL) continue;
-            char * value = strtok(NULL, ":");
+            char *value = strtok(NULL, ":");
             if (value == NULL) continue;
             double d1 = strtod (value, NULL);
             string mname("meminfo:" + string(name));
             sample_value(mname.c_str(), d1);
+            free(str);
+        }
+        fclose(f);
+    } else {
+        return false;
     }
-    fclose(f);
-  } else {
-    return false;
-  }
-  return true;
+    return true;
 }
 
 ProcData* parse_proc_stat(void) {
@@ -292,7 +284,8 @@ void ProcData::sample_values(void) {
 
 /* Get initial readings */
 extern "C" void SOSD_setup_system_data(void) {
-  oldData = parse_proc_stat();
+
+    oldData = parse_proc_stat();
 }
 
 void SOSD_setup_system_monitor_pub(void) {
@@ -307,7 +300,12 @@ void SOSD_setup_system_monitor_pub(void) {
 }
 
 extern "C" void SOSD_add_pid_to_track(SOS_pub *pid_pub) {
-    return;
+    // NOTE: Uncomment this to prevent daemons from monitoring
+    //       themselves as a process like client apps.
+    //if (pid_pub->nature == SOS_NATURE_DAEMON_INTERNAL) {
+    //    return;
+    // }
+    
     auto it = pids.find(pid_pub->process_id);
     if (it != pids.end()) { return; }
     if (pid_pub == pub) { return; }

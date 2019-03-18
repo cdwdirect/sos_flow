@@ -176,9 +176,13 @@ void SOS_options_load_evar(SOS_options *opt) {
 
     if (SOS_str_opt_is_enabled(getenv("SOS_SYSTEM_MONITOR_ENABLED"))) {
         opt->system_monitor_enabled   = true;
-        char *usec_delay = getenv("SOS_SYSTEM_MONITOR_USEC_DELAY");
+        char *usec_delay = getenv("SOS_SYSTEM_MONITOR_FREQ_USEC");
         if (usec_delay == NULL) {
-            opt->system_monitor_freq_usec = 100000;
+            fprintf(stderr, "WARNING: System monitoring ENABLED but"
+                    " SOS_SYSTEM_MONITOR_FREQ_USEC not provided."
+                    " Defaulting to 1 second intervals.\n");
+            fflush(stderr);
+            opt->system_monitor_freq_usec = 1e6;
         } else {
             opt->system_monitor_freq_usec = atoi(usec_delay);
         }

@@ -307,7 +307,7 @@ int main(int argc, char *argv[])  {
     dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();
     SOSD.sos_context->uid.my_guid_pool = SOSD.guid;
-
+    
     dlog(1, "   ... done. (SOSD_init + SOS_init are complete)\n");
 
     if (SOS->config.comm_rank == 0) {
@@ -686,27 +686,34 @@ void* SOSD_THREAD_system_monitor(void *args) {
     //
 
     while (SOSD.daemon.running) {
-        pthread_mutex_lock(my->lock);
-        gettimeofday(&now, NULL);
-        wait.tv_sec  = now.tv_sec;
-        wait.tv_nsec = (1000 * period_usec) + (1000 * now.tv_usec);
-        rc = pthread_cond_timedwait(my->cond, my->lock, &wait);
-        pthread_mutex_unlock(my->lock);
-        /* if we timed out, measure the system health. */
-        switch (rc) {
-            case 0:
-                // we were interrupted by the main thread. exit.
-                break;
-            case ETIMEDOUT:
-                // parse the system health
-                SOSD_read_system_data();
-                continue;
-            case EINVAL:
-            case EPERM:
-            default:
-                // some other error. exit.
-                break;
-        }
+        //pthread_mutex_lock(my->lock);
+        //gettimeofday(&now, NULL);
+        //wait.tv_sec  = now.tv_sec;
+        //wait.tv_nsec = (1000 * period_usec) + (1000 * now.tv_usec);
+        //while (wait.tv_nsec > 1000000000) {
+        //    wait.tv_nsec -= 1000000000;
+        //    wait.tv_sec += 1;
+        //}
+        //rc = pthread_cond_timedwait(my->cond, my->lock, &wait);
+        //pthread_mutex_unlock(my->lock);
+        usleep(period_usec);
+        SOSD_read_system_data();
+
+        // if we timed out, measure the system health.
+       //  switch (rc) {
+       //      case 0:
+       //          // we were interrupted by the main thread. exit.
+       //          break;
+       //      case ETIMEDOUT:
+       //          // parse the system health
+       //          SOSD_read_system_data();
+       //          continue;
+       //      case EINVAL:
+       //      case EPERM:
+       //      default:
+       //          // some other error. exit.
+       //          break;
+       //  }
     }
     pthread_exit(NULL);
 
