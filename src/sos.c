@@ -1544,6 +1544,8 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
                 " for snap queue.\n");
         SOS_pipe_init((void *) SOS, &new_pub->snap_queue,
                 sizeof(SOS_val_snap *));
+    } else {
+        new_pub->snap_queue = NULL;
     }
 
     dlog(6, "  ... initializing the name table for values.\n");
@@ -2126,6 +2128,14 @@ int SOS_pack_snap_add_to_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
 int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_into_val_queue");
 
+    if (pub->snap_queue == NULL) {
+        dlog(0, "WARNING: Tried to pack a snap into a pub->snap_queue"
+                " that is NULL. This happens when a daemon is publishing"
+                " to itself and the pub->snap_queue has not manually been"
+                " set to the SOSD.db.snap_queue pointer. Doing nothing.\n");
+        return snap->elem;
+    }
+    
     pthread_mutex_lock(pub->snap_queue->sync_lock);
     pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
     pub->snap_queue->elem_count++;

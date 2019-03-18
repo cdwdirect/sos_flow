@@ -176,7 +176,12 @@ void SOS_options_load_evar(SOS_options *opt) {
 
     if (SOS_str_opt_is_enabled(getenv("SOS_SYSTEM_MONITOR_ENABLED"))) {
         opt->system_monitor_enabled   = true;
-        opt->system_monitor_freq_usec = 100000;
+        char *usec_delay = getenv("SOS_SYSTEM_MONITOR_USEC_DELAY");
+        if (usec_delay == NULL) {
+            opt->system_monitor_freq_usec = 100000;
+        } else {
+            opt->system_monitor_freq_usec = atoi(usec_delay);
+        }
     } else {
         opt->system_monitor_enabled   = false;
         opt->system_monitor_freq_usec = -1;

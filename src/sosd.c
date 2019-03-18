@@ -324,6 +324,11 @@ int main(int argc, char *argv[])  {
     dlog(1, "Calling daemon_setup_socket()...\n");
     SOSD.net->sos_context = SOSD.sos_context;
     SOSD_setup_socket();
+    
+    // Configure ourselves as a target, for self-publishing.
+    SOS_target_init(SOSD.sos_context, &SOSD.sos_context->daemon,
+            SOSD.net->local_host,
+            SOSD.net->port_number);
 
     if (SOS->config.options->db_disabled) {
         dlog(1, "Skipping database initialization..."
@@ -668,41 +673,36 @@ void* SOSD_THREAD_system_monitor(void *args) {
     struct timeval   now;
     struct timespec  wait;
     int rc;
-    int period_seconds = 1;
+    int period_usec = 0;
 
-    char *system_flag = getenv("SOS_READ_SYSTEM_STATUS");
-    if ((system_flag != NULL) && (strlen(system_flag)) > 0) {
-        period_seconds = atoi(system_flag);
-    }
- 
-    // NOTE: This calls SOSD_setup_system_monitor_pub() internally:
+    period_usec = SOS->config.options->system_monitor_freq_usec;
+
+    // NOTE: This calls SOSD_setup_system_monitor_pub() internally.
+    //       (These functions can be found in src/sosd_system.cpp)
     //
     SOSD_setup_system_data();
     //
 
-    while (SOS->status == SOS_STATUS_RUNNING) {
+    while (SOSD.daemon.running) {
         pthread_mutex_lock(my->lock);
         gettimeofday(&now, NULL);
-        wait.tv_sec  = period_seconds + (now.tv_sec);
-        wait.tv_nsec = (1000 * now.tv_usec);
+        wait.tv_sec  = now.tv_sec;
+        wait.tv_nsec = (1000 * period_usec) + (1000 * now.tv_usec);
         rc = pthread_cond_timedwait(my->cond, my->lock, &wait);
         pthread_mutex_unlock(my->lock);
         /* if we timed out, measure the system health. */
         switch (rc) {
             case 0:
-                /* we were interrupted by the main thread. exit. */
-                printf("Interrupted. Thread exiting...\n");
+                // we were interrupted by the main thread. exit.
                 break;
             case ETIMEDOUT:
-                /* parse the system health */
-                //printf("Reading system health...\n");
+                // parse the system health
                 SOSD_read_system_data();
                 continue;
             case EINVAL:
             case EPERM:
             default:
-                /* some other error. exit. */
-                printf("Some other error. Thread exiting...\n");
+                // some other error. exit.
                 break;
         }
     }
@@ -2502,6 +2502,7 @@ void SOSD_handle_unknown(SOS_buffer *buffer) {
 void SOSD_setup_socket() {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_setup_socket");
     SOS_target_setup_for_accept(SOSD.net);
+    gethostname(SOSD.net->local_host, NI_MAXHOST);
     return;
 }
 
@@ -2694,7 +2695,11 @@ void SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer ) {
     dlog(6, "Calling SOS_announce_from_buffer()...\n");
     SOS_announce_from_buffer(buffer, pub);
     if (SOS->config.options->system_monitor_enabled) {
-        SOSD_add_pid_to_track(pub);
+        //NOTE: We need to ensure this is a LOCAL pub,
+        //      we don't want to monitor PIDs from some other node.
+        if (strcmp(pub->node_id, SOS->config.node_id) == 0) { 
+            SOSD_add_pid_to_track(pub);
+        }
     }
 
     return;
