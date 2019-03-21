@@ -292,7 +292,12 @@ void SOSD_setup_system_monitor_pub(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_setup_system_monitor");
 
     SOS_pub_init(SOSD.sos_context, &pub, "system monitor", SOS_NATURE_DAEMON_INTERNAL);
-    SOS_pipe_init(SOSD.sos_context, &(pub->snap_queue), sizeof(SOS_val_snap *));
+
+    //NOTE: We can't do this because the DB thread is not looking for anything
+    //      from this pipe, it's pulling from the unified val snap queue.
+    //SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
+    //      ...direct this pub to the universal queue:
+    pub->snap_queue = SOSD.db.snap_queue;
 
     SOS_announce(pub);
     
@@ -312,11 +317,17 @@ extern "C" void SOSD_add_pid_to_track(SOS_pub *pid_pub) {
     /* make our pub */
     SOS_pub * my_pub;
     std::stringstream pub_title;
-    pub_title << "process monitor: " << pid_pub->title;
+    pub_title << "process monitor: " << pid_pub->process_id;
     char *pub_title_copy = strdup(pub_title.str().c_str());
 
     SOS_pub_init(SOSD.sos_context, &my_pub, pub_title_copy, SOS_NATURE_DAEMON_INTERNAL);
-    SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
+    
+    //NOTE: We can't do this because the DB thread is not looking for anything
+    //      from this pipe, it's pulling from the unified val snap queue.
+    //SOS_pipe_init(SOSD.sos_context, &(my_pub->snap_queue), sizeof(SOS_val_snap *));
+    //      ...direct this pub to the universal queue:
+    my_pub->snap_queue = SOSD.db.snap_queue;
+
     my_pub->process_id = pid_pub->process_id;
     strncpy(my_pub->prog_name, pid_pub->prog_name, SOS_DEFAULT_STRING_LEN);
 
@@ -344,7 +355,6 @@ extern "C" void SOSD_read_system_data(void) {
     parse_proc_meminfo();
     dlog(8, "    Publishing: pub->title==\"%s\"\n", pub->title);
     SOS_publish(pub);
-    /* this is less useful, unless we grab the status of each pid? */
     for (auto pid_pub : pubs) {
         parse_proc_self_status(pid_pub);
         dlog(8, "    Publishing: pid_pub->title==\"%s\"\n", pid_pub->title);

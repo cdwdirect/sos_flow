@@ -626,7 +626,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         set_int_attr(evp->send.contact_list, CM_ENET_CONN_TIMEOUT, 60000); /* 60 seconds */
         delay.tv_sec = 0;
         delay.tv_nsec = 100000000ULL * rand() / RAND_MAX;
-        printf("SOSD listener %d: sleeping for %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
+        //printf("SOSD listener %d: sleeping for %lu nanoseconds...\n", SOSD.sos_context->config.comm_rank, delay.tv_nsec);
         do {
             nanosleep(&delay, NULL);
             rc = EVassoc_bridge_action(
