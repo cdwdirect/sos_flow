@@ -73,13 +73,18 @@ typedef struct {
 } SOSD_feedback_payload;
 
 typedef struct {
-    SOS_query_state     state;
-    SOS_guid            reply_to_guid;
-    char               *query_sql;
-    SOS_guid            query_guid;
-    char               *reply_host;
-    int                 reply_port;
-    void               *results;
+    SOS_query_state     state;             // State of this instance/shard's resolution
+    SOS_guid            reply_to_guid;     // GUID of the originating client process
+    char               *reply_host;        // Post-reply, combined results are sent here
+    int                 reply_port;        // Post-reply, combined results are sent here
+    SOS_topology        group_topology;    // State of distributed query resolution
+    SOS_guid            group_guid;        // ID of original query (asking client assigns)
+    int                 group_size;        // Logical size of group handling dist. query
+    int                 group_rank;        // Logical rank within group handling dist. query
+    char               *group_rank_host;   // During reply, hostname assigned to results
+    char               *query_sql;         // SQL query for this instance
+    SOS_guid            query_guid;        // ID for this [potential] fragment of results
+    void               *results;           // Where the results live, combined or not
 } SOSD_query_handle;
 
 typedef struct {
@@ -228,6 +233,7 @@ typedef struct {
     SOSD_frame_note    *frame_note_pub_list_head;
     qhashtbl_t         *frame_note_val_table;
     SOSD_frame_note    *frame_note_val_list_head;
+    SOS_list_entry     *remote_query_list_head;
 } SOSD_db;
 
 typedef struct {
@@ -285,10 +291,15 @@ extern "C" {
 #endif
 
 #ifdef SOSD_CLOUD_SYNC
-    /* All cloud_sync modules must have the following signatures: */
+    // All cloud_sync modules must have the following signatures:
+    // TODO: Review. Things have dramatically changed, the minimum compatibility
+    //       requirements for various implementations need to reflect that evolution
+    //       to avoid making unsubstantiated compatibility claims.
+
     extern int   SOSD_cloud_init(int *argc, char ***argv);
     extern int   SOSD_cloud_start(void);
     extern int   SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply);
+    extern void  SOSD_cloud_send_to_topology(SOS_buffer *buffer, SOS_topology topology);
     extern void  SOSD_cloud_enqueue(SOS_buffer *buffer);
     extern void  SOSD_cloud_fflush(void);
     extern int   SOSD_cloud_finalize(void);
@@ -333,18 +344,21 @@ extern "C" {
     void  SOSD_handle_kmean_data(SOS_buffer *buffer);
     void  SOSD_handle_unknown(SOS_buffer *buffer);
 
+    void  SOSD_apply_announce(SOS_pub *pub, SOS_buffer *buffer);
+    void  SOSD_apply_publish(SOS_pub *pub, SOS_buffer *buffer);
+    void  SOSD_apply_query_to_local(SOSD_query_handle *query);
+    void  SOSD_apply_query_to_cloud(SOSD_query_handle *query);
+
     void  SOSD_claim_guid_block( SOS_uid *uid, int size,
             SOS_guid *pool_from, SOS_guid *pool_to );
 
-    void  SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer );
-    void  SOSD_apply_publish( SOS_pub *pub, SOS_buffer *buffer );
-
-    /* Private functions... see: sos.c */
+    // Private functions
+    
     extern void SOS_uid_init( SOS_runtime *sos_context,
             SOS_uid **uid, SOS_guid from, SOS_guid to);
 
 
-    /* Functions for monitoring system health */
+    // The use of these functions is optional, see sos_options.c 
     void SOSD_setup_system_data(void);
     void SOSD_read_system_data(void);
     void SOSD_add_pid_to_track(SOS_pub* pub_pid);

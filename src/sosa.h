@@ -21,16 +21,20 @@ typedef enum {
 
 
 typedef struct {
-    SOS_runtime *sos_context;
-    char        *query_sql;
-    SOS_guid     query_guid;
-    double       exec_duration;
-    int          col_max;
-    int          col_count;
-    char       **col_names;
-    int          row_max;
-    int          row_count;
-    char      ***data;
+    SOS_runtime    *sos_context;
+    char           *query_sql;
+    SOS_guid        query_guid;
+    double          exec_duration;
+    SOS_topology    topology;
+    SOS_guid        group_guid;
+    int             group_size;
+    int             group_rank;
+    int             col_max;
+    int             col_count;
+    char          **col_names;
+    int             row_max;
+    int             row_count;
+    char         ***data;
 } SOSA_results;
 
 
@@ -43,6 +47,11 @@ extern "C" {
     // SQL: Submit an SQL query to a SOS daemon over the socket:
     SOS_guid SOSA_exec_query(SOS_runtime *sos_context,
             const char *sql_string, const char *target_host, int target_port);
+    //
+    SOS_guid SOSA_exec_query_on_topology(SOS_runtime *sos_context,
+            const char *sql_string, SOS_topology topology,
+            const char *target_host, int target_port);
+
 
     // MANIFEST: Efficient way to ping daemons and find out what frame
     //           all the pubs are at.

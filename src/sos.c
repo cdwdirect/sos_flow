@@ -44,12 +44,6 @@
 // Private functions (not in the header file)
 
 /**
- * @brief Check for feedback from the daemon on a regular heartbeat.
- */
-void*        SOS_THREAD_receives_timed(void *sos_runtime_ptr);
-
-
-/**
  * @brief Open a socket and actively listen for feedback messages.
  */
 void*        SOS_THREAD_receives_direct(void *sos_runtime_ptr);
@@ -591,38 +585,9 @@ SOS_receiver_init(SOS_runtime *sos_context)
 
     switch (SOS->config.receives) {
 
-        case SOS_RECEIVES_MANUAL_CHECKIN:
         case SOS_RECEIVES_NO_FEEDBACK:
         case SOS_RECEIVES_DAEMON_MODE:
             return;
-
-        case SOS_RECEIVES_TIMED_CHECKIN:
-            dlog(1, "  ... launching libsos runtime thread[s].\n");
-            SOS->task.feedback = (pthread_t *) malloc(sizeof(pthread_t));
-            SOS->task.feedback_lock
-                    = (pthread_mutex_t *) malloc(sizeof(pthread_mutex_t));
-            SOS->task.feedback_cond
-                    = (pthread_cond_t *)  malloc(sizeof(pthread_cond_t));
-            retval = pthread_mutex_init(SOS->task.feedback_lock, NULL);
-            if (retval != 0) {
-                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_lock!"
-                    "  (%s)\n", retval, strerror(errno));
-                exit(EXIT_FAILURE);
-            }
-            retval = pthread_cond_init(SOS->task.feedback_cond, NULL);
-            if (retval != 0) {
-                dlog(0, " ... ERROR (%d) creating SOS->task.feedback_cond!"
-                    "  (%s)\n", retval, strerror(errno));
-                exit(EXIT_FAILURE);
-            }
-            retval = pthread_create(SOS->task.feedback, NULL,
-                    SOS_THREAD_receives_timed, (void *) SOS);
-            if (retval != 0) {
-                dlog(0, " ... ERROR (%d) launching SOS->task.feedback "
-                    " thread!  (%s)\n", retval, strerror(errno));
-                exit(EXIT_FAILURE);
-            }
-            break;
 
         case SOS_RECEIVES_DIRECT_MESSAGES:
             dlog(1, "  ... launching libsos runtime thread[s].\n");
@@ -1136,125 +1101,6 @@ SOS_THREAD_receives_direct(void *args)
 
     SOS_buffer_destroy(buffer);
     dlog(1, "Feedback listener closing down.\n");
-    return NULL;
-}
-
-
-void* SOS_THREAD_receives_timed(void *args) {
-    // * * *
-    // NOTE: This function is currently unused.
-    // * * *
-    SOS_runtime *local_ptr_to_context = (SOS_runtime *) args;
-    SOS_SET_CONTEXT(local_ptr_to_context, "SOS_THREAD_receives_timed");
-    struct timespec ts;
-    struct timeval  tp;
-    int wake_type;
-    int error_count;
-
-    int offset;
-    SOS_msg_header       header;
-    SOS_buffer          *check_in_buffer;
-    SOS_buffer          *feedback_buffer;
-    SOS_feedback_type    feedback;
-
-    if ( SOS->config.offline_test_mode == true ) { return NULL; }
-
-    check_in_buffer = NULL;
-    feedback_buffer = NULL;
-    SOS_buffer_init(SOS, &check_in_buffer);
-    SOS_buffer_init(SOS, &feedback_buffer);
-
-    // Wait until the SOS system is up and running or shutting down...
-    while ((SOS->status != SOS_STATUS_RUNNING)
-            && (SOS->status != SOS_STATUS_SHUTDOWN))
-    {
-        usleep(1000);
-    }
-
-    // Set the wakeup time (ts) to 2 seconds in the future.
-    gettimeofday(&tp, NULL);
-    ts.tv_sec  = (tp.tv_sec + 2);
-    ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
-
-    // Grab the lock that the wakeup condition is bound to.
-    pthread_mutex_lock(SOS->task.feedback_lock);
-    error_count = 0;
-
-    fprintf(stderr, "CRITICAL WARNING: You have selected TIMED"
-            " feedback checkins. This feature is not presently"
-            " supported!\n"
-            "                 Please use DIRECT or NO feedback.\n");
-
-    while (SOS->status != SOS_STATUS_SHUTDOWN) {
-        // Build a checkin message.
-        SOS_buffer_wipe(check_in_buffer);
-        SOS_buffer_wipe(feedback_buffer);
-
-        dlog(4, "Building a check-in message.\n");
-
-        header.msg_size = -1;
-        header.msg_from = SOS->my_guid;
-        header.msg_type = SOS_MSG_TYPE_CHECK_IN;
-        header.ref_guid = 0;
-
-        offset = 0;
-        SOS_msg_zip(check_in_buffer, header, 0, &offset);
-
-        header.msg_size = offset;
-        offset = 0;
-        SOS_msg_zip(check_in_buffer, header, 0, &offset);
-
-        if (SOS->status != SOS_STATUS_RUNNING) break;
-
-        dlog(4, "Sending check-in to daemon.\n");
-
-        // Ping the daemon to see if there is anything to do.
-        SOS_send_to_daemon(check_in_buffer, feedback_buffer);
-
-        dlog(4, "Processing reply (to check-in)...\n");
-
-        memset(&header, '\0', sizeof(SOS_msg_header));
-        offset = 0;
-        SOS_msg_unzip(feedback_buffer, &header, 0, &offset);
-
-        if (header.msg_type != SOS_MSG_TYPE_FEEDBACK) {
-            dlog(0, "WARNING: sosd (daemon) responded to a CHECK_IN_MSG"
-                " with malformed FEEDBACK!\n");
-            error_count++;
-            if (error_count > 5) {
-                dlog(0, "ERROR: Too much mal-formed feedback, shutting"
-                    " down feedback thread.\n");
-                break;
-            }
-            gettimeofday(&tp, NULL);
-            ts.tv_sec  = (tp.tv_sec + 2);
-            ts.tv_nsec = (1000 * tp.tv_usec) + 62500000;
-            continue;
-        } else {
-            error_count = 0;
-        }
-
-        //TODO: Timed feedback handler
-        //...Let the message format settle w/active handler, first
-
-        //SOS_process_feedback(feedback_buffer);
-
-        // Set the timer to 2 seconds in the future.
-        gettimeofday(&tp, NULL);
-        ts.tv_sec  = (tp.tv_sec + 2);
-        ts.tv_nsec = (1000 * tp.tv_usec);
-        // Go to sleep until the wakeup time (ts) is reached.
-        wake_type = pthread_cond_timedwait(SOS->task.feedback_cond,
-                SOS->task.feedback_lock, &ts);
-        if (wake_type == ETIMEDOUT) {
-            // ...Actions on TIMED-OUT (vs. EXPLICIT SIGNAL)
-        }
-    } //while
-
-    SOS_buffer_destroy(check_in_buffer);
-    SOS_buffer_destroy(feedback_buffer);
-    pthread_mutex_unlock(SOS->task.feedback_lock);
-
     return NULL;
 }
 

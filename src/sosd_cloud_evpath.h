@@ -14,6 +14,7 @@
 int   SOSD_cloud_init(int *argc, char ***argv);
 int   SOSD_cloud_start(void);
 int   SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply);
+void  SOSD_cloud_send_to_topology(SOS_buffer *buffer, SOS_topology topology);
 void  SOSD_cloud_enqueue(SOS_buffer *buffer);
 void  SOSD_cloud_fflush(void);
 int   SOSD_cloud_finalize(void);

@@ -291,7 +291,6 @@ SOSA_cache_grab(
 }
 
 
-
 SOS_guid
 SOSA_exec_query(
     SOS_runtime            *sos_context,
@@ -301,13 +300,42 @@ SOSA_exec_query(
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
 
+    // SOS_TOPOLOGY_DEFAULT == Translation:
+    //   "Run the query only where I am sending it. No other ranks
+    //    get involved. Return the results directly to me."
+
+    SOS_guid query_guid = 0;
+    query_guid = SOSA_exec_query_on_topology(SOS,
+            query,
+            SOS_TOPOLOGY_DEFAULT,
+            target_host,
+            target_port);
+
+    return query_guid;
+}
+
+
+SOS_guid
+SOSA_exec_query_on_topology(
+    SOS_runtime            *sos_context,
+    const char             *sql,
+    SOS_topology            group_topology,
+    const char             *target_host,
+    int                     target_port)
+{
+    SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
+
+    // NOTE: This function is called by clients (and SSOS) to
+    //       dispatch a query to the daemon. It runs asynchrously
+    //       with a feedback handler thread that gets any
+    //       results.
+
     dlog(7, "Submitting query (%25s) ...\n", query);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &msg,   4096, false);
     SOS_buffer_init_sized_locking(SOS, &reply, 2048, false);
-
 
     SOS_msg_header header;
     header.msg_size = -1;
@@ -333,20 +361,21 @@ SOSA_exec_query(
         // this generally should not happen unless the daemon is
         // submitting queries internally, which is downright
         // funky and shouldn't be happening, IMO.  -CW
-        query_guid = -99999;
+        fprintf(stderr, "WARNING: Query submitted where role != SOS_ROLE_CLIENT."
+                " This behavior is not presently supported, use at your"
+                " own risk.\n");
+        fflush(stderr);
+        query_guid = 0;
     }
     dlog(7, "   ... assigning query_guid = %" SOS_GUID_FMT "\n",
             query_guid);
     
     int rc = 0;
+    rc = SOS_buffer_pack(msg, &offset, "i", group_topology);
     rc = SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);
-    if (rc <= 0) { /* simple error check */ return -99; }
     rc = SOS_buffer_pack(msg, &offset, "i", SOS->config.receives_port);
-    if (rc <= 0) { /* simple error check */ return -99; }
-    rc = SOS_buffer_pack(msg, &offset, "s", query);
-    if (rc <= 0) { /* simple error check */ return -99; }
+    rc = SOS_buffer_pack(msg, &offset, "s", sql);
     rc = SOS_buffer_pack(msg, &offset, "g", query_guid);
-    if (rc <= 0) { /* simple error check */ return -99; }
 
     header.msg_size = offset;
     offset = 0;
@@ -355,17 +384,11 @@ SOSA_exec_query(
     dlog(7, "   ... sending to daemon.\n");
     SOS_socket *target = NULL;
     rc = SOS_target_init(SOS, &target, target_host, target_port);
-    if (rc < 0) { /* simple error check */ return -99; }
     rc = SOS_target_connect(target);
-    if (rc < 0) { /* simple error check */ return -99; }
     rc = SOS_target_send_msg(target, msg);
-    if (rc < 0) { /* simple error check */ return -99; }
     rc = SOS_target_recv_msg(target, reply);
-    if (rc < 0) { /* simple error check */ return -99; }
     rc = SOS_target_disconnect(target);
-    if (rc < 0) { /* simple error check */ return -99; }
     rc = SOS_target_destroy(target);
-    if (rc < 0) { /* simple error check */ return -99; }
 
     SOS_buffer_destroy(msg);
     SOS_buffer_destroy(reply);
@@ -1192,6 +1215,7 @@ void SOSA_results_wipe(SOSA_results *results) {
     for (row = 0; row < results->row_count; row++) {
         for (col = 0; col < results->col_count; col++) {
             if (results->data[row][col] != NULL) {
+                *results->data[row][col] = '\0';
                 free(results->data[row][col]);
                 results->data[row][col] = NULL;
             }
@@ -1200,6 +1224,7 @@ void SOSA_results_wipe(SOSA_results *results) {
 
     for (col = 0; col < results->col_count; col++) {
         if (results->col_names[col] != NULL) {
+            *results->col_names[col] = '\0';
             free(results->col_names[col]);
             results->col_names[col] = NULL;
         }

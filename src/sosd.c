@@ -406,6 +406,13 @@ int main(int argc, char *argv[])  {
     //
     SOSD_listen_loop();
     //
+    // TODO: SHUTDOWN
+    //       Set a flag and stop taking in new work while queues are drained.
+        // ... (this works by default for now, until async shutdown gets more
+        //      sophisticated.)
+    // TODO: QUERY
+    //       Wait for results to come in from all dispatched 
+    //
     // Wait for the database to be done flushing...
     //
     if (SOS->config.options->db_disabled == false) {
@@ -444,7 +451,8 @@ int main(int argc, char *argv[])  {
         dlog(1, "Exporting complete.\n");
     } // end: if DB enabled
 
-    // TODO: Send a trigger to the "__SOS" channel to provide notice of shutdown.
+    // TODO: SHUTDOWN 
+    //       Send a trigger to the "__SOS" channel to provide notice of shutdown.
     //       This is a really nice idea for soft-coordinated shutdown.
 
 
@@ -843,6 +851,14 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     free(query->reply_host);
                     query->reply_host = NULL;
                 }
+                if (query->group_rank_host != NULL) {
+                    free(query->group_rank_host);
+                    query->group_rank_host = NULL;
+                }
+                if (query->query_sql != NULL) {
+                    free(query->query_sql);
+                    query->query_sql = NULL;
+                }
                 SOSA_results_destroy(query->results);
                 free(query);
                 free(task);
@@ -944,7 +960,8 @@ void* SOSD_THREAD_feedback_sync(void *args) {
                     }
 
                     /*
-                     *  Uncomment in case of emergency:
+                     *  Uncomment in case of emergency.  You'll thank me later.
+                     *      -Chad:
                      *
                     fprintf(stderr, "Message for the client at %s:%d  ...\n",
                             sense->remote_host, sense->remote_port);
@@ -1206,7 +1223,11 @@ void* SOSD_THREAD_cloud_recv(void *args) {
 }
 
 
-void* SOSD_THREAD_cloud_send(void *args) {
+
+
+
+void*
+SOSD_THREAD_cloud_send(void *args) {
     SOSD_sync_context *my = (SOSD_sync_context *) args;
     SOS_SET_CONTEXT(my->sos_context, "SOSD_THREAD_cloud_send");
     struct timeval   now;
@@ -1710,14 +1731,20 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     query_handle = (SOSD_query_handle *)
             calloc(1, sizeof(SOSD_query_handle));
 
-    query_handle->state          = SOS_QUERY_STATE_INCOMING;
-    query_handle->reply_to_guid  = header.msg_from;
-    query_handle->query_guid     = -1;
-    query_handle->query_sql      = NULL;
-    query_handle->reply_host     = NULL;
-    query_handle->reply_port     = -1;
+    query_handle->state            = SOS_QUERY_STATE_INCOMING;
+    query_handle->group_topology   = SOS_TOPOLOGY_DEFAULT;
+    query_handle->group_guid       = 0;
+    query_handle->group_size       = 0;
+    query_handle->group_rank       = 0;
+    query_handle->group_rank_host  = NULL;
+    query_handle->query_guid       = -1;
+    query_handle->query_sql        = NULL;
+    query_handle->reply_to_guid    = header.msg_from;
+    query_handle->reply_host       = NULL;
+    query_handle->reply_port       = -1;
 
     dlog(6, "   ...extracting query...\n");
+    SOS_buffer_unpack(buffer, &offset, "i", &query_handle->group_topology);
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->reply_host);
     SOS_buffer_unpack(buffer, &offset, "i", &query_handle->reply_port);
     SOS_buffer_unpack_safestr(buffer, &offset, &query_handle->query_sql);
@@ -1730,53 +1757,41 @@ void SOSD_handle_query(SOS_buffer *buffer) {
     dlog(6, "      ...received query_sql: \"%s\"\n",
             query_handle->query_sql);
 
-    if (SOS->config.options->db_disabled) {
-        // DB is DISABLED
-        //
-        // Since the database is disabled (and clients might not know
-        // this) we need to take a different response here than to
-        // queue it up into the database work order system, as none of
-        // that has been initialized.
-        //
-        // Construct an empty response, drop it in the feedback queue,
-        // and return.  Unblock clients who are waiting for results.
-      
-        dlog(6, "   ...DB is disabled, assembling empty set to reply.\n");
 
-        SOSA_results *results = NULL;
-        SOSA_results_init(SOS, &results); 
-        SOSA_results_label(results,
-                query_handle->query_guid, query_handle->query_sql);
-        results->col_count     = 0;
-        results->row_count     = 0;
-        results->exec_duration = 0.0;
-
-        query_handle->results = results;
-
-        // NOTE: For debugging.  These should not be needed.
-        //SOSA_results_put_name(results, 0, "<error>");
-        //SOSA_results_put(results, 0, 0, "<db disabled>");
-
-        SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
-        feedback->type = SOS_FEEDBACK_TYPE_QUERY;
-        feedback->ref = query_handle;
-        pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
-        pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
-        SOSD.sync.feedback.queue->elem_count++;
-        pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
+    switch (query_handle->group_topology) {
+        case SOS_TOPOLOGY_ALL_AGGREGATORS:
+        case SOS_TOPOLOGY_ALL_LISTENERS:
+        case SOS_TOPOLOGY_ATTACHED_LISTENERS:
+            //TODO: QUERY
+            //Send this to a special "query-repeater" function,
+            //it will (here on the daemon side) figure out the correct
+            //rank, size, rebroadcast list, etc. and package up the
+            //query so that it goes out to all the relevant targets
+            //with the proper message structure to be reassembled here
+            //and returned to the client.
+            //
+            //NOTE: We do NOT need to submit it locally here, the
+            //      repeater function will decide whether that is
+            //      appropriate.
+            SOSD_apply_query_to_cloud(query_handle); 
+            break;
         
-    } else {
-        // DB is ENABLED
-        dlog(6, "   ...placing query in DB queue.\n");
-        SOSD_db_task *task = NULL;
-        task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
-        task->ref = (void *) query_handle;
-        task->type = SOS_MSG_TYPE_QUERY;
-        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
-        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
-        SOSD.sync.db.queue->elem_count++;
-        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
-
+        case SOS_TOPOLOGY_DEFAULT:
+            //Query is serviced LOCALLY by this daemon, NO NEED to forward it.
+            SOSD_apply_query_to_local(query_handle);
+            break;
+        
+        default:
+            //Something is wrong.
+            //Either there is corrupt data, or the intermediate results
+            //were submitted to this daemon's client message intake port
+            //instead of the inter-daemon back-channel.
+            //TODO: Insert error message.
+            fprintf(stderr, "ERROR: Discarding query message because invalid"
+                    " topology (state) was submitted to the client message"
+                    " intake port.\n");
+            fflush(stderr);
+            //TODO: Free objects
     }
 
     dlog(6, "   ...sending ACK to client.\n");
@@ -2631,7 +2646,10 @@ void SOSD_init() {
     // [hashtable]
     dlog(1, "Setting up a hash table for pubs...\n");
     SOSD.pub_table      = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
-    SOSD.pub_list_head  = NULL;
+    SOSD.pub_list_head  = NULL; 
+
+    dlog(1, "Initializing remote query list...\n");
+    SOSD.db.remote_query_list_head = NULL;
 
     dlog(1, "Daemon initialization is complete.\n");
     SOSD.daemon.running = 1;
@@ -2693,6 +2711,74 @@ SOSD_claim_guid_block(
     }
 
     pthread_mutex_unlock( id->lock );
+
+    return;
+}
+
+
+void
+SOSD_apply_query_to_cloud(SOSD_query_handle *query)
+{
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_apply_query_to_cloud");
+
+    
+
+    return;
+}
+
+
+
+void
+SOSD_apply_query_to_local(SOSD_query_handle *query_handle)
+{
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_apply_query_to_local");
+    // Handle ingest into the local database task queue:
+    if (SOS->config.options->db_disabled) {
+        // DB is DISABLED
+        //
+        // Since the database is disabled (and clients might not know
+        // this) we need to take a different response here than to
+        // queue it up into the database work order system, as none of
+        // that has been initialized.
+        //
+        // Construct an empty response, drop it in the feedback queue,
+        // and return.  Unblock clients who are waiting for results.
+        // 
+        // Sorry... this is one one of those weird edge cases of
+        // an online distributed system.  :/
+
+        dlog(6, "   ...DB is disabled, assembling empty set to reply.\n");
+
+        SOSA_results *results = NULL;
+        SOSA_results_init(SOS, &results); 
+        SOSA_results_label(results,
+                query_handle->query_guid, query_handle->query_sql);
+        results->col_count     = 0;
+        results->row_count     = 0;
+        results->exec_duration = 0.0;
+
+        query_handle->results = results;
+
+        SOSD_feedback_task *feedback = calloc(1, sizeof(SOSD_feedback_task));
+        feedback->type = SOS_FEEDBACK_TYPE_QUERY;
+        feedback->ref = query_handle;
+        pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
+        pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
+        SOSD.sync.feedback.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
+        
+    } else {
+        // DB is ENABLED
+        dlog(6, "   ...placing query in DB queue.\n");
+        SOSD_db_task *task = NULL;
+        task = (SOSD_db_task *) calloc(1, sizeof(SOSD_db_task));
+        task->ref = (void *) query_handle;
+        task->type = SOS_MSG_TYPE_QUERY;
+        pthread_mutex_lock(SOSD.sync.db.queue->sync_lock);
+        pipe_push(SOSD.sync.db.queue->intake, (void *) &task, 1);
+        SOSD.sync.db.queue->elem_count++;
+        pthread_mutex_unlock(SOSD.sync.db.queue->sync_lock);
+    }
 
     return;
 }

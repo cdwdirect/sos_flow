@@ -89,6 +89,20 @@ SOSD_evpath_message_handler(
                 pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
                 break;
 
+            case SOS_MSG_TYPE_QUERY:
+                // TODO: QUERY
+                //       This can be one of THREE things:
+                //       1. We're receiving a request to process our part of a query.
+                //       2. We're responsible for forwarding this message down to our
+                //          attached listeners. We don't do any further work in this case.
+                //       3. This is a reply we need to drop into the compiled
+                //          results being assembled.
+                
+
+                //...
+
+                break;
+
             case SOS_MSG_TYPE_REGISTER:
                 SOSD_aggregator_register_listener(msg);
                 break;
@@ -223,6 +237,39 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
     EVsubmit(node->src, &rec, NULL);
 
     dlog(3, "Registration complete.\n");
+
+    return;
+}
+
+
+void
+SOSD_cloud_send_to_toplogy(SOS_buffer *msg, SOS_topology topology)
+{
+    SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_send_to_topology");
+    if ((topology == SOS_TOPOLOGY_REPLY_PRE_MERGE)
+     || (topology == SOS_TOPOLOGY_REPLY_POST_MERGE)) {
+            dlog(0, "ERROR: Function called with REPLY_PRE/POST_MERGE flag."
+                    " This function supports outbound messages only. Doing"
+                    " nothing.\n");
+            return;
+    }
+    
+    //TODO: QUERY
+    //Here we're going to dispatch the message to the appropriate [sub]set.
+    //It gets wrapped like a typical direct P2P cloud missive.
+    //The handler on the other end deals with it being a shard of a larger
+    //query, and sends any results back here to get processed after the fact.
+
+     
+
+    switch (topology) {
+        case SOS_TOPOLOGY_ALL_AGGREGATORS:
+            break;
+        case SOS_TOPOLOGY_ALL_LISTENERS:
+            break;
+        case SOS_TOPOLOGY_ATTACHED_LISTENERS:
+            break;
+    }
 
     return;
 }

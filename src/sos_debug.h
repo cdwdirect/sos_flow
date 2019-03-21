@@ -38,8 +38,6 @@ int     sos_daemon_lock_fptr;
 FILE   *sos_daemon_log_fptr;
 
 
-/* Defined in sosd.c ... */
-
 #if (SOS_DEBUG < 0)
 
     /* Nullify the variadic debugging macros wherever they are in code: */

@@ -60,8 +60,6 @@
 
 #define FOREACH_RECEIVES(RECEIVES)              \
     RECEIVES(SOS_RECEIVES_DIRECT_MESSAGES)      \
-    RECEIVES(SOS_RECEIVES_TIMED_CHECKIN)        \
-    RECEIVES(SOS_RECEIVES_MANUAL_CHECKIN)       \
     RECEIVES(SOS_RECEIVES_NO_FEEDBACK)          \
     RECEIVES(SOS_RECEIVES_DAEMON_MODE)          \
     RECEIVES(SOS_RECEIVES___MAX)
@@ -74,6 +72,7 @@
 
 #define FOREACH_PUB_OPTION(PUB_OPTION)          \
     PUB_OPTION(SOS_PUB_OPTION_CACHE)            \
+    PUB_OPTION(SOS_PUB_OPTION_SNAP_DEPTH)       \
     PUB_OPTION(SOS_PUB_OPTION___MAX)
 
 #define FOREACH_QUERY_STATE(QUERY_STATE)        \
@@ -235,6 +234,15 @@
     LOCALE(SOS_LOCALE_APPLICATION)              \
     LOCALE(SOS_LOCALE___MAX)
 
+#define FOREACH_TOPOLOGY(TOPOLOGY)              \
+    TOPOLOGY(SOS_TOPOLOGY_DEFAULT)              \
+    TOPOLOGY(SOS_TOPOLOGY_ALL_AGGREGATORS)      \
+    TOPOLOGY(SOS_TOPOLOGY_ALL_LISTENERS)        \
+    TOPOLOGY(SOS_TOPOLOGY_ATTACHED_LISTENERS)   \
+    TOPOLOGY(SOS_TOPOLOGY_REPLY_PRE_MERGE)    \
+    TOPOLOGY(SOS_TOPOLOGY_REPLY_POST_MERGE)   \
+    TOPOLOGY(SOS_TOPOLOGY___MAX)
+
 
 #define GENERATE_ENUM(ENUM) ENUM,
 #define GENERATE_STRING(STRING) #STRING,
@@ -262,6 +270,7 @@ typedef enum { FOREACH_LAYER(GENERATE_ENUM)         } SOS_layer;
 typedef enum { FOREACH_NATURE(GENERATE_ENUM)        } SOS_nature;
 typedef enum { FOREACH_RETAIN(GENERATE_ENUM)        } SOS_retain;
 typedef enum { FOREACH_LOCALE(GENERATE_ENUM)        } SOS_locale;
+typedef enum { FOREACH_TOPOLOGY(GENERATE_ENUM)      } SOS_topology;
 
 static const char *SOS_ROLE_str[] __attribute__((__unused__)) =          { FOREACH_ROLE(GENERATE_STRING)         };
 static const char *SOS_STATUS_str[] __attribute__((__unused__)) =        { FOREACH_STATUS(GENERATE_STRING)       };
@@ -286,6 +295,7 @@ static const char *SOS_LAYER_str[] __attribute__((__unused__)) =         { FOREA
 static const char *SOS_NATURE_str[] __attribute__((__unused__)) =        { FOREACH_NATURE(GENERATE_STRING)       };
 static const char *SOS_RETAIN_str[] __attribute__((__unused__)) =        { FOREACH_RETAIN(GENERATE_STRING)       };
 static const char *SOS_LOCALE_str[] __attribute__((__unused__)) =        { FOREACH_LOCALE(GENERATE_STRING)       };
+static const char *SOS_TOPOLOGY_str[] __attribute__((__unused__)) =      { FOREACH_TOPOLOGY(GENERATE_STRING)     };
 
 #define SOS_ENUM_IN_RANGE(__SOS_var_name, __SOS_max_name)  (__SOS_var_name >= 0 && __SOS_var_name < __SOS_max_name)
 #define SOS_ENUM_STR(__SOS_var_name, __SOS_enum_type)  SOS_ENUM_IN_RANGE(__SOS_var_name, (__SOS_enum_type ## ___MAX)) ? __SOS_enum_type ## _str[__SOS_var_name] : "** " #__SOS_enum_type " is INVALID **"
