@@ -241,9 +241,8 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
     return;
 }
 
-
 void
-SOSD_cloud_send_to_toplogy(SOS_buffer *msg, SOS_topology topology)
+SOSD_cloud_send_to_topology(SOS_buffer *msg, SOS_topology topology)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_send_to_topology");
     if ((topology == SOS_TOPOLOGY_REPLY_PRE_MERGE)
@@ -411,7 +410,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
  *
  *    The SOSD.daemon.cloud_sync stuff can likely change here, if EVPATH
  *    is going to handle it's business differently.  The sync_target refers
- *    to the centralized store (here, stone?) that this daemon is pointing to
+ *    to the centralized store (here, stone) that this daemon is pointing to
  *    for off-node transport.  The general system allows for multiple "back-
  *    plane stores" launched alongside the daemons, to provide reasonable
  *    scalability and throughput.
@@ -564,8 +563,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             malloc(expected_node_count * sizeof(SOSD_evpath_node *));
         int node_idx = 0;
         for (node_idx = 0; node_idx < expected_node_count; node_idx++) {
-            // Allocate space to store returning connections to clients...
-            // NOTE: Fill in later, as clients connect.
+            // Allocate space to store connections to LISTENERS...
+            // NOTE: Filled in later, as LISTENERS connect during their init..
+            // NOTE: We also allocate space to store AGGREGATOR peer connections.
             evp->node[node_idx] =
                 (SOSD_evpath_node *) calloc(1, sizeof(SOSD_evpath_node));
             snprintf(evp->node[node_idx]->name, 256, "%d", node_idx);
@@ -588,6 +588,14 @@ int SOSD_cloud_init(int *argc, char ***argv) {
                 SOSD.net->local_port);
         fflush(contact_file);
         fclose(contact_file);
+
+        //TODO: QUERY
+        //NOTE: Here we want to set up a loop to move through the .key files,
+        //      much as the listener does below, but for all of the ranks of
+        //      aggregators, so we can build connections to them for use in
+        //      dispatching parallel query messages.
+        
+        // ...
 
     } else {
 

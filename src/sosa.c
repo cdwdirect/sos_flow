@@ -323,7 +323,7 @@ SOSA_exec_query_on_topology(
     const char             *target_host,
     int                     target_port)
 {
-    SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
+    SOS_SET_CONTEXT(sos_context, "SOSA_exec_query_on_topology");
 
     // NOTE: This function is called by clients (and SSOS) to
     //       dispatch a query to the daemon. It runs asynchrously
@@ -369,7 +369,7 @@ SOSA_exec_query_on_topology(
     }
     dlog(7, "   ... assigning query_guid = %" SOS_GUID_FMT "\n",
             query_guid);
-    
+
     int rc = 0;
     rc = SOS_buffer_pack(msg, &offset, "i", group_topology);
     rc = SOS_buffer_pack(msg, &offset, "s", SOS->config.node_id);

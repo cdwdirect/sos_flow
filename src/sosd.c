@@ -513,6 +513,35 @@ int main(int argc, char *argv[])  {
     SOSD_cloud_finalize();
     #endif
 
+    // NOTE: I've decided to move this into the client.
+    //       SOSD gets the parallel query request, dispatches it,
+    //       but then all daemons send their results to the
+    //       client who submitted the query, and the client
+    //       transparently waits for all the results to come in,
+    //       combines them, and delivers the combined results to
+    //       the feedback handler function.
+    //dlog(1, "Cleaning up remote query list.\n");
+    //pthread_mutex_lock(SOSD.db.remote_query_list_lock);
+    //SOS_list_entry *rq = SOSD.db.remote_query_list_head;
+    //while (rq != NULL) {
+    //    SOSD_query_handle *query = (SOSD_query_handle *) rq->ref;
+    //    if (query == NULL) {
+    //        // Shouldn't happen, but move on.
+    //        rq = rq->next_entry;
+    //        continue;
+    //    }
+    //    if (query->reply_host      != NULL) { free(query->reply_host);        }
+    //    if (query->group_rank_host != NULL) { free(query->group_rank_host);   }
+    //    if (query->query_sql       != NULL) { free(query->query_sql);         }
+    //    if (query->results         != NULL) {
+    //        SOSA_results_destroy((SOSA_results *) query->results);
+    //    }
+    //    free(query);
+    //    rq = rq->next_entry;
+    //}
+    //pthread_mutex_destroy(SOSD.db.remote_query_list_lock);
+    //free(SOSD.db.remote_query_list_lock);
+
     dlog(1, "Shutting down SOS services.\n");
     SOS_finalize(SOS);
 
@@ -1723,6 +1752,9 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
+    // NOTE: This captures and handles initial requests from clients.
+    //       Message buffer arrives, query_handle is constructed
+    //       and added to the task pool.
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);
@@ -1733,7 +1765,6 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     query_handle->state            = SOS_QUERY_STATE_INCOMING;
     query_handle->group_topology   = SOS_TOPOLOGY_DEFAULT;
-    query_handle->group_guid       = 0;
     query_handle->group_size       = 0;
     query_handle->group_rank       = 0;
     query_handle->group_rank_host  = NULL;
@@ -1762,20 +1793,17 @@ void SOSD_handle_query(SOS_buffer *buffer) {
         case SOS_TOPOLOGY_ALL_AGGREGATORS:
         case SOS_TOPOLOGY_ALL_LISTENERS:
         case SOS_TOPOLOGY_ATTACHED_LISTENERS:
-            //TODO: QUERY
-            //Send this to a special "query-repeater" function,
-            //it will (here on the daemon side) figure out the correct
-            //rank, size, rebroadcast list, etc. and package up the
-            //query so that it goes out to all the relevant targets
-            //with the proper message structure to be reassembled here
-            //and returned to the client.
-            //
             //NOTE: We do NOT need to submit it locally here, the
             //      repeater function will decide whether that is
             //      appropriate.
+            //NOTE: The SOSD_cloud_... function actually runs the query,
+            //      if a message of this type arrives on that end,
+            //      it means it was sent from somewhere else, and can
+            //      be either forwarded or made into a DB task.
             SOSD_apply_query_to_cloud(query_handle); 
             break;
         
+
         case SOS_TOPOLOGY_DEFAULT:
             //Query is serviced LOCALLY by this daemon, NO NEED to forward it.
             SOSD_apply_query_to_local(query_handle);
@@ -2648,8 +2676,12 @@ void SOSD_init() {
     SOSD.pub_table      = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
     SOSD.pub_list_head  = NULL; 
 
-    dlog(1, "Initializing remote query list...\n");
-    SOSD.db.remote_query_list_head = NULL;
+    // NOTE: This behavior doesn't need to be tracked in the daemon.
+    //       Results are returned directly to clients.
+    //dlog(1, "Initializing remote query list...\n");
+    //SOSD.db.remote_query_list_lock = calloc(1, sizeof(pthread_mutex_t));
+    //pthread_mutex_init(SOSD.db.remote_query_list_lock, NULL);
+    //SOSD.db.remote_query_list_head = NULL;
 
     dlog(1, "Daemon initialization is complete.\n");
     SOSD.daemon.running = 1;
@@ -2721,8 +2753,40 @@ SOSD_apply_query_to_cloud(SOSD_query_handle *query)
 {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_apply_query_to_cloud");
 
-    
+    SOS_msg_header header;
+    int offset = 0;
 
+    SOS_buffer *msg;
+    SOS_buffer_init_sized_locking(SOSD.sos_context, &msg, 1024, false);
+
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_QUERY;
+    header.msg_from = SOS->config.comm_rank;
+    header.ref_guid = -1;
+
+    // NOTE: We don't know the size and rank here, but we pack
+    //       in filler values that will get overwritten by the
+    //       cloud function that dispatches this message to
+    //       the requested topology.
+    SOS_msg_zip(msg, header, 0, &offset);
+    SOS_buffer_pack(msg, &offset, "iiisg",
+            query->group_topology,
+            query->group_size,
+            query->group_rank,
+            query->query_sql);
+
+    // NOTE: Deprecating this, we track/await results in the client,
+    //       no overall query state needs to be maintained in the daemons.
+    //SOS_list_entry *ticket = calloc(1, sizeof(SOS_list_entry));
+    //pthread_mutex_lock(SOSD.db.remote_query_list_lock);
+    //ticket->ref = (void *)query;
+    //ticket->next_entry = SOSD.db.remote_query_list_head;
+    //SOSD.db.remote_query_list_head = ticket;
+    //pthread_mutex_unlock(SOSD.db.remote_query_list_lock);
+
+    SOSD_cloud_send_to_topology(msg, query->group_topology);
+
+    // Done.
     return;
 }
 
@@ -2732,6 +2796,7 @@ void
 SOSD_apply_query_to_local(SOSD_query_handle *query_handle)
 {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_apply_query_to_local");
+
     // Handle ingest into the local database task queue:
     if (SOS->config.options->db_disabled) {
         // DB is DISABLED

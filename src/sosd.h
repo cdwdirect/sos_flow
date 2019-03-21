@@ -75,15 +75,14 @@ typedef struct {
 typedef struct {
     SOS_query_state     state;             // State of this instance/shard's resolution
     SOS_guid            reply_to_guid;     // GUID of the originating client process
-    char               *reply_host;        // Post-reply, combined results are sent here
-    int                 reply_port;        // Post-reply, combined results are sent here
+    char               *reply_host;        // Results are sent here
+    int                 reply_port;        // Results are sent here
+    SOS_guid            query_guid;        // ID of original query (asking client assigns)
+    char               *query_sql;         // SQL query for this instance
     SOS_topology        group_topology;    // State of distributed query resolution
-    SOS_guid            group_guid;        // ID of original query (asking client assigns)
     int                 group_size;        // Logical size of group handling dist. query
     int                 group_rank;        // Logical rank within group handling dist. query
     char               *group_rank_host;   // During reply, hostname assigned to results
-    char               *query_sql;         // SQL query for this instance
-    SOS_guid            query_guid;        // ID for this [potential] fragment of results
     void               *results;           // Where the results live, combined or not
 } SOSD_query_handle;
 
@@ -233,7 +232,9 @@ typedef struct {
     SOSD_frame_note    *frame_note_pub_list_head;
     qhashtbl_t         *frame_note_val_table;
     SOSD_frame_note    *frame_note_val_list_head;
-    SOS_list_entry     *remote_query_list_head;
+    // NOTE: Removed, this is tracked in SOS client.
+    //pthread_mutex_t    *remote_query_list_lock;
+    //SOS_list_entry     *remote_query_list_head;
 } SOSD_db;
 
 typedef struct {
