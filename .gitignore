@@ -7,6 +7,7 @@ rebaseme.sh
 sourceme.sh
 build*
 IDEAS
+TODO.txt
 src/sosa_mods/test
 .idea
 cmake-build-debug

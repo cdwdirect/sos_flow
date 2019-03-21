@@ -2127,7 +2127,7 @@ int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
 
     if (pub->snap_queue == NULL) {
         dlog(0, "WARNING: Tried to pack a snap into a pub->snap_queue"
-                " that is NULL. This happens when a daemon is publishing"
+                " that is NULL. This can happen when a daemon is publishing"
                 " to itself and the pub->snap_queue has not manually been"
                 " set to the SOSD.db.snap_queue pointer. Doing nothing.\n");
         return snap->elem;
