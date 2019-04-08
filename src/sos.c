@@ -978,8 +978,15 @@ void SOS_finalize(SOS_runtime *sos_context) {
     pthread_mutex_destroy(SOS->task.reference_table_lock);
 
     dlog(1, "Done!\n");
+    /* Disabling this code, because of a race condition.
+     * We need to make sure that the spawned threads have
+     * all terminated before this happens, because we can't
+     * delete a global object until they are done.  OTOH,
+     * this is a tiny memory leak at exit, so not the end
+     * of the world.
     memset(SOS, sizeof(SOS_runtime), '\0');
     free(SOS);
+    */
 
     return;
 }
@@ -1460,11 +1467,7 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
 
     new_pub->sync_pending = 0; // Used by daemon/db to coordinate db injection.
 
-    if (SOS->role == SOS_ROLE_AGGREGATOR) {
-        new_pub->guid = -1;
-    } else {
-        new_pub->guid = SOS_uid_next( SOS->uid.my_guid_pool );
-    }
+    new_pub->guid = SOS_uid_next( SOS->uid.my_guid_pool );
 
     snprintf(new_pub->guid_str, SOS_DEFAULT_STRING_LEN,
             "%" SOS_GUID_FMT, new_pub->guid);
@@ -1475,7 +1478,8 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
     new_pub->thread_id    = 0;
     new_pub->comm_rank    = SOS->config.comm_rank;
     new_pub->pragma_len   = 0;
-    strcpy(new_pub->title, title);
+    memset(new_pub->title, 0, SOS_DEFAULT_STRING_LEN);
+    strncpy(new_pub->title, title, SOS_DEFAULT_STRING_LEN);
     new_pub->announced           = 0;
     new_pub->elem_count          = 0;
     new_pub->elem_max            = new_size;
@@ -1537,6 +1541,8 @@ SOS_pub_init_sized(SOS_runtime *sos_context,
                 " for snap queue.\n");
         SOS_pipe_init((void *) SOS, &new_pub->snap_queue,
                 sizeof(SOS_val_snap *));
+    } else {
+        new_pub->snap_queue = NULL;
     }
 
     dlog(6, "  ... initializing the name table for values.\n");
@@ -2119,6 +2125,14 @@ int SOS_pack_snap_add_to_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
 int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
     SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_into_val_queue");
 
+    if (pub->snap_queue == NULL) {
+        dlog(0, "WARNING: Tried to pack a snap into a pub->snap_queue"
+                " that is NULL. This happens when a daemon is publishing"
+                " to itself and the pub->snap_queue has not manually been"
+                " set to the SOSD.db.snap_queue pointer. Doing nothing.\n");
+        return snap->elem;
+    }
+    
     pthread_mutex_lock(pub->snap_queue->sync_lock);
     pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
     pub->snap_queue->elem_count++;
@@ -2651,11 +2665,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     
     SOS_TIME( send_time );
 
-    if (SOS->role == SOS_ROLE_CLIENT) {
-        // Only CLIENT updates the frame when sending, in case this is re-used
-        // internally / on the backplane by the LISTENER / AGGREGATOR. */
-        this_frame = pub->frame++;
-    }
+    this_frame = pub->frame++;
 
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_PUBLISH;

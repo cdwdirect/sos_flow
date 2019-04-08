@@ -68,7 +68,7 @@ option(SOS_FORCE_RPATH
 
 option(SOS_SANITIZE_ADDRESS
     "Enable address sanitizer compiler flags"
-    OFF)
+    ON)
 
 option(SOS_SANITIZE_THREAD
     "Enable thread sanitizer compiler flags"
@@ -131,9 +131,9 @@ if ("${CMAKE_C_COMPILER_ID}" STREQUAL "GNU")
         endif(SOS_SANITIZE_ADDRESS OR SOS_SANITIZE_THREAD)
     else(CMAKE_C_COMPILER_VERSION VERSION_LESS 5.0)
         if(SOS_SANITIZE_ADDRESS)
-            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address")
-            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address")
-            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -pthread")
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -pthread")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fsanitize=address -pthread")
         endif(SOS_SANITIZE_ADDRESS)
 
         if(SOS_SANITIZE_THREAD)
