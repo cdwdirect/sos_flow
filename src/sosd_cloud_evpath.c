@@ -455,6 +455,9 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     char *contact_filename = (char *) calloc(2048, sizeof(char));
     snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
         evp->meetup_path, aggregation_rank);
+    char *present_filename = (char *) calloc(2048, sizeof(char));
+    snprintf(present_filename, 2048, "%s/sosd.%05d.id",
+        evp->meetup_path, SOSD.sos_context->config.comm_rank);
     dlog(1, "   ... contact_filename: %s\n", contact_filename);
 
     dlog(1, "   ... creating connection manager:\n");
@@ -631,8 +634,20 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         SOSD_cloud_send(buffer, NULL);
         SOS_buffer_destroy(buffer);
     }
+    
+    FILE *present_file;
+    // set the node id before we use it.
+    present_file = fopen(present_filename, "w");
+    fprintf(present_file, "%s\n%s\n%s\n",
+            evp->recv.contact_string,
+            SOSD.sos_context->config.node_id,
+            SOSD.net->local_port);
+    fflush(present_file);
+    fclose(present_file);
+
 
     free(contact_filename);
+    free(present_filename);
     dlog(1, "   ... done.\n");
 
     return 0;
