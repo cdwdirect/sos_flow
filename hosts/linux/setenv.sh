@@ -10,7 +10,7 @@ export SOS_HOST_DETAILED="\"$(uname -o) $(uname -r) $(uname -m)\""
 
 # Runtime options
 export SOS_CMD_PORT=22500
-export SOS_ROOT=$BASEDIR
+export SOS_BASE=$BASEDIR
 export SOS_WORK=`pwd`
 export BUILDDIR=build
 export SOS_BUILD_DIR=$BASEDIR/$BUILDDIR
@@ -48,7 +48,7 @@ echo "     \$SOS_HOST_KNOWN_AS  = $SOS_HOST_KNOWN_AS"
 echo "     \$SOS_HOST_NODE_NAME = $SOS_HOST_NODE_NAME"
 echo "     \$SOS_HOST_DETAILED  = $SOS_HOST_DETAILED"
 echo "     \$SOS_CMD_PORT       = $SOS_CMD_PORT"
-echo "     \$SOS_ROOT           = $SOS_ROOT"
+echo "     \$SOS_BASE           = $SOS_BASE"
 echo "     \$SOS_WORK           = $SOS_WORK"
 echo "     \$SOS_BUILD_DIR      = $SOS_BUILD_DIR"
 echo ""
@@ -70,14 +70,14 @@ echo "     \$SOS_SYSTEM_MONITOR_FREQ_USEC = $SOS_SYSTEM_MONITOR_FREQ_USEC"
 echo ""
 
 echo "Updating paths:"
-echo "     \$PATH            += \$SOS_ROOT/scripts"
-export PATH="${PATH}:$SOS_ROOT/scripts"
+echo "     \$PATH            += \$SOS_BASE/scripts"
+export PATH="${PATH}:$SOS_BASE/scripts"
 
 echo "     \$PYTHONPATH      += \$SOS_BUILD_DIR/lib"
 if [ "x$PYTHONPATH" == "x" ] ; then
-  PYTHONPATH=$SOS_ROOT/src/python
+  PYTHONPATH=$SOS_BASE/src/python
 else
-  PYTHONPATH=$SOS_ROOT/src/python:$PYTHONPATH
+  PYTHONPATH=$SOS_BASE/src/python:$PYTHONPATH
 fi
 
 echo "     \$LD_LIBRARY_PATH += \$SOS_BUILD_DIR/lib"
