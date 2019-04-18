@@ -18,12 +18,12 @@
 
 
 void SOSA_cache_to_results(
-        SOS_runtime *sos_context,
-        SOSA_results *results,
-        char *pub_filter_str,
-        char *val_filter_str,
-        int frame_head,
-        int frame_depth_limit)
+        SOS_runtime        *sos_context,
+        SOSA_results       *results,
+        const char         *pub_filter_str,
+        const char         *val_filter_str,
+        int                 frame_head,
+        int                 frame_depth_limit)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_cache_to_results");
     double start_time = 0.0;
@@ -214,13 +214,13 @@ void SOSA_cache_to_results(
 
 SOS_guid
 SOSA_cache_grab(
-        SOS_runtime *sos_context,
-        char *pub_filter_regex,
-        char *val_filter_regex,
-        int frame_head,
-        int frame_depth_limit,
-        char *target_host,
-        int target_port)
+        SOS_runtime        *sos_context,
+        const char         *pub_filter_regex,
+        const char         *val_filter_regex,
+        int                 frame_head,
+        int                 frame_depth_limit,
+        const char         *target_host,
+        int                 target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_cache_grab");
 
@@ -293,8 +293,11 @@ SOSA_cache_grab(
 
 
 SOS_guid
-SOSA_exec_query(SOS_runtime *sos_context, char *query,
-        char *target_host, int target_port)
+SOSA_exec_query(
+    SOS_runtime            *sos_context,
+    const char             *query,
+    const char             *target_host,
+    int                     target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_exec_query");
 
@@ -470,8 +473,8 @@ SOSA_request_pub_manifest(
         SOS_runtime   *sos_context,
         SOSA_results  *manifest,
         int           *max_frame_overall_var,
-        char          *pub_title_filter,
-        char          *target_host,
+        const char    *pub_title_filter,
+        const char    *target_host,
         int            target_port)
 {
     SOS_SET_CONTEXT(sos_context, "SOSA_request_pub_manifest");
@@ -616,7 +619,13 @@ SOSA_request_pub_manifest(
     return request_guid;
 }
 
-void SOSA_results_put(SOSA_results *results, int col, int row, const char *val) {
+void
+SOSA_results_put(
+    SOSA_results       *results,
+    int                 col, 
+    int                 row,
+    const char         *val)
+{
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_put");
     
     const char nullstr[] = "NULL";
@@ -831,7 +840,7 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
 
 
 
-void SOSA_results_output_to(FILE *fptr, SOSA_results *results, char *title, int options) {
+void SOSA_results_output_to(FILE *fptr, SOSA_results *results, const char *title, int options) {
     SOS_SET_CONTEXT(results->sos_context, "SOSA_results_output_to");
 
     if (fptr == NULL) {

@@ -522,6 +522,7 @@ typedef struct {
 
 
 typedef struct {
+    char                daemon_host[NI_MAXHOST];
     char               *node_id;
     int                 comm_rank;
     int                 comm_size;

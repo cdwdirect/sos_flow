@@ -51,7 +51,6 @@ int SOS_options_init(
     opt->db_frame_limit     = 0;     //0 == No limit
 
     opt->pub_cache_depth    = 0;     //0 == No value cacheing
-
     opt->batch_environment    = false;
     opt->fwd_shutdown_to_agg  = false;
 
@@ -73,9 +72,20 @@ int SOS_options_init(
      && (SOS_obj->config.argv != NULL)) {
         SOS_options_load_argv(opt);
     }
-
-
     return 0;
+}
+void SOS_options_load_file(SOS_options *opt)
+{
+    if (!SOS_file_exists(opt->options_file)) {
+        fprintf(stderr, "WARNING: Invalid path specified for"
+                " SOS options file.  Skipping.\n            "
+                " Path given: %s\n", opt->options_file);
+        return;
+    }
+
+    // TODO: Load and scan options file.
+
+    return;
 }
 
 void SOS_options_load_file(SOS_options *opt)
@@ -156,7 +166,6 @@ void SOS_options_load_evar(SOS_options *opt) {
 
     if (getenv("SOS_PUB_CACHE_DEPTH") != NULL) {
         opt->pub_cache_depth = atoi(getenv("SOS_PUB_CACHE_DEPTH"));
-        printf("opt->pub_cache_depth == %d\n", opt->pub_cache_depth);
         if (opt->pub_cache_depth < 0) {
             opt->pub_cache_depth = 0;
         } else if (opt->pub_cache_depth > 100000) {
