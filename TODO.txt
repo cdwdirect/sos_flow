@@ -1,0 +1,45 @@
+
+----------
+TO-DO list and scratchpad of notes:
+----------
+
+    -- code tag is "TODO: QUERY"
+
+    [code] event processor for SOS_MSG_TYPE_QUERY (new for cloud)
+                //  ... previously we didn't expect or respond to this code.
+                // NOTE: We're going to start getting these now, because
+                //       of parallel query.
+                // So we are now sending queries out to be resolved by various
+                // groups of SOS daemons called "topologies", and so the function
+                // that processes these messages needs to switch between
+                // an incoming request with some distal result target, or
+                // being the host some client chose to pose their request to,
+                // and so they stitch together results from other adjacent SOS
+                // daemons until there is a complete set to concatenate together
+                // and return to its ultimate destination at the client who
+                // asked the initial parallel query question.
+
+    [code] SOSD_cloud_send_to_topology(msg, topology):
+                // NOTE: The task here is to select between the three available outgoing
+                //       topologies.
+                //   ok  C-Step 1: Sanity check settings and request.
+    now -->     //       D-Step 2: Figure out how I stored the information
+                //           that I need to create the target list, based on rank
+                //           order and role. Check cloud_init
+                //       D-Step 3: Decide whether this gets pushed into the protocol
+                //           handler, or we spawn a thread to generate and gather.
+                //           (Intuitively, let's push to protocol, it'll have to look
+                //           up monitoring threads anyway, and another thread just
+                //           adds dynamic impact and locks. As each result set arrives
+                //           back and gets integrated, we can check if we're done.
+                //           IF we are done, we drop the compiled results into a
+                //           feedback queue task and get back to processing cloud messages
+                //           in O(1) time.
+                //       C-Step 4: Data structure to hold intermediate responses.
+                //       C-Step 5: Black-box function to pass the results/replies to
+                //           that isolates analytics complexity from the cloud message
+                //           processing.
+                //       D-Step 6: Validate SQL works again for current API, and each of the new
+                //                 (sanity-check approved) enumerated options.
+                //       ...
+             
