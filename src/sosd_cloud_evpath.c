@@ -98,6 +98,9 @@ SOSD_evpath_message_handler(
                 //       3. This is a reply we need to drop into the compiled
                 //          results being assembled.
                 
+                // The answer here is in the topology flag baked into the query message.
+
+
 
                 //...
 

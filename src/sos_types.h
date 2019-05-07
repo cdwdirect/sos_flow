@@ -578,6 +578,8 @@ typedef struct {
     pthread_t          *feedback;
     pthread_mutex_t    *feedback_lock;
     pthread_cond_t     *feedback_cond;
+    qhashtbl_t         *results_table;
+    pthread_mutex_t    *results_table_lock;
     qhashtbl_t         *sense_table;
     qhashtbl_t         *reference_table;
     pthread_mutex_t    *reference_table_lock;

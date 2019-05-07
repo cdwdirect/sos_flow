@@ -105,8 +105,6 @@ extern "C" {
     // Shortcut function to send to 'our default target':
     void SOSA_send_to_target_db(SOS_buffer *msg, SOS_buffer *reply);
 
-    //DEPRECATED:
-    //void SOSA_guid_request(SOS_runtime *sos_context, SOS_uid *uid);
 
 
 #ifdef __cplusplus

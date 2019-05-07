@@ -520,6 +520,11 @@ SOS_init_existing_runtime(
     SOS->task.reference_table_lock = calloc(1, sizeof(pthread_mutex_t));
     pthread_mutex_init(SOS->task.reference_table_lock, NULL);
 
+    // Set up the place where parallel query results wait and are compiled:
+    SOS->task.results_table        = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
+    SOS->task.results_table_lock   = calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(SOS->task.results_table_lock);
+
     *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;
 
@@ -937,21 +942,26 @@ void SOS_finalize(SOS_runtime *sos_context) {
     }
     free(SOS->config.node_id);
 
+    pthread_mutex_lock(SOS->task.results_table_lock);
+    SOS->task.results_table->free(SOS->task.results_table);
+    pthread_mutex_unlock(SOS->task.results_table_lock);
+    pthread_mutex_destroy(SOS->task.results_table_lock);
+
     pthread_mutex_lock(SOS->task.reference_table_lock);
     SOS->task.reference_table->free(SOS->task.reference_table);
     pthread_mutex_unlock(SOS->task.reference_table_lock);
     pthread_mutex_destroy(SOS->task.reference_table_lock);
 
     dlog(1, "Done!\n");
-    /* Disabling this code, because of a race condition.
-     * We need to make sure that the spawned threads have
-     * all terminated before this happens, because we can't
-     * delete a global object until they are done.  OTOH,
-     * this is a tiny memory leak at exit, so not the end
-     * of the world.
-    memset(SOS, sizeof(SOS_runtime), '\0');
-    free(SOS);
-    */
+    //* Disabling this code, because of a race condition.
+    //* We need to make sure that the spawned threads have
+    //* all terminated before this happens, because we can't
+    //* delete a global object until they are done.  OTOH,
+    //* this is a tiny memory leak at exit, so not the end
+    //* of the world.
+    //memset(SOS, sizeof(SOS_runtime), '\0');
+    //free(SOS);
+    
 
     return;
 }
@@ -1082,6 +1092,22 @@ SOS_THREAD_receives_direct(void *args)
             //fprintf(stderr, "\n");
             //fflush(stderr);
             //
+
+            // TODO [parallel query]:
+            //       This is where we need to determine if the feedback is
+            //           A. results
+            //           B. part of a parallel result
+            //       In the event of B we need to drop the query into the
+            //       appropriate bucket in SOS->task.results_table
+            // NOTE:
+            //       Why wouldn't I make all queries (even default topo.)
+            //       participate in the table?
+            //       Keep the logic simple, if it's a query, look it up,
+            //       and that will tell you what you need to do.
+
+            
+
+
 
             if (SOS->config.feedback_handler != NULL) {
                 dlog(5, "Sending payload to the feedback handler.\n");

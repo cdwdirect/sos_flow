@@ -1,7 +1,7 @@
-/*
- *   sosa.c   Library functions for writing SOS analytics modules.
- *
- */
+//
+//   sosa.c   Library functions for writing SOS analytics modules.
+//
+//
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -776,15 +776,21 @@ void SOSA_results_to_buffer(SOS_buffer *buffer, SOSA_results *results) {
     if (strlen(results->query_sql) < 1) {
         results->query_sql = strdup("<none>");
     }
- 
-    SOS_buffer_pack(buffer, &offset, "sgd",
-                    results->query_sql,
-                    results->query_guid,
-                    results->exec_duration);
 
     SOS_buffer_pack(buffer, &offset, "ii",
                     results->col_count,
                     results->row_count);
+
+    SOS_buffer_pack(buffer, &offset, "igii",
+                    results->topology,
+                    results->group_guid,
+                    results->group_size,
+                    results->group_rank);
+
+    SOS_buffer_pack(buffer, &offset, "sgd",
+                    results->query_sql,
+                    results->query_guid,
+                    results->exec_duration);
 
     int col = 0;
     int row = 0;
@@ -834,6 +840,33 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     dlog(9, "Stripping out the header...\n");
     SOS_msg_unzip(buffer, &header, 0, &offset);
 
+    // Start unrolling the data.
+    SOS_buffer_unpack(buffer, &offset, "ii",
+                      &col_incoming,
+                      &row_incoming);
+
+    dlog(9, "Query contains %d rows and %d columns...\n",
+        row_incoming, col_incoming);
+    dlog(9, "results_before (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
+    SOSA_results_grow_to(results, col_incoming, row_incoming);
+    dlog(9, "results_after  (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
+    SOSA_results_wipe(results);
+    dlog(9, "results_wiped (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
+
+    dlog(9, "Extracting topology information:\n");
+    SOS_buffer_unpack(buffer, &offset, "igii",
+                      &results->topology,
+                      &results->group_guid,
+                      &results->group_size,
+                      &results->group_rank);
+    dlog(9, "   ... topology   == %s (%d)\n"
+            "   ... group_guid == %" SOS_GUID_FMT "\n"
+            "   ... group_size == %d\n"
+            "   ... group_rank == %d\n",
+                SOS_ENUM_STR(results->topology, SOS_TOPOLOGY),
+                results->topology, results->group_guid,
+                results->group_size, results->group_rank);
+
     dlog(9, "Unpacking the query's SQL and guid...\n");
     results->query_sql = NULL;
     SOS_buffer_unpack_safestr(buffer, &offset, &results->query_sql);
@@ -843,18 +876,6 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     SOS_buffer_unpack(buffer, &offset, "d", &results->exec_duration);
     dlog(9, "   ... exec_duration: %3.12lf\n", results->exec_duration);
 
-    // Start unrolling the data.
-    SOS_buffer_unpack(buffer, &offset, "ii",
-                      &col_incoming,
-                      &row_incoming);
-
-    dlog(9, "Query contains %d rows and %d columns...\n",
-        row_incoming, col_incoming);
-    dlog(9, "results_befor (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
-    SOSA_results_grow_to(results, col_incoming, row_incoming);
-    dlog(9, "results_after (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
-    SOSA_results_wipe(results);
-    dlog(9, "results_wiped (row_max,col_max) == %d, %d\n", results->row_max, results->col_max);
 
     int col = 0;
     int row = 0;
@@ -918,11 +939,14 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, const char *title
         
         fprintf(fptr, "{\n \"title\"      : \"%s\",\n",  title);
         fprintf(fptr, " \"time_stamp\" : \"%lf\",\n", time_now);
-//        fprintf(fptr, " \"query_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
-//        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
-        fprintf(fptr, " \"exec_duration\" : \"%3.12lf\",\n", results->exec_duration);
         fprintf(fptr, " \"col_count\"  : \"%d\",\n",  results->col_count);
         fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
+        fprintf(fptr, " \"topology\"   : \"%s\",\n", SOS_ENUM_STR(results->topology, SOS_TOPOLOGY));
+        fprintf(fptr, " \"group_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
+        fprintf(fptr, " \"group_size\" : \"%d\",\n", results->query_size);
+        fprintf(fptr, " \"group_rank\" : \"%d\",\n", results->query_rank);
+        fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
+        fprintf(fptr, " \"exec_duration\" : \"%3.12lf\",\n", results->exec_duration);
         fprintf(fptr, " \"data\"       :\n [\n");
 
         for (row = 0; row < results->row_count; row++) {
