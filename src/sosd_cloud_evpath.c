@@ -16,6 +16,8 @@
 bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway = false;
 
+void SOSD_evpath_handle_parallel_query(SOS_buffer *msg);
+
 // Only need ONE of each of these things.
 static CManager _cm = NULL;
 
@@ -90,16 +92,7 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_QUERY:
-                // TODO: QUERY
-                //       This can be one of THREE things:
-                //       1. We're receiving a request to process our part of a query.
-                //       2. We're responsible for forwarding this message down to our
-                //          attached listeners. We don't do any further work in this case.
-                //       3. This is a reply we need to drop into the compiled
-                //          results being assembled.
-                
-                // The answer here is in the topology flag baked into the query message.
-
+                SOSD_evpath_handle_parallel_query(header, msg);
 
 
                 //...
@@ -139,6 +132,52 @@ SOSD_evpath_message_handler(
     }
 
     return 0;
+}
+
+
+void
+SOSD_evpath_handle_parallel_query(SOS_buffer *msg)
+{
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_evpath_handle_parallel_query");
+    //This can be one of THREE things:
+    //  1. We're receiving a request to process our part of a query.
+    //  2. We're responsible for forwarding this message down to our
+    //     attached listeners. We don't do any further work in this case.
+    //  3. This is a reply we need to drop into the compiled
+    //     results being assembled.
+    //...The answer here is in the topology flag baked into the query message.
+
+    SOS_msg_header  header;
+    SOS_topology    topology;
+    int             offset = 0;
+
+    offset = 0;
+    SOS_msg_unzip(msg, &header, 0, &offset);
+
+    SOS_buffer_unpack(msg, &offset, "i", &topology);
+
+    switch (topology) {
+        case: SOS_TOPOLOGY_DEFAULT:
+            break;
+
+        case: SOS_TOPOLOGY_ALL_AGGREGATORS:
+            break;
+
+        case: SOS_TOPOLOGY_ALL_LISTENERS:
+            break;
+
+        case: SOS_TOPOLOGY_ATTACHED_LISTENERS:
+            break;
+
+        //TODO: QUERY (this might get removed)
+        case: SOS_TOPOLOGY_REPLY_PRE_MERGE:
+        case: SOS_TOPOLOGY_REPLY_POST_MERGE:
+        default:
+            //TODO: This should not happen. Error
+            break;
+    }
+
+    return;
 }
 
 

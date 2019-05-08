@@ -1752,9 +1752,17 @@ void SOSD_handle_query(SOS_buffer *buffer) {
 
     dlog(5, "header.msg_type = SOS_MSG_TYPE_QUERY\n");
 
-    // NOTE: This captures and handles initial requests from clients.
-    //       Message buffer arrives, query_handle is constructed
-    //       and added to the task pool.
+    //NOTE: This captures and handles initial requests from clients.
+    //      At this point we determine if the query is to be
+    //      processed by this daemon or it needs to be forwarded
+    //      elsewhere.
+    //      If it is being handled locally, we make a query
+    //      handle and enqueue it. Otherwise, we pass it on to our
+    //      cloud topology send function.
+    //
+    //NOTE: We're NOT in the THREAD_local_sync at this point, FYI.
+    //TODO: This needs a queue, it's blocking.
+    //TODO: OR DOES IT?!  :D  These requests are relatively rare...
 
     offset = 0;
     SOS_msg_unzip(buffer, &header, 0, &offset);

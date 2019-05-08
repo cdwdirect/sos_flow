@@ -1,0 +1,98 @@
+== TOP-LEVEL TODO LIST:
+
+    [_] Make sure everyone has a full set of connectivity to everyone else by role
+
+
+
+== SOS_TOPOLOGY TYPES:
+
+    SOS_TOPOLOGY_DEFAULT
+        "Execute the query here, wherever it is that it was received."
+    SOS_TOPOLOGY_ALL_AGGREGATORS
+        "Cross-level this to any other aggregators, to be executed there."
+    SOS_TOPOLOGY_ALL_LISTENERS
+        "Cross-level to all aggregators to forward to their listeners."
+    SOS_TOPOLOGY_ATTACHED_LISTENERS
+        "Bounce this message up to our aggregator, and let it send it back."
+    // TODO: Do we need this distinction?
+        v
+    SOS_TOPOLOGY_REPLY_PRE_MERGE
+    SOS_TOPOLOGY_REPLY_POST_MERGE
+
+
+== PHASES OF PROCESSING A QUERY:
+
+    1. Client creates the query request
+        1a. SOSA_exec_query
+        2a. SSOS_exec_query
+             |
+             \-> SOSA_exec_query_on_topology
+    
+    2. Request is serialzied to buffer
+        2a. SOSA_results_to_buffer 
+
+    3. Buffer is sent to SOS daemon
+        3a. SOS_target_init
+        3b. SOS_target_connect
+        3c. SOS_target_send_msg
+        3d. SOS_target_recv_msg
+        3e. SOS_target_disconnect
+        3f. SOS_target_destroy
+
+    [ origin: client socket ]
+    4. Buffer is received by SOS daemon
+        4a. SOSD_listen_loop
+        4b. SOSD_handle_query 
+             |   |
+             |   \-> SOSD_apply_query_to_cloud
+             |        |
+             |        \-> SOSD_cloud_send_to_topology
+             |              [ GOTO 5 ]
+             |
+             \-> SOSD_apply_query_to_local
+                    [ GOTO 8 ]
+
+    [ origin: cloud ]
+    5. Query received over cloud
+        5a. SOSD_evpath_message_handler
+
+    6. Query forwarded to other SOS daemons
+    8. Query placed in local queue
+
+    7. Query retrieved from DB work queue
+
+    X. Reply deposited in the feedback queue
+
+== BUFFER FORMAT: CLIENT QUERY REQUEST
+
+    (SOS_msg_header)                header
+    (SOS_topology)                  group_topology
+    ("string") [int + char*]        SOS->config.node_id
+    (int)                           SOS->config.receives_port
+    ("string") [int + char*]        sql
+    (SOS_guid)                      query_guid
+
+
+
+== BUFFER FORMAT: QUERY RESULTS (or fragment)
+
+    boilerplate:
+        (SOS_msg_header)                header
+        (int)                           col_count
+        (int)                           row_count
+        (SOS_topology)                  topology
+        (SOS_guid)                      group_guid
+        (int)                           group_size
+        (int)                           group_rank
+        ("string") [int + char*]        query_sql
+        (SOS_guid)                      query_guid
+        (double)                        exec_duration
+    
+    for_each(col_count):
+        ("string") [int + char*]        col_names[c]
+    
+    for_each(row_count):
+        for_each(col_count):
+            ("string") [int + char*]    data[r][c]
+    
+
