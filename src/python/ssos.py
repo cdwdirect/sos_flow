@@ -136,10 +136,12 @@ class SSOS:
 
 
     def query(self, sql, host, port):
-        res_sql = ffi.new("char[]", sql.encode('ascii'))
-        res_obj = ffi.new("SSOS_query_results*")
+        res_sql  = ffi.new("char[]", sql.encode('ascii'))
         res_host = ffi.new("char[]", host.encode('ascii'))
         res_port = ffi.new("int*", int(port))
+
+        res_obj_addr = ffi.new("SSOS_query_results**")
+        res_obj      = ffi.new("SSOS_query_results*", res_obj_addr[0])
 
         # Send out the query...
         print ("Sending the query...")

@@ -249,14 +249,21 @@ SSOS_result_destroy(
         free(results->data[row]);
     }
 
-    free(results->data);
+    if ((results->row_max > 0)
+     && (results->col_max > 0))
+    {
+        free(results->data);
+        results->data = NULL;
+    }
 
     for (col = 0; col < results->col_max; col++) {
         if (results->col_names[col] != NULL) {
             free(results->col_names[col]);
         }
     }
-    free(results->col_names);
+    if (results->col_max > 0) {
+       free(results->col_names);
+    }
     return;
 }
 

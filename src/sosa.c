@@ -589,7 +589,7 @@ SOSA_refresh_pub_manifest(
 
     SOS_buffer_destroy(msg);
 
-    dlog(7, "   ... unpacking the manifest for to make a SOS_results"
+    dlog(7, "   ... unpacking the manifest to make a SOS_results"
             " object containing the data.\n");
 
     int     matching_pubs       = -1;
@@ -1077,17 +1077,30 @@ void SOSA_results_init_sized(SOS_runtime *sos_context,
     results->col_max     = cols_incoming;
     results->row_max     = rows_incoming; 
 
-    results->data = (char ***) calloc(results->row_max, sizeof(char **));
-    for (row = 0; row < results->row_max; row++) {
-        results->data[row] = (char **) calloc(results->col_max, sizeof(char *));
-        for (col = 0; col < results->col_max; col++) {
-            results->data[row][col] = NULL;
+    if ((results->col_max > 0)
+     && (results->row_max > 0))
+    {
+        // We have content, allocate space for it.
+        results->data = (char ***) calloc(results->row_max, sizeof(char **));
+        for (row = 0; row < results->row_max; row++) {
+            results->data[row] = (char **) calloc(results->col_max, sizeof(char *));
+            for (col = 0; col < results->col_max; col++) {
+                results->data[row][col] = NULL;
+            }
         }
+    } else {
+        // There is nothing to allocate here, it's likely an ACK message
+        // replying to something like a VIEW CREATE or DROP query.
+        results->data = NULL;
     }
 
-    results->col_names = (char **) calloc(results->col_max, sizeof(char *));
-    for (col = 0; col < results->col_max; col++) {
-        results->col_names[col] = NULL;
+    if (results->col_max < 1) {
+        results->col_names = NULL;
+    } else {
+        results->col_names = (char **) calloc(results->col_max, sizeof(char *));
+        for (col = 0; col < results->col_max; col++) {
+            results->col_names[col] = NULL;
+        }
     }
 
     dlog(7, "    ... results->col_max = %d\n", results->col_max);
@@ -1264,7 +1277,12 @@ void SOSA_results_destroy(SOSA_results *results) {
     }
 
     dlog(7, "    ... free'ing rows...\n");
-    free(results->data);
+    if ((results->row_max > 0)
+     && (results->col_max > 0))
+    {
+        free(results->data);
+        results->data = NULL;
+    }
 
     dlog(7, "    ... free'ing column names...\n");
     for (col = 0; col < results->col_max; col++) {

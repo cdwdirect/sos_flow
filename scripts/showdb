@@ -3,19 +3,19 @@ if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
 then 
      SQL="SELECT"
      SQL="$SQL COUNT(guid) AS entry_count,"
-     SQL="$SQL MIN(time_recv - time_send) AS min_latency,"
-     SQL="$SQL AVG(time_recv - time_send) AS avg_latency," 
-     SQL="$SQL MAX(time_recv - time_send) AS max_latency "
+     SQL="$SQL ROUND(MIN(time_recv - time_send), 6) AS min_latency,"
+     SQL="$SQL ROUND(AVG(time_recv - time_send), 6) AS avg_latency," 
+     SQL="$SQL ROUND(MAX(time_recv - time_send), 6) AS max_latency "
      SQL="$SQL FROM tblVals;"
      #
-     echo "SQL:"
-     echo "----------"
-     echo "$SQL"
+     #echo "SQL:"
+     #echo "----------"
+     #echo "$SQL"
      echo "----------"
      for db in $SOS_WORK/sosd.*.db ; do
         #
-        echo -n "[${db}]:count|min|avg|max(latency) == "
-        sqlite3 -separator " | " $db "$SQL"
+        echo -n "[$(basename -- ${db})]:count|min|avg|max(latency) == "
+        sqlite3 -separator " , " $db "$SQL"
         # 
     done
 else
