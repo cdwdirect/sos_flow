@@ -330,7 +330,7 @@ SOSA_exec_query_on_topology(
     //       with a feedback handler thread that gets any
     //       results.
 
-    dlog(7, "Submitting query (%25s) ...\n", query);
+    dlog(7, "Submitting query (%25s) ...\n", sql);
 
     SOS_buffer *msg;
     SOS_buffer *reply;
@@ -880,6 +880,11 @@ void SOSA_results_from_buffer(SOSA_results *results, SOS_buffer *buffer) {
     fflush(stdout);
 
     dlog(7, "   ... done.\n");
+
+    //if (results->row_count > 0) {
+    //    SOSA_results_output_to(stdout, results, "test", 0);
+    //}
+
     return;
 }
 

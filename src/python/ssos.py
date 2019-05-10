@@ -79,7 +79,7 @@ class SSOS:
         lib.SSOS_request_pub_manifest(res_manifest_addr, res_max_frame_overall, \
                 res_pub_title_filter, res_target_host, res_target_port[0])
 
-        res_manifest = ffi.new("SSOS_query_results*", res_manifest_addr[0])
+        res_manifest = res_manifest_addr[0]
 
         results = []
         for row in range(res_manifest.row_count):
@@ -116,8 +116,9 @@ class SSOS:
                             res_frame_start[0], res_frame_depth[0],    \
                             res_host, res_port[0])
 
-        res_obj = ffi.new("SSOS_query_results*")
-        lib.SSOS_result_claim(res_obj);
+        res_obj_ptraddr = ffi.new("SSOS_query_results**")
+        lib.SSOS_result_claim_to_ptraddr(res_obj_ptraddr);
+        res_obj = res_obj_ptraddr[0]
         results = []
         for row in range(res_obj.row_count):
             thisrow = []
@@ -140,23 +141,22 @@ class SSOS:
         res_host = ffi.new("char[]", host.encode('ascii'))
         res_port = ffi.new("int*", int(port))
 
-        res_obj_addr = ffi.new("SSOS_query_results**")
-        res_obj      = ffi.new("SSOS_query_results*", res_obj_addr[0])
 
         # Send out the query...
-        print ("Sending the query...")
         lib.SSOS_query_exec(res_sql, res_host, res_port[0])
         # Grab the next available result.
         # NOTE: For queries submitted in a thread pool, this may not
         #       be the results for the query that was submitted above!
         #       Use of a thread pool requires that the results returned
         #       can be processed independently, for now.
-        #print "Claiming the results..."
-        lib.SSOS_result_claim(res_obj);
 
-        #print "Results received!"
-        #print "   row_count = " + str(res_obj.row_count)
-        #print "   col_count = " + str(res_obj.col_count)
+        #print "Claiming the results..."
+
+        res_obj_ptraddr = ffi.new("SSOS_query_results**")
+
+        lib.SSOS_result_claim_to_ptraddr(res_obj_ptraddr);
+
+        res_obj = res_obj_ptraddr[0]
 
         results = []
         for row in range(res_obj.row_count):

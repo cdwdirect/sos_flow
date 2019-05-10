@@ -164,6 +164,77 @@ SSOS_result_claim(
 }
 
 void
+SSOS_result_claim_to_ptraddr(
+    SSOS_query_results    **results_ptraddr)
+{
+    SSOS_CONFIRM_ONLINE("SSOS_results_claim_to_ptraddr");
+    SOS_SET_CONTEXT(g_sos, "SSOS_results_claim_to_ptraddr");
+
+    SSOS_query_results     *results = NULL;
+
+    //This function 'soft-blocks' until results are available.
+
+    while (g_sos_is_online) {
+#ifdef __APPLE__
+        dispatch_semaphore_wait(g_results_ready, DISPATCH_TIME_FOREVER);
+#else
+        sem_wait(&g_results_ready);
+#endif
+        //Grab the lock
+        pthread_mutex_lock(g_result_pool_lock);
+        //Check to make sure that our test for results
+        //existing is still valid, to avoid race between
+        //the test and having grabbed the lock...
+        //...this allows good behavior AND correctness.
+        if (g_result_pool_size < 1) {
+            pthread_mutex_unlock(g_result_pool_lock);
+            continue;
+        }
+
+        // printf( "Processing the results...\n");
+
+        //If we're here, we hold the lock AND there are results.
+        //Grab the head of the result pool and release the lock:
+        SSOS_result_pool_entry *entry = g_result_pool_head;
+        g_result_pool_head = entry->next;
+        g_result_pool_size--;
+        pthread_mutex_unlock(g_result_pool_lock);
+
+        //The pool is now open for other threads and we can
+        //process this entry.
+        // printf( "Initializing the results object...\n");
+        SOSA_results_init_sized(g_sos,
+                (SOSA_results **) &results,
+                entry->row_incoming,
+                entry->col_incoming);
+
+        // printf( "Building results from buffer...\n");
+        SOSA_results_from_buffer((SOSA_results *) results, entry->buffer);
+
+        // printf( "Destroying the buffer object...\n");
+        SOS_buffer_destroy(entry->buffer);
+
+        // printf( "Free'ing the entry...\n");
+        free(entry);
+
+        //Leave the loop and return to the client.
+        break;
+    }
+
+    //SOSA_results_output_to(stdout, (SOSA_results*) results, "test.ssos", 0);
+    
+    *results_ptraddr = results;
+
+    //printf("== SSOS: results_ptraddr == %p\n", (void *)results_ptraddr);
+    //printf("== SSOS: results         == %p\n", (void *)results);
+    //printf("== SSOS: results->row_count == %d\n", results->row_count);
+    //printf("== SSOS: results->col_count == %d\n", results->col_count);
+
+
+    return;
+}
+
+void
 SSOS_result_claim_initialized(
     SSOS_query_results     *results,
     int                     YN_initialize_result_object)
@@ -302,7 +373,7 @@ SSOS_refresh_pub_manifest(
 
 void
 SSOS_request_pub_manifest(
-        SSOS_query_results    **manifest_var,
+        SSOS_query_results     **manifest_var,
         int                    *max_frame_overall_var,
         const char             *pub_title_filter,
         const char             *target_host,

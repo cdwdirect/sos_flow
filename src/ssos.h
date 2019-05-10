@@ -56,6 +56,10 @@ typedef struct {
     char        *query_sql;
     uint64_t     query_guid;
     double       exec_duration;
+    uint32_t     topology;
+    uint64_t     group_guid;
+    uint32_t     group_size;
+    uint32_t     group_rank;
     uint32_t     col_max;
     uint32_t     col_count;
     char       **col_names;
@@ -81,7 +85,7 @@ extern "C" {
     void SSOS_query_exec(const char *sql, const char *target_host, int target_port);
     //
     void SSOS_request_pub_manifest(
-        SSOS_query_results **addr_of_manifest_var,
+        SSOS_query_results **manifest,
         int  *max_frame_overall_var,
         const char *pub_title_filter,
         const char *target_host,
@@ -103,6 +107,7 @@ extern "C" {
     //
     void SSOS_result_pool_size(int *addr_of_counter_int);
     void SSOS_result_claim(SSOS_query_results *results);
+    void SSOS_result_claim_to_ptraddr(SSOS_query_results **results_ptraddr);
     void SSOS_result_claim_initialized(SSOS_query_results *results,
             int YN_initialize_result_object);
     void SSOS_result_destroy(SSOS_query_results *results);
