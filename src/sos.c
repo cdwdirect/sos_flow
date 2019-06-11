@@ -337,13 +337,25 @@ SOS_init_existing_runtime(
                         SOS->config.comm_rank,
                         SOS->config.comm_size);
             } else {
-                // non-MPI client.
-                SOS->config.comm_rank = 0;
-                SOS->config.comm_size = 1;
-                dlog(4, "  ... Non-MPI environment detected."
-                        " (rank: %d/ size:%d)\n",
-                        SOS->config.comm_rank,
-                        SOS->config.comm_size);
+                env_rank = getenv("SLURM_PROCID");
+                env_size = getenv("SLURM_NTASKS");
+                if ((env_rank != NULL) && (env_size != NULL)) {
+                    // Slurm system
+                    SOS->config.comm_rank = atoi(env_rank);
+                    SOS->config.comm_size = atoi(env_size);
+                    dlog(4, "  ... Slurm environment detected."
+                            " (rank: %d/ size:%d)\n",
+                            SOS->config.comm_rank,
+                            SOS->config.comm_size);
+                } else {
+                    // non-MPI client.
+                    SOS->config.comm_rank = 0;
+                    SOS->config.comm_size = 1;
+                    dlog(4, "  ... Non-MPI environment detected."
+                            " (rank: %d/ size:%d)\n",
+                            SOS->config.comm_rank,
+                            SOS->config.comm_size);
+                }
             }
         }
     }
