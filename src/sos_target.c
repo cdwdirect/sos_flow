@@ -160,6 +160,8 @@ SOS_target_recv_msg(
     SOS_SET_CONTEXT(target->sos_context, "SOS_target_recv_msg");
     SOS_msg_header header;
 
+    //NOTE: We already hold the target->send_lock from SOS_target_connect()
+
     if (SOS->status == SOS_STATUS_SHUTDOWN) {
         dlog(1, "Ignoring receive call because SOS is shutting down.\n");
         return -1;
@@ -338,7 +340,7 @@ SOS_target_connect(SOS_socket *target) {
     freeaddrinfo( target->result_list );
 
     if (new_fd <= 0) {
-        dlog(1, "ERROR: Unable to connect to target at %s:%s  (%s)\n",
+        dlog(0, "ERROR: Unable to connect to target at %s:%s  (%s)\n",
             target->remote_host, target->remote_port, strerror(errno));
         pthread_mutex_unlock(target->send_lock);
         return -1;
@@ -373,6 +375,8 @@ SOS_target_send_msg(
         SOS_buffer *msg)
 {
     SOS_SET_CONTEXT(msg->sos_context, "SOS_target_send_msg");
+
+    //NOTE: We already hold the target->send_lock from SOS_target_connect()
 
     SOS_msg_header header;
     int            offset      = 0;
