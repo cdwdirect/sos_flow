@@ -523,7 +523,7 @@ SOS_init_existing_runtime(
     // Set up the place where parallel query results wait and are compiled:
     SOS->task.results_table        = qhashtbl(SOS_DEFAULT_TABLE_SIZE);
     SOS->task.results_table_lock   = calloc(1, sizeof(pthread_mutex_t));
-    pthread_mutex_init(SOS->task.results_table_lock);
+    pthread_mutex_init(SOS->task.results_table_lock, NULL);
 
     *sos_runtime = SOS;
     SOS->status = SOS_STATUS_RUNNING;

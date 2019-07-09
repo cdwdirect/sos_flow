@@ -943,8 +943,8 @@ void SOSA_results_output_to(FILE *fptr, SOSA_results *results, const char *title
         fprintf(fptr, " \"row_count\"  : \"%d\",\n",  results->row_count);
         fprintf(fptr, " \"topology\"   : \"%s\",\n", SOS_ENUM_STR(results->topology, SOS_TOPOLOGY));
         fprintf(fptr, " \"group_guid\" : \"%" SOS_GUID_FMT "\",\n", results->query_guid);
-        fprintf(fptr, " \"group_size\" : \"%d\",\n", results->query_size);
-        fprintf(fptr, " \"group_rank\" : \"%d\",\n", results->query_rank);
+        fprintf(fptr, " \"group_size\" : \"%d\",\n", results->group_size);
+        fprintf(fptr, " \"group_rank\" : \"%d\",\n", results->group_rank);
         fprintf(fptr, " \"query_sql\"  : \"%s\",\n", results->query_sql);
         fprintf(fptr, " \"exec_duration\" : \"%3.12lf\",\n", results->exec_duration);
         fprintf(fptr, " \"data\"       :\n [\n");
