@@ -337,7 +337,7 @@ SOS_target_connect(SOS_socket *target) {
     dlog(8, "   ...freeing unused results.\n");
     freeaddrinfo( target->result_list );
 
-    if (new_fd <= 0) {
+    if (new_fd == -1) {
         dlog(1, "ERROR: Unable to connect to target at %s:%s  (%s)\n",
             target->remote_host, target->remote_port, strerror(errno));
         pthread_mutex_unlock(target->send_lock);
