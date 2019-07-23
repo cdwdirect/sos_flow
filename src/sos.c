@@ -23,7 +23,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-
+#include <libgen.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <fcntl.h>
@@ -269,6 +269,8 @@ SOS_init_existing_runtime(
         exit (EXIT_FAILURE);
     }
 #endif
+    // Strip off the directory from the path, leaving the binary name.
+    NEW_SOS->config.program_name = basename(NEW_SOS->config.program_name);
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");

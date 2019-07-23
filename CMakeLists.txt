@@ -367,6 +367,7 @@ find_library(MATHLIB m)
 string(STRIP "${LIBS}" LIBS)
 
 subdirs (src tests)
+subdirs (examples/analysis_and_feedback)
 
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)
