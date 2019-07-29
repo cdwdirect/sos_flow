@@ -112,6 +112,7 @@ int main(int argc, char *argv[])  {
     SOSD.net = tgt;
 
     tgt->send_lock = (pthread_mutex_t *) calloc(1, sizeof(pthread_mutex_t));
+    pthread_mutex_init(tgt->send_lock, NULL);
     pthread_mutex_lock(tgt->send_lock);
 
     // Grab the port from the environment variable SOS_CMD_PORT

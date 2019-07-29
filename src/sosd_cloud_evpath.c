@@ -16,7 +16,6 @@
 bool SOSD_evpath_ready_to_listen = false;
 bool SOSD_cloud_shutdown_underway = false;
 
-void SOSD_evpath_handle_parallel_query(SOS_buffer *msg);
 
 // Only need ONE of each of these things.
 static CManager _cm = NULL;
@@ -92,7 +91,7 @@ SOSD_evpath_message_handler(
                 break;
 
             case SOS_MSG_TYPE_QUERY:
-                SOSD_evpath_handle_parallel_query(header, msg);
+                SOSD_evpath_handle_parallel_query(msg);
 
 
                 //...
@@ -157,21 +156,21 @@ SOSD_evpath_handle_parallel_query(SOS_buffer *msg)
     SOS_buffer_unpack(msg, &offset, "i", &topology);
 
     switch (topology) {
-        case: SOS_TOPOLOGY_DEFAULT:
+        case SOS_TOPOLOGY_DEFAULT:
             break;
 
-        case: SOS_TOPOLOGY_ALL_AGGREGATORS:
+        case SOS_TOPOLOGY_ALL_AGGREGATORS:
             break;
 
-        case: SOS_TOPOLOGY_ALL_LISTENERS:
+        case SOS_TOPOLOGY_ALL_LISTENERS:
             break;
 
-        case: SOS_TOPOLOGY_ATTACHED_LISTENERS:
+        case SOS_TOPOLOGY_ATTACHED_LISTENERS:
             break;
 
         //TODO: QUERY (this might get removed)
-        case: SOS_TOPOLOGY_REPLY_PRE_MERGE:
-        case: SOS_TOPOLOGY_REPLY_POST_MERGE:
+        case SOS_TOPOLOGY_REPLY_PRE_MERGE:
+        case SOS_TOPOLOGY_REPLY_POST_MERGE:
         default:
             //TODO: This should not happen. Error
             break;

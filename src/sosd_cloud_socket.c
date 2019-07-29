@@ -441,7 +441,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(1, "   ... contact_filename: %s\n", contact_filename);
 
 
-    //Conserve this: SOSD_evpath_ready_to_listen = true;
+    //Conserve this **BEHAVIOR**: SOSD_evpath_ready_to_listen = true;
     SOS_socket *tgt = NULL;
     SOS_target_init(SOS, &tgt,
             SOS->config.daemon_host,
@@ -481,7 +481,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         //LISTENER
 
-        dlog(0, "   ... waiting for coordinator to share contact"
+        dlog(0, "   ... waiting for aggregator to share contact"
                 " information.\n");
         while (!SOS_file_exists(contact_filename)) {
             usleep(100000);
@@ -513,8 +513,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
                 remote_host, remote_port);
         dlog(0, "done.\n");
 
-        // evp->send.src is where we drop messages to send...
-        // Example:  EVsubmit(evp->source, &msg, NULL);
         SOS_buffer *buffer;
         SOS_buffer_init_sized_locking(SOS, &buffer, 2048, false);
 
