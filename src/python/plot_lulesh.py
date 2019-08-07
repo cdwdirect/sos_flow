@@ -20,9 +20,9 @@ import visit
 def queryAndPlot():
     SOS = SSOS()
 
-    print "Initializing SOS..."
+    print("Initializing SOS...")
     SOS.init()
-    print "DONE init SOS..."
+    print("DONE init SOS...")
     sql_string = """
     SELECT MAX(frame) FROM viewCombined WHERE viewCombined.value_name LIKE "lulesh.time"
     ;
@@ -30,9 +30,9 @@ def queryAndPlot():
     results, col_names = SOS.query(sql_string,
             "localhost",
             os.environ.get("SOS_CMD_PORT"))
-    
+
     max_cycle = int(results[0][0])
-    print "Max cycle: " + str(max_cycle)
+    print("Max cycle: " + str(max_cycle))
 
     #####
     #
@@ -47,19 +47,19 @@ def queryAndPlot():
     ;
     """
     results, col_names = SOS.query(sql_string,
-            "localhost", 
+            "localhost",
             os.environ.get("SOS_CMD_PORT"))
     numeric_fields = dict()
     numeric_fields['name'] = [el[0] for el in results]
     name_count = len(numeric_fields['name'])
-    print str(name_count) + " unique names."
+    print(str(name_count) + " unique names.")
     #
     #####
 
 
-    filenames = [] 
+    filenames = []
     for c in range(0, (max_cycle + 1)):
-      print "******* CYCLE " +str(c)+" *********"
+      print("******* CYCLE " +str(c)+" *********")
       #####
       #
       #  Compose a query with the unique numeric fields as columns:
@@ -76,31 +76,31 @@ def queryAndPlot():
       sql_string += ' value_name LIKE "lulesh.coords" '
       sql_string += ' THEN value END) AS "lulesh.coords" '
       sql_string += """ FROM viewCombined """
-      sql_string += " WHERE frame = " + str(c) + " " 
+      sql_string += " WHERE frame = " + str(c) + " "
       sql_string += """ GROUP BY """
       sql_string += """ comm_rank """
       # sql_string += """,frame """
       sql_string += """;"""
-      #print "Composite SQL statement: "
-      #print sql_string
-      #print ""
-      #print "Running composite query..."
+      #print("Composite SQL statement: ")
+      #print(sql_string)
+      #print("")
+      #print("Running composite query...")
       results, col_names = SOS.query(sql_string,
               "localhost",
               os.environ.get("SOS_CMD_PORT"))
-      #print ""
+      #print("")
       #
       #  Print out the results:
       #
-      #print "=========="
+      #print("==========")
       #for col in col_names:
-      #    print str(col) + " "
-      #print "=========="
+      #    print(str(col) + " ")
+      #print("==========")
       #for row in results:
       #    for col_index in range(len(row)):
-      #        print str(col_names[col_index]) + ": " + str(row[col_index])
-      #    print "----------"
-      #print "=========="
+      #        print(str(col_names[col_index]) + ": " + str(row[col_index]))
+      #    print("----------")
+      #print("==========")
       #
       #####
 
@@ -115,21 +115,21 @@ def queryAndPlot():
       position = 1
       for field_name in numeric_fields['name']:
           attr[field_name] = [el[position] for el in results]
-          #print str(field_name) + " in position " + str(position) + " = " + str(attr[field_name])
+          #print(str(field_name) + " in position " + str(position) + " = " + str(attr[field_name]))
           position += 1
       res_coords = [el[position] for el in results]
-      #print "lulesh.coords in position " + str(position) + " = " + str(res_coords)
+      #print("lulesh.coords in position " + str(position) + " = " + str(res_coords))
 
       for field_name in numeric_fields['name']:
           rank = 0
           for this_ranks_value in attr[field_name]:
-              print "comm_rank(" + str(rank) + ")." + field_name + " = " + this_ranks_value
+              print("comm_rank(" + str(rank) + ")." + field_name + " = " + this_ranks_value)
               rank += 1
 
       rank_max = len(attr['comm_rank'])
       coords = list()
       coords = [el.split() for el in res_coords]
-      #print attr
+      #print(str(attr))
       dset = vtk_writer.vtk_hex_data_set()
       dset.clear()
       dset.set_cycle(c)
@@ -163,18 +163,18 @@ def queryAndPlot():
       SetActiveTimeSlider(ts)
     for state in list(range(TimeSliderGetNStates()))[::10] + [0]:
         SetTimeSliderState(state)
-    print "Setting share_power permissions on the newly created VTK files..."
+    print("Setting share_power permissions on the newly created VTK files...")
     subprocess.call("$PROJECT_BASE/share_power .", shell=True)
-    print ""
-    print "Sleeping for 100 seconds..."
-    print ""
+    print("")
+    print("Sleeping for 100 seconds...")
+    print("")
     time.sleep(100)
 
     SOS.finalize();
-    print "   ...DONE!"
-    print 
+    print("   ...DONE!")
+    print("")
     #############
-  
+
 if __name__ == "__main__":
     queryAndPlot()
     #############

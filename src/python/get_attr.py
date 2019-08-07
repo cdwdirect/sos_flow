@@ -14,7 +14,7 @@ from ssos import SSOS
 def queryAndPlot():
     SOS = SSOS()
 
-    print "Initializing SOS..."
+    print("Initializing SOS...")
     SOS.init()
 
     #####
@@ -32,7 +32,7 @@ def queryAndPlot():
     #        "localhost",
     #        os.environ.get("SOS_CMD_PORT"))
     #max_cycle = int(results[0][0])
-    #print "Max cycle: " + str(max_cycle)
+    #print("Max cycle: " + str(max_cycle))
     #
     #####
 
@@ -51,15 +51,15 @@ def queryAndPlot():
     ;
     """
     results, col_names = SOS.query(sql_string,
-            "localhost", 
+            "localhost",
             os.environ.get("SOS_CMD_PORT"))
-    print "Field names:"
+    print("Field names:")
     for field_name in results:
-        print "    " + str(field_name)
+        print("    " + str(field_name))
     attr = dict()
     attr['value_name'] =  [el[0] for el in results]
     name_count = len(attr['value_name'])
-    print str(name_count) + " unique names."
+    print(str(name_count) + " unique names.")
     #
     #####
 
@@ -83,34 +83,34 @@ def queryAndPlot():
     sql_string += """ comm_rank """
     sql_string += """,frame """
     sql_string += """;"""
-    print "Composite SQL statement: "
-    print sql_string
-    print ""
-    print "Running composite query..."
+    print("Composite SQL statement: ")
+    print(sql_string)
+    print("")
+    print("Running composite query...")
     results, col_names = SOS.query(sql_string,
             "localhost",
             os.environ.get("SOS_CMD_PORT"))
-    print ""
+    print("")
     #
     #  Print out the results:
     #
-    print "=========="
+    print("==========")
     for col in col_names:
-        print str(col) + " "
-    print "=========="
+        print(str(col) + " ")
+    print("==========")
     for row in results:
         for col_index in range(len(row)):
-            print str(col_names[col_index]) + ": " + str(row[col_index])
-        print "----------"
-    print "=========="
+            print(str(col_names[col_index]) + ": " + str(row[col_index]))
+        print("----------")
+    print("==========")
     #
     #####
 
     SOS.finalize();
-    print "   ...DONE!"
-    print 
+    print("   ...DONE!")
+    print("")
     #############
-  
+
 if __name__ == "__main__":
     queryAndPlot()
     #############

@@ -40,15 +40,15 @@ def sosAutoTranspose():
     sqlMaxFrame = "SELECT MAX(" + cycleFieldName + ") FROM viewCombined;"
     results, col_names = SOS.query(sqlMaxFrame, sosHost, sosPort)
     max_cycle = int(results[0][0])
-    print "Maximum observed '" + cycleFieldName + "' value: " + str(max_cycle)
+    print("Maximum observed '" + cycleFieldName + "' value: " + str(max_cycle))
     #
     sqlMaxFrame = "SELECT MAX(comm_rank) FROM viewCombined;"
     results, col_names = SOS.query(sqlMaxFrame, sosHost, sosPort)
     rank_max = int(results[0][0])
-    print "Maximum observed  'comm_rank' value: " + str(rank_max)
+    print("Maximum observed  'comm_rank' value: " + str(rank_max))
     #
     #####
-    
+
     #####
     #
     # Get the list of field names we will use to build a custom query.
@@ -72,10 +72,10 @@ def sosAutoTranspose():
     #
     # NOTE: Debug output...
     #
-    #print "Selected " + str(name_count) + " unique names:"
+    #print("Selected " + str(name_count) + " unique names:")
     #for name in selectedFields['name']:
-    #    print "    " + str(name)
-    #print ""
+    #    print("    " + str(name))
+    #print("")
     #
     #####
 
@@ -101,7 +101,7 @@ def sosAutoTranspose():
     #  NOTE: Uncomment this, and comment out the 'GROUP BY' frame below,
     #        for cases where we only want to see the largest frame.
     #
-    #sqlValsToColsByRank += " WHERE frame = " + str(simCycle) + " " 
+    #sqlValsToColsByRank += " WHERE frame = " + str(simCycle) + " "
     sqlValsToColsByRank += """ GROUP BY """
     sqlValsToColsByRank += """ comm_rank """
     sqlValsToColsByRank += """,frame """
@@ -111,8 +111,8 @@ def sosAutoTranspose():
     #
     #
     #####
-    print str(col_names)
-    print str(results)
+    print(str(col_names))
+    print(str(results))
     #####
     #
     # Whew!  All done!
@@ -122,8 +122,8 @@ def sosAutoTranspose():
     SOS.finalize();
     #
     #####
-    print "   ...DONE!"
-    print 
+    print("   ...DONE!")
+    print("")
     return
 
 

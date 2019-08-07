@@ -12,16 +12,16 @@ class vtk_hex_data_set:
   __rank_ids = []
   __size = 0
   __cycle = 0
-  __filename = ""  
+  __filename = ""
   def print_self(self):
-    print "total cells"
-    print (self.__size)
-    print "coords:"
-    print(self.__points)
-    print "fields:"
-    print(self.__cell_fields)
-    print "rank_ids:"
-    print(self.__rank_ids)
+    print("total cells")
+    print(str(self.__size))
+    print("coords:")
+    print(str(self.__points))
+    print("fields:")
+    print(str(self.__cell_fields))
+    print("rank_ids:")
+    print(str(self.__rank_ids))
 
   def clear(self):
     self.__points = []
@@ -29,11 +29,11 @@ class vtk_hex_data_set:
     self.__rank_ids = []
     self.__size = 0
     self.__cycle = 0
-    self.__filename = ""  
+    self.__filename = ""
 
   def set_cycle(self, cycle):
     self.__cycle = cycle
-  
+
   def get_file_name(self):
     return self.__filename
 
@@ -41,7 +41,7 @@ class vtk_hex_data_set:
     # make sure that we have 8 x 3 coords
     assert len(coords) == 24
     # make sure we have a fields
-    assert len(field_vals) != 0 
+    assert len(field_vals) != 0
     # make sure we always have the same number of fields
     # for each hex
     if(len(self.__cell_fields) != 0):
@@ -53,10 +53,10 @@ class vtk_hex_data_set:
 
     for c in coords:
       self.__points.append(c)
-    
+
     for field_name in field_vals:
       self.__cell_fields[field_name].append(field_vals[field_name])
-    
+
     self.__rank_ids.append(rank_id)
 
     self.__size = self.__size + 1
@@ -72,35 +72,35 @@ class vtk_hex_data_set:
     f.write("\n")
     num_coords = self.__size * 8
     f.write("POINTS " + str(num_coords) + " float\n")
-    # 
+    #
     # write out the points
     #
     for c in range(0,num_coords):
-      line = str(self.__points[c * 3 + 0]) 
+      line = str(self.__points[c * 3 + 0])
       line = line + " " + str(self.__points[c * 3 + 1])
       line = line + " " + str(self.__points[c * 3 + 2]) + "\n"
       f.write(line)
     f.write("\n")
-    # 
-    # write out the cell conn 
+    #
+    # write out the cell conn
     #
     f.write("CELLS " + str(self.__size) + " " + str(self.__size * 9) +"\n")
     for i in range(0,self.__size):
-       f.write("8 ") # num indices per hex 
+       f.write("8 ") # num indices per hex
        for j in range(0,8):
          if(j != 7):
            f.write(str( i * 8 + j) + " ")
          else:
            f.write(str( i * 8 + j) + "\n")
     f.write("\n")
-    # 
-    # write out the cell types all hexes (12) 
+    #
+    # write out the cell types all hexes (12)
     #
     f.write("CELL_TYPES " + str(self.__size) +"\n")
     for c in range(0,self.__size):
       f.write("12\n")
-    # 
-    # write out all the fields 
+    #
+    # write out all the fields
     #
     f.write("CELL_DATA " + str(self.__size) + "\n")
     for field in self.__cell_fields:
@@ -123,7 +123,7 @@ def write_visit_file(filenames):
   f = open("dataset.visit", "wb")
   size = len(filenames)
   for name in filenames:
-    print name
+    print(name)
     f.write(name + "\n")
   f.close()
 
@@ -161,7 +161,7 @@ def generate_hex(data_set, rank):
   coords.append(rank + 1)
   coords.append(1)
 
-  
+
   fields = {}
   fields["f1"] = rank * 0.1
   fields["f2"] = rank * 0.2

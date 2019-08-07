@@ -24,28 +24,35 @@ def demonstrateSOS():
     sos_host = "localhost"
     sos_port = os.environ.get("SOS_CMD_PORT")
 
-    print "Initializing SOS..."
+    print("Initializing SOS...")
     SOS.init()
-    
+
+    SOS.pack("someInt", SOS.INT,    12345)
+    SOS.pack("someLng", SOS.LONG,   67890)
+    SOS.pack("someDbl", SOS.DOUBLE, 7.11)
+    SOS.pack("someStr", SOS.STRING, "Hello!")
+    SOS.publish()
+
+
     sql_string = "SELECT * FROM viewCombined;"
- 
-    print "Sending this query to the SOS daemon: "
-    print "    " + sql_string
+
+    print("Sending this query to the SOS daemon: ")
+    print("    " + sql_string)
     results, col_names = SOS.query(sql_string, sos_host, sos_port)
-    print "Results:"
-    print "    Output.........: "
+    print("Results:")
+    print("    Output.........: ")
     tablePrint(results)
-    print ""
-    print "    Row count......: " + str(len(results))
-    print "    Column count...: " + str(len(col_names)) 
-    print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
+    print("")
+    print("    Row count......: " + str(len(results)))
+    print("    Column count...: " + str(len(col_names)))
+    print("    Column names...: ")# + str(col_names)    #pp.pprint(col_names)
     pp.pprint(col_names)
-    print ""
-    print "Finalizing..."
-   
+    print("")
+    print("Finalizing...")
+
     SOS.finalize();
-    print "   ...DONE!"
-    print 
+    print("   ...DONE!")
+    print("")
     return
 
 
@@ -53,8 +60,8 @@ def demonstrateSOS():
 def tablePrint(results):
     # Print out the results in a pretty column-aligned way:
     widths = [max(map(len, str(col))) for col in zip(*results)]
-    for row in results: 
-        print "  ".join((val.ljust(width) for val, width in zip(row, widths)))
+    for row in results:
+        print("  ".join((val.ljust(width) for val, width in zip(row, widths))))
     return
 
 if __name__ == "__main__":

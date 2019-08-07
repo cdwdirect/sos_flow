@@ -21,47 +21,47 @@ from ssos import SSOS
 def demonstrateSOS():
     SOS = SSOS()
 
-    print "Initializing SOS..."
+    print("Initializing SOS...")
     SOS.init()
-    
+
     count = 0
     count_max = 10
-    print "    Packing " + str(count_max) + " integer values in a loop..."
+    print("    Packing " + str(count_max) + " integer values in a loop...")
     while (count < count_max):
         count = count + 1
         SOS.pack(("loop_val_" + str(count)), SOS.INT, count)
         #SOS.announce()
         SOS.publish()
 
- 
+
     sql_pubs = "SELECT * FROM tblPubs;"
     sql_data = "SELECT * FROM tblData;"
 
     pubs, col_names = SOS.query(sql_pubs, "localhost", os.environ.get("SOS_CMD_PORT"))
 
-    print "-----"
-    print "Pubs: (" + str(len(pubs)) + ")"
+    print("-----")
+    print("Pubs: (" + str(len(pubs)) + ")")
     count = 0
-    print str(col_names)
+    print(str(col_names))
     while count < len(pubs):
-        print str(pubs[count])
+        print(str(pubs[count]))
         count = count + 1
 
     data, col_names = SOS.query(sql_data, "localhost", os.environ.get("SOS_CMD_PORT"))
 
-    print "-----"
-    print "Data: (" + str(len(data)) + ")"
+    print("-----")
+    print("Data: (" + str(len(data)) + ")")
     count = 0
-    print str(col_names)
+    print(str(col_names))
     while count < len(data):
-        print str(data[count])
+        print(str(data[count]))
         count = count + 1
 
-    print ""
-    
+    print("")
+
     SOS.finalize();
-    print "   ...DONE!"
-    print 
+    print("   ...DONE!")
+    print("")
 
 if __name__ == "__main__":
     demonstrateSOS()

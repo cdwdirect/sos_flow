@@ -27,12 +27,12 @@ class SSOS:
         connect_delay = 0
         while((connect_delay < 4) and (is_online_flag[0] < 1)):
             lib.SSOS_is_online(is_online_flag)
-            #print "   ... waiting to connect to SOS"
+            #print("   ... waiting to connect to SOS")
             time.sleep(0.5)
             connect_delay += 1
 
         if (is_online_flag[0] < 1):
-            print ("ERROR: Unable to connect to the SOS daemon.")
+            print("ERROR: Unable to connect to the SOS daemon.")
             exit()
 
     def is_online(self):
@@ -64,7 +64,7 @@ class SSOS:
         elif (entry_type == self.STRING):
             entry_addr = ffi.new("char[]", pyentry_value.encode('ascii'))
         else:
-            print ("invalid type provided to SOS.pack(...): " \
+            print("invalid type provided to SOS.pack(...): " \
                 + entry_type + "  (doing nothing)")
             return
         lib.SSOS_pack(entry_name, entry_type, entry_addr)
@@ -86,7 +86,7 @@ class SSOS:
             thisrow = []
             for col in range(res_manifest.col_count):
                 thisrow.append(ffi.string(res_manifest.data[row][col]).decode('ascii'))
-            #print "results[{}] = {}".format(row, thisrow)
+            #print("results[{}] = {}".format(row, thisrow))
             results.append(thisrow)
 
         # Generate the column name list:
@@ -124,7 +124,7 @@ class SSOS:
             thisrow = []
             for col in range(res_obj.col_count):
                 thisrow.append(ffi.string(res_obj.data[row][col]).decode('ascii'))
-            #print "results[{}] = {}".format(row, thisrow)
+            #print("results[{}] = {}".format(row, thisrow))
             results.append(thisrow)
 
         # Generate the column name list:
@@ -150,7 +150,7 @@ class SSOS:
         #       Use of a thread pool requires that the results returned
         #       can be processed independently, for now.
 
-        #print "Claiming the results..."
+        #print("Claiming the results...")
 
         res_obj_ptraddr = ffi.new("SSOS_query_results**")
 
@@ -163,7 +163,7 @@ class SSOS:
             thisrow = []
             for col in range(res_obj.col_count):
                 thisrow.append(ffi.string(res_obj.data[row][col]).decode('ascii'))
-            #print "results[{}] = {}".format(row, thisrow)
+            #print("results[{}] = {}".format(row, thisrow))
             results.append(thisrow)
 
         # Generate the column name list:
@@ -193,4 +193,4 @@ class SSOS:
         lib.SSOS_finalize()
 
 if (__name__ == "__main__"):
-    print ("This a library wrapper intended for use in other Python scripts.")
+    print("This a library wrapper intended for use in other Python scripts.")

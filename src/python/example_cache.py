@@ -24,38 +24,38 @@ def demonstrateSOS():
     sos_host = "localhost"
     sos_port = os.environ.get("SOS_CMD_PORT")
 
-    print "Initializing SOS..."
+    print("Initializing SOS...")
     SOS.init()
-    
+
     frame_start = -1      #-1 == latest_frame
     frame_depth = 1       #-1 == all frames
     pub_filter = ""
     val_filter = ""
 
-    print "Sending this cache_grab to the SOS daemon: "
-    print "    pub_filter  == " + str(pub_filter)
-    print "    val_filter  == " + str(val_filter)
-    print "    frame_start == " + str(frame_start)
-    print "    frame_depth == " + str(frame_depth)
+    print("Sending this cache_grab to the SOS daemon: ")
+    print("    pub_filter  == " + str(pub_filter))
+    print("    val_filter  == " + str(val_filter))
+    print("    frame_start == " + str(frame_start))
+    print("    frame_depth == " + str(frame_depth))
 
     results, col_names =                                \
             SOS.cache_grab(pub_filter, val_filter,      \
                            frame_start, frame_depth,    \
                            sos_host, sos_port)
-    print "Results:"
-    print "    Output.........: "
-    print str(results)
-    print ""
-    print "    Row count......: " + str(len(results))
-    print "    Column count...: " + str(len(col_names)) 
-    print "    Column names...: "# + str(col_names)    #pp.pprint(col_names)
+    print("Results:")
+    print("    Output.........: ")
+    print(str(results))
+    print("")
+    print("    Row count......: " + str(len(results)))
+    print("    Column count...: " + str(len(col_names)))
+    print("    Column names...: ")# + str(col_names)    #pp.pprint(col_names)
     pp.pprint(col_names)
-    print ""
-    print "Finalizing..."
-   
+    print("")
+    print("Finalizing...")
+
     SOS.finalize();
-    print "   ...DONE!"
-    print 
+    print("   ...DONE!")
+    print("")
 
 if __name__ == "__main__":
     demonstrateSOS()
