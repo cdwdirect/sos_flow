@@ -1,0 +1,40 @@
+{
+    "nodes": [{
+        "name": "a",
+        "mpi_ranks": "12",
+        "children": ["b", "d"],
+        "parents": [],
+        "iterations": 100
+    }, {
+        "name": "b",
+        "mpi_ranks": "12",
+        "children": ["c"],
+        "parents": ["a"]
+    }, {
+        "name": "c",
+        "mpi_ranks": "12",
+        "children": ["d"],
+        "parents": ["b"]
+    }, {
+        "name": "d",
+        "mpi_ranks": "12",
+        "children": ["e"],
+        "parents": ["a", "c"]
+    }, {
+        "name": "e",
+        "mpi_ranks": "12",
+        "children": [],
+        "parents": ["d"]
+    }],
+    "iterations": 5,
+    "oversubscribe": false,
+    "sos_root": "/home3/khuck/src/sos_flow",
+    "sos_num_daemons": "1",
+    "sos_cmd_port": "22500",
+    "sos_cmd_buffer_len": "8388608",
+    "sos_num_dbs": "1",
+    "sos_db_port": "22503",
+    "sos_db_buffer_len": "8388608",
+    "sos_cmd_working_dir": "/dev/shm",
+    "sos_db_working_dir": "/dev/shm"
+}

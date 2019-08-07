@@ -1,0 +1,31 @@
+#!/bin/bash -x
+#PBS -N test
+#PBS -j oe
+#PBS -q debug
+#PBS -A CSC103
+#PBS -l walltime=0:10:00,nodes=1
+
+# set up the environment
+. $HOME/src/sos_flow/hosts/ornl/titan/setenv.sh
+
+# Use the right EVPath network.
+#export CMTransport=nnti
+
+workdir=$PROJWORK/csc103/khuck
+mkdir -p $workdir/sos_flow
+# cp $HOME/src/tau2/examples/mm/matmult $workdir/sos_flow/.
+cp $HOME/src/chaos/titan-gcc/lib/libenet.so.2 $workdir/sos_flow/.
+cp $HOME/src/sos_flow/build-titan/bin/sosd $workdir/sos_flow/.
+cp $HOME/src/sos_flow/build-titan-examples/bin/generic_node $workdir/sos_flow/.
+cp $HOME/src/sos_flow/build-titan-examples/bin/alps.py $workdir/sos_flow/.
+cp $HOME/src/sos_flow/build-titan-examples/bin/2apps-aprun.json $workdir/sos_flow/.
+cd $workdir/sos_flow
+
+export TAU_SOS=0
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$workdir/sos_flow
+export PATH=$workdir/sos_flow:$PATH
+export SOS_FORK_COMMAND="sosd -l 1 -a 1 -w . -k 1 -r listener"
+export SOS_EVPATH_MEETUP=$workdir/sos_flow
+#export SOS_FORK_COMMAND="./matmult"
+
+python ./alps.py ./2apps-aprun.json

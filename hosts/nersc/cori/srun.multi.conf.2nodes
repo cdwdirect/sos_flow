@@ -1,0 +1,3 @@
+# task rank, executable, arguments
+0-0 /project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori/bin/sosd --role SOS_ROLE_DAEMON --port 22500 --work_dir /project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori
+1 /project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori/bin/sosd --role SOS_ROLE_DB --port 22503 --work_dir /project/projectdirs/m1881/khuck/sos_flow/sos_flow/build-cori

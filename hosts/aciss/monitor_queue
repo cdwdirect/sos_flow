@@ -1,0 +1,16 @@
+#!/bin/bash
+while [ 1 ]
+do
+    clear
+    echo ""
+    echo ""
+    echo "Pending jobs for your username:     (${USER})"
+    echo ""
+    echo ""
+    qstat -u $USER
+    echo ""
+    echo ""
+    echo "As of: $(date)"
+    echo ""
+    sleep 1
+done

@@ -1,0 +1,1 @@
+srun -n8 --multi-prog sweep.$1.conf

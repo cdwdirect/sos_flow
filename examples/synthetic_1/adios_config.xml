@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<adios-config host-language="C">
+  <adios-group name="a_to_b">
+    <var name="NX" type="integer"/>
+    <var name="NY" type="integer"/>
+    <var name="commsize" type="integer"/>
+    <var name="myrank" type="integer"/>
+
+    <global-bounds dimensions="commsize,NX" offsets="myrank,0">
+       <var name="temperature" gwrite="t" type="double" dimensions="1,NX"/>
+    </global-bounds>
+
+    <global-bounds dimensions="commsize,NY" offsets="myrank,0">
+       <var name="pressure" gwrite="p" type="double" dimensions="1,NY"/>
+    </global-bounds>
+
+    <attribute name="temperature/description" 
+        value="Global array written from 'commsize' processes over several timesteps" 
+        type="string"/>
+  </adios-group>
+
+  <adios-group name="b_to_c">
+    <var name="NX" type="integer"/>
+    <var name="NY" type="integer"/>
+    <var name="commsize" type="integer"/>
+    <var name="myrank" type="integer"/>
+
+    <global-bounds dimensions="commsize,NX" offsets="myrank,0">
+       <var name="temperature" gwrite="t" type="double" dimensions="1,NX"/>
+    </global-bounds>
+
+    <global-bounds dimensions="commsize,NY" offsets="myrank,0">
+       <var name="pressure" gwrite="p" type="double" dimensions="1,NY"/>
+    </global-bounds>
+
+    <attribute name="temperature/description" 
+        value="Global array written from 'commsize' processes over several timesteps" 
+        type="string"/>
+  </adios-group>
+
+  <method group="a_to_b" method="FLEXPATH"/>
+  <method group="b_to_c" method="FLEXPATH"/>
+
+  <buffer size-MB="5" allocate-time="now"/>
+
+</adios-config>
+

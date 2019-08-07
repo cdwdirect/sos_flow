@@ -1,0 +1,38 @@
+#!/bin/bash
+if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
+then
+    echo ""
+    echo "The following databases will be wiped out:"
+    echo ""
+    for db in $SOS_WORK/sosd.*.db ; do
+        #
+        echo "    [${db}]"
+    done
+    echo ""
+    read -p "Are you sure you wish to proceed?  [y/N]: " -i N -e reply
+    if [ "$reply" == "y" ]
+    then
+        for db in $SOS_WORK/sosd.*.db ; do
+            #
+            echo -n "    RESET: [${db}] --> "
+            sqlite3 $db "DELETE FROM tblVals;"; echo -n "tblVals "
+            sqlite3 $db "DELETE FROM tblData;"; echo -n "tblData "
+            sqlite3 $db "DELETE FROM tblPubs;"; echo -n "tblPubs "
+            sqlite3 $db "VACUUM;"; echo -n "<-- "
+            # 
+            echo "OK"
+        done
+        echo ""
+    else
+        echo "Operation cancelled."
+        echo ""
+    fi
+else
+    echo ""
+    echo "There are no database files to wipe out in \$SOS_WORK ..."
+    echo ""
+    echo -n "    "
+    env | grep -F SOS_WORK
+    echo ""
+fi
+

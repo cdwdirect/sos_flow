@@ -1,0 +1,17 @@
+sosd
+sosd.lock
+sosd.log
+sosd.db
+sosd.*.lock
+sosd.*.db
+sosd.*.log
+runit.log
+demo_app
+sos_cmd
+tags
+../output/*
+../bin/*
+*.lo
+*.so
+*.o
+*.swp

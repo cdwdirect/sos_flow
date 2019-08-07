@@ -1,0 +1,42 @@
+
+digraph {
+        label = "Overview of the sos_flow process."
+
+        SOS_ROLE_CLIENT -> SOS_init;
+        SOS_init -> SOS_new_pub;
+        SOS_new_pub -> SOS_pack;
+        SOS_pack -> SOS_pack;
+        SOS_pack -> SOS_announce;
+        SOS_announce -> SOS_announce_to_buffer;
+        SOS_announce -> SOS_publish;
+        SOS_announce_to_buffer -> SOS_send_to_daemon;
+        SOS_publish -> SOS_repack;
+        SOS_publish -> SOS_publish_to_buffer;
+        SOS_publish_to_buffer -> SOS_send_to_daemon;
+        SOS_repack -> SOS_repack;
+        SOS_repack -> SOS_publish;
+        SOS_repack -> SOS_flush_pub_buffers;
+        SOS_flush_pub_buffers -> SOS_repack;
+        SOS_send_to_daemon -> SOSD_listen_loop;
+
+        SOS_ROLE_DAEMON -> SOSD_init;
+        SOSD_init -> SOSD_listen_loop;
+        SOSD_listen_loop -> SOSD_handle_announce[label="SOS_MSG_TYPE_ANNOUNCE"];
+        SOSD_listen_loop -> SOSD_handle_publish[label="SOS_MSG_TYPE_PUBLISH"];
+        SOSD_listen_loop -> SOSD_listen_loop;
+        SOSD_handle_announce -> SOSD_new_pub;
+        SOSD_new_pub -> SOSD_apply_announce[label="store in SOSD.pub_table"];
+        SOSD_apply_announce -> SOS_announce_from_buffer;
+        SOS_announce_from_buffer -> SQL_local_sync[label="enque pub metadata"];
+
+        SOSD_handle_publish -> SOS_apply_publish[label="find in SOSD.pub_table"];
+        SOS_apply_publish -> SOS_publish_from_buffer;
+        SOS_publish_from_buffer -> SQL_local_sync[label="enque definitions &/or values"];
+
+        SQL_local_sync -> SQL_node_sync[label="batches"];
+        SQL_node_sync -> OFF_NODE_CENTRAL_DB;
+
+        {rank=same; SOS_ROLE_CLIENT SOS_ROLE_DAEMON}
+        {rank=same; SOSD_handle_publish SOSD_handle_announce}
+        {rank=same; SOS_publish SOS_announce}
+}

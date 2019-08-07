@@ -1,0 +1,20 @@
+
+It is important to know that these unit tests are entirely focused on
+the performance and memory sanity of libsos routines, used by daemon
+and client alike, but explicitly don't test lib->daemon communication
+or backplane database issues, and will not reveal problems with
+protocols, quality of service, congestion, or any advanced runtime
+behavior such as current or future analytics system behavior.
+
+Daemon elements of SOSflow require online testing in an environment as
+close as possible to the production setting, in both the size and rate
+of value injection. This test suite calls SOS_init(...) with a special
+flag SOS_ROLE_OFFLINE_TEST_MODE that allows it to behave normally in
+terms of routine API calls, but that does not require or interact with
+the SOSflow daemon at all.
+
+To test out the daemon or the backplane/off-node data flow, please see
+the test scripts provided in the $SOS_ROOT/examples folder, or the 
+$SOS_ROOT/src folder.  :)
+
+   -Chad Wood, 2016

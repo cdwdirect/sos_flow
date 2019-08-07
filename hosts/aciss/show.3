@@ -1,0 +1,20 @@
+#!/bin/bash
+echo ""
+echo ""
+DB_DIR=${SOS_ROOT}/jobs/aciss/data/$(cat ${SOS_ROOT}/jobs/aciss/data/.last_job)
+echo "   last_job....: $(cat ${SOS_ROOT}/jobs/aciss/data/.last_job)"
+echo "   location....: ${DB_DIR}"
+cd ${DB_DIR}
+echo ""
+echo ""
+echo -n "   sosd.0.db : "
+sqlite3 ${DB_DIR}/sosd.0.db "select max(rowid) from tblvals;"
+echo -n "   sosd.1.db : "
+sqlite3 ${DB_DIR}/sosd.1.db "select max(rowid) from tblvals;"
+echo -n " + sosd.2.db : "
+sqlite3 ${DB_DIR}/sosd.2.db "select max(rowid) from tblvals;"
+echo "----------------------------------"
+echo -n " = sosd.3.db : "
+sqlite3 ${DB_DIR}/sosd.3.db "select max(rowid) from tblvals;"
+echo ""
+echo ""

@@ -1,0 +1,13 @@
+src/go_output/*
+examples/general/sos_flow_working
+bin
+lib
+examples/synthetic_1/tau.conf
+rebaseme.sh
+sourceme.sh
+build*
+IDEAS
+TODO.txt
+src/sosa_mods/test
+.idea
+cmake-build-debug

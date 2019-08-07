@@ -1,0 +1,14 @@
+#!/bin/bash -e
+
+# DISABLED! SEE https://github.com/ornladios/ADIOS/issues/48
+rm -f *.ch
+gpp.py adios_config.xml
+
+cd ../../src
+if [ "$1" == "clean" ] ; then
+    ./make clean
+fi
+./make
+cd ../examples/synthetic_1
+
+cp ../../src/showdb ../../bin/.

@@ -1,0 +1,28 @@
+#!/bin/bash
+if ls $SOS_WORK/sosd.*.db 1> /dev/null 2>&1
+then 
+     SQL="SELECT"
+     SQL="$SQL COUNT(guid) AS entry_count,"
+     SQL="$SQL MIN(time_recv - time_send) AS min_latency,"
+     SQL="$SQL AVG(time_recv - time_send) AS avg_latency," 
+     SQL="$SQL MAX(time_recv - time_send) AS max_latency "
+     SQL="$SQL FROM tblVals;"
+     #
+     echo "SQL:"
+     echo "----------"
+     echo "$SQL"
+     echo "----------"
+     for db in $SOS_WORK/sosd.*.db ; do
+        #
+        echo -n "[${db}]:count|min|avg|max(latency) == "
+        sqlite3 -separator " | " $db "$SQL"
+        # 
+    done
+else
+    echo ""
+    echo "There are no database files to display in \$SOS_WORK ..."
+    echo ""
+    echo -n "    "
+    env | grep -F SOS_WORK
+    echo ""
+fi
