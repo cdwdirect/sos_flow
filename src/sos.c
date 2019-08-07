@@ -23,7 +23,7 @@
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/stat.h>
-
+#include <libgen.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <fcntl.h>
@@ -82,7 +82,7 @@ static inline void _sos_lock_pub(SOS_pub * pub, const char * func) {
 #ifdef DEBUG_DEADLOCK
     pub_lock_count++;
     if (pub_lock_count > 1) {
-        fprintf(stderr, "ERROR! Locked pub multiple times.\n"); 
+        fprintf(stderr, "ERROR! Locked pub multiple times.\n");
         fflush(stderr);
         abort();
     }
@@ -90,10 +90,10 @@ static inline void _sos_lock_pub(SOS_pub * pub, const char * func) {
 }
 static inline void _sos_unlock_pub(SOS_pub * pub, const char * func) {
 #ifdef DEBUG_DEADLOCK
-    fprintf(stderr, "Unlocking in %s.\n", func); 
+    fprintf(stderr, "Unlocking in %s.\n", func);
     pub_lock_count--;
     if (pub_lock_count < 0) {
-        fprintf(stderr, "ERROR! Unlocked pub multiple times.\n"); 
+        fprintf(stderr, "ERROR! Unlocked pub multiple times.\n");
         fflush(stderr);
         abort();
     }
@@ -124,7 +124,7 @@ SOS_init_remote(
 
     SOS_init_existing_runtime(sos_runtime, role, receives, handler);
     return;
-    
+
 }
 
 
@@ -233,7 +233,7 @@ SOS_init_existing_runtime(
     }
 
     SOS_options *opt = NULL;
-    
+
     SOS_options_init(NEW_SOS, &opt,
             NEW_SOS->config.options_file,
             NEW_SOS->config.options_class);
@@ -258,11 +258,13 @@ SOS_init_existing_runtime(
     }
 #else
     rc = readlink("/proc/self/exe", NEW_SOS->config.program_name, PATH_MAX);
-    if (rc < 0) { 
+    if (rc < 0) {
         fprintf (stderr, "ERROR: Unable to read /proc/self/exe\n");
         exit (EXIT_FAILURE);
     }
 #endif
+    // Extract the binary name from the full path
+    NEW_SOS->config.program_name = basename(NEW_SOS->config.program_name);
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
     SOS_SET_CONTEXT(NEW_SOS, "SOS_init");
@@ -878,7 +880,7 @@ void SOS_finalize(SOS_runtime *sos_context) {
         fflush(stderr);
         return;
     }
-    
+
     SOS_SET_CONTEXT(sos_context, "SOS_finalize");
 
     // Any SOS threads will leave their loops next time they wake up.
@@ -1442,7 +1444,7 @@ void SOS_pub_config(SOS_pub *pub, SOS_pub_option opt, ...) {
     switch (opt) {
 
     case SOS_PUB_OPTION_CACHE:
-        // Get the new pub cache depth: 
+        // Get the new pub cache depth:
         i = va_arg(ap, int);
 
 
@@ -1535,7 +1537,7 @@ void SOS_expand_data( SOS_pub *pub ) {
         pub->data[n]->time.pack = 0.0;
         pub->data[n]->time.send = 0.0;
         pub->data[n]->time.recv = 0.0;
-        
+
         pub->data[n]->meta.freq        = SOS_VAL_FREQ_DEFAULT;
         pub->data[n]->meta.classifier  = SOS_VAL_CLASS_DATA;
         pub->data[n]->meta.semantic    = SOS_VAL_SEMANTIC_DEFAULT;
@@ -1674,14 +1676,14 @@ SOS_pack(SOS_pub *pub, const char *name,
 
     SOS_val_snap *snap = calloc(1, sizeof(SOS_val_snap));
     pthread_mutex_lock(pub->lock);
-   
+
     rc = SOS_pack_snap_situate_in_pub(pub, snap, name, type, val);
     if (rc < 0) { return rc; }
 
-    rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; } 
+    rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; }
     rc = SOS_pack_snap_add_to_pub_cache(pub, snap); if (rc < 0) { return rc; }
     rc = SOS_pack_snap_into_val_queue(pub, snap); if (rc < 0) { return rc; }
-    
+
     pthread_mutex_unlock(pub->lock);
     return snap->elem;
 }
@@ -1704,7 +1706,7 @@ SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
     snap->relation_id = relation_id;
     //
 
-    rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; } 
+    rc = SOS_pack_snap_renew_pub_data(pub, snap); if (rc < 0) { return rc; }
     rc = SOS_pack_snap_add_to_pub_cache(pub, snap); if (rc < 0) { return rc; }
     rc = SOS_pack_snap_into_val_queue(pub, snap); if (rc < 0) { return rc; }
 
@@ -1716,7 +1718,7 @@ SOS_pack_related(SOS_pub *pub, long relation_id, const char *name,
 int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
         const char *name, SOS_val_type type, const void *val)
 {
-    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_situate_in_pub");   
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_situate_in_pub");
 
 
     switch(type) {
@@ -1802,11 +1804,11 @@ int SOS_pack_snap_situate_in_pub(SOS_pub *pub, SOS_val_snap *snap,
 
 
 int SOS_pack_snap_renew_pub_data(SOS_pub *pub, SOS_val_snap *snap) {
-    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_renew_pub_data"); 
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_renew_pub_data");
 
     // Update the value in the pub->data[elem] position.
-    SOS_data *data = pub->data[snap->elem]; 
-    
+    SOS_data *data = pub->data[snap->elem];
+
     switch(snap->type) {
 
     case SOS_VAL_TYPE_STRING:
@@ -1899,7 +1901,7 @@ int SOS_pack_snap_list_into_pub_cache(SOS_pub *pub, SOS_val_snap **snap_list) {
     SOS_val_snap *snap;
     SOS_val_snap *next_snap;
 
-    snap = pub->cache[insert_pos]; 
+    snap = pub->cache[insert_pos];
     while (snap != NULL) {
        SOS_val_snap *next_snap = snap->next_snap;
        SOS_val_snap_destroy(&snap);
@@ -1922,7 +1924,7 @@ int SOS_pack_snap_list_into_pub_cache(SOS_pub *pub, SOS_val_snap **snap_list) {
 
 
 int SOS_pack_snap_add_to_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
-    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_add_to_pub_cache"); 
+    SOS_SET_CONTEXT(pub->sos_context, "SOS_pack_snap_add_to_pub_cache");
 
     // MUTEX NOTE: It is assumed that the pub->lock and global cache
     //             mutex have already been obtained by the calling
@@ -1947,13 +1949,13 @@ int SOS_pack_snap_add_to_pub_cache(SOS_pub *pub, SOS_val_snap *snap) {
     //       because these two snaps have different lifecycles.
     dlog(8, "pub->cache_depth == %d\n", pub->cache_depth);
     // ...
-    SOS_val_snap *snap_copy = 
+    SOS_val_snap *snap_copy =
         (SOS_val_snap *) calloc(1, sizeof(SOS_val_snap));
     // Copy all the static member values of the snap:
     memcpy(snap_copy, snap, sizeof(SOS_val_snap));
     // Strings and Bytes need to be alloc'ed and copied in seperately:
     switch (snap_copy->type) {
-        case SOS_VAL_TYPE_STRING: 
+        case SOS_VAL_TYPE_STRING:
             snap_copy->val.c_val =
                 (char *) calloc(snap_copy->val_len, sizeof(char));
             memcpy(snap_copy->val.c_val, snap->val.c_val, snap_copy->val_len);
@@ -1988,18 +1990,18 @@ int SOS_pack_snap_into_val_queue(SOS_pub *pub, SOS_val_snap *snap) {
                 " set to the SOSD.db.snap_queue pointer. Doing nothing.\n");
         return snap->elem;
     }
-    
+
     pthread_mutex_lock(pub->snap_queue->sync_lock);
     pipe_push(pub->snap_queue->intake, (void *) &snap, 1);
     pub->snap_queue->elem_count++;
     pthread_mutex_unlock(pub->snap_queue->sync_lock);
-    
+
     return snap->elem;
 }
 
 void SOS_val_snap_destroy(SOS_val_snap **snap_var) {
     SOS_val_snap *snap = *snap_var;
-    
+
     if (snap == NULL) {
         return;
     }
@@ -2275,11 +2277,11 @@ SOS_val_snap_queue_from_buffer(
     // Snaps for the database:
     SOS_val_snap  *snap;
     SOS_val_snap **snap_list;
-    
+
     // Snaps for the cache:
     SOS_val_snap  *snap_copy;
     SOS_val_snap **snap_copy_list;
-   
+
     bool ynAddSnapsToCache =
         ((pub->cache_depth > 0)
       && (pub->meta.nature != SOS_NATURE_SOS));
@@ -2383,7 +2385,7 @@ SOS_val_snap_queue_from_buffer(
         for (snap_index = 0; snap_index < (snap_count - 1); snap_index++) {
             snap_copy_list[snap_index]->next_snap =
                 snap_copy_list[snap_index + 1];
-            
+
             if (snap_index > 0) {
                 snap_copy_list[snap_index]->prev_snap =
                     snap_copy_list[snap_index - 1];
@@ -2395,7 +2397,7 @@ SOS_val_snap_queue_from_buffer(
 
         // Place these values in the pub->cache, if it is enabled:
         pthread_mutex_lock(SOS->task.global_cache_lock);
-        //        
+        //
         SOS_pack_snap_list_into_pub_cache(pub, snap_copy_list);
         //
         pthread_mutex_unlock(SOS->task.global_cache_lock);
@@ -2456,7 +2458,7 @@ SOS_announce_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     int   elem;
 
     // CONCURRENCY: This function assumes pub->lock is already held.
-    
+
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_ANNOUNCE;
     header.msg_from = SOS->my_guid;
@@ -2518,7 +2520,7 @@ void SOS_publish_to_buffer(SOS_pub *pub, SOS_buffer *buffer) {
     int              elem;
 
     // CONCURRENCY: This function assumes the pub->lock is already held.
-    
+
     SOS_TIME( send_time );
 
     this_frame = pub->frame++;
@@ -2661,7 +2663,7 @@ void SOS_announce_from_buffer(SOS_buffer *buffer, SOS_pub *pub) {
     dlog(6, "pub->cache_depth = %d\n", pub->cache_depth);
 
     // We shouldn't have a cache yet, so allocate it with the depth that
-    // the user has requested. 
+    // the user has requested.
     if (pub->cache != NULL) {
         dlog(1, "WARNING: Handling a re-announcement for"
                 " a pub with an existing cache.\n");
@@ -2901,7 +2903,7 @@ SOS_publish( SOS_pub *pub ) {
     rep_buf = NULL;
     SOS_buffer_init(SOS, &pub_buf);
     SOS_buffer_init_sized(SOS, &rep_buf, SOS_DEFAULT_REPLY_LEN);
-    
+
     // CONCURRENCY: Announce will lock the pub, so don't lock it yet...
 
     if (pub->announced == 0) {
