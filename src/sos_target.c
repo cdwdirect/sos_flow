@@ -246,7 +246,6 @@ SOS_target_init(
                 "  Defaulting to 'localhost'.\n");
         strncpy(tgt->remote_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     }
-
     snprintf(tgt->remote_port, NI_MAXSERV, "%d", target_port);
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;

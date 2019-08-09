@@ -1346,7 +1346,8 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     const char * portStr = getenv("SOS_CMD_PORT");
     if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
     
-    SOS_target_init(SOS, &my_own_listen_port, SOS->config.daemon_host, atoi(portStr));
+    //SOS_target_init(SOS, &my_own_listen_port, SOS->config.daemon_host, atoi(portStr)); ?????
+    SOS_target_init(SOS, &my_own_listen_port, "localhost", atoi(portStr));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
     dlog(1, "  ... Sending...\n");
@@ -2235,6 +2236,11 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
         // shutdown notice to Aggregators...
         SOSD_cloud_shutdown_notice();
     }
+#endif
+
+#if (SOSD_CLOUD_SYNC_WITH_MPI > 0)
+        //Send message and shutdown all daemons
+        SOSD_cloud_shutdown_notice();
 #endif
 
     SOSD.daemon.running = 0;

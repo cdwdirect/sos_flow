@@ -22,51 +22,58 @@ bool SOSD_cloud_shutdown_underway;
 
 void SOSD_cloud_shutdown_notice(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_shutdown_notice");
-    /* NOTE: This function is to facilitate notification of sosd components
-     *       that might not be listening to a socket.
-     *       Only certain ranks will participate in it.
+    /* One rank receives the sosd.kill and send the SHUTDOWN to all
+     * the others mpi ranks.
      */
 
     SOS_buffer *shutdown_msg;
     SOS_buffer_init(SOS, &shutdown_msg);
-
+    int world_size = -1;
+    int world_rank = -1;
+    MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     dlog(1, "Providing shutdown notice to the cloud_sync backend...\n");
     SOSD_cloud_shutdown_underway = true;
 
-    if (SOS->config.comm_rank < SOSD.daemon.cloud_sync_target_count) {
-        dlog(1, "  ... preparing notice to SOS_ROLE_AGGREGATOR at rank %d\n", SOSD.daemon.cloud_sync_target);
-        /* The first N ranks will notify the N databases... */
-        SOS_msg_header header;
-        SOS_buffer    *shutdown_msg;
-        int            embedded_msg_count;
-        int            offset;
-        int            msg_inset;
 
-        SOS_buffer_init(SOS, &shutdown_msg);
+    SOS_msg_header header;
+    int            embedded_msg_count;
+    int            offset;
+    int            msg_inset;
 
-        embedded_msg_count = 1;
-        header.msg_size = -1;
-        header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
-        header.msg_from = SOS->my_guid;
-        header.ref_guid = 0;
+    SOS_buffer_init(SOS, &shutdown_msg);
 
-        offset = 0;
-        SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
+    embedded_msg_count = 1;
+    header.msg_size = -1;
+    header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
+    header.msg_from = SOS->my_guid;
+    header.ref_guid = 0;
 
-        header.msg_size = SOS_msg_zip(shutdown_msg, header, offset, &offset);
-        offset = 0;
-        SOS_buffer_pack(shutdown_msg, &offset, "ii",
-                        embedded_msg_count,
-                        header.msg_size);
+    offset = 0;
+    SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
 
-        dlog(1, "  ... sending notice\n");
-        MPI_Ssend((void *) shutdown_msg->data, shutdown_msg->len, MPI_CHAR, SOSD.daemon.cloud_sync_target, 0, MPI_COMM_WORLD);
+    header.msg_size = SOS_msg_zip(shutdown_msg, header, offset, &offset);
+    offset = 0;
+    SOS_buffer_pack(shutdown_msg, &offset, "ii",
+                    embedded_msg_count,
+                    header.msg_size);
+
+    dlog(1, "  ... sending shutdown notice\n");
+    int i;
+    for(i=0; i<world_rank; i++)
+    {
+        dlog(1, "  ... preparing notice to daemon at rank %d\n", i);
+        MPI_Ssend((void *) shutdown_msg->data, shutdown_msg->len, MPI_CHAR, i, 0, MPI_COMM_WORLD);
         dlog(1, "  ... sent successfully\n");
-
     }
-    
-    //dlog(1, "  ... waiting at barrier for the rest of the sosd daemons\n");
-    //MPI_Barrier(MPI_COMM_WORLD);
+    for(i=(world_rank+1); i<world_size; i++)
+    {
+        dlog(1, "  ... preparing notice to daemon at rank %d\n", i);
+        MPI_Ssend((void *) shutdown_msg->data, shutdown_msg->len, MPI_CHAR, i, 0, MPI_COMM_WORLD);
+        dlog(1, "  ... sent successfully\n");
+    }
+
+
     dlog(1, "  ... done\n");
 
     SOS_buffer_destroy(shutdown_msg);
@@ -191,6 +198,11 @@ void SOSD_cloud_listen_loop(void) {
 
         msg_waiting = 0;
         do {
+            if(!SOSD.daemon.running)
+            {
+                dlog(1,"SOSD.daemon.running is 0, exit SOSD_cloud_listen_loop");
+                return;
+            }
             MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
             usleep(1000);
         } while (msg_waiting == 0);
@@ -208,7 +220,6 @@ void SOSD_cloud_listen_loop(void) {
         int entry_count   = 0;
         int displaced     = 0;
         int offset        = 0;
-
         SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
         dlog(1, "  ... message contains %d entries.\n", entry_count);
 
@@ -499,15 +510,12 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     int world_rank = -1;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    printf("world_rank %d... SOSD.daemon.listener_count %d\n", world_rank, SOSD.daemon.listener_count);
     if ((world_rank >= 0) && (world_rank < SOSD.daemon.listener_count)) {
         SOS->role = SOS_ROLE_LISTENER;
         dlog(0, "Becoming a SOS_ROLE_LISTENER...world_rank %d...\n", world_rank);
-        printf("Becoming a SOS_ROLE_LISTENER....world_rank %d...\n", world_rank);
     } else if ((world_rank >= SOSD.daemon.listener_count) && (world_rank <= world_size)) { 
         SOS->role = SOS_ROLE_AGGREGATOR;
         dlog(0, "Becoming a SOS_ROLE_AGGREGATOR....world_rank %d...\n", world_rank);
-        printf("Becoming a SOS_ROLE_AGGREGATOR....world_rank %d...\n", world_rank);
     } 
     
     if (SOS->role == SOS_ROLE_UNASSIGNED) {
@@ -633,7 +641,9 @@ int SOSD_cloud_finalize(void) {
     free(SOSD.daemon.cloud_sync_target_set);
 
     dlog(1, "Leaving the MPI communicator...\n");
+    MPI_Barrier(MPI_COMM_WORLD);
     rc = MPI_Finalize();
+
     if (rc != MPI_SUCCESS) {
         MPI_Error_string( rc, mpi_err, &mpi_err_len );
         dlog(1, "  ... MPI_Finalize() did not complete successfully!\n");
