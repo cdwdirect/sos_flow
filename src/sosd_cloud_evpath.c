@@ -371,7 +371,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.EVPATH");
-    dlog(8, "SOSD_cloud_init...\n");
+    dlog(1, "SOSD_cloud_init...\n");
 
     SOSD_evpath_ready_to_listen = false;
     SOSD_evpath *evp = &SOSD.daemon.evpath;
@@ -660,7 +660,9 @@ int SOSD_cloud_start(void) {
  */
 int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.EVPATH");
-
+    dlog(1, "-----------> ----> -------------> ----------> ------------->\n");
+    dlog(1, "----> --> >>Transporting off-node!>> ---------------------->\n");
+    dlog(1, "---------------> ---------> --------------> ----> -----> -->\n");
     if (reply == NULL) {
         // NOTE: This is valid behavior, so be careful to account
         //       for it.

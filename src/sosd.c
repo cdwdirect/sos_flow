@@ -1200,9 +1200,16 @@ void* SOSD_THREAD_db_sync(void *args) {
 // NOTE: This function is needed for the EVPath implementation.
 void* SOSD_THREAD_cloud_recv(void *args) {
     //Jordi ????
-    //#ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
         SOSD_cloud_listen_loop();
-    //#endif
+    #endif
+
+    #ifdef SOSD_CLOUD_SYNC_WITH_MPI
+        SOSD_cloud_listen_loop();
+    #endif
+    /*#ifdef SOSD_CLOUD_SYNC_WITH_SOCKET
+        SOSD_cloud_listen_loop();
+    #endif*/
     return NULL;
 }
 

@@ -144,6 +144,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
             "SOSD_cloud_handle_daemon_registration.ZEROMQ");
 
     dlog(3, "Registering a new connection...");
+    dlog(1, "Registering a new connection...Method needs to be implemented!!!!!\n");
 
     SOS_msg_header header;
     int offset = 0;
@@ -152,7 +153,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
         &header.msg_type,
         &header.msg_from,
         &header.ref_guid);
-
+/*
     SOSD_evpath *evp = &SOSD.daemon.evpath;
 
     if (header.msg_from >= SOS->config.comm_size) {
@@ -226,7 +227,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
     EVsubmit(node->src, &rec, NULL);
 
     dlog(3, "Registration complete.\n");
-
+*/
     return;
 }
 
@@ -236,8 +237,9 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull.ZEROMQ");
-
+    dlog(1, "MSOSD_cloud_handle_triggerpull... Not implemented!!!.\n");
     dlog(4, "Message received... unzipping.\n");
+
 
     SOS_msg_header header;
     int offset = 0;
@@ -247,7 +249,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
     dlog(4, "Done unzipping.  offset_after_original_header == %d\n", 
             offset_after_original_header);
-
+/*
     if ((SOS->role == SOS_ROLE_AGGREGATOR)
      && (SOS->config.comm_size > 1)) {
         
@@ -345,7 +347,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     pipe_push(SOSD.sync.feedback.queue->intake, (void *) &task, 1);
     SOSD.sync.feedback.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
-
+*/
     return;
 }
 
@@ -379,7 +381,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.ZEROMQ");
 
     SOSD_ready_to_listen = false;
-    SOSD_zeromq *zmq = &SOSD.zeromq;
+    SOSD_zeromq *zmq = &SOSD.daemon.zeromq;
 
     zmq->meetup_path = NULL;
     zmq->meetup_path = getenv("SOS_MEETUP_PATH");
@@ -460,6 +462,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(1, "   ... creating connection manager:\n");
 
     zmq->context = zmq_ctx_new();
+    // Do zmq_ctx_destroy() at shutdown
 
     SOSD_ready_to_listen = true;
     
@@ -489,7 +492,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         contact_file = fopen(contact_filename, "w");
         fprintf(contact_file, "%s\n%d\n",
                 SOSD.sos_context->config.node_id,
-                SOSD.sos_context->config.);
+                SOSD.net->local_port);
         fflush(contact_file);
         fclose(contact_file);
 
@@ -503,7 +506,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             usleep(100000);
         }
 
-        evp->send.contact_string = (char *)calloc(1024, sizeof(char));
+        /*evp->send.contact_string = (char *)calloc(1024, sizeof(char));
         while(strnlen(evp->send.contact_string, 1024) < 1) {
             FILE *contact_file;
             contact_file = fopen(contact_filename, "r");
@@ -570,7 +573,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             header.msg_size);
 
         SOSD_cloud_send(buffer, NULL);
-        SOS_buffer_destroy(buffer);
+        SOS_buffer_destroy(buffer);*/
     }
 
     free(contact_filename);
@@ -668,7 +671,8 @@ void  SOSD_cloud_fflush(void) {
  */
 int   SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.ZEROMQ");
-
+    dlog(1, "SOSD_cloud_finalize... Not implemented!!!.\n");
+    /*
     SOSD_evpath *evp = &SOSD.daemon.evpath;
 
     if (SOSD.sos_context->role != SOS_ROLE_AGGREGATOR) {
@@ -682,7 +686,7 @@ int   SOSD_cloud_finalize(void) {
     if (remove(contact_filename) == -1) {
         dlog(0, "   Error, unable to delete key file!\n");
     }
-
+    */
     return 0;
 }
 

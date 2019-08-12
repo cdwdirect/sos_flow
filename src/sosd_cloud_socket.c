@@ -360,7 +360,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
  */
 int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.SOCKET");
-
+    dlog(1, "Initializing SOCKET based inter-daemon cloud...\n");
     SOSD_sockets_ready_to_listen = false;
     
     SOS_options *opt = SOSD.sos_context->config.options;
@@ -444,10 +444,15 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     //Conserve this behavior: SOSD_evpath_ready_to_listen = true;
     
+    int rank_cloud_port = SOSD_DEFAULT_CLOUD_PORT+SOSD.sos_context->config.comm_rank;
+    dlog(1, "SOSD.sos_context->config.comm_rank : %d\n", SOSD.sos_context->config.comm_rank);
+    dlog(1, "SOSD_DEFAULT_CLOUD_PORT : %d\n", SOSD_DEFAULT_CLOUD_PORT);
+    dlog(1, "rank_cloud_port : %d\n", rank_cloud_port);
+
     SOS_socket *tgt = NULL;
     SOS_target_init(SOS, &tgt,
             SOS->config.daemon_host,
-            SOSD_DEFAULT_CLOUD_PORT); //NOTE: _CLOUD_PORT 
+            rank_cloud_port); //NOTE: _CLOUD_PORT 
     SOS_target_setup_for_accept(tgt);
     SOSD.daemon.cloud_inlet = tgt;
 
@@ -471,14 +476,21 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             calloc(NI_MAXHOST, sizeof(char));
 		gethostname(SOSD.sos_context->config.node_id, NI_MAXHOST);
         contact_file = fopen(contact_filename, "w");
-        strcpy(SOSD.daemon.cloud_inlet->local_port, SOSD.net->local_port);
-        SOSD.daemon.cloud_inlet->port_number = atoi(SOSD.net->local_port);
-        fprintf(contact_file, "%s\n%s\n%d\n",
+        //strcpy(SOSD.daemon.cloud_inlet->local_port, SOSD.net->local_port);
+        //SOSD.daemon.cloud_inlet->port_number = atoi(SOSD.net->local_port);
+        sprintf (SOSD.daemon.cloud_inlet->local_port, "%d", rank_cloud_port);
+        SOSD.daemon.cloud_inlet->port_number = rank_cloud_port;
+        dlog(1, "SOSD.daemon.cloud_inlet->local_port : %s\n", SOSD.daemon.cloud_inlet->local_port);
+        dlog(1, "SOSD.daemon.cloud_inlet->port_number : %d\n", SOSD.daemon.cloud_inlet->port_number);
+        dlog(0, "fprintf.\n");
+        fprintf(contact_file, "%s\n%s\n",
                 SOSD.daemon.cloud_inlet->local_host,
-                SOSD.daemon.cloud_inlet->local_port,
-                SOSD.daemon.cloud_inlet->port_number);
+                SOSD.daemon.cloud_inlet->local_port);
+        dlog(0, "fflush.\n");
         fflush(contact_file);
+        dlog(0, "fclose.\n");
         fclose(contact_file);
+         dlog(0, "done.\n");
 
     } else {
 
@@ -542,21 +554,21 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             header.msg_from,
             header.ref_guid);
 
-        SOS_buffer_pack(buffer, &offset, "ss",
-                tgt->local_host,
-                tgt->local_port);
-
+        SOS_buffer_pack(buffer, &offset, "ss", tgt->local_host, tgt->local_port);
+        
         header.msg_size = offset;
         offset = 0;
         
         SOS_buffer_pack(buffer, &offset, "ii",
             msg_count,
             header.msg_size);
-
+        
+        sleep(1);
         SOSD_cloud_send(buffer, NULL);
         SOS_buffer_destroy(buffer);
     }
 
+    SOSD_sockets_ready_to_listen = true;
     free(contact_filename);
     dlog(0, "   ... done.\n");
 
@@ -573,7 +585,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 int SOSD_cloud_start(void) {
     
     //TODO
-    
     return 0;
 }
 
@@ -586,7 +597,10 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.SOCKET");
 
     // NOTE: See SOSD_cloud_enqueue() for async sends.
-  
+    dlog(1, "SOSD_cloud_send\n");
+    dlog(1, "-----------> ----> -------------> ----------> ------------->\n");
+    dlog(1, "----> --> >>Transporting off-node!>> ---------------------->\n");
+    dlog(1, "---------------> ---------> --------------> ----> -----> -->\n");
     SOS_buffer *reply_ptr;
 
     if (reply == NULL) {
@@ -597,7 +611,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     }
 
     SOS_target_connect(SOSD.daemon.cloud_aggregator);
-    SOS_target_send_msg(SOSD.daemon.cloud_aggregator, buffer);
+    dlog(1, "Number of bytes sent: %d\n", SOS_target_send_msg(SOSD.daemon.cloud_aggregator, buffer));
     SOS_target_recv_msg(SOSD.daemon.cloud_aggregator, reply_ptr);
     SOS_target_disconnect(SOSD.daemon.cloud_aggregator);
 
@@ -617,6 +631,12 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.SOCKET");
+    dlog(1, "SOSD_cloud_enqueue\n");
+    dlog(1, "-----------> ----> -------------> ----------> ------------->\n");
+    dlog(1, "----> --> >>Transporting off-node!>> ---------------------->\n");
+    dlog(1, "---------------> ---------> --------------> ----> -----> -->\n");
+
+
     SOS_msg_header header;
     int offset;
 
