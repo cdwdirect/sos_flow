@@ -32,11 +32,3 @@ export SOS_ROOT=$BASEDIR/sos_flow
 export BUILDDIR=build-llnl
 export SOS_BUILD_DIR=$SOS_ROOT/$BUILDDIR
 export SOS_WORK=`pwd`
-export SOS_EVPATH_MEETUP=$SOS_WORK
-export SOS_DISCOVERY_DIR=$SOS_EVPATH_MEETUP
-export CC=gcc
-export CXX=g++
-export MPICC=mpicc
-export MPICXX=mpiCC
-export SOS_ENV_SET=1
-
