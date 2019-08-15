@@ -153,6 +153,29 @@ SOS_target_setup_for_accept(SOS_socket *target)
 
 
 int
+SOS_target_recv_n_bytes(
+        void *dest_ptr,
+        int   bytes_requested,
+        SOS_socket *source)
+{
+    SOS_SET_CONTEXT(source->sos_context, "SOS_target_recv_n_bytes");
+
+    int bytes_read = 0;
+
+    dlog(1, "Pulling %d bytes from source target at socket %d ...",
+        bytes_requested, source->remote_socket_fd);
+
+    bytes_read = recv(source->remote_socket_fd, dest_ptr, bytes_requested, 0);
+
+    if (bytes_read != bytes_requested) {
+        dlog(0, "WARNING: Only %d of %d requested bytes were read!");
+    }
+
+    return bytes_read;
+}
+
+
+int
 SOS_target_recv_msg(
         SOS_socket *target,
         SOS_buffer *reply)
@@ -185,7 +208,7 @@ SOS_target_recv_msg(
 
     memset(&header, '\0', sizeof(SOS_msg_header));
     if (reply->len >= sizeof(SOS_msg_header)) {
-        int offset = 0;
+        offset = 0;
         SOS_msg_unzip(reply, &header, 0, &offset);
     } else {
         fprintf(stderr, "SOS: Received malformed message:"

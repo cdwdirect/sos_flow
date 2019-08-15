@@ -18,6 +18,8 @@ extern "C" {
     int SOS_target_send_msg(SOS_socket *target, SOS_buffer *msg);
 
     int SOS_target_recv_msg(SOS_socket *target, SOS_buffer *reply);
+    int SOS_target_recv_n_bytes(void *dest_ptr,
+        int bytes_requested, SOS_socket *source);
 
     int SOS_target_disconnect(SOS_socket *tgt_conn);
 

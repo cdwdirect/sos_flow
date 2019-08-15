@@ -1219,10 +1219,7 @@ void* SOSD_THREAD_cloud_send(void *args) {
     int              offset;
     int              msg_offset;
 
-    buffer = NULL;
     reply = NULL;
-    SOS_buffer_init_sized_locking(SOS, &buffer,
-            (10 * SOS_DEFAULT_BUFFER_MAX), false);
     SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
 
     pthread_mutex_lock(my->lock);
@@ -1265,60 +1262,19 @@ void* SOSD_THREAD_cloud_send(void *args) {
         my->queue->elem_count -= count;
         pthread_mutex_unlock(my->queue->sync_lock);
 
-        // NOTE: This is an exception to other message packaging formats you see
-        //       in SOS, because all daemon<-->daemon messages contain a count
-        //       of internal messages as the first value, to be able to buffer
-        //       and shuttle groups of messages around rather than incurring
-        //       setup and teardown overhead for each relayed message.
-        offset = 0;
-        SOS_buffer_pack(buffer, &offset, "i", count);
+        dlog(4, "Sending %d messages to aggregator ...\n", count);
 
-        // Embed all of the messages we've enqueued to send...
         for (msg_index = 0; msg_index < count; msg_index++) {
-
-            msg_offset = 0;
-            msg = msg_list[msg_index];
-
-            SOS_msg_unzip(msg, &header, 0, &msg_offset);
-
-            while ((header.msg_size + offset) > buffer->max) {
-                dlog(4, "(header.msg_size == %d   +   offset == %d)"
-                        "  >  buffer->max == %d    (growing...)\n",
-                     header.msg_size, offset, buffer->max);
-                SOS_buffer_grow(buffer, buffer->max, SOS_WHOAMI);
-            }
-
-            dlog(4, "(%d of %d) --> packing in "
-                    "msg(%15s).size == %d @ offset:%d\n",
-                    (msg_index + 1),
-                    count,
-                    SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
-                    header.msg_size,
-                    offset);
-
-            memcpy((buffer->data + offset), msg->data, header.msg_size);
-            offset += header.msg_size;
-
-            SOS_buffer_destroy(msg);
+            SOSD_cloud_send(msg_list[msg_index], reply);
+            SOS_buffer_destroy(msg_list[msg_index]);
         }
 
-        buffer->len = offset;
-        dlog(4, "Sending %d messages in %d bytes"
-                " to aggregator ...\n", count, buffer->len);
-
-        SOSD_cloud_send(buffer, reply);
-
-        //TODO: Handle replies here (MPI only...?)
-
-        SOS_buffer_wipe(buffer);
-        SOS_buffer_wipe(reply);
         free(msg_list);
 
         gettimeofday(&now, NULL);
         wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
         wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     }
-    SOS_buffer_destroy(buffer);
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
@@ -1659,7 +1615,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
 
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
-    #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
+    #if defined(SOSD_CLOUD_SYNC_WITH_EVPATH) || defined(SOSD_CLOUD_SYNC_WITH_SOCKET)
     SOSD_cloud_handle_triggerpull(msg);
     #else
     fprintf(stderr, "WARNING: Trigger message received, but support for\n"

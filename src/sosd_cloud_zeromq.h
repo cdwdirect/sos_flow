@@ -19,7 +19,7 @@ int   SOSD_cloud_finalize(void);
 void  SOSD_cloud_shutdown_notice(void);
 void  SOSD_cloud_listen_loop(void);
 void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
-
+void  SOSD_cloud_process_buffer(SOS_buffer *msg);
 void  SOSD_cloud_handle_daemon_registration(SOS_buffer *msg);
 
 void *SOSD_THREAD_ZEROMQ_listen_wrapper(void *not_used);
@@ -30,7 +30,7 @@ typedef struct _buffer_rec {
         unsigned char *data;
 } buffer_rec, *buffer_rec_ptr;
 
-
+SOSD_zeromq *zmq;
 #endif
 
 
