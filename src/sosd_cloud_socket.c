@@ -46,7 +46,7 @@ void SOSD_cloud_listen_loop(void) {
 }
 
 
-//Process a buffer containing 1 or more messages...
+//Process a buffer containing 1 messages...
 void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_process_buffer");
 

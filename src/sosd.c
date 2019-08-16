@@ -1615,7 +1615,11 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
 
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
-    #if defined(SOSD_CLOUD_SYNC_WITH_EVPATH) || defined(SOSD_CLOUD_SYNC_WITH_SOCKET)
+    #if defined(SOSD_CLOUD_SYNC_WITH_EVPATH) 
+    SOSD_cloud_handle_triggerpull(msg);
+    #elif defined(SOSD_CLOUD_SYNC_WITH_SOCKET) 
+    SOSD_cloud_handle_triggerpull(msg);
+    #elif defined(SOSD_CLOUD_SYNC_WITH_ZEROMQ)
     SOSD_cloud_handle_triggerpull(msg);
     #else
     fprintf(stderr, "WARNING: Trigger message received, but support for\n"

@@ -168,19 +168,17 @@ typedef struct {
 
 #ifdef SOSD_CLOUD_SYNC_WITH_ZEROMQ
 typedef struct {
-    void               *conn;
-    char               *conn_str;
-    char               *remote_host;
-    int                 remote_port;
-    SOS_role            role;
+    void               *conn_tgt;
+    char               *conn_tgt_str;
 } SOSD_zeromq_node;
 
 typedef struct {
-    void               *conn;
-    char               *conn_str;
+    void               *conn_listen;
+    char               *conn_listen_str;
+    void               *conn_request;
+    char               *conn_request_str;
     char               *discovery_dir;
     void               *context;
-    void               *send_conn;
     int                 node_count;
     SOSD_zeromq_node**  node; 
 } SOSD_zeromq;
