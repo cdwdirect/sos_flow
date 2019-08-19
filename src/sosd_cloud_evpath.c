@@ -41,11 +41,11 @@ SOSD_evpath_message_handler(
     int displaced    = 0;
     int offset       = 0;
 
-    SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
-    dlog(1, "  ... message contains %d entries.\n", entry_count);
+   // SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
+    //dlog(1, "  ... message contains %d entries.\n", entry_count);
 
     // Extract one-at-a-time single messages into 'msg'
-    for (entry = 0; entry < entry_count; entry++) {
+    //for (entry = 0; entry < entry_count; entry++) {
         dlog(1, "[ccc] ... processing entry %d of %d @ offset == %d \n",
             (entry + 1), entry_count, offset);
         memset(&header, '\0', sizeof(SOS_msg_header));
@@ -119,7 +119,7 @@ SOSD_evpath_message_handler(
 
             default:    SOSD_handle_unknown    (msg); break;
         }
-    }
+    //}
 
     return 0;
 }
@@ -204,8 +204,7 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
 
     int msg_count = 1;
     offset = 0;
-    SOS_buffer_pack(reply, &offset, "iiigg",
-        msg_count,
+    SOS_buffer_pack(reply, &offset, "iigg",
         header.msg_size,
         header.msg_type,
         header.msg_from,
@@ -213,8 +212,8 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
 
     header.msg_size = offset;
     offset = 0;
-    SOS_buffer_pack(reply, &offset, "ii",
-        msg_count,
+    SOS_buffer_pack(reply, &offset, "i",
+        //msg_count,
         header.msg_size);
 
     buffer_rec rec;
@@ -268,7 +267,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         header.ref_guid = 0;
 
         offset = 0;
-        SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
+        //SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
         int offset_after_wrapped_header = offset;
         offset = 0;
 
@@ -283,8 +282,8 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         offset = 0;
         dlog(4, "Tacking on the newly wrapped message size...\n");
         dlog(4, "   header.msg_size == %d\n", header.msg_size);
-        SOS_buffer_pack(wrapped_msg, &offset, "ii",
-            msg_count,
+        SOS_buffer_pack(wrapped_msg, &offset, "i",
+            //msg_count,
             header.msg_size);
 
 
@@ -613,8 +612,8 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         int msg_count = 1;
 
         int offset = 0;
-        SOS_buffer_pack(buffer, &offset, "iiigg",
-                msg_count,
+        SOS_buffer_pack(buffer, &offset, "iigg",
+                //msg_count,
                 header.msg_size,
                 header.msg_type,
                 header.msg_from,
@@ -625,8 +624,8 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         header.msg_size = offset;
         offset = 0;
 
-        SOS_buffer_pack(buffer, &offset, "ii",
-                msg_count,
+        SOS_buffer_pack(buffer, &offset, "i",
+                //msg_count,
                 header.msg_size);
 
         SOSD_cloud_send(buffer, NULL);
@@ -800,7 +799,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         header.ref_guid = 0;
 
         offset = 0;
-        SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
+        //SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
         msg_inset = offset;
 
 

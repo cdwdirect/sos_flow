@@ -1,18 +1,18 @@
 #!/bin/bash
 #
 echo "Starting AGGREGATOR 0..."
-env SOS_CMD_PORT=20690 ./bin/sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
+env SOS_CMD_PORT=20690 sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
 echo "Starting AGGREGATOR 1..."
-env SOS_CMD_PORT=20691 ./bin/sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
+env SOS_CMD_PORT=20691 sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
 echo "Starting AGGREGATOR 2..."
-env SOS_CMD_PORT=20692 ./bin/sosd -l 10 -a 3 -w `pwd` -k 2 -r aggregator &
+env SOS_CMD_PORT=20692 sosd -l 10 -a 3 -w `pwd` -k 2 -r aggregator &
 echo "Waiting for 3 seconds..."
 sleep 3
 echo "Starting LISTENERS..."
 for myport in `seq 22500 22509`;
 do
     let "myrank = $myport - 22500 + 3"
-    env SOS_CMD_PORT=$myport ./bin/sosd -l 10 -a 3 -w `pwd` -k $myrank -r listener &
+    env SOS_CMD_PORT=$myport sosd -l 10 -a 3 -w `pwd` -k $myrank -r listener &
 done
 echo "All listeners are now online (ports 22500-22509)"
 echo ""
@@ -22,7 +22,7 @@ read -e -p "How many values should be injected into each daemon instance? (10000
 echo "Starting demo_apps (1 per listener)"
 for myport in `seq 22500 22509`;
 do
-    env SOS_CMD_PORT=$myport ./bin/demo_app -i 100 -m $VALMAX -p 100 -d 100000 &
+    env SOS_CMD_PORT=$myport demo_app -i 100 -m $VALMAX -p 100 -d 100000 &
 done
 SLEEPKILL="n"
 read -e -p "Do you want to sleep and then shut down the daemons? (y/N): " -i "n" SLEEPKILL
@@ -44,10 +44,10 @@ if [ "$SLEEPKILL" == "y" ]; then
     echo "Bringing down the listeners..."
     for myport in `seq 22500 22509`;
     do
-        env SOS_CMD_PORT=$myport ./bin/sosd_stop
+        env SOS_CMD_PORT=$myport sosd_stop
     done
     echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
-    $SOS_ROOT/scripts/showdb
+    showdb
 else
     echo ""
     echo "Leaving script.  Daemons and demo_app are likely still running..."
@@ -56,6 +56,6 @@ else
     echo ""
     echo "To bring down all the listeners, run this command:"
     echo ""
-    echo -E "    for myport in \`seq 22500 22509\`; do env SOS_CMD_PORT=\$myport \$SOS_BUILD_DIR/bin/sosd_stop; done; \$SOS_ROOT/scripts/showdb;"
+    echo -E "    for myport in \`seq 22500 22509\`; do env SOS_CMD_PORT=\$myport sosd_stop; done; showdb;"
     echo ""  
 fi
