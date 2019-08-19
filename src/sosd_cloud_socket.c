@@ -31,11 +31,11 @@ void SOSD_cloud_listen_loop(void) {
 		//
 		dlog(1, "Listening for messages from other daemons...\n");
         SOS_target_accept_connection(SOSD.daemon.cloud_inlet);
-        dlog(1, "SOS_target_recv_msg...\n");
+        dlog(1, "Receiving message...\n");
         SOS_target_recv_msg(SOSD.daemon.cloud_inlet, msg);
-        dlog(1, "SOS_target_send_msg...\n");
+        dlog(1, "Sending ACK message...\n");
         SOS_target_send_msg(SOSD.daemon.cloud_inlet, ack);
-        dlog(1, "SOS_target_disconnect...\n");
+        dlog(1, "Disconnecting...\n");
         SOS_target_disconnect(SOSD.daemon.cloud_inlet);
         //
         dlog(1, "Message received!  Processing...\n");
@@ -229,7 +229,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         dlog(4, "I am an aggregator, and I have some"
                 " listener[s] to notify.\n");
 
-        //SOSD_evpath *evp = &SOSD.daemon.evpath;
         buffer_rec rec;
 
         dlog(2, "Wrapping the trigger message...\n");
@@ -259,6 +258,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             header.msg_size);
 
         dlog(1, "SOSD_cloud_handle_triggerpull loop \n");
+        //Send trigger only to the listeners of this aggregator
         int id = 0;
         for (id = 0; id < SOS->config.comm_size; id++) {
             dlog(1, "SOSD_cloud_handle_triggerpull id %d\n", id);
@@ -278,15 +278,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             dlog(1, "Number of bytes sent: %d\n", bytes_sent);
             SOS_target_disconnect(rmt_tgt);
 
-
-            /*------
-            if (evp->node[id]->active == true) {
-                dlog(2, "   ...sending feedback msg to sosd(%d).\n", id);
-                rec.data = (unsigned char *) wrapped_msg->data;
-                rec.size = wrapped_msg->len; 
-                EVsubmit(evp->node[id]->src, &rec, NULL);
-            }
-            */
         }
     }
 
@@ -498,8 +489,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             calloc(NI_MAXHOST, sizeof(char));
 		gethostname(SOSD.sos_context->config.node_id, NI_MAXHOST);
         contact_file = fopen(contact_filename, "w");
-        //strcpy(SOSD.daemon.cloud_inlet->local_port, SOSD.net->local_port);
-        //SOSD.daemon.cloud_inlet->port_number = atoi(SOSD.net->local_port);
+
         dlog(0, "fprintf.\n");
         fprintf(contact_file, "%s\n%s\n",
                 SOSD.daemon.cloud_inlet->local_host,
@@ -639,9 +629,11 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     }
 
     SOS_target_connect(SOSD.daemon.cloud_aggregator);
+    dlog(1, "Sending message to target aggregator\n", bytes_sent);
     int bytes_sent = SOS_target_send_msg(SOSD.daemon.cloud_aggregator, buffer);
-    dlog(1, "Number of bytes sent: %d\n", bytes_sent);
+    dlog(1, "Sent %d bytes to target aggregator\n", bytes_sent);
     SOS_target_recv_msg(SOSD.daemon.cloud_aggregator, reply_ptr);
+    dlog(1, "received ACK from target aggregator\n", bytes_sent);
     SOS_target_disconnect(SOSD.daemon.cloud_aggregator);
 
     if (reply == NULL) {

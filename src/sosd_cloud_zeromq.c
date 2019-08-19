@@ -41,28 +41,26 @@ void SOSD_cloud_listen_loop(void) {
         dlog(1, "Listening for messages from other daemons...\n");
         SOS_buffer_wipe(msg_buffer);
 
-
-        //
         //Initialize zmq empty message
         rc = zmq_msg_init (&zmsg);
         //Initialize zmsg ACK message
         zmq_msg_init_data (&zmsg_ack, ack->data, ack->len, NULL, NULL);
 
 
-        dlog(1, "SOS_target_recv_msg...\n");
+        dlog(1, "Waiting for a message...\n");
         //int nbytes = zmq_recv (zmq->conn_listen, msg_buffer->data, 2048, 0);
         int nbytes = zmq_msg_recv (&zmsg, zmq->conn_listen, 0);
-        dlog(1, "Received nbytes: %d\n", nbytes);
+        dlog(1, "Received a message of %d bytes\n", nbytes);
 
         msg_buffer->len = nbytes;
         //int bytes_sent = zmq_send (zmq->conn_listen, ack->data, ack->len, 0);
         int bytes_sent = zmq_msg_send (&zmsg_ack, zmq->conn_listen, 0);
-        dlog(1, "bytes_sent : %d\n", bytes_sent);
+        dlog(1, "Sending an ACK of size: %d bytes\n", bytes_sent);
 
         //Copy zmsg to buffer
         SOS_buffer_init_sized_locking(SOSD.sos_context, &msg_buffer, (zmq_msg_size(&zmsg)+ 1), false);
         memcpy(msg_buffer->data, zmq_msg_data (&zmsg), zmq_msg_size(&zmsg));
-        //
+
         dlog(1, "Message received!  Processing...\n");
         SOSD_cloud_process_buffer(msg_buffer);
     }
@@ -79,7 +77,6 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
     dlog(1, "SOSD_cloud_process_buffer\n");
     SOS_msg_header    header;
 
-    int displaced    = 0;
     int offset       = 0;
 
     //NOTE: Sockets only ever have a single message, like other
@@ -230,11 +227,11 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
     //Send ACK
     dlog(1, "Sending ACK registration...");
     int bytes_sent = zmq_msg_send (&zmsg , zmq->node[listener_id]->conn_tgt, 0);
-    dlog(1, "Sent nbytes: %d to registered node\n", bytes_sent);
+    dlog(1, "Sent %d bytes to registered node\n", bytes_sent);
     //Receive ACK
     dlog(1, "Receiving ACK registration...");
     int nbytes = zmq_msg_recv (&zmsg , zmq->node[listener_id]->conn_tgt, 0);
-    dlog(1, "Received nbytes: %d from registered node\n", nbytes);
+    dlog(1, "Received %d bytes from registered node\n", nbytes);
     //Disconnect
     rc = zmq_disconnect(zmq->node[listener_id]->conn_tgt,
         zmq->node[listener_id]->conn_tgt_str);
@@ -244,7 +241,6 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
             zmq_strerror (errno));
         return ;
     }
-
 
     dlog(3, "Registration complete.\n");
     return;
@@ -258,7 +254,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull.ZEROMQ");
     
     dlog(1, "Message received... unzipping.\n");
-
 
     SOS_msg_header header;
     int offset = 0;
@@ -317,11 +312,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
                         
             // NOTE: See SOSD_cloud_enqueue() for async sends.
-            /*dlog(1, "SOSD_cloud_handle_triggerpull send to %s:%s\n", rmt_tgt->remote_host, rmt_tgt->remote_port);
-            SOS_target_connect(rmt_tgt);
-            int bytes_sent = SOS_target_send_msg(rmt_tgt, wrapped_msg);
-            dlog(1, "Number of bytes sent: %d\n", bytes_sent);
-            SOS_target_disconnect(rmt_tgt);*/
             zmq_msg_t zmsg;
             rc = zmq_msg_init_data (&zmsg, wrapped_msg->data, wrapped_msg->len, NULL, NULL);
             assert (rc == 0);
@@ -339,11 +329,11 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             //Send ACK
             dlog(1, "Sending triggerpull...");
             int bytes_sent = zmq_msg_send (&zmsg , zmq->node[id]->conn_tgt, 0);
-            dlog(1, "Sent nbytes: %d to triggerpull node\n", bytes_sent);
+            dlog(1, "Sent %d bytes to triggerpull node\n", bytes_sent);
             //Receive ACK
             dlog(1, "Receiving ACK ...");
             int nbytes = zmq_msg_recv (&zmsg , zmq->node[id]->conn_tgt, 0);
-            dlog(1, "Received nbytes: %d from triggerpull node\n", nbytes);
+            dlog(1, "Received %d bytes from triggerpull node\n", nbytes);
             //Disconnect
             rc = zmq_disconnect(zmq->node[id]->conn_tgt,
                 zmq->node[id]->conn_tgt_str);
@@ -520,8 +510,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     SOSD.sos_context->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     gethostname( SOSD.sos_context->config.node_id, SOS_DEFAULT_STRING_LEN );
-
-    // Do zmq_ctx_destroy() at shutdown
+    
     zmq->context = zmq_ctx_new();
     assert (zmq->context);
     //Set the socket which other processes will send messages to
@@ -574,19 +563,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
 
 
-    // This is where EVPath would start listening.
-    //
-    // CMfork_comm_thread(evp->recv.cm);
-    // TODO: Kick up the thread?
-    
-    // Get the location we're listening on...
-    // evp->recv.contact_string =
-    //     attr_list_to_string(CMget_contact_list(evp->recv.cm));
-
-    //TODO: Write out to the .key file how other ranks can get ahold of us.
-
-
-
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
         // AGGREGATOR
@@ -595,15 +571,10 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         dlog(0, "   ... demon role: AGGREGATOR\n");
         // Make space to track connections back to the listeners:
-
-
-
-         zmq->node = (SOSD_zeromq_node **)
+        zmq->node = (SOSD_zeromq_node **)
             malloc(expected_node_count * sizeof(SOSD_zeromq_node *));
         int node_idx = 0;
         for (node_idx = 0; node_idx < expected_node_count; node_idx++) {
-            // Allocate space to store returning connections to clients...
-            // NOTE: Fill in later, as clients connect.
             zmq->node[node_idx] = NULL;
         }
 
@@ -618,9 +589,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         fclose(contact_file);
 
     } else {
-
         //LISTENER
-
         dlog(0, "   ... waiting for coordinator to share contact"
                 " information.\n");
         while (!SOS_file_exists(contact_filename)) {
@@ -716,12 +685,12 @@ int SOSD_cloud_start(void) {
 
 int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.ZEROMQ");
-    //TODO: Use target API to send message.
     //This is a blocking send.  Use SOSD_cloud_enqueue for async push.
     dlog(1, "-----------> ----> -------------> ----------> ------------->\n");
     dlog(1, "----> --> >>Transporting off-node!>> ---------------------->\n");
     dlog(1, "---------------> ---------> --------------> ----> -----> -->\n");
 
+    //Connect to the target aggregator
     int rc = zmq_connect(zmq->conn_request, zmq->conn_request_str);
     if (rc != 0 ) 
     {
@@ -729,16 +698,16 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
             zmq_strerror (errno));
         return 1;
     }
-
-
     zmq_msg_t zmsg;
     rc = zmq_msg_init_data (&zmsg, buffer->data, buffer->len, NULL, NULL);
     assert (rc == 0);
-
+    //Send message and receive ACK, receive after send is needed in zeromq
+    //the reply is discarded
     int bytes_sent = zmq_msg_send (&zmsg ,zmq->conn_request, 0);
-    dlog(1, "bytes_sent : %d\n", bytes_sent);
+    dlog(1, "Sent %d bytes to target aggregator\n", bytes_sent);
     int nbytes = zmq_msg_recv (&zmsg ,zmq->conn_request, 0);
-    dlog(1, "Received nbytes: %d\n", nbytes);
+    dlog(1, "Received %d from aggregator\n", nbytes);
+    //Close the connection to the aggregator
     rc = zmq_disconnect(zmq->conn_request, zmq->conn_request_str);
     if (rc != 0 ) 
     {
@@ -810,22 +779,20 @@ void  SOSD_cloud_fflush(void) {
  */
 int   SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.ZEROMQ");
-    dlog(1, "SOSD_cloud_finalize... Not implemented!!!.\n");
-    /*
-    SOSD_evpath *evp = &SOSD.daemon.evpath;
-
+    dlog(1, "SOSD_cloud_finalize...\n");
+    
     if (SOSD.sos_context->role != SOS_ROLE_AGGREGATOR) {
         return 0;
     }
     char *contact_filename = (char *) calloc(2048, sizeof(char));
     snprintf(contact_filename, 2048, "%s/sosd.%05d.key",
-        evp->meetup_path, SOS->config.comm_rank);
+        zmq->discovery_dir, SOS->config.comm_rank);
     dlog(1, "   Removing key file: %s\n", contact_filename);
 
     if (remove(contact_filename) == -1) {
         dlog(0, "   Error, unable to delete key file!\n");
     }
-    */
+    
     return 0;
 }
 

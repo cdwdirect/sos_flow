@@ -37,25 +37,19 @@ void SOSD_cloud_shutdown_notice(void) {
 
 
     SOS_msg_header header;
-    int            embedded_msg_count;
-    int            offset;
+    int            offset = 0;
     int            msg_inset;
 
     SOS_buffer_init(SOS, &shutdown_msg);
 
-    embedded_msg_count = 1;
     header.msg_size = -1;
     header.msg_type = SOS_MSG_TYPE_SHUTDOWN;
     header.msg_from = SOS->my_guid;
     header.ref_guid = 0;
 
-    offset = 0;
-    //SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
-
     header.msg_size = SOS_msg_zip(shutdown_msg, header, offset, &offset);
     offset = 0;
     SOS_buffer_pack(shutdown_msg, &offset, "i",
-                    //embedded_msg_count,
                     header.msg_size);
 
     dlog(1, "  ... sending shutdown notice\n");
@@ -131,12 +125,8 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send(MPI)");
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
-    int   offset;
+    int   offset = 0;
     int   rc;
-
-
-    offset = 0;
-    //SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
 
     dlog(8, "-----------> ----> -------------> ----------> ------------->\n");
     dlog(8, "----> --> >>Transporting off-node!>> ---------------------->\n");
@@ -147,7 +137,6 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
 
     SOSD_countof(mpi_sends++);
     SOSD_countof(mpi_bytes += buffer->len);
-
 
     /* NOTE: buffer gets destroyed by the calling function. */
     return 0;
@@ -170,7 +159,6 @@ void SOSD_cloud_listen_loop(void) {
     SOS_buffer_init(SOS, &buffer);
     SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
     dlog(8, "SOSD_cloud_listen_loop, entering loop SOSD.daemon.running %d...\n", SOSD.daemon.running);
-    //sleep(10);
 
     while(!SOSD.daemon.running) {
         usleep(1000);
@@ -182,6 +170,7 @@ void SOSD_cloud_listen_loop(void) {
 
         msg_waiting = 0;
         do {
+            //If the daemon stop running while waiting for another message, stop listening.
             if(!SOSD.daemon.running)
             {
                 dlog(1,"SOSD.daemon.running is 0, exit SOSD_cloud_listen_loop");
@@ -200,15 +189,10 @@ void SOSD_cloud_listen_loop(void) {
         MPI_Recv((void *) buffer->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
         dlog(1, "  ... message of %d bytes received from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);
 
-        int entry         = 0;
-        //int entry_count   = 0;
         int displaced     = 0;
         int offset        = 0;
-        //SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
 
-
-        /* Extract one-at-a-time single messages into 'msg' */
-        //for (entry = 0; entry < entry_count; entry++) {
+        /* Extract one single messages into 'msg' */
             memset(&header, '\0', sizeof(SOS_msg_header));
             displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
                               &header.msg_size,
@@ -336,14 +320,12 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         SOS_buffer *wrapped_msg;
         SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
 
-        int msg_count = 1;
         header.msg_size = msg->len;
         header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
         header.msg_from = SOS->config.comm_rank;
         header.ref_guid = 0;
 
         offset = 0;
-        //SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
         int offset_after_wrapped_header = offset;
         offset = 0;
 
@@ -359,7 +341,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         dlog(4, "Tacking on the newly wrapped message size...\n");
         dlog(4, "   header.msg_size == %d\n", header.msg_size);
         SOS_buffer_pack(wrapped_msg, &offset, "i",
-            //msg_count,
             header.msg_size);
 
         int id;
