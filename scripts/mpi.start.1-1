@@ -1,0 +1,4 @@
+#!/bin/bash
+
+./cleanall
+mpirun -np 1 env SOS_CMD_PORT=20690 sosd -r aggregator -l 1 -a 1 -k 0 -w $(pwd) : -np 1 env SOS_CMD_PORT=22500 sosd -r listener -l 1 -a 1 -k 1 -w $(pwd) &

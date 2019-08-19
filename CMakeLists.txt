@@ -34,8 +34,8 @@ set(ADIOS_DIR      "" CACHE STRING
 
 option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (DEFAULT)" OFF)
 option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
-option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (EXPERIMENTAL)" ON)
-option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" ON)
 
 # --- Other SOS options ---
 

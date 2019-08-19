@@ -508,8 +508,10 @@ int main(int argc, char *argv[])  {
     dlog(1, "Shutting down SOS services.\n");
     SOS_finalize(SOS);
 
-    if (SOSD_DAEMON_LOG >= 0) { fclose(sos_daemon_log_fptr); }
-    if (SOSD_DAEMON_LOG >= 0) { free(SOSD.daemon.log_file); }
+    if ((SOSD_DAEMON_LOG >= 0) && (SOS_DEBUG >= 0)) {
+        fclose(sos_daemon_log_fptr);
+        free(SOSD.daemon.log_file);
+    }
     if (SOS_DEBUG > 0)   {
         pthread_mutex_lock(SOSD.daemon.countof.lock_stats);
         pthread_mutex_destroy(SOSD.daemon.countof.lock_stats);
@@ -1615,17 +1617,17 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
 
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
-    #if defined(SOSD_CLOUD_SYNC_WITH_EVPATH) 
+    //#if defined(SOSD_CLOUD_SYNC_WITH_EVPATH) 
     SOSD_cloud_handle_triggerpull(msg);
-    #elif defined(SOSD_CLOUD_SYNC_WITH_SOCKET) 
-    SOSD_cloud_handle_triggerpull(msg);
-    #elif defined(SOSD_CLOUD_SYNC_WITH_ZEROMQ)
-    SOSD_cloud_handle_triggerpull(msg);
-    #else
+    //#elif defined(SOSD_CLOUD_SYNC_WITH_SOCKET) 
+    //SOSD_cloud_handle_triggerpull(msg);
+    //#elif defined(SOSD_CLOUD_SYNC_WITH_ZEROMQ)
+    //SOSD_cloud_handle_triggerpull(msg);
+    /*#else
     fprintf(stderr, "WARNING: Trigger message received, but support for\n"
             "         handling this message has not been compiled into this build\n"
             "         of SOSflow.  Sending an ACK and doing nothing.\n");
-    #endif
+    #endif*/
 
     dlog(5, "Cloud function returned, sending ACK reply to client"
             "that pulled the trigger.\n");

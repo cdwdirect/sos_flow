@@ -50,12 +50,12 @@ void SOSD_cloud_shutdown_notice(void) {
     header.ref_guid = 0;
 
     offset = 0;
-    SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
+    //SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
 
     header.msg_size = SOS_msg_zip(shutdown_msg, header, offset, &offset);
     offset = 0;
-    SOS_buffer_pack(shutdown_msg, &offset, "ii",
-                    embedded_msg_count,
+    SOS_buffer_pack(shutdown_msg, &offset, "i",
+                    //embedded_msg_count,
                     header.msg_size);
 
     dlog(1, "  ... sending shutdown notice\n");
@@ -133,13 +133,13 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
     int   offset;
     int   rc;
-    int   entry_count;
+
 
     offset = 0;
-    SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
+    //SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
 
     dlog(8, "-----------> ----> -------------> ----------> ------------->\n");
-    dlog(8, "----> --> >>Transporting off-node!>> ---(%d entries)---->\n", entry_count);
+    dlog(8, "----> --> >>Transporting off-node!>> ---------------------->\n");
     dlog(8, "---------------> ---------> --------------> ----> -----> -->\n");
 
     /* At this point, it's pretty simple: */
@@ -148,22 +148,6 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOSD_countof(mpi_sends++);
     SOSD_countof(mpi_bytes += buffer->len);
 
-    MPI_Status status;
-    int mpi_msg_len = 0;
-    int msg_waiting = 0;
-    do {
-        MPI_Iprobe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &msg_waiting, &status);
-        usleep(1000);
-    } while (msg_waiting == 0);
-    
-    MPI_Get_count(&status, MPI_CHAR, &mpi_msg_len);
-    
-    while(reply->max < mpi_msg_len) {
-        SOS_buffer_grow(reply, (1 + (mpi_msg_len - reply->max)), SOS_WHOAMI);
-    }
-    //dlog(5, "  Waiting for MPI_Recv message... \n");
-    //MPI_Recv((void *) reply->data, mpi_msg_len, MPI_CHAR, status.MPI_SOURCE, status.MPI_TAG, MPI_COMM_WORLD, &status);
-    //dlog(5, "  ... message of %d bytes reply from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);    
 
     /* NOTE: buffer gets destroyed by the calling function. */
     return 0;
@@ -217,16 +201,14 @@ void SOSD_cloud_listen_loop(void) {
         dlog(1, "  ... message of %d bytes received from rank %d!\n", mpi_msg_len, status.MPI_SOURCE);
 
         int entry         = 0;
-        int entry_count   = 0;
+        //int entry_count   = 0;
         int displaced     = 0;
         int offset        = 0;
-        SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
-        dlog(1, "  ... message contains %d entries.\n", entry_count);
+        //SOS_buffer_unpack(buffer, &offset, "i", &entry_count);
+
 
         /* Extract one-at-a-time single messages into 'msg' */
-        for (entry = 0; entry < entry_count; entry++) {
-            dlog(1, "[ccc] ... processing entry %d of %d @ offset == %d \n", (entry + 1),
-                    entry_count, offset);
+        //for (entry = 0; entry < entry_count; entry++) {
             memset(&header, '\0', sizeof(SOS_msg_header));
             displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
                               &header.msg_size,
@@ -248,8 +230,8 @@ void SOSD_cloud_listen_loop(void) {
             SOS_buffer *msg;
             SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
 
-            dlog(1, "[ccc] (%d of %d) <<< bringing in msg(%15s).size == %d from offset:%d\n",
-                 (entry + 1), entry_count, SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+            dlog(1, "[ccc] <<< bringing in msg(%15s).size == %d from offset:%d\n",
+                 SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
                  header.msg_size, offset);
 
             //Copy the data into the new message directly:
@@ -266,14 +248,7 @@ void SOSD_cloud_listen_loop(void) {
                 pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
                 SOSD.sync.local.queue->elem_count++;
                 pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
-                /*
-                 *  TODO: { CLOUD, REPLY, FEEDBACK }
-                 *
-                 */
-                MPI_Send((void *) reply->data, reply->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-                /*
-                 *
-                 */
+
                 break;
 
             case SOS_MSG_TYPE_REGISTER:
@@ -327,7 +302,7 @@ void SOSD_cloud_listen_loop(void) {
             default:                      SOSD_handle_unknown    (msg); break;
             }
         }
-    }
+    //}
     SOS_buffer_destroy(buffer);
 
     return;
@@ -339,7 +314,6 @@ void SOSD_cloud_listen_loop(void) {
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull(MPI)");
-
     dlog(4, "Message received... unzipping.\n");
 
     SOS_msg_header header;
@@ -369,7 +343,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         header.ref_guid = 0;
 
         offset = 0;
-        SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
+        //SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
         int offset_after_wrapped_header = offset;
         offset = 0;
 
@@ -384,24 +358,21 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         offset = 0;
         dlog(4, "Tacking on the newly wrapped message size...\n");
         dlog(4, "   header.msg_size == %d\n", header.msg_size);
-        SOS_buffer_pack(wrapped_msg, &offset, "ii",
-            msg_count,
+        SOS_buffer_pack(wrapped_msg, &offset, "i",
+            //msg_count,
             header.msg_size);
 
+        int id;
+        for (id = SOSD.daemon.cloud_sync_target_count; id < SOS->config.comm_size; id++) {
+            //Check which aggregator should send to this id and check if
+            //it is this aggregator
+            int my_listener = id % SOSD.daemon.cloud_sync_target_count;
+            my_listener = ( my_listener == SOS->config.comm_rank ) ? 1:0;
+            if(my_listener)
+                MPI_Ssend((void *) wrapped_msg->data, wrapped_msg->len, MPI_CHAR, id, 0, MPI_COMM_WORLD);
+            
+        }
 
-        fprintf(stderr, "TODO: Iterate through listeners and relay trigger msg."
-                " (UNFINISHED PORT)\n");
-        //TODO: [MPI] Iterate through listeners and relay the message.
-        //      Below is commented-out the EVPath way of doing so.
-        //int id = 0;
-        //for (id = 0; id < SOS->config.comm_size; id++) {
-        //    if (evp->node[id]->active == true) {
-        //        dlog(2, "   ...sending feedback msg to sosd(%d).\n", id);
-        //        rec.data = (unsigned char *) wrapped_msg->data;
-        //        rec.size = wrapped_msg->len;
-        //        EVsubmit(evp->node[id]->src, &rec, NULL);
-        //    }
-        //}
     }
 
     // Both Aggregators and Listeners should drop the feedback into
@@ -510,10 +481,12 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     int world_rank = -1;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-    if ((world_rank >= 0) && (world_rank < SOSD.daemon.listener_count)) {
+    dlog(0,"Aggregator_count = %d, listener_count = %d\n", SOSD.daemon.aggregator_count, SOSD.daemon.listener_count);
+    if ((world_rank >= SOSD.daemon.aggregator_count) && (world_rank <= world_size)) {
         SOS->role = SOS_ROLE_LISTENER;
         dlog(0, "Becoming a SOS_ROLE_LISTENER...world_rank %d...\n", world_rank);
-    } else if ((world_rank >= SOSD.daemon.listener_count) && (world_rank <= world_size)) { 
+    }
+    else if ((world_rank >= 0) && (world_rank < SOSD.daemon.aggregator_count)) { 
         SOS->role = SOS_ROLE_AGGREGATOR;
         dlog(0, "Becoming a SOS_ROLE_AGGREGATOR....world_rank %d...\n", world_rank);
     } 
@@ -524,7 +497,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Rank(%d)Size(%d)Role(%d) ==> list:%d    aggr:%d    work:%s    port:%d\n",
+    dlog(1,"Rank(%d)Size(%d)Role(%d) ==> list:%d    aggr:%d    work:%s    port:%d\n",
             world_rank, world_size, SOS->role,
             SOSD.daemon.listener_count, SOSD.daemon.aggregator_count,
             SOSD.daemon.work_dir, SOSD.net->port_number);
@@ -608,7 +581,7 @@ int SOSD_cloud_start() {
      *  This is handled elsewhere.
      *
     if (SOS->role != SOS_ROLE_AGGREGATOR) {
-        if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/send thread...\n");
+        if (SOSD_ECHO_TO_STDOUT) printf("Launching cloud_sync flush/p thread...\n");
         SOSD.sync.cloud_send.handler = (pthread_t *) malloc(sizeof(pthread_t));
         rc = pthread_create(SOSD.sync.cloud_send.handler, NULL, (void *) SOSD_THREAD_cloud_flush, (void *) &SOSD.sync.cloud_send.;
         if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");

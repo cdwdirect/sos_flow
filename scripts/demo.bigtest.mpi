@@ -1,19 +1,22 @@
 #!/bin/bash
 #
-echo "Starting AGGREGATOR 0..."
-env SOS_CMD_PORT=20690 sosd -l 10 -a 3 -w `pwd` -k 0 -r aggregator &
-echo "Starting AGGREGATOR 1..."
-env SOS_CMD_PORT=20691 sosd -l 10 -a 3 -w `pwd` -k 1 -r aggregator &
-echo "Starting AGGREGATOR 2..."
-env SOS_CMD_PORT=20692 sosd -l 10 -a 3 -w `pwd` -k 2 -r aggregator &
-echo "Waiting for 3 seconds..."
-sleep 3
-echo "Starting LISTENERS..."
-for myport in `seq 22500 22509`;
-do
-    let "myrank = $myport - 22500 + 3"
-    env SOS_CMD_PORT=$myport sosd -l 10 -a 3 -w `pwd` -k $myrank -r listener &
-done
+export lis=10
+export agg=3
+
+mpirun \
+    -np 1 env SOS_CMD_PORT=20690 sosd -r aggregator -l $lis -a $agg -k 0  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=20691 sosd -r aggregator -l $lis -a $agg -k 1  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=20692 sosd -r aggregator -l $lis -a $agg -k 2  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22500 sosd -r listener   -l $lis -a $agg -k 3  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22501 sosd -r listener   -l $lis -a $agg -k 4  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22502 sosd -r listener   -l $lis -a $agg -k 5  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22503 sosd -r listener   -l $lis -a $agg -k 6  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22504 sosd -r listener   -l $lis -a $agg -k 7  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22505 sosd -r listener   -l $lis -a $agg -k 8  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22506 sosd -r listener   -l $lis -a $agg -k 9  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22507 sosd -r listener   -l $lis -a $agg -k 10 -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22508 sosd -r listener   -l $lis -a $agg -k 11 -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22509 sosd -r listener   -l $lis -a $agg -k 12 -w $(pwd) &
 
 sleep 5
 echo "All listeners are now online (ports 22500-22509)"
@@ -44,10 +47,7 @@ if [ "$SLEEPKILL" == "y" ]; then
     done
     echo ""
     echo "Bringing down the listeners..."
-    for myport in `seq 22500 22509`;
-    do
-        env SOS_CMD_PORT=$myport sosd_stop
-    done
+        env SOS_CMD_PORT=22500 sosd_stop
     echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
     showdb
 else
