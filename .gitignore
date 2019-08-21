@@ -14,3 +14,4 @@ cmake-build-debug
 .nfs*
 *.id
 *.db
+*.key
