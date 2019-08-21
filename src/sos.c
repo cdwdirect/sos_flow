@@ -872,8 +872,8 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
     rc = SOS_target_connect(SOS->daemon);
     if (rc != 0) {
         dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
-                SOS->daemon->local_host,
-                SOS->daemon->local_port,
+                SOS->daemon->remote_host,
+                SOS->daemon->remote_port,
                 rc);
         dlog(0, "ERROR: Ignoring transmission request and returning.\n");
         return;

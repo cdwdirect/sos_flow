@@ -627,9 +627,8 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     } else {
         reply_ptr = reply;
     }
-
     SOS_target_connect(SOSD.daemon.cloud_aggregator);
-    dlog(1, "Sending message to target aggregator\n", bytes_sent);
+    dlog(1, "Sending message to target aggregator\n");
     int bytes_sent = SOS_target_send_msg(SOSD.daemon.cloud_aggregator, buffer);
     dlog(1, "Sent %d bytes to target aggregator\n", bytes_sent);
     SOS_target_recv_msg(SOSD.daemon.cloud_aggregator, reply_ptr);

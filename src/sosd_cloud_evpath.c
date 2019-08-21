@@ -460,8 +460,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     dlog(1, "   ... present_filename: %s\n", present_filename);
 
 
-    fflush(present_file);
-    fclose(present_file);
 
 
     dlog(1, "   ... creating connection manager:\n");
@@ -647,6 +645,10 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             SOSD.sos_context->config.node_id,
             evp->recv.contact_string,
             SOSD.net->local_port);
+
+  
+    fflush(present_file);
+    fclose(present_file);
 
     free(contact_filename);
     free(present_filename);

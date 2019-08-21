@@ -346,7 +346,9 @@ SOS_target_connect(SOS_socket *target) {
         new_fd = socket(target->remote_addr->ai_family,
             target->remote_addr->ai_socktype,
             target->remote_addr->ai_protocol);
-        if (new_fd == -1) { continue; }
+        if (new_fd == -1) { 
+            continue;
+        }
 
         retval = connect(new_fd, target->remote_addr->ai_addr,
             target->remote_addr->ai_addrlen);
@@ -359,9 +361,10 @@ SOS_target_connect(SOS_socket *target) {
     dlog(8, "   ...freeing unused results.\n");
     freeaddrinfo( target->result_list );
 
-    if (new_fd <= 0) {
-        dlog(1, "ERROR: Unable to connect to target at %s:%s  (%s)\n",
+    if (new_fd == -1) {
+        dlog(0, "ERROR: Unable to connect to target at %s:%s  (%s)\n",
             target->remote_host, target->remote_port, strerror(errno));
+
         pthread_mutex_unlock(target->send_lock);
         return -1;
     }
