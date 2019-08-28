@@ -10,8 +10,6 @@ SCRIPTPATH="$(cd "$(dirname "$BASH_SOURCE")"; pwd)"
 echo "This script path : $SCRIPTPATH"
 BASEDIR="$(cd "$SCRIPTPATH"; pwd)"
 echo "SOS base path ...: $BASEDIR"
-SOSSCRIPTS="$(cd "$BASEDIR/sos_vpa_2017/src/sos_scripts"; pwd)"
-echo "SOS script path .: $SOSSCRIPTS"
 export PROJECT_BASE="$(cd "$BASEDIR"; pwd)"
 echo "Project base ....: $PROJECT_BASE"
 export SOS_PYTHON="$PROJECT_BASE/python/bin/python"
@@ -39,4 +37,9 @@ export CXX=g++
 export MPICC=mpicc
 export MPICXX=mpiCC
 export SOS_ENV_SET=1
+
+
+
+export SOS_IN_MEMORY_DATABASE=TRUE
+export SOS_EXPORT_DB_AT_EXIT=VERBOSE
 

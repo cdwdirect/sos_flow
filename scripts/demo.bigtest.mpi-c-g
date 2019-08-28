@@ -1,0 +1,59 @@
+#!/bin/bash
+#
+export lis=2
+export agg=1
+
+mpirun --hostfile hosts.txt \
+    -np 1 env SOS_CMD_PORT=20690 sosd -r aggregator -l $lis -a $agg -k 0  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22500 sosd -r listener   -l $lis -a $agg -k 1  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22500 sosd -r listener   -l $lis -a $agg -k 2  -w $(pwd) &
+
+echo "Mpi jobs running"
+
+sleep 5
+echo "All listeners are now online"
+echo ""
+echo ""
+
+
+
+VALMAX="100000"
+read -e -p "How many values should be injected into each daemon instance? (100000): " -i "100000" VALMAX
+echo "Starting demo_apps (1 per listener)"
+
+mpirun -np 1 --hostfile gorgon-ib0.txt env SOS_CMD_PORT=22500 demo_app -i 100 -m $VALMAX -p 100 -d 100000 &
+mpirun -np 1 --hostfile cyclops.txt env SOS_CMD_PORT=22500 demo_app -i 100 -m $VALMAX -p 100 -d 100000 
+
+SLEEPKILL="n"
+read -e -p "Do you want to sleep and then shut down the daemons? (y/N): " -i "n" SLEEPKILL
+if [ "$SLEEPKILL" == "y" ]; then
+    DELAYMAX=20
+    read -e -p "How many seconds should elapse before bringing down the daemons? (20): " -i "20" DELAYMAX
+    echo "Sleeping for $DELAYMAX seconds while they run..."
+    for i in `seq 1 $DELAYMAX`;
+    do
+        echo -n "$i / $DELAYMAX ["
+        for x in `seq 1 10`;
+        do
+            echo -n "."
+            sleep 0.09
+        done
+        echo "]"
+    done
+    echo ""
+    echo "Bringing down the listeners..."
+        env SOS_CMD_PORT=22500 sosd_stop
+    echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
+    sleep 2
+    showdb
+else
+    echo ""
+    echo "Leaving script.  Daemons and demo_app are likely still running..."
+    echo ""
+    ps
+    echo ""
+    echo "To bring down all the listeners, run this command:"
+    echo ""
+    echo -E "    for myport in \`seq 22500 22501\`; do env SOS_CMD_PORT=\$myport sosd_stop; done; showdb;"
+    echo ""  
+fi

@@ -46,7 +46,7 @@ if [ "$SLEEPKILL" == "y" ]; then
     echo "Bringing down the listeners..."
     for myport in `seq 22500 22509`;
     do
-        env SOS_CMD_PORT=$myport sosd_stop
+        mpirun -np 1 env SOS_CMD_PORT=$myport sosd_stop
     done
     echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
     showdb

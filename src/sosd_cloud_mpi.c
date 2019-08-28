@@ -425,7 +425,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     if (SOSD_ECHO_TO_STDOUT) printf("  ... calling MPI_Init_thread();\n");
 
     SOS->config.comm_support = -1;
-    rc = MPI_Init_thread( argc, argv, MPI_THREAD_SERIALIZED, &SOS->config.comm_support );
+    rc = MPI_Init_thread( argc, argv, MPI_THREAD_MULTIPLE, &SOS->config.comm_support );
     if (rc != MPI_SUCCESS) {
         MPI_Error_string( rc, mpi_err, &mpi_err_len );
         printf("  ... MPI_Init_thread() did not complete successfully!\n");
@@ -434,34 +434,22 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
     if (SOSD_ECHO_TO_STDOUT) printf("  ... safely returned.\n");
 
-    switch (SOS->config.comm_support) {
-    case MPI_THREAD_SINGLE:
-        if (SOSD_ECHO_TO_STDOUT) 
-            printf("  ... supported: MPI_THREAD_SINGLE (could cause problems)\n");
-        break; 
-    case MPI_THREAD_FUNNELED:
-        if (SOSD_ECHO_TO_STDOUT)  
-            printf("  ... supported: MPI_THREAD_FUNNELED (could cause problems)\n");
-        break;
-    case MPI_THREAD_SERIALIZED: 
-        if (SOSD_ECHO_TO_STDOUT) 
-            printf("  ... supported: MPI_THREAD_SERIALIZED\n"); 
-            break;
-    case MPI_THREAD_MULTIPLE:
-        if (SOSD_ECHO_TO_STDOUT) 
-            printf("  ... supported: MPI_THREAD_MULTIPLE\n"); 
-        break;
-    default: 
-        if (SOSD_ECHO_TO_STDOUT) 
-            printf("  ... WARNING!  The supported threading model (%d) is unrecognized!\n",  
-                   SOS->config.comm_support); 
-        break;
-    }
-
     int world_size = -1;
     int world_rank = -1;
     MPI_Comm_size(MPI_COMM_WORLD, &world_size);
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+    if (world_rank == 0) {
+        switch (SOS->config.comm_support) {
+        case MPI_THREAD_SINGLE:     printf("  MPI supported: MPI_THREAD_SINGLE (could cause problems w/any MPI version)\n"); break; 
+        case MPI_THREAD_FUNNELED:   printf("  MPI supported: MPI_THREAD_FUNNELED (could cause problems w/any MPI version)\n"); break;
+        case MPI_THREAD_SERIALIZED: printf("  MPI supported: MPI_THREAD_SERIALIZED (could cause problems w/MVAPICH)\n"); break;
+        case MPI_THREAD_MULTIPLE:   printf("  MPI supported: MPI_THREAD_MULTIPLE (OK!)\n"); break;
+        default: printf("  ... WARNING!  The supported threading model (%d) is unrecognized!\n",
+                   SOS->config.comm_support); break;
+        }
+        fflush(stdout);
+    }
+
     dlog(0,"Aggregator_count = %d, listener_count = %d\n", SOSD.daemon.aggregator_count, SOSD.daemon.listener_count);
     if ((world_rank >= SOSD.daemon.aggregator_count) && (world_rank <= world_size)) {
         SOS->role = SOS_ROLE_LISTENER;

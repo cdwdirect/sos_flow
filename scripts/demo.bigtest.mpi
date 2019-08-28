@@ -25,10 +25,22 @@ echo ""
 VALMAX="100000"
 read -e -p "How many values should be injected into each daemon instance? (100000): " -i "100000" VALMAX 
 echo "Starting demo_apps (1 per listener)"
-for myport in `seq 22500 22509`;
-do
-    env SOS_CMD_PORT=$myport demo_app -i 100 -m $VALMAX -p 100 -d 100000 &
-done
+#for myport in `seq 22500 22509`;
+#do
+#    env SOS_CMD_PORT=$myport demo_app -i 100 -m $VALMAX -p 100 -d 100000 &
+#done
+mpirun \
+    -np 1 env SOS_CMD_PORT=22500 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22501 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22502 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22503 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22504 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22505 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22506 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22507 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22508 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 \
+  : -np 1 env SOS_CMD_PORT=22509 demo_app -i 1 -m $VALMAX -p 1000 -d 100000 
+
 SLEEPKILL="n"
 read -e -p "Do you want to sleep and then shut down the daemons? (y/N): " -i "n" SLEEPKILL
 if [ "$SLEEPKILL" == "y" ]; then
@@ -49,15 +61,9 @@ if [ "$SLEEPKILL" == "y" ]; then
     echo "Bringing down the listeners..."
         env SOS_CMD_PORT=22500 sosd_stop
     echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
-    showdb
 else
     echo ""
-    echo "Leaving script.  Daemons and demo_app are likely still running..."
+    ps -aux | grep sosd
     echo ""
-    ps
-    echo ""
-    echo "To bring down all the listeners, run this command:"
-    echo ""
-    echo -E "    for myport in \`seq 22500 22509\`; do env SOS_CMD_PORT=\$myport sosd_stop; done; showdb;"
     echo ""  
 fi
