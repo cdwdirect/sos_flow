@@ -1,4 +1,4 @@
-src/python/__pycache__
+__pycache__
 ssos_python.c
 ssos_python.o
 ssos_python.so
