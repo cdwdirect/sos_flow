@@ -37,75 +37,78 @@ export SOS_PUB_CACHE_DEPTH="0"
 export SOS_SYSTEM_MONITOR_ENABLED="FALSE"
 export SOS_SYSTEM_MONITOR_FREQ_USEC="1000000"
 
-echo "======"
-echo ""
-echo "Script settings:"
-echo "     \$SCRIPTPATH         = $SCRIPTPATH"
-echo "     \$BASEDIR            = $BASEDIR"
-echo ""
-echo "Environment configured for SOSflow:"
-echo "     \$SOS_HOST_KNOWN_AS  = $SOS_HOST_KNOWN_AS"
-echo "     \$SOS_HOST_NODE_NAME = $SOS_HOST_NODE_NAME"
-echo "     \$SOS_HOST_DETAILED  = $SOS_HOST_DETAILED"
-echo "     \$SOS_CMD_PORT       = $SOS_CMD_PORT"
-echo "     \$SOS_BASE           = $SOS_BASE"
-echo "     \$SOS_WORK           = $SOS_WORK"
-echo "     \$SOS_BUILD_DIR      = $SOS_BUILD_DIR"
-echo ""
-echo "SOSflow runtime options:" 
-echo "     \$SOS_SHUTDOWN            = $SOS_SHUTDOWN"
-echo "     \$SOS_OPTIONS_FILE        = $SOS_OPTIONS_FILE"
-echo "     \$SOS_BATCH_ENVIRONMENT   = $SOS_BATCH_ENVIRONMENT"
-echo "     \$SOS_FWD_SHUTDOWN_TO_AGG = $SOS_FWD_SHUTDOWN_TO_AGG"
-echo ""
-echo "     \$SOS_DB_DISABLED         = $SOS_DB_DISABLED"
-echo "     \$SOS_IN_MEMORY_DATABASE  = $SOS_IN_MEMORY_DATABASE"
-echo "     \$SOS_EXPORT_DB_AT_EXIT   = $SOS_EXPORT_DB_AT_EXIT"
-echo "     \$SOS_UPDATE_LATEST_FRAME = $SOS_UPDATE_LATEST_FRAME"
-echo "     \$SOS_EVPATH_MEETUP       = $SOS_EVPATH_MEETUP"
-echo "     \$SOS_UDP_ENABLED         = $SOS_UDP_ENABLED"
-echo ""
-echo "     \$SOS_SYSTEM_MONITOR_ENABLED   = $SOS_SYSTEM_MONITOR_ENABLED"
-echo "     \$SOS_SYSTEM_MONITOR_FREQ_USEC = $SOS_SYSTEM_MONITOR_FREQ_USEC"
-echo ""
-
-echo "Updating paths:"
-echo "     \$PATH            += \$SOS_BASE/scripts"
-export PATH="${PATH}:$SOS_BASE/scripts"
-
-echo "     \$PYTHONPATH      += \$SOS_BUILD_DIR/lib"
-if [ "x$PYTHONPATH" == "x" ] ; then
-  PYTHONPATH=$SOS_BASE/src/python
-else
-  PYTHONPATH=$SOS_BASE/src/python:$PYTHONPATH
+if [ "x$1" == "x" ] ; then
+    echo "======"
+    echo ""
+    echo "Script settings:"
+    echo "     \$SCRIPTPATH         = $SCRIPTPATH"
+    echo "     \$BASEDIR            = $BASEDIR"
+    echo ""
+    echo "Environment configured for SOSflow:"
+    echo "     \$SOS_HOST_KNOWN_AS  = $SOS_HOST_KNOWN_AS"
+    echo "     \$SOS_HOST_NODE_NAME = $SOS_HOST_NODE_NAME"
+    echo "     \$SOS_HOST_DETAILED  = $SOS_HOST_DETAILED"
+    echo "     \$SOS_CMD_PORT       = $SOS_CMD_PORT"
+    echo "     \$SOS_BASE           = $SOS_BASE"
+    echo "     \$SOS_WORK           = $SOS_WORK"
+    echo "     \$SOS_BUILD_DIR      = $SOS_BUILD_DIR"
+    echo ""
+    echo "SOSflow runtime options:"
+    echo "     \$SOS_SHUTDOWN            = $SOS_SHUTDOWN"
+    echo "     \$SOS_OPTIONS_FILE        = $SOS_OPTIONS_FILE"
+    echo "     \$SOS_BATCH_ENVIRONMENT   = $SOS_BATCH_ENVIRONMENT"
+    echo "     \$SOS_FWD_SHUTDOWN_TO_AGG = $SOS_FWD_SHUTDOWN_TO_AGG"
+    echo ""
+    echo "     \$SOS_DB_DISABLED         = $SOS_DB_DISABLED"
+    echo "     \$SOS_IN_MEMORY_DATABASE  = $SOS_IN_MEMORY_DATABASE"
+    echo "     \$SOS_EXPORT_DB_AT_EXIT   = $SOS_EXPORT_DB_AT_EXIT"
+    echo "     \$SOS_UPDATE_LATEST_FRAME = $SOS_UPDATE_LATEST_FRAME"
+    echo "     \$SOS_EVPATH_MEETUP       = $SOS_EVPATH_MEETUP"
+    echo "     \$SOS_UDP_ENABLED         = $SOS_UDP_ENABLED"
+    echo ""
+    echo "     \$SOS_SYSTEM_MONITOR_ENABLED   = $SOS_SYSTEM_MONITOR_ENABLED"
+    echo "     \$SOS_SYSTEM_MONITOR_FREQ_USEC = $SOS_SYSTEM_MONITOR_FREQ_USEC"
+    echo ""
+    echo "Updating paths:"
+    echo "     \$PATH            += \$SOS_BASE/scripts"
+    echo "     \$PYTHONPATH      += \$SOS_BUILD_DIR/lib"
+    echo "     \$LD_LIBRARY_PATH += \$SOS_BUILD_DIR/lib"
 fi
 
-echo "     \$LD_LIBRARY_PATH += \$SOS_BUILD_DIR/lib"
-if [ "x$LD_LIBRARY_PATH" == "x" ] ; then
-  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib
+export PATH="${PATH}:$SOS_BASE/scripts"
+if [ "x$PYTHONPATH" == "x" ] ; then
+  export PYTHONPATH=$SOS_BUILD_DIR/lib
 else
-  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib:$LD_LIBRARY_PATH
+  export PYTHONPATH=$SOS_BUILD_DIR/lib:$PYTHONPATH
+fi
+
+if [ "x$LD_LIBRARY_PATH" == "x" ] ; then
+  export LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib
+else
+  export LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib:$LD_LIBRARY_PATH
 fi
 
 echo ""
 SOSPIDLIST=`ps -C sosd --no-headers -o pid= | tr -s "\n" " "`
-if [ "x$SOSPIDLIST" == "x" ] ; then
-    echo "SOSflow is NOT currently running on this host."
-else
-    echo ">>>>> WARNING:                                              <<<<<"
-    echo ">>>>> WARNING:  SOSflow IS CURRENTLY RUNNING on this host.  <<<<<"
-    echo ">>>>> WARNING:                                              <<<<<"
+if [ "x$1" == "x" ] ; then
+    if [ "x$SOSPIDLIST" == "x" ] ; then
+        echo "SOSflow is NOT currently running on this host."
+    else
+        echo ">>>>> WARNING:                                              <<<<<"
+        echo ">>>>> WARNING:  SOSflow IS CURRENTLY RUNNING on this host.  <<<<<"
+        echo ">>>>> WARNING:                                              <<<<<"
+        echo ""
+        ps -C sosd
+        echo ""
+        echo ">>>>> It is recommended that you restart SOSflow.           <<<<<"
+        echo ">>>>> This command will terminate your SOSflow daemon[s]:   <<<<<"
+        echo ""
+        echo "           kill -9 $SOSPIDLIST"
+        echo ""
+    fi
     echo ""
-    ps -C sosd 
-    echo ""
-    echo ">>>>> It is recommended that you restart SOSflow.           <<<<<"
-    echo ">>>>> This command will terminate your SOSflow daemon[s]:   <<<<<"
-    echo ""
-    echo "           kill -9 $SOSPIDLIST"
-    echo ""
+    echo "Done."
 fi
 
-echo ""
-echo "Done."
 export SOS_ENV_SET=1
 
