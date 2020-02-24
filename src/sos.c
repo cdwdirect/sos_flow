@@ -1025,6 +1025,7 @@ SOS_THREAD_receives_direct(void *args)
     socklen_t sin_len = sizeof(sin);
     getsockname(insock->local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     SOS->config.receives_port = ntohs(sin.sin_port);
+
     SOS->config.receives_ready = 1;
 
     dlog(1, "SOS->config.receives_port == %d\n",

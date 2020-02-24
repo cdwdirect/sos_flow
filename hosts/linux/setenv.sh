@@ -10,6 +10,7 @@ export SOS_HOST_DETAILED="\"$(uname -o) $(uname -r) $(uname -m)\""
 
 # Runtime options
 export SOS_CMD_PORT=22500
+export SOS_DIR=$BASEDIR
 export SOS_ROOT=$BASEDIR
 export SOS_WORK=`pwd`
 export BUILDDIR=build
@@ -52,7 +53,7 @@ echo "     \$SOS_ROOT           = $SOS_ROOT"
 echo "     \$SOS_WORK           = $SOS_WORK"
 echo "     \$SOS_BUILD_DIR      = $SOS_BUILD_DIR"
 echo ""
-echo "SOSflow runtime options:" 
+echo "SOSflow runtime options:"
 echo "     \$SOS_SHUTDOWN            = $SOS_SHUTDOWN"
 echo "     \$SOS_OPTIONS_FILE        = $SOS_OPTIONS_FILE"
 echo "     \$SOS_BATCH_ENVIRONMENT   = $SOS_BATCH_ENVIRONMENT"
@@ -73,18 +74,18 @@ echo "Updating paths:"
 echo "     \$PATH            += \$SOS_ROOT/scripts"
 export PATH="${PATH}:$SOS_ROOT/scripts"
 
-echo "     \$PYTHONPATH      += \$SOS_BUILD_DIR/lib"
+echo "     \$PYTHONPATH      += \$SOS_DIR/install/lib"
 if [ "x$PYTHONPATH" == "x" ] ; then
-  PYTHONPATH=$SOS_ROOT/src/python
+  PYTHONPATH=$SOS_DIR/install/lib
 else
-  PYTHONPATH=$SOS_ROOT/src/python:$PYTHONPATH
+  PYTHONPATH=$SOS_DIR/install/lib:$PYTHONPATH
 fi
 
-echo "     \$LD_LIBRARY_PATH += \$SOS_BUILD_DIR/lib"
+echo "     \$LD_LIBRARY_PATH += \$SOS_DIR/install/lib"
 if [ "x$LD_LIBRARY_PATH" == "x" ] ; then
-  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib
+  LD_LIBRARY_PATH=$SOS_DIR/install/lib
 else
-  LD_LIBRARY_PATH=$SOS_BUILD_DIR/lib:$LD_LIBRARY_PATH
+  LD_LIBRARY_PATH=$SOS_DIR/install/lib:$LD_LIBRARY_PATH
 fi
 
 echo ""
@@ -96,7 +97,7 @@ else
     echo ">>>>> WARNING:  SOSflow IS CURRENTLY RUNNING on this host.  <<<<<"
     echo ">>>>> WARNING:                                              <<<<<"
     echo ""
-    ps -C sosd 
+    ps -C sosd
     echo ""
     echo ">>>>> It is recommended that you restart SOSflow.           <<<<<"
     echo ">>>>> This command will terminate your SOSflow daemon[s]:   <<<<<"
