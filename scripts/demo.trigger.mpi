@@ -1,0 +1,82 @@
+#!/bin/bash
+#
+./evp.cleanall
+export SOS_HANDLE="test_trigger_msgs"
+export SOS_PAYLOAD="Hellooo"
+
+export lis=10
+export agg=3
+
+
+mpirun \
+    -np 1 env SOS_CMD_PORT=20690 sosd -r aggregator -l $lis -a $agg -k 0  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=20691 sosd -r aggregator -l $lis -a $agg -k 1  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=20692 sosd -r aggregator -l $lis -a $agg -k 2  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22500 sosd -r listener   -l $lis -a $agg -k 3  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22501 sosd -r listener   -l $lis -a $agg -k 4  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22502 sosd -r listener   -l $lis -a $agg -k 5  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22503 sosd -r listener   -l $lis -a $agg -k 6  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22504 sosd -r listener   -l $lis -a $agg -k 7  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22505 sosd -r listener   -l $lis -a $agg -k 8  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22506 sosd -r listener   -l $lis -a $agg -k 9  -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22507 sosd -r listener   -l $lis -a $agg -k 10 -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22508 sosd -r listener   -l $lis -a $agg -k 11 -w $(pwd) \
+  : -np 1 env SOS_CMD_PORT=22509 sosd -r listener   -l $lis -a $agg -k 12 -w $(pwd) &
+
+sleep 5
+
+echo "Starting test_trigger (1 per listener)"
+for myport in `seq 22500 22509`;
+do
+    mpirun -np 1 env SOS_CMD_PORT=$myport ./test_trigger &
+done
+
+sleep 5
+
+echo "Sending triggers to aggregators"
+
+echo "Sending triggers to aggregator 20690"
+env SOS_CMD_PORT=20690 sosd_trigger -h $SOS_HANDLE -p SOS_PAYLOAD
+
+sleep 2
+echo "Sending triggers to aggregator 20691"
+env SOS_CMD_PORT=20691 sosd_trigger -h $SOS_HANDLE -p SOS_PAYLOAD
+
+sleep 2
+echo "Sending triggers to aggregator 20692"
+env SOS_CMD_PORT=20692 sosd_trigger -h $SOS_HANDLE -p SOS_PAYLOAD
+
+sleep 2
+
+SLEEPKILL="n"
+read -e -p "Do you want to sleep and then shut down the daemons? (y/N): " -i "n" SLEEPKILL
+if [ "$SLEEPKILL" == "y" ]; then
+    DELAYMAX=20
+    read -e -p "How many seconds should elapse before bringing down the daemons? (20): " -i "20" DELAYMAX
+    echo "Sleeping for $DELAYMAX seconds while they run..."
+    for i in `seq 1 $DELAYMAX`;
+    do
+        echo -n "$i / $DELAYMAX ["
+        for x in `seq 1 10`;
+        do
+            echo -n "."
+            sleep 0.09
+        done
+        echo "]"
+    done
+    echo ""
+    echo "Bringing down all..."
+    killall -p test_trigger
+    mpirun -np 1 env SOS_CMD_PORT=22500 sosd_stop
+    echo "All listeners have stopped.  (The stop signal should propagate to the aggregators.)"
+else
+    echo ""
+    echo "Leaving script.  Daemons and demo_app are likely still running..."
+    echo ""
+    ps
+    echo ""
+    echo "To bring down all the listeners, run this command:"
+    echo ""
+    echo -E "    for myport in \`seq 22500 22509\`; do env SOS_CMD_PORT=\$myport \$SOS_BUILD_DIR/bin/sosd_stop; done; \$SOS_ROOT/scripts/showdb;"
+    echo ""  
+fi

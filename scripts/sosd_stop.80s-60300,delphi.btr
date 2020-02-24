@@ -1,0 +1,11 @@
+
+sosd_stop:60300 terminated with signal 6 at PC=7f48b74e4207 SP=7fff9054a568.  Backtrace:
+/lib64/libc.so.6(gsignal+0x37)[0x7f48b74e4207]
+/lib64/libc.so.6(abort+0x148)[0x7f48b74e58f8]
+/lib64/libc.so.6(+0x78d27)[0x7f48b7526d27]
+/lib64/libc.so.6(+0x81489)[0x7f48b752f489]
+/storage/users/jalcaraz/src/sos_flow/install/lib/libsos.so(SOS_init_existing_runtime+0x6a8)[0x7f48b7fa4d08]
+/storage/users/jalcaraz/src/sos_flow/install/bin/sosd_stop(SOSD_STOP_local_daemon+0x24)[0x401dc4]
+/storage/users/jalcaraz/src/sos_flow/install/bin/sosd_stop(main+0x35a)[0x4017fa]
+/lib64/libc.so.6(__libc_start_main+0xf5)[0x7f48b74d03d5]
+/storage/users/jalcaraz/src/sos_flow/install/bin/sosd_stop[0x4018b0]

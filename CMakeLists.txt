@@ -32,10 +32,10 @@ set(ADIOS_DIR      "" CACHE STRING
 #
 # NOTE: Only ONE may be set to ON at a time.
 
-option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (RECOMMENDED)"   ON)
-option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)"  OFF)
-option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)"  OFF)
-option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (EXPERIMENTAL)"  OFF)
+option(SOS_CLOUD_SYNC_WITH_SOCKET "Sync daemons with TCP/IP? (DEFAULT)" ON)
+option(SOS_CLOUD_SYNC_WITH_ZEROMQ "Sync daemons with ZeroMQ? (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_EVPATH "Sync daemons with EVPath? (EXPERIMENTAL)" OFF)
+option(SOS_CLOUD_SYNC_WITH_MPI    "Sync daemons with MPI?    (EXPERIMENTAL)" OFF)
 
 # --- Other SOS options ---
 
@@ -157,9 +157,9 @@ set(POSITION_INDEPENDENT_CODE TRUE)
 
 
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmpbin")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/tmplib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/bin")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${sos_flow_BINARY_DIR}/lib")
 
 ###########
 # SOS_FORCE_RPATH OPTIONS
@@ -338,9 +338,9 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-# Actually, required, but on Titan it will fail. 
+# Actually, required, but on Titan it will fail.
 # Therefore, we have the "else" clause for that system.
-find_package(Threads) 
+find_package(Threads)
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})
@@ -367,6 +367,7 @@ find_library(MATHLIB m)
 string(STRIP "${LIBS}" LIBS)
 
 subdirs (src tests)
+subdirs (examples/analysis_and_feedback)
 
 if(SOS_ENABLE_PYTHON)
     subdirs (src/python)

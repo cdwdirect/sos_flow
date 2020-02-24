@@ -263,7 +263,7 @@ SOS_init_existing_runtime(
         exit (EXIT_FAILURE);
     }
 #endif
-    // Extract the binary name from the full path
+    // Strip off the directory from the path, leaving the binary name.
     NEW_SOS->config.program_name = basename(NEW_SOS->config.program_name);
 
     // The SOS_SET_CONTEXT macro makes a new variable, 'SOS'...
@@ -849,7 +849,9 @@ void SOS_send_to_daemon(SOS_buffer *message, SOS_buffer *reply ) {
     rc = SOS_target_connect(SOS->daemon);
     if (rc != 0) {
         dlog(0, "ERROR: Failed attempt to connect to target at %s:%s   (%d)\n",
-                    SOS->daemon->remote_host, SOS->daemon->remote_port, rc);
+                SOS->daemon->remote_host,
+                SOS->daemon->remote_port,
+                rc);
         dlog(0, "ERROR: Ignoring transmission request and returning.\n");
         return;
     }

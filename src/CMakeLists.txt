@@ -162,6 +162,8 @@ target_link_libraries(tau_test sos)
 add_executable(proc_app proc_app.c)
 target_link_libraries(proc_app sos)
 
+file(MAKE_DIRECTORY ${CMAKE_INSTALL_PREFIX}/lib/cmake)
+
 INSTALL(FILES ${sos_flow_SOURCE_DIR}/scripts/showdb
               ${sos_flow_SOURCE_DIR}/scripts/evp.start.2
               ${sos_flow_SOURCE_DIR}/scripts/evp.kill.2
@@ -182,8 +184,8 @@ INSTALL(FILES sos.h
               sos_target.h
               sos_re.h
               DESTINATION include)
+
 INSTALL(TARGETS
-    sos
     sosd
     sosd_stop
     sosd_probe
@@ -194,5 +196,9 @@ INSTALL(TARGETS
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
     ARCHIVE DESTINATION lib)
+
+INSTALL(TARGETS sos EXPORT sos_flow DESTINATION lib)
+INSTALL(EXPORT sos_flow DESTINATION lib/cmake FILE sosflow.cmake)
+
 
 

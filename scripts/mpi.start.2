@@ -1,1 +1,1 @@
-mpirun -np 1 ./tmpbin/sosd -l 1 -a 1 -w $(pwd) : -np 1 env SOS_CMD_PORT=22501 ./tmpbin/sosd -l 1 -a 1 -w $(pwd) &
+mpirun -np 1 sosd -l 1 -a 1 -w $(pwd) : -np 1 env SOS_CMD_PORT=22501 sosd -l 1 -a 1 -w $(pwd) &

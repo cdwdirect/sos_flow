@@ -4,15 +4,17 @@ if [ "x${SOS_ENV_SET}" == "x" ] ; then
   kill -INT $$
 fi
 if [ -z $1 ]; then echo "   >>> Clearing the log file[s]."; fi;
-rm -rf ${SOS_WORK}/sosd.*.log
+rm -f ${SOS_WORK}/sosd.*.log
 if [ -z $1 ]; then echo "   >>> Clearing the lock file[s]."; fi;
-rm -rf ${SOS_WORK}/sosd.*.lock
+rm -f ${SOS_WORK}/sosd.*.lock
 if [ -z $1 ]; then echo "   >>> Clearing the connection string[s]."; fi;
-rm -rf ${SOS_EVPATH_MEETUP}/sosd.*.key
-rm -rf ${SOS_EVPATH_MEETUP}/sosd.*.id
+rm -r ${SOS_EVPATH_MEETUP}/sosd.*.key
+rm -r ${SOS_EVPATH_MEETUP}/sosd.*.id
 if [ -z $1 ]; then echo "   >>> Clearing the database[s]."; fi;
-rm -rf ${SOS_WORK}/sosd.*.db
-rm -rf ${SOS_WORK}/sosd.*.db.export
-rm -rf ${SOS_WORK}/sosd.*.db.lock
-rm -rf ${SOS_WORK}/sosd.*.db-journal
-rm -rf ${SOS_WORK}/sosd.valgrind.log
+rm -f ${SOS_WORK}/sosd.*.db
+rm -f ${SOS_WORK}/sosd.*.id
+rm -f ${SOS_WORK}/sosd.*.key
+rm -f ${SOS_WORK}/sosd.*.db.export
+rm -f ${SOS_WORK}/sosd.*.db.lock
+rm -f ${SOS_WORK}/sosd.*.db-journal
+rm -f ${SOS_WORK}/sosd.valgrind.log

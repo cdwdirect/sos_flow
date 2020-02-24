@@ -172,18 +172,19 @@ typedef struct {
 
 #ifdef SOSD_CLOUD_SYNC_WITH_ZEROMQ
 typedef struct {
-    void               *conn;
-    char                conn_str[512];
-    char               *remote_host;
-    int                 remote_port;
-    SOS_role            role;
+    void               *conn_tgt;
+    char               *conn_tgt_str;
 } SOSD_zeromq_node;
 
 typedef struct {
-    void               *conn;
-    char                conn_str[512];
-    char               *meetup_path;
+    void               *conn_listen;
+    char               *conn_listen_str;
+    void               *conn_request;
+    char               *conn_request_str;
+    char               *discovery_dir;
     void               *context;
+    int                 node_count;
+    SOSD_zeromq_node**  node;
 } SOSD_zeromq;
 #endif
 
@@ -306,6 +307,7 @@ extern "C" {
     extern int   SOSD_cloud_finalize(void);
     extern void  SOSD_cloud_shutdown_notice(void);
     extern void  SOSD_cloud_listen_loop(void);
+    extern void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
 #endif
 
     void  SOSD_init(void);

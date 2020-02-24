@@ -1,7 +1,17 @@
 #!/bin/bash
+export SOS_DISCOVERY_DIR=`pwd`
 if [ "x$SOS_ENV_SET" == "x" ] ; then
-	echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
+    echo "Please set up your SOS environment first (source hosts/<hostname>/setenv.sh)"
     kill -INT $$
+fi
+if [ "x$SOS_DISCOVERY_DIR" == "x" ] ; then
+    echo "ERROR: SOS_DISCOVERY_DIR is not set!"
+    kill -INT $$
+else
+    echo "----------"
+    echo "SOS daemons will look for their sosd.<rank>.id files here:"
+    echo "    $SOS_DISCOVERY_DIR"
+    echo "----------"
 fi
 if ls $SOS_EVPATH_MEETUP/sosd.*.key 1> /dev/null 2>&1
 then
@@ -11,6 +21,7 @@ then
         echo ""
         echo "NOTICE: Clearing a prior instance's key file[s]..."
         rm -f $SOS_EVPATH_MEETUP/sosd.*.key
+        rm -f $SOS_EVPATH_MEETUP/sosd.*.id
         echo ""
     else
         echo ""
@@ -38,6 +49,5 @@ export ASAN_OPTIONS="abort_on_error=0"
 #
 #  Actual launch commands:
 #
-env SOS_CMD_PORT=20690 sosd -l 1 -a 1 -w $SOS_WORK -k 0 -r aggregator &
-sosd -l 1 -a 1 -w $SOS_WORK -k 1 -r listener &
-
+SOS_CMD_PORT=20690 sosd -l 1 -a 1 -w $SOS_WORK -k 0 -r aggregator &
+                   sosd -l 1 -a 1 -w $SOS_WORK -k 1 -r listener   & 
