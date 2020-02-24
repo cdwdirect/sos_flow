@@ -295,6 +295,7 @@ extern "C" {
     extern int   SOSD_cloud_finalize(void);
     extern void  SOSD_cloud_shutdown_notice(void);
     extern void  SOSD_cloud_listen_loop(void);
+    extern void  SOSD_cloud_handle_triggerpull(SOS_buffer *msg);
 #endif
 
     void  SOSD_init(void);
