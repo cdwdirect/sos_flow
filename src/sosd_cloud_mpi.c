@@ -67,7 +67,6 @@ void SOSD_cloud_shutdown_notice(void) {
         dlog(1, "  ... sent successfully\n");
     }
 
-
     dlog(1, "  ... done\n");
 
     SOS_buffer_destroy(shutdown_msg);
@@ -193,100 +192,98 @@ void SOSD_cloud_listen_loop(void) {
         int offset        = 0;
 
         /* Extract one single messages into 'msg' */
-            memset(&header, '\0', sizeof(SOS_msg_header));
-            displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
-                              &header.msg_size,
-                              &header.msg_type,
-                              &header.msg_from,
-                              &header.ref_guid);
-            dlog(1, "     ... header.msg_size == %d\n",
-                    header.msg_size);
-            dlog(1, "     ... header.msg_type == %s  (%d)\n",
-                    SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
-            dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n",
-                    header.msg_from);
-            dlog(1, "     ... header.ref_guid == %" SOS_GUID_FMT "\n",
-                    header.ref_guid);
+        memset(&header, '\0', sizeof(SOS_msg_header));
+        displaced = SOS_buffer_unpack(buffer, &offset, "iigg",
+                          &header.msg_size,
+                          &header.msg_type,
+                          &header.msg_from,
+                          &header.ref_guid);
+        dlog(1, "     ... header.msg_size == %d\n",
+                header.msg_size);
+        dlog(1, "     ... header.msg_type == %s  (%d)\n",
+                SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE), header.msg_type);
+        dlog(1, "     ... header.msg_from == %" SOS_GUID_FMT "\n",
+                header.msg_from);
+        dlog(1, "     ... header.ref_guid == %" SOS_GUID_FMT "\n",
+                header.ref_guid);
 
-            offset -= displaced;
+        offset -= displaced;
 
-            //Create a new message buffer:
-            SOS_buffer *msg;
-            SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
+        //Create a new message buffer:
+        SOS_buffer *msg;
+        SOS_buffer_init_sized_locking(SOS, &msg, (1 + header.msg_size), false);
 
-            dlog(1, "[ccc] <<< bringing in msg(%15s).size == %d from offset:%d\n",
-                 SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
-                 header.msg_size, offset);
+        dlog(1, "[ccc] <<< bringing in msg(%15s).size == %d from offset:%d\n",
+             SOS_ENUM_STR(header.msg_type, SOS_MSG_TYPE),
+             header.msg_size, offset);
 
-            //Copy the data into the new message directly:
-            memcpy(msg->data, (buffer->data + offset), header.msg_size);
-            msg->len = header.msg_size;
-            offset += header.msg_size;
+        //Copy the data into the new message directly:
+        memcpy(msg->data, (buffer->data + offset), header.msg_size);
+        msg->len = header.msg_size;
+        offset += header.msg_size;
 
-            //Enqueue this new message into the local_sync:
-            switch (header.msg_type) {
-            case SOS_MSG_TYPE_ANNOUNCE:
-            case SOS_MSG_TYPE_PUBLISH:
-            case SOS_MSG_TYPE_VAL_SNAPS:
-                pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
-                pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
-                SOSD.sync.local.queue->elem_count++;
-                pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+        //Enqueue this new message into the local_sync:
+        switch (header.msg_type) {
+        case SOS_MSG_TYPE_ANNOUNCE:
+        case SOS_MSG_TYPE_PUBLISH:
+        case SOS_MSG_TYPE_VAL_SNAPS:
+            pthread_mutex_lock(SOSD.sync.local.queue->sync_lock);
+            pipe_push(SOSD.sync.local.queue->intake, &msg, 1);
+            SOSD.sync.local.queue->elem_count++;
+            pthread_mutex_unlock(SOSD.sync.local.queue->sync_lock);
+            break;
 
-                break;
+        case SOS_MSG_TYPE_REGISTER:
+            dlog(1, "Received 'SOS_MSG_TYPE_REGISTER' which is not needed for MPI configurations.");
+            break;
 
-            case SOS_MSG_TYPE_REGISTER:
-                dlog(1, "Received 'SOS_MSG_TYPE_REGISTER' which is not needed for MPI configurations.");
-                break;
+        case SOS_MSG_TYPE_GUID_BLOCK:
+            // Discard the message, all that matters is that it is a GUID request.
+            SOS_buffer_destroy(msg);
+            // Re-use the pointer variable to assemble a response.
+            SOS_buffer_init_sized_locking(SOS, &msg, (1 + (sizeof(SOS_guid) * 2)), false);
+            // Break off some GUIDs for this request.
+            SOS_guid guid_from = 0;
+            SOS_guid guid_to   = 0;
+            SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_from, &guid_to);
+            // Pack them into a reply.   (No message header needed)
+            offset = 0;
+            SOS_buffer_pack(msg, &offset, "gg",
+                            guid_from,
+                            guid_to);
+            // Send GUIDs back to the requesting (likely analytics) rank.
+            MPI_Ssend((void *) msg->data, msg->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
+            // Clean up
+            SOS_buffer_destroy(msg);
+            break;
 
-            case SOS_MSG_TYPE_GUID_BLOCK:
-                // Discard the message, all that matters is that it is a GUID request.
-                SOS_buffer_destroy(msg);
-                // Re-use the pointer variable to assemble a response.
-                SOS_buffer_init_sized_locking(SOS, &msg, (1 + (sizeof(SOS_guid) * 2)), false);
-                // Break off some GUIDs for this request.
-                SOS_guid guid_from = 0;
-                SOS_guid guid_to   = 0;
-                SOSD_claim_guid_block(SOSD.guid, SOS_DEFAULT_GUID_BLOCK, &guid_from, &guid_to);
-                // Pack them into a reply.   (No message header needed)
-                offset = 0;
-                SOS_buffer_pack(msg, &offset, "gg",
-                                guid_from,
-                                guid_to);
-                // Send GUIDs back to the requesting (likely analytics) rank.
-                MPI_Ssend((void *) msg->data, msg->len, MPI_CHAR, status.MPI_SOURCE, 0, MPI_COMM_WORLD);
-                // Clean up
-                SOS_buffer_destroy(msg);
-                break;
+        case SOS_MSG_TYPE_SHUTDOWN:
+            SOSD.daemon.running = 0;
+            SOSD.sos_context->status = SOS_STATUS_SHUTDOWN;
+            SOS_buffer *shutdown_msg;
+            SOS_buffer *shutdown_rep;
+            SOS_buffer_init_sized_locking(SOS, &shutdown_msg, 1024, false);
+            SOS_buffer_init_sized_locking(SOS, &shutdown_rep, 1024, false);
+            offset = 0;
+            SOS_buffer_pack(shutdown_msg, &offset, "i", offset);
+            SOSD_send_to_self(shutdown_msg, shutdown_rep);
+            SOS_buffer_destroy(shutdown_msg);
+            SOS_buffer_destroy(shutdown_rep);
+            break;
 
-            case SOS_MSG_TYPE_SHUTDOWN:
-                SOSD.daemon.running = 0;
-                SOSD.sos_context->status = SOS_STATUS_SHUTDOWN;
-                SOS_buffer *shutdown_msg;
-                SOS_buffer *shutdown_rep;
-                SOS_buffer_init_sized_locking(SOS, &shutdown_msg, 1024, false);
-                SOS_buffer_init_sized_locking(SOS, &shutdown_rep, 1024, false);
-                offset = 0;
-                SOS_buffer_pack(shutdown_msg, &offset, "i", offset);
-                SOSD_send_to_self(shutdown_msg, shutdown_rep);
-                SOS_buffer_destroy(shutdown_msg);
-                SOS_buffer_destroy(shutdown_rep);
-                break;
+        case SOS_MSG_TYPE_TRIGGERPULL:
+            SOSD_cloud_handle_triggerpull(msg);
+            break;
 
-            case SOS_MSG_TYPE_TRIGGERPULL:
-                SOSD_cloud_handle_triggerpull(msg);
-                break;
+        case SOS_MSG_TYPE_ACK:
+            dlog(5, "sosd(%d) received ACK message"
+                " from rank %" SOS_GUID_FMT " !\n",
+                    SOSD.sos_context->config.comm_rank, header.msg_from);
+            break;
 
-            case SOS_MSG_TYPE_ACK:
-                dlog(5, "sosd(%d) received ACK message"
-                    " from rank %" SOS_GUID_FMT " !\n",
-                        SOSD.sos_context->config.comm_rank, header.msg_from);
-                break;
-
-            default:                      SOSD_handle_unknown    (msg); break;
-            }
+        default:                      SOSD_handle_unknown    (msg); break;
         }
-    //}
+    }
     SOS_buffer_destroy(buffer);
 
     return;
@@ -326,14 +323,12 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         header.ref_guid = 0;
 
         offset = 0;
-        int offset_after_wrapped_header = offset;
-        offset = 0;
 
         SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
-        memcpy(wrapped_msg->data + offset_after_wrapped_header,
+        memcpy(wrapped_msg->data,
                 msg->data,
                 msg->len);
-        wrapped_msg->len = (msg->len + offset_after_wrapped_header);
+        wrapped_msg->len = msg->len;
         offset = wrapped_msg->len;
 
         header.msg_size = offset;
@@ -351,7 +346,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             my_listener = ( my_listener == SOS->config.comm_rank ) ? 1:0;
             if(my_listener)
                 MPI_Ssend((void *) wrapped_msg->data, wrapped_msg->len, MPI_CHAR, id, 0, MPI_COMM_WORLD);
-            
+
         }
 
     }
@@ -406,7 +401,6 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 }
 
 int SOSD_cloud_init(int *argc, char ***argv) {
-
     char  mpi_err[MPI_MAX_ERROR_STRING];
     int   mpi_err_len = MPI_MAX_ERROR_STRING;
     int   rc;
@@ -417,7 +411,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     SOSD.sos_context->config.comm_rank = -999;
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init");
     dlog(8, "SOSD_cloud_init...\n");
-
 
     SOSD_cloud_shutdown_underway = false;
 
@@ -440,7 +433,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
     if (world_rank == 0) {
         switch (SOS->config.comm_support) {
-        case MPI_THREAD_SINGLE:     printf("  MPI supported: MPI_THREAD_SINGLE (could cause problems w/any MPI version)\n"); break; 
+        case MPI_THREAD_SINGLE:     printf("  MPI supported: MPI_THREAD_SINGLE (could cause problems w/any MPI version)\n"); break;
         case MPI_THREAD_FUNNELED:   printf("  MPI supported: MPI_THREAD_FUNNELED (could cause problems w/any MPI version)\n"); break;
         case MPI_THREAD_SERIALIZED: printf("  MPI supported: MPI_THREAD_SERIALIZED (could cause problems w/MVAPICH)\n"); break;
         case MPI_THREAD_MULTIPLE:   printf("  MPI supported: MPI_THREAD_MULTIPLE (OK!)\n"); break;
@@ -455,11 +448,11 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         SOS->role = SOS_ROLE_LISTENER;
         dlog(0, "Becoming a SOS_ROLE_LISTENER...world_rank %d...\n", world_rank);
     }
-    else if ((world_rank >= 0) && (world_rank < SOSD.daemon.aggregator_count)) { 
+    else if ((world_rank >= 0) && (world_rank < SOSD.daemon.aggregator_count)) {
         SOS->role = SOS_ROLE_AGGREGATOR;
         dlog(0, "Becoming a SOS_ROLE_AGGREGATOR....world_rank %d...\n", world_rank);
-    } 
-    
+    }
+
     if (SOS->role == SOS_ROLE_UNASSIGNED) {
         dlog(0, "ERROR: Unable to determine a role for this instance of SOSD!\n");
         dlog(0, "ERROR: Verify the number of ranks matches the reqested roles.\n");
@@ -532,7 +525,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
     if (SOSD_ECHO_TO_STDOUT) printf("  ... SOSD.daemon.cloud_sync_target == %d\n", SOSD.daemon.cloud_sync_target);
     if (SOSD_ECHO_TO_STDOUT) printf("  ... done.\n");
-    // -------------------- 
+    // --------------------
 
     free(my_host);
     free(world_hosts);
@@ -585,7 +578,6 @@ int SOSD_cloud_finalize(void) {
     dlog(1, "Leaving the MPI communicator...\n");
     MPI_Barrier(MPI_COMM_WORLD);
     rc = MPI_Finalize();
-
     if (rc != MPI_SUCCESS) {
         MPI_Error_string( rc, mpi_err, &mpi_err_len );
         dlog(1, "  ... MPI_Finalize() did not complete successfully!\n");

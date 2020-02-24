@@ -338,9 +338,9 @@ endif(SOS_ENABLE_PYTHON)
 # set everything up to use -pthread
 set(CMAKE_THREAD_PREFER_PTHREAD ON)
 set(THREADS_PREFER_PTHREAD_FLAG ON)
-# Actually, required, but on Titan it will fail. 
+# Actually, required, but on Titan it will fail.
 # Therefore, we have the "else" clause for that system.
-find_package(Threads) 
+find_package(Threads)
 if(Threads_FOUND)
     set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})
     link_libraries(${CMAKE_THREAD_LIBS_INIT})

@@ -41,7 +41,7 @@ void SOSD_cloud_listen_loop(void) {
         dlog(1, "Message received!  Processing...\n");
         SOSD_cloud_process_buffer(msg);
     }
-    
+
     return;
 }
 
@@ -58,7 +58,7 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
 
     //NOTE: Sockets only ever have a single message, like other
     //      SOS point to point communications.
-    
+
     memset(&header, '\0', sizeof(SOS_msg_header));
 
     SOS_msg_unzip(buffer, &header, offset, &offset);
@@ -166,14 +166,13 @@ void SOSD_socket_register_connection(SOS_buffer *msg) {
         header.msg_from,
         remote_host,
         remote_port);
-    
+
     free(remote_host);
 
     dlog(1, "done.\n");
 
     // Send them back an ACK (this is OOB from normal message
     // handshaking, and is used to coordinate init like a barrier).
-
     SOS_buffer *reply;
     SOS_buffer_init_sized_locking(SOS, &reply, 128, false);
 
@@ -205,7 +204,7 @@ void SOSD_socket_register_connection(SOS_buffer *msg) {
 }
 
 
-// NOTE: Trigger pulls do not flow out beyond the node where
+// NOTE: Trigger pulls do not flow UP FROM the node where
 //       they are pulled (at this time).  They go "downstream"
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
@@ -219,13 +218,12 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
     int offset_after_original_header = offset;
 
-    dlog(4, "Done unzipping.  offset_after_original_header == %d\n", 
+    dlog(4, "Done unzipping.  offset_after_original_header == %d\n",
             offset_after_original_header);
 
-    
     if ((SOS->role == SOS_ROLE_AGGREGATOR)
      && (SOS->config.comm_size > 1)) {
-        
+
         dlog(4, "I am an aggregator, and I have some"
                 " listener[s] to notify.\n");
 
@@ -235,7 +233,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
         SOS_buffer *wrapped_msg;
         SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
-        
+
         header.msg_size = msg->len;
         header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
         header.msg_from = SOS->config.comm_rank;
@@ -243,7 +241,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
         offset = 0;
 
-        SOS_buffer_grow(wrapped_msg, msg->len, SOS_WHOAMI);
+        SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
         memcpy(wrapped_msg->data,
                 msg->data,
                 msg->len);
@@ -270,7 +268,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
             SOS_socket *rmt_tgt = NULL;
             rmt_tgt = SOSD.daemon.cloud_targets[id];
-            
+
             // NOTE: See SOSD_cloud_enqueue() for async sends.
             dlog(1, "SOSD_cloud_handle_triggerpull send to %s:%s\n", rmt_tgt->remote_host, rmt_tgt->remote_port);
             SOS_target_connect(rmt_tgt);
@@ -284,7 +282,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     // Both Aggregators and Listeners should drop the feedback into
     // their queues in case they have local processes that have
     // registered sensitivity...
-   
+
     offset = offset_after_original_header;
 
     char *handle = NULL;
@@ -321,13 +319,12 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     //        (char*) payload->data);
     //fflush(stderr);
 
-    task->ref = (void *) payload;    
+    task->ref = (void *) payload;
     pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
     pipe_push(SOSD.sync.feedback.queue->intake, (void *) &task, 1);
     SOSD.sync.feedback.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
-    
     return;
 }
 
@@ -360,8 +357,9 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 int SOSD_cloud_init(int *argc, char ***argv) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_init.SOCKET");
     dlog(1, "Initializing SOCKET based inter-daemon cloud...\n");
+
     SOSD_sockets_ready_to_listen = false;
-    
+
     SOS_options *opt = SOSD.sos_context->config.options;
     if (opt == NULL) {
         printf("opt is null");
@@ -380,7 +378,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
 
     int expected_node_count =
-        SOSD.daemon.aggregator_count + 
+        SOSD.daemon.aggregator_count +
         SOSD.daemon.listener_count;
 
     SOS->config.comm_size = expected_node_count;
@@ -457,14 +455,14 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     socklen_t sin_len = sizeof(sin);
     getsockname(tgt->local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     int sosd_msg_port = ntohs(sin.sin_port);
-    
+
     dlog(0, "SOSD[socket] -- listening on port: %d\n", sosd_msg_port);
-    
+
     SOSD.daemon.cloud_inlet = tgt;
     snprintf(SOSD.daemon.cloud_inlet->local_port, NI_MAXSERV, "%d", sosd_msg_port);
     SOSD.daemon.cloud_inlet->port_number = sosd_msg_port;
     dlog(1, "SOSD.daemon.cloud_inlet->local_port : %s\n", SOSD.daemon.cloud_inlet->local_port);
-    dlog(1, "SOSD.daemon.cloud_inlet->port_number : %d\n", SOSD.daemon.cloud_inlet->port_number);    
+    dlog(1, "SOSD.daemon.cloud_inlet->port_number : %d\n", SOSD.daemon.cloud_inlet->port_number);
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
@@ -539,7 +537,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             SOS_target_init(SOS, &(SOSD.daemon.cloud_aggregator), remote_host, atoi(remote_port));
         }
 
-
         SOS_buffer *buffer;
         SOS_buffer_init_sized_locking(SOS, &buffer, 2048, false);
 
@@ -548,8 +545,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         header.msg_type = SOS_MSG_TYPE_REGISTER;
         header.msg_from = SOSD.sos_context->config.comm_rank;
         header.ref_guid = 0;
-
-
 
         dlog(1, " header.msg_from : %d\n",  header.msg_from);
         dlog(1, "header.ref_guid : %d\n", header.ref_guid);
@@ -563,13 +558,12 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             header.ref_guid);
 
         SOS_buffer_pack(buffer, &offset, "si", tgt->local_host, tgt->port_number);
-        
+
         header.msg_size = offset;
         offset = 0;
-      
+
         SOS_buffer_pack(buffer, &offset, "i",
             header.msg_size);
-
 
         SOSD_cloud_send(buffer, NULL);
         SOS_buffer_destroy(buffer);
@@ -601,8 +595,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
  *    operating.
  */
 int SOSD_cloud_start(void) {
-    
-    //TODO
     return 0;
 }
 
@@ -615,10 +607,10 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_send.SOCKET");
 
     // NOTE: See SOSD_cloud_enqueue() for async sends.
-    dlog(1, "SOSD_cloud_send\n");
     dlog(1, "-----------> ----> -------------> ----------> ------------->\n");
     dlog(1, "----> --> >>Transporting off-node!>> ---------------------->\n");
     dlog(1, "---------------> ---------> --------------> ----> -----> -->\n");
+
     SOS_buffer *reply_ptr;
 
     if (reply == NULL) {
@@ -651,11 +643,9 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
  */
 void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_enqueue.SOCKET");
-    dlog(1, "SOSD_cloud_enqueue\n");
     dlog(1, "-----------> ----> -------------> ----------> ------------->\n");
     dlog(1, "----> --> >>Transporting off-node!>> ---------------------->\n");
     dlog(1, "---------------> ---------> --------------> ----> -----> -->\n");
-
 
     SOS_msg_header header;
     int offset;
@@ -697,7 +687,7 @@ void  SOSD_cloud_enqueue(SOS_buffer *buffer) {
 void  SOSD_cloud_fflush(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_fflush.SOCKET");
 
-    //TODO: Decide whether this op is supported.
+    //TODO(chad): Decide whether this op is supported.
 
     return;
 }
@@ -762,7 +752,6 @@ void  SOSD_cloud_shutdown_notice(void) {
         header.ref_guid = 0;
 
         int offset = 0;
-        
         header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
                                           header.msg_size,
                                           header.msg_type,
@@ -772,7 +761,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_pack(shutdown_msg, &offset, "i", header.msg_size);
 
         dlog(1, "  ... sending notice\n");
-        SOSD_cloud_send(shutdown_msg, reply); 
+        SOSD_cloud_send(shutdown_msg, reply);
         dlog(1, "  ... sent successfully\n");
 
         SOS_buffer_destroy(shutdown_msg);
@@ -809,7 +798,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_destroy(shutdown_msg);
         SOS_buffer_destroy(shutdown_reply);
     }
-    
+
     dlog(1, "  ... done\n");
 
     return;

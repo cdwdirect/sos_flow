@@ -220,7 +220,7 @@ int main(int argc, char *argv[])  {
         exit(EXIT_FAILURE);
     }
     #endif
-    
+
 #ifdef SOSD_CLOUD_SYNC_WITH_EVPATH
     if (SOSD.daemon.evpath.instance_role == NULL) {
         fprintf(stderr, "ERROR: Please select an instance role.\n%s\n", USAGE);
@@ -307,12 +307,12 @@ int main(int argc, char *argv[])  {
     dlog(1, "   ... calling SOSD_init()...\n");
     SOSD_init();
     SOSD.sos_context->uid.my_guid_pool = SOSD.guid;
-    
+
     dlog(1, "   ... done. (SOSD_init + SOS_init are complete)\n");
 
     if (SOS->config.comm_rank == 0) {
         SOSD_display_logo();
-    
+
         if (SOS_DEBUG >= 0) {
             printf("\nSTATUS: SOSflow compiled with SOS_DEBUG"
                     " enabled!\nSTATUS: This will negatively impact performance.\n\n");
@@ -326,7 +326,7 @@ int main(int argc, char *argv[])  {
     dlog(1, "Calling daemon_setup_socket()...\n");
     SOSD.net->sos_context = SOSD.sos_context;
     SOSD_setup_socket();
-    
+
     // Configure ourselves as a target, for self-publishing.
     SOS_target_init(SOSD.sos_context, &SOSD.sos_context->daemon,
             SOSD.net->local_host,
@@ -348,7 +348,7 @@ int main(int argc, char *argv[])  {
 
     dlog(1, "Initializing the sync framework...\n");
 
-    
+
     if (SOS->config.options->db_disabled == false) {
         SOSD_sync_context_init(SOS, &SOSD.sync.db,
                 sizeof(SOSD_db_task *), SOSD_THREAD_db_sync);
@@ -416,8 +416,8 @@ int main(int argc, char *argv[])  {
     //
 
     // If requested, export the database to a file:
-    if ((SOS->config.options->db_export_at_exit) 
-     && (SOS->config.options->db_disabled == false)) 
+    if ((SOS->config.options->db_export_at_exit)
+     && (SOS->config.options->db_disabled == false))
     {
         char dest_file[PATH_MAX] = {0};
         //Go with the default naming convention:
@@ -778,7 +778,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
         case SOS_FEEDBACK_TYPE_CACHE:
             dlog(6, "Processing feedback message for cache_grab!\n");
             cache = (SOSD_cache_grab_handle *) task->ref;
-            
+
             rc = SOS_target_init(SOS, &target,
                     cache->reply_host, cache->reply_port);
             if (rc != 0) {
@@ -833,7 +833,7 @@ void* SOSD_THREAD_feedback_sync(void *args) {
 
         case SOS_FEEDBACK_TYPE_QUERY:
             query = (SOSD_query_handle *) task->ref;
-            
+
             rc = SOS_target_init(SOS, &target,
                     query->reply_host, query->reply_port);
             if (rc != 0) {
@@ -1087,7 +1087,7 @@ void* SOSD_THREAD_local_sync(void *args) {
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
-    
+
     return NULL; //Stops the PGI compiler from complaining.
 }
 
@@ -1221,8 +1221,17 @@ void* SOSD_THREAD_cloud_send(void *args) {
     int              offset;
     int              msg_offset;
 
+    buffer = NULL;
+    SOS_buffer_init_sized_locking(SOS,
+            &buffer,
+            (10 * SOS_DEFAULT_BUFFER_MAX),
+            false);
+
     reply = NULL;
-    SOS_buffer_init_sized_locking(SOS, &reply, SOS_DEFAULT_BUFFER_MAX, false);
+    SOS_buffer_init_sized_locking(SOS,
+            &reply,
+            SOS_DEFAULT_BUFFER_MAX,
+            false);
 
     pthread_mutex_lock(my->lock);
     gettimeofday(&now, NULL);
@@ -1277,6 +1286,8 @@ void* SOSD_THREAD_cloud_send(void *args) {
         wait.tv_sec  = SOSD_CLOUD_SYNC_WAIT_SEC  + (now.tv_sec);
         wait.tv_nsec = SOSD_CLOUD_SYNC_WAIT_NSEC + (1000 * now.tv_usec);
     }
+    SOS_buffer_destroy(buffer);
+    SOS_buffer_destroy(reply);
 
     pthread_mutex_unlock(my->lock);
     pthread_exit(NULL);
@@ -1296,11 +1307,10 @@ SOSD_send_to_self(SOS_buffer *send_buffer, SOS_buffer *reply_buffer) {
     dlog(1, "Preparing to send a message to our own listening socket...\n");
     dlog(1, "  ... Initializing...\n");
     SOS_socket *my_own_listen_port = NULL;
-    
+
     const char * portStr = getenv("SOS_CMD_PORT");
     if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
-    
-    //SOS_target_init(SOS, &my_own_listen_port, SOS->config.daemon_host, atoi(portStr)); ?????
+
     SOS_target_init(SOS, &my_own_listen_port, "localhost", atoi(portStr));
     dlog(1, "  ... Connecting...\n");
     SOS_target_connect(my_own_listen_port);
@@ -1367,7 +1377,7 @@ SOSD_handle_cache_grab(SOS_buffer *msg) {
     SOS_buffer_unpack(msg, &offset, "i", &cache_grab->frame_head);
     SOS_buffer_unpack(msg, &offset, "i", &cache_grab->frame_depth_limit);
     SOS_buffer_unpack(msg, &offset, "g", &cache_grab->req_guid);
-   
+
     char filters[2048];
     snprintf(filters, 2048, "pub:\"%s\" val:\"%s\"",
             cache_grab->pub_filter_regex,
@@ -1379,13 +1389,13 @@ SOSD_handle_cache_grab(SOS_buffer *msg) {
     SOSA_cache_to_results(SOSD.sos_context, cache_grab->results,
         cache_grab->pub_filter_regex, cache_grab->val_filter_regex,
         cache_grab->frame_head, cache_grab->frame_depth_limit, SOSD.pub_list_head);
-    
+
     SOSD_feedback_task *new_task =
         (SOSD_feedback_task *) calloc(1, sizeof(SOSD_feedback_task));
 
     new_task->type = SOS_FEEDBACK_TYPE_CACHE;
     new_task->ref = cache_grab;
-   
+
     // Enqueue this in the feedback pipeline:
     dlog(6, "   ...enqueing results into feedback pipeline.  (%d rows)\n",
             cache_grab->results->row_count);
@@ -1440,7 +1450,7 @@ SOSD_handle_cache_size(SOS_buffer *msg) {
 
 
     SOS_msg_unzip(msg, &header, 0, &offset);
-  
+
     SOS_pub   *pub           = NULL;
     SOS_guid   guid          = 0;
     char       guid_str[124] = {0};
@@ -1617,17 +1627,7 @@ SOSD_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_handle_triggerpull");
 
     dlog(5, "Trigger pull message received.  Passing to cloud functions.\n");
-    //#if defined(SOSD_CLOUD_SYNC_WITH_EVPATH) 
     SOSD_cloud_handle_triggerpull(msg);
-    //#elif defined(SOSD_CLOUD_SYNC_WITH_SOCKET) 
-    //SOSD_cloud_handle_triggerpull(msg);
-    //#elif defined(SOSD_CLOUD_SYNC_WITH_ZEROMQ)
-    //SOSD_cloud_handle_triggerpull(msg);
-    /*#else
-    fprintf(stderr, "WARNING: Trigger message received, but support for\n"
-            "         handling this message has not been compiled into this build\n"
-            "         of SOSflow.  Sending an ACK and doing nothing.\n");
-    #endif*/
 
     dlog(5, "Cloud function returned, sending ACK reply to client"
             "that pulled the trigger.\n");
@@ -1700,11 +1700,11 @@ void SOSD_handle_query(SOS_buffer *buffer) {
         //
         // Construct an empty response, drop it in the feedback queue,
         // and return.  Unblock clients who are waiting for results.
-      
+
         dlog(6, "   ...DB is disabled, assembling empty set to reply.\n");
 
         SOSA_results *results = NULL;
-        SOSA_results_init(SOS, &results); 
+        SOSA_results_init(SOS, &results);
         SOSA_results_label(results,
                 query_handle->query_guid, query_handle->query_sql);
         results->col_count     = 0;
@@ -1724,7 +1724,7 @@ void SOSD_handle_query(SOS_buffer *buffer) {
         pipe_push(SOSD.sync.feedback.queue->intake, (void *) &feedback, 1);
         SOSD.sync.feedback.queue->elem_count++;
         pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
-        
+
     } else {
         // DB is ENABLED
         dlog(6, "   ...placing query in DB queue.\n");
@@ -2030,7 +2030,7 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
 
     if (pub == NULL) {
         dlog(5, "     ... NOPE!  Adding new pub to the table.\n");
-        // If it's not in the table, add it. 
+        // If it's not in the table, add it.
         SOS_pub_init(SOS, &pub,pub_guid_str, SOS_NATURE_DEFAULT);
         SOSD_countof(pub_handles++);
         strncpy(pub->guid_str,pub_guid_str, SOS_DEFAULT_STRING_LEN);
@@ -2057,8 +2057,8 @@ void SOSD_handle_announce(SOS_buffer *buffer) {
     pub->announced = SOSD_PUB_ANN_DIRTY;
     //
 
-    if ((firstAnnouncement == true) 
-     && (SOS->config.options->db_disabled == false)) 
+    if ((firstAnnouncement == true)
+     && (SOS->config.options->db_disabled == false))
     {
         task = (SOSD_db_task *) malloc(sizeof(SOSD_db_task));
         task->ref = (void *) pub;
@@ -2220,7 +2220,7 @@ void SOSD_handle_shutdown(SOS_buffer *buffer) {
 //      mechanism where clients can see if there are pending
 //      messages for them by polling the daemon, rather than
 //      spawning a thread and listening on a socket for direct
-//      feedback messages.  We may not want every client hosting 
+//      feedback messages.  We may not want every client hosting
 //      its own feedback handler function.  For now, this is
 //      stubbed out, since direct feedback or no feedback are the
 //      primary use-case behaviors we support.
@@ -2671,7 +2671,7 @@ void SOSD_apply_announce( SOS_pub *pub, SOS_buffer *buffer ) {
     if (SOS->config.options->system_monitor_enabled) {
         //NOTE: We need to ensure this is a LOCAL pub,
         //      we don't want to monitor PIDs from some other node.
-        if (strcmp(pub->node_id, SOS->config.node_id) == 0) { 
+        if (strcmp(pub->node_id, SOS->config.node_id) == 0) {
             SOSD_add_pid_to_track(pub);
         }
     }

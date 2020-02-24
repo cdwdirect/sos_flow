@@ -5,6 +5,7 @@ lib
 examples/synthetic_1/tau.conf
 rebaseme.sh
 sourceme.sh
+build*
 IDEAS
 TODO.txt
 src/sosa_mods/test

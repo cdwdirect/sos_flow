@@ -41,7 +41,6 @@ SOSD_evpath_message_handler(
     int displaced    = 0;
     int offset       = 0;
 
-
     // Extract one messages into 'msg'
     dlog(1, "[ccc] ... processing entry %d of %d @ offset == %d \n",
         (entry + 1), entry_count, offset);
@@ -116,7 +115,6 @@ SOSD_evpath_message_handler(
 
         default:    SOSD_handle_unknown    (msg); break;
     }
-
 
     return 0;
 }
@@ -210,7 +208,6 @@ void SOSD_aggregator_register_listener(SOS_buffer *msg) {
     header.msg_size = offset;
     offset = 0;
     SOS_buffer_pack(reply, &offset, "i",
-        //msg_count,
         header.msg_size);
 
     buffer_rec rec;
@@ -245,7 +242,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
      && (SOS->config.comm_size > 1)) {
         // TODO { EVPATH }: This is not a robust way to determine
         //                  if *this* aggregator has listeners, we might not.
-        
+
         dlog(4, "I am an aggregator, and I have some"
                 " listener[s] to notify.\n");
 
@@ -257,22 +254,18 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         SOS_buffer *wrapped_msg;
         SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
 
-        int msg_count = 1;
         header.msg_size = msg->len;
         header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
         header.msg_from = SOS->config.comm_rank;
         header.ref_guid = 0;
 
         offset = 0;
-        //SOS_buffer_pack(wrapped_msg, &offset, "i", msg_count);
-        int offset_after_wrapped_header = offset;
-        offset = 0;
 
         SOS_buffer_grow(wrapped_msg, msg->len + 1, SOS_WHOAMI);
-        memcpy(wrapped_msg->data + offset_after_wrapped_header,
+        memcpy(wrapped_msg->data,
                 msg->data,
                 msg->len);
-        wrapped_msg->len = (msg->len + offset_after_wrapped_header);
+        wrapped_msg->len = (msg->len);
         offset = wrapped_msg->len;
 
         header.msg_size = offset;
@@ -280,11 +273,8 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         dlog(4, "Tacking on the newly wrapped message size...\n");
         dlog(4, "   header.msg_size == %d\n", header.msg_size);
         SOS_buffer_pack(wrapped_msg, &offset, "i",
-            //msg_count,
             header.msg_size);
 
-
-        
         // TODO: { FEEDBACK, MEMORY LEAK } Does this leak the wrapped_msg
         // struct?  We might need to use raw-allocated memory for the data
         // since EVPath is going to free it internally after transmission.
@@ -459,9 +449,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
          evp->meetup_path, aggregation_rank);
     dlog(1, "   ... present_filename: %s\n", present_filename);
 
-
-
-
     dlog(1, "   ... creating connection manager:\n");
     dlog(1, "      ... evp->recv.cm\n");
 
@@ -477,7 +464,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             // Sanity check for this style of connection.
             char *actual_transport = NULL;
             get_string_attr(CMget_contact_list(_cm), CM_TRANSPORT, &actual_transport);
-            if (!actual_transport || 
+            if (!actual_transport ||
                     (strncmp(actual_transport, "enet", strlen(actual_transport)) != 0)) {
                 printf("Failed to load transport \"%s\"\n", "enet");
                 printf("Got transport \"%s\"\n", actual_transport);
@@ -490,7 +477,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         CMfork_comm_thread(_cm);
     }
-    
+
     SOSD_evpath_ready_to_listen = true;
     dlog(1, "      ... configuring stones:\n");
     evp->recv.out_stone = EValloc_stone(_cm);
@@ -564,7 +551,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             int rc = fscanf(contact_file, "%1024s\n",
                     evp->send.contact_string);
             if (rc == EOF || strlen(evp->send.contact_string) < 1) {
-                dlog(1, "Error reading the contact key file. Aborting.\n%s\n", 
+                dlog(1, "Error reading the contact key file. Aborting.\n%s\n",
                         strerror(errno));
                 exit(EXIT_FAILURE);
             }
@@ -618,7 +605,6 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         int offset = 0;
         SOS_buffer_pack(buffer, &offset, "iigg",
-                //msg_count,
                 header.msg_size,
                 header.msg_type,
                 header.msg_from,
@@ -630,14 +616,13 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         offset = 0;
 
         SOS_buffer_pack(buffer, &offset, "i",
-                //msg_count,
                 header.msg_size);
 
         SOSD_cloud_send(buffer, NULL);
         SOS_buffer_destroy(buffer);
     }
 
-    
+
     FILE *present_file;
     // set the node id before we use it.
     present_file = fopen(present_filename, "w");
@@ -646,7 +631,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             evp->recv.contact_string,
             SOSD.net->local_port);
 
-  
+
     fflush(present_file);
     fclose(present_file);
 
@@ -690,9 +675,6 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     rec.data = (unsigned char *) buffer->data;
     rec.size = buffer->len;
     EVsubmit(SOSD.daemon.evpath.send.src, &rec, NULL);
-
-    
-
     return 0;
 }
 
@@ -818,7 +800,6 @@ void  SOSD_cloud_shutdown_notice(void) {
         header.ref_guid = 0;
 
         offset = 0;
-        //SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
         msg_inset = offset;
 
 

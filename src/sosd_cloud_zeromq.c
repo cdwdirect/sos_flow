@@ -17,8 +17,8 @@ bool SOSD_ready_to_listen = false;
 void SOSD_cloud_listen_loop(void) {
     //NOTE: This happens VERY early, we don't use dlog()
     //      or SOS_SET_CONTEXT stuff.
-    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop");
-    
+    SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_listen_loop.ZEROMQ");
+
     //wait for initialization
     while (!SOSD_ready_to_listen) {
         usleep(100000);
@@ -81,7 +81,7 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
 
     //NOTE: Sockets only ever have a single message, like other
     //      SOS point to point communications.
-    
+
     memset(&header, '\0', sizeof(SOS_msg_header));
 
     SOS_msg_unzip(buffer, &header, offset, &offset);
@@ -144,6 +144,7 @@ void SOSD_cloud_process_buffer(SOS_buffer *buffer) {
             break;
 
         default:    SOSD_handle_unknown    (msg); break;
+
     }
 
     return;
@@ -154,7 +155,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
             "SOSD_cloud_handle_daemon_registration.ZEROMQ");
 
     dlog(1, "Registering a new connection...");
-    
+
 
     SOS_msg_header header;
     int offset = 0;
@@ -164,7 +165,6 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
         &header.msg_type,
         &header.msg_from,
         &header.ref_guid);
-
 
     SOS_guid listener_id = header.msg_from;
     if (header.msg_from >= SOS->config.comm_size) {
@@ -185,7 +185,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
     zmq->node[listener_id]->conn_tgt_str = remote_listen_str;
 
     dlog(1, "Registering connection from id %d(%s)\n",
-           listener_id, 
+           listener_id,
            zmq->node[listener_id]->conn_tgt_str);
 
     SOS_buffer *reply;
@@ -217,9 +217,9 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
     //Connect to the registered node
     rc = zmq_connect(zmq->node[listener_id]->conn_tgt,
         zmq->node[listener_id]->conn_tgt_str);
-    if (rc != 0 ) 
+    if (rc != 0 )
     {
-        dlog(0, "Error occurred during zmq_connect(): %s\n", 
+        dlog(0, "Error occurred during zmq_connect(): %s\n",
             zmq_strerror (errno));
         return ;
     }
@@ -235,7 +235,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
     //Disconnect
     rc = zmq_disconnect(zmq->node[listener_id]->conn_tgt,
         zmq->node[listener_id]->conn_tgt_str);
-    if (rc != 0 ) 
+    if (rc != 0 )
     {
         dlog(0, "Error occurred during zmq_disconnect(): %s\n",
             zmq_strerror (errno));
@@ -252,7 +252,7 @@ void SOSD_cloud_handle_daemon_registration(SOS_buffer *msg) {
 //       from AGGREGATOR->LISTENER and LISTENER->LOCALAPPS
 void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     SOS_SET_CONTEXT(msg->sos_context, "SOSD_cloud_handle_triggerpull.ZEROMQ");
-    
+
     dlog(1, "Message received... unzipping.\n");
 
     SOS_msg_header header;
@@ -262,12 +262,12 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
 
     int offset_after_original_header = offset;
 
-    dlog(1, "Done unzipping.  offset_after_original_header == %d\n", 
+    dlog(1, "Done unzipping.  offset_after_original_header == %d\n",
             offset_after_original_header);
 
     if ((SOS->role == SOS_ROLE_AGGREGATOR)
      && (SOS->config.comm_size > 1)) {
-        
+
         dlog(1, "I am an aggregator, and I have some"
                 " listener[s] to notify.\n");
 
@@ -275,10 +275,9 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
         buffer_rec rec;
 
         dlog(1, "Wrapping the trigger message...\n");
-
         SOS_buffer *wrapped_msg;
         SOS_buffer_init_sized_locking(SOS, &wrapped_msg, (msg->len + 4 + 1), false);
-        
+
         header.msg_size = msg->len;
         header.msg_type = SOS_MSG_TYPE_TRIGGERPULL;
         header.msg_from = SOS->config.comm_rank;
@@ -310,7 +309,7 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
                 continue;
             }
 
-                        
+
             // NOTE: See SOSD_cloud_enqueue() for async sends.
             zmq_msg_t zmsg;
             rc = zmq_msg_init_data (&zmsg, wrapped_msg->data, wrapped_msg->len, NULL, NULL);
@@ -319,9 +318,9 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             //Connect to the registered node
             rc = zmq_connect(zmq->node[id]->conn_tgt,
                 zmq->node[id]->conn_tgt_str);
-            if (rc != 0 ) 
+            if (rc != 0 )
             {
-                dlog(0, "Error occurred during zmq_connect(): %s\n", 
+                dlog(0, "Error occurred during zmq_connect(): %s\n",
                     zmq_strerror (errno));
                 return ;
             }
@@ -337,22 +336,19 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
             //Disconnect
             rc = zmq_disconnect(zmq->node[id]->conn_tgt,
                 zmq->node[id]->conn_tgt_str);
-            if (rc != 0 ) 
+            if (rc != 0 )
             {
                 dlog(0, "Error occurred during zmq_disconnect(): %s\n",
                     zmq_strerror (errno));
                 return ;
             }
-
-
-            
         }
     }
 
     // Both Aggregators and Listeners should drop the feedback into
     // their queues in case they have local processes that have
     // registered sensitivity...
-   
+
     offset = offset_after_original_header;
 
     char *handle = NULL;
@@ -389,13 +385,12 @@ void SOSD_cloud_handle_triggerpull(SOS_buffer *msg) {
     //        (char*) payload->data);
     //fflush(stderr);
 
-    task->ref = (void *) payload;    
+    task->ref = (void *) payload;
     pthread_mutex_lock(SOSD.sync.feedback.queue->sync_lock);
     pipe_push(SOSD.sync.feedback.queue->intake, (void *) &task, 1);
     SOSD.sync.feedback.queue->elem_count++;
     pthread_mutex_unlock(SOSD.sync.feedback.queue->sync_lock);
 
-    
     return;
 }
 
@@ -450,7 +445,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     }
 
     int expected_node_count =
-        SOSD.daemon.aggregator_count + 
+        SOSD.daemon.aggregator_count +
         SOSD.daemon.listener_count;
 
     SOS->config.comm_size = expected_node_count;;
@@ -510,7 +505,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
     SOSD.sos_context->config.node_id = (char *) malloc( SOS_DEFAULT_STRING_LEN );
     gethostname( SOSD.sos_context->config.node_id, SOS_DEFAULT_STRING_LEN );
-    
+
     zmq->context = zmq_ctx_new();
     assert (zmq->context);
     //Set the socket which other processes will send messages to
@@ -538,7 +533,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
     snprintf(zmq->conn_listen_str, SOS_DEFAULT_STRING_LEN, "tcp://%s:%s",
         SOSD.sos_context->config.node_id, sosd_msg_port);
     dlog(1,"zmq->conn_listen_str --> %s\n", zmq->conn_listen_str);
-    
+
 
 
 
@@ -552,16 +547,10 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         zmq->discovery_dir, SOSD.sos_context->config.comm_rank);
     dlog(1, "   ... present_filename: %s\n", present_filename);
 
-
-
-
-
     //Set the socket which this process will use to recv
     //messages from and then will reply using the same socket
     zmq->conn_request = zmq_socket ( zmq->context, ZMQ_REQ);
     assert(zmq->conn_request);
-
-
 
     if (SOSD.sos_context->role == SOS_ROLE_AGGREGATOR) {
 
@@ -579,7 +568,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
         }
 
         FILE *contact_file;
-		
+
         contact_file = fopen(contact_filename, "w");
         fprintf(contact_file, "%s\n%s\n%s\n",
                 zmq->conn_listen_str,
@@ -615,9 +604,8 @@ int SOSD_cloud_init(int *argc, char ***argv) {
             fclose(contact_file);
             usleep(500000);
         }
-        
-        zmq->conn_request_str = agg_send_str;
 
+        zmq->conn_request_str = agg_send_str;
         SOS_buffer *buffer;
         SOS_buffer_init_sized_locking(SOS, &buffer, 2048, false);
 
@@ -640,7 +628,7 @@ int SOSD_cloud_init(int *argc, char ***argv) {
 
         header.msg_size = offset;
         offset = 0;
-        
+
         SOS_buffer_pack(buffer, &offset, "i",
             header.msg_size);
 
@@ -674,10 +662,10 @@ int SOSD_cloud_init(int *argc, char ***argv) {
  *    operating.
  */
 int SOSD_cloud_start(void) {
-    
+
     //TODO
 
-    
+
     return 0;
 }
 
@@ -692,7 +680,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
 
     //Connect to the target aggregator
     int rc = zmq_connect(zmq->conn_request, zmq->conn_request_str);
-    if (rc != 0 ) 
+    if (rc != 0 )
     {
         printf ("Error occurred during zmq_connect(): %s\n",
             zmq_strerror (errno));
@@ -709,7 +697,7 @@ int SOSD_cloud_send(SOS_buffer *buffer, SOS_buffer *reply) {
     dlog(1, "Received %d from aggregator\n", nbytes);
     //Close the connection to the aggregator
     rc = zmq_disconnect(zmq->conn_request, zmq->conn_request_str);
-    if (rc != 0 ) 
+    if (rc != 0 )
     {
         printf ("Error occurred during zmq_disconnect(): %s\n",
             zmq_strerror (errno));
@@ -780,7 +768,7 @@ void  SOSD_cloud_fflush(void) {
 int   SOSD_cloud_finalize(void) {
     SOS_SET_CONTEXT(SOSD.sos_context, "SOSD_cloud_finalize.ZEROMQ");
     dlog(1, "SOSD_cloud_finalize...\n");
-    
+
     if (SOSD.sos_context->role != SOS_ROLE_AGGREGATOR) {
         return 0;
     }
@@ -792,7 +780,6 @@ int   SOSD_cloud_finalize(void) {
     if (remove(contact_filename) == -1) {
         dlog(0, "   Error, unable to delete key file!\n");
     }
-    
     return 0;
 }
 
@@ -839,7 +826,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_pack(shutdown_msg, &offset, "i", embedded_msg_count);
         msg_inset = offset;
 
-        
+
         header.msg_size = SOS_buffer_pack(shutdown_msg, &offset, "iigg",
                                           header.msg_size,
                                           header.msg_type,
@@ -851,7 +838,7 @@ void  SOSD_cloud_shutdown_notice(void) {
                         header.msg_size);
 
         dlog(1, "  ... sending notice\n");
-        SOSD_cloud_send(shutdown_msg, reply); 
+        SOSD_cloud_send(shutdown_msg, reply);
         dlog(1, "  ... sent successfully\n");
 
         SOS_buffer_destroy(shutdown_msg);
@@ -888,7 +875,7 @@ void  SOSD_cloud_shutdown_notice(void) {
         SOS_buffer_destroy(shutdown_msg);
         SOS_buffer_destroy(shutdown_reply);
     }
-    
+
     dlog(1, "  ... done\n");
 
     return;

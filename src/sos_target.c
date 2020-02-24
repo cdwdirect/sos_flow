@@ -31,7 +31,7 @@ SOS_target_accept_connection(SOS_socket *target)
         dlog(0, "Error calling getnameinfo() on client connection."
                 "  (%s)\n", strerror(errno));
     }
-    
+
     return i;
 }
 
@@ -269,6 +269,7 @@ SOS_target_init(
                 "  Defaulting to 'localhost'.\n");
         strncpy(tgt->remote_host, SOS_DEFAULT_SERVER_HOST, NI_MAXHOST);
     }
+
     snprintf(tgt->remote_port, NI_MAXSERV, "%d", target_port);
 
     tgt->buffer_len                = SOS_DEFAULT_BUFFER_MAX;
@@ -289,7 +290,7 @@ SOS_target_init(
                                     // AI_PASSIVE: Be able to bind/accept connections.
                                     // AI_NUMERICSERV: Don't invoke namserv.
                                     //                 BUT cannot use "localhost"!
-    
+
     char local_hostname[NI_MAXHOST];
     gethostname(local_hostname, NI_MAXHOST);
 
@@ -346,7 +347,7 @@ SOS_target_connect(SOS_socket *target) {
         new_fd = socket(target->remote_addr->ai_family,
             target->remote_addr->ai_socktype,
             target->remote_addr->ai_protocol);
-        if (new_fd == -1) { 
+        if (new_fd == -1) {
             continue;
         }
 

@@ -180,7 +180,7 @@ typedef struct {
     char               *discovery_dir;
     void               *context;
     int                 node_count;
-    SOSD_zeromq_node**  node; 
+    SOSD_zeromq_node**  node;
 } SOSD_zeromq;
 #endif
 
