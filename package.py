@@ -1,46 +1,24 @@
-##############################################################################
-# Copyright (c) 2013-2017, Lawrence Livermore National Security, LLC.
-# Produced at the Lawrence Livermore National Laboratory.
+# Copyright 2013-2020 Lawrence Livermore National Security, LLC and other
+# Spack Project Developers. See the top-level COPYRIGHT file for details.
 #
-# This file is part of Spack.
-# Created by Todd Gamblin, tgamblin@llnl.gov, All rights reserved.
-# LLNL-CODE-647188
-#
-# For details, see https://github.com/spack/spack
-# Please also see the NOTICE and LICENSE files for our notice and the LGPL.
-#
-# This program is free software; you can redistribute it and/or modify
-# it under the terms of the GNU Lesser General Public License (as
-# published by the Free Software Foundation) version 2.1, February 1999.
-#
-# This program is distributed in the hope that it will be useful, but
-# WITHOUT ANY WARRANTY; without even the IMPLIED WARRANTY OF
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the terms and
-# conditions of the GNU Lesser General Public License for more details.
-#
-# You should have received a copy of the GNU Lesser General Public
-# License along with this program; if not, write to the Free Software
-# Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
-##############################################################################
+# SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 from spack import *
 
 
-class Sosflow(CMakePackage):
-    """SOSflow provides a flexible, scalable, and programmable framework for
+class Sos(CMakePackage):
+    """SOS provides a flexible, scalable, and programmable framework for
     observation, introspection, feedback, and control of HPC applications."""
 
     homepage = "https://github.com/cdwdirect/sos_flow/wiki"
     url      = "https://github.com/cdwdirect/sos_flow.git"
 
     version('1.17',      git='https://github.com/cdwdirect/sos_flow.git', tag='spack-build-v1.17', preferred=True)
-    version('0.9901',    git='https://github.com/cdwdirect/sos_flow.git', tag='spack-build-v0.9901')
     version('chad_dev',  git='https://github.com/cdwdirect/sos_flow.git', branch='chad_dev')
 
     # Primary inter-daemon transport is EVPath for now.
-    depends_on('libevpath',        type=('build', 'run'))
+    #depends_on('libevpath',        type=('build', 'run'))
     depends_on('sqlite@3:',        type=('build', 'run'))
-    # Python module is compiled with CFFI, requiring UCS4 support:
     depends_on('python@2: +ucs4',  type=('build', 'run'))
     # Python modules used for CFFI build and common ML usage:
     depends_on('py-cffi',          type=('build', 'run'))
@@ -70,6 +48,7 @@ class Sosflow(CMakePackage):
         run_env.set('SOS_CMD_PORT', '22500')
         run_env.set('SOS_WORK', env['HOME'])
         run_env.set('SOS_EVPATH_MEETUP', env['HOME'])
+        run_env.set('SOS_DISCOVERY_DIR', env['HOME'])
         #
         run_env.set('SOS_DB_DISABLED', 'FALSE')
         run_env.set('SOS_UPDATE_LATEST_FRAME', 'TRUE')
@@ -80,5 +59,8 @@ class Sosflow(CMakePackage):
         run_env.set('SOS_SYSTEM_MONITOR_ENABLED', 'FALSE')
         run_env.set('SOS_SYSTEM_MONITOR_FREQ_USEC', '0')
         run_env.set('SOS_SHUTDOWN', 'FALSE')
-        run_env.set('SOS_ENV_SET', 'true')
+
+        run_env.set('PYTHONPATH', ("%s:%s/lib" % (env['PYTHONPATH'], self.spec.prefix)))
+
+        run_env.set('SOS_ENV_SET', 'TRUE')
 

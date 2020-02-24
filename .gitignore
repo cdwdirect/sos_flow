@@ -1,11 +1,14 @@
+install*
+build*
+*.swp
 src/go_output/*
+hosts/linux/*.swp
 examples/general/sos_flow_working
 bin
 lib
 examples/synthetic_1/tau.conf
 rebaseme.sh
 sourceme.sh
-build*
 IDEAS
 TODO.txt
 src/sosa_mods/test
