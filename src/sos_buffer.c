@@ -107,7 +107,7 @@ void SOS_buffer_lock(SOS_buffer *buffer) {
     SOS_SET_CONTEXT(buffer->sos_context, "SOS_buffer_lock");
 
     if (buffer->is_locking) {
-        dlog(14, "Locking buffer: ");
+        dlog(14, "Locking buffer:\n");
         pthread_mutex_lock(buffer->lock);
         dlog(14, "Done.\n");
     } else {
@@ -225,7 +225,7 @@ void SOS_buffer_trim(SOS_buffer *buffer, size_t to_new_max) {
 
 /*
 ** pack754() -- pack a floating point number into IEEE-754 format
-*/ 
+*/
 
 uint64_t SOS_buffer_pack754(long double f, unsigned bits, unsigned expbits)
 {
@@ -303,7 +303,7 @@ void SOS_buffer_packi32(unsigned char *buf, int i)
 
 /*
 ** packi64() -- store a 64-bit int into a char buffer (like htonl())
-*/ 
+*/
 void SOS_buffer_packi64(unsigned char *buf, int64_t i)
 {
     *buf++ = i>>56; *buf++ = i>>48;
@@ -315,7 +315,7 @@ void SOS_buffer_packi64(unsigned char *buf, int64_t i)
 
 /*
 ** packguid() -- store a GUID in a char buffer (like htonl())
-*/ 
+*/
 void SOS_buffer_packguid(unsigned char *buf, SOS_guid g)
 {
     *buf++ = g>>56; *buf++ = g>>48;
@@ -329,7 +329,7 @@ void SOS_buffer_packguid(unsigned char *buf, SOS_guid g)
 
 /*
 ** unpacki32() -- unpack a 32-bit int from a char buffer (like ntohl())
-*/ 
+*/
 int SOS_buffer_unpacki32(unsigned char *buf)
 {
     unsigned int i2 = ((unsigned int)buf[0]<<24) |
@@ -387,7 +387,7 @@ SOS_guid SOS_buffer_unpackguid(unsigned char *buf)
 
 /*
 ** unpacku64() -- unpack a 64-bit unsigned from a char buffer (like ntohl())
-*/ 
+*/
 uint64_t SOS_buffer_unpacku64(unsigned char *buf)
 {
     return ((unsigned long long int)buf[0]<<56) |
@@ -447,9 +447,9 @@ int SOS_buffer_pack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
         //Auto-grow a buffer if needed.
         /*while ((*offset + packed_bytes) >= (buffer->max - SOS_DEFAULT_BUFFER_MIN)) {
-            dlog(10, "Growing... (%d + %d) >= (%d - %d)\n", 
+            dlog(10, "Growing... (%d + %d) >= (%d - %d)\n",
                  *offset,
-                 packed_bytes, 
+                 packed_bytes,
                  buffer->max,
                  SOS_DEFAULT_BUFFER_MIN);
 
@@ -678,7 +678,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
             }
             /* Not necessary, because you calloc'ed the memory.
              * Also, the sanitizer says this is walking off the end
-             * of the array 
+             * of the array
             s[count] = '\0';
             */
             dlog(18, "  ... unpacked s @ %d:   \"%s\"   (%d bytes + 4)   [STRING]\n", packed_bytes, s, len);
@@ -711,7 +711,7 @@ int SOS_buffer_unpack(SOS_buffer *buffer, int *offset, char *format, ...) {
 
     va_end(ap);
     dlog(18, "  ... done\n");
-    
+
 
     *offset += packed_bytes;
     return packed_bytes;
@@ -726,7 +726,7 @@ void SOS_buffer_unpack_safestr(SOS_buffer *buffer, int *offset, char **dest) {
     int str_length  = 0;
 
     SOS_buffer_unpack(buffer, &tmp_offset, "i", &str_length);
-    
+
     if (*dest != NULL) { free(*dest); }
     *dest = calloc((1 + str_length), sizeof(unsigned char));
 

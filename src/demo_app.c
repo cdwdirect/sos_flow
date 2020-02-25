@@ -10,9 +10,9 @@
 #include <string.h>
 #include <pthread.h>
 
-#if defined(USE_MPI)
-#include <mpi.h>
-#endif
+//#if defined(USE_MPI)
+//#include <mpi.h>
+//#endif
 
 #define USAGE "USAGE:\n"                                            \
     "\t./demo_app\n"                                                \
@@ -52,11 +52,11 @@ void random_string(char   *dest_str, size_t length);
 #define SOS_DEBUG 1
 */
 
-#if defined(USE_MPI)
-void fork_exec_sosd(void);
-void fork_exec_sosd_shutdown(void);
-#endif //defined(USE_MPI)
-void send_shutdown_message(SOS_runtime *runtime);
+//#if defined(USE_MPI)
+//void fork_exec_sosd(void);
+//void fork_exec_sosd_shutdown(void);
+//#endif //defined(USE_MPI)
+//void send_shutdown_message(SOS_runtime *runtime);
 
 #include "sos_debug.h"
 
@@ -70,9 +70,9 @@ DEMO_feedback_handler(
         int payload_size,
         void *payload_data)
 {
-    SOSA_results *results = NULL;    
-    
-    switch (payload_type) { 
+    SOSA_results *results = NULL;
+
+    switch (payload_type) {
 
     case SOS_FEEDBACK_TYPE_QUERY:
         SOSA_results_init(my_sos, &results);
@@ -97,9 +97,9 @@ DEMO_feedback_handler(
         SOSA_results_output_to(stdout, results,
                 "Query Results", SOSA_OUTPUT_W_HEADER);
         SOSA_results_destroy(results);
-        break; 
+        break;
     }
-    
+
     g_done = 1;
 
     return;
@@ -134,10 +134,10 @@ int main(int argc, char *argv[]) {
     double DELAY_IN_USEC;
 
     int rank = 0;
-#if defined(USE_MPI)
-    MPI_Init(&argc, &argv);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank); 
-#endif
+//#if defined(USE_MPI)
+//    MPI_Init(&argc, &argv);
+//    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//#endif
 
     /* Process command-line arguments */
 
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
              { fprintf(stderr, "%s\n", USAGE); exit(1); }
     }
 
-    
+
     //printf("demo_app : Starting...\n");
     //printf("demo_app : Settings:\n"
     //        "\tITERATION_SIZE   = %d\n"
@@ -214,7 +214,7 @@ int main(int argc, char *argv[]) {
     //        "\tDELAY_IN_USEC    = %lf\n",
     //        ITERATION_SIZE, PUB_ELEM_COUNT, MAX_SEND_COUNT, DELAY_IN_USEC);
     //fflush(stdout);
-    
+
 
     // Example variables.
     char    *str_node_id  = getenv("HOSTNAME");
@@ -222,26 +222,30 @@ int main(int argc, char *argv[]) {
     char     var_string[100] = {0};
     int      var_int;
     double   var_double;
-    
+
     my_sos = NULL;
-    
+
     SOS_init(&my_sos, SOS_ROLE_CLIENT,
                 SOS_RECEIVES_DIRECT_MESSAGES, DEMO_feedback_handler);
 
     if (my_sos == NULL) {
-        fprintf(stderr, "demo_app: Could not connect to an SOSflow"
-                " daemon at port %s. Terminating.\n", getenv("SOS_CMD_PORT"));
+        if (getenv("SOS_CMD_PORT") != NULL) {
+            fprintf(stderr, "demo_app: Could not connect to an SOSflow"
+                    " daemon at port %s. Terminating.\n", getenv("SOS_CMD_PORT"));
+        } else {
+            fprintf(stderr, "demo_app: [ERROR] SOS_CMD_PORT is not set!\n");
+        }
         fflush(stderr);
         exit(EXIT_FAILURE);
     }
 
-    SOS_register_signal_handler(my_sos);
+    //SOS_register_signal_handler(my_sos);
     SOS_SET_CONTEXT(my_sos, "demo_app.main");
 
     srandom(my_sos->my_guid);
 
     if (WAIT_FOR_FEEDBACK == 1) {
-        //--- Submit an SQL query to the local daemon: 
+        //--- Submit an SQL query to the local daemon:
         printf("demo_app: Sending query.  (%s)\n", SQL_QUERY);
         const char *portStr = getenv("SOS_CMD_PORT");
         if (portStr == NULL) { portStr = SOS_DEFAULT_SERVER_PORT; }
@@ -316,14 +320,15 @@ int main(int argc, char *argv[]) {
 
     }
 
-    if (send_shutdown == 1) {
-        send_shutdown_message(my_sos);
-    }
+    //if (send_shutdown == 1) {
+    //    send_shutdown_message(my_sos);
+    //}
 
     SOS_finalize(my_sos);
-#if defined(USE_MPI)
-    MPI_Finalize(); 
-#endif
+
+    //#if defined(USE_MPI)
+    //    MPI_Finalize();
+    //#endif
 
     //printf("demo_app : Done.\n");
 

@@ -168,7 +168,8 @@ SOS_target_recv_n_bytes(
     bytes_read = recv(source->remote_socket_fd, dest_ptr, bytes_requested, 0);
 
     if (bytes_read != bytes_requested) {
-        dlog(0, "WARNING: Only %d of %d requested bytes were read!");
+        dlog(0, "WARNING: Only %d of %d requested bytes were read!",
+                bytes_read, bytes_requested);
     }
 
     return bytes_read;

@@ -379,9 +379,6 @@ SOS_init_existing_runtime(
             //fprintf(stderr, "Unable to connect to an SOSflow daemon on"
             //        " port %d.  (rc == %d)\n",
             //        atoi(getenv("SOS_CMD_PORT")), rc);
-            free(SOS->config.node_id);
-            free(SOS->config.program_name);
-            free(SOS);
             *sos_runtime = NULL;
             return;
         }
@@ -540,11 +537,14 @@ SOS_init_existing_runtime(
         }
     }
 
-    if (SOS->config.receives == SOS_RECEIVES_DIRECT_MESSAGES) {
-        while(SOS->config.receives_ready != 1) {
-            usleep(10000);
-        }
-    }
+    // TODO(chad): Put a (better) guard here to prevent progress until the thread is online.
+    //dlog(1, "Waiting on SOS->config.receives_ready == 1 ...\n");
+    //dlog(1, "   &(SOS->config.receives_ready) == %x\n", &(SOS->config.receives_ready));
+    //if (SOS->config.receives == SOS_RECEIVES_DIRECT_MESSAGES) {
+    //    while(SOS->config.receives_ready != 1) {
+    //        usleep(10000);
+    //    }
+    //}
 
     dlog(1, "  ... done with SOS_init().\n");
     dlog(4, "SOS->status = SOS_STATUS_RUNNING\n");
@@ -1020,12 +1020,15 @@ SOS_THREAD_receives_direct(void *args)
     SOS_target_init(SOS, &insock, SOS->config.daemon_host, 0);
     SOS_target_setup_for_accept(insock);
 
+    dlog(1, "Getting socket information...\n");
     //Gather some information about this socket:
     struct sockaddr_in sin;
     socklen_t sin_len = sizeof(sin);
     getsockname(insock->local_socket_fd, (struct sockaddr *)&sin, &sin_len);
     SOS->config.receives_port = ntohs(sin.sin_port);
 
+    dlog(1, "Setting SOS->config.receives_ready = 1\n");
+    dlog(1, "   &(SOS->config.receives_ready) == %x\n", &(SOS->config.receives_ready));
     SOS->config.receives_ready = 1;
 
     dlog(1, "SOS->config.receives_port == %d\n",

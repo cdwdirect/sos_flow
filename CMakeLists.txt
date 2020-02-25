@@ -264,6 +264,7 @@ endif()
 ###########
 
 message(STATUS "MPI:  Locating package...")
+# Here we do some funny shenanigans for Cray compatibility...
 if(NOT MPI_C_NO_INTERROGATE)
     find_package("MPI" QUIET REQUIRED)
 else()
