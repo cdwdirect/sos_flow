@@ -4,7 +4,7 @@
 # we do that: use the "-E env CC=gcc" mode for the python call.
 
 # create a custom target out of the library compilation result
-add_custom_target(ssos_python ALL ${CMAKE_COMMAND} -E env CC=gcc python ${CMAKE_CURRENT_SOURCE_DIR}/build_ssos_python.py ${CMAKE_CURRENT_SOURCE_DIR}/.. ${sos_flow_BINARY_DIR}/lib
+add_custom_target(ssos_python ALL ${CMAKE_COMMAND} -E env CC=gcc python3 ${CMAKE_CURRENT_SOURCE_DIR}/build_ssos_python.py ${CMAKE_CURRENT_SOURCE_DIR}/.. ${sos_flow_BINARY_DIR}/lib
     COMMAND mv ${CMAKE_CURRENT_SOURCE_DIR}/ssos_python*.so ${sos_flow_BINARY_DIR}/lib/ssos_python.so
     COMMAND rm -f ${CMAKE_CURRENT_SOURCE_DIR}/ssos_python.o
     DEPENDS sos

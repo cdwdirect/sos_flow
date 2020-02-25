@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # file "build_ssos_python.py"
 
 import os
@@ -20,9 +20,9 @@ if __name__ == "__main__":
         sos_build_dir = str(os.environ.get("SOS_BUILD_DIR"))
         sos_include_dir = str(sos_build_dir) + "/include"
         sos_lib_dir = str(sos_build_dir) + "/lib"
-    
+
     ffibuilder.set_source(
-    "ssos_python", """ 
+    "ssos_python", """
 
     #include "ssos.h"
     #include "sosa.h"
@@ -37,7 +37,7 @@ if __name__ == "__main__":
     #extra_compile_args=["-Wno-unused-variable"])
     #extra_compile_args=["-Wno-unused-variable", "-DUSE_MUNGE=1"])
 
-    ffibuilder.cdef("""    
+    ffibuilder.cdef("""
 
     typedef struct {
         void        *sos_context;
@@ -57,7 +57,7 @@ if __name__ == "__main__":
 
     // These are the types supported by SSOS for use as the
     // second parameter of SSOS_pack(name, type, value):
-    
+
     #define SSOS_TYPE_INT     1
     #define SSOS_TYPE_LONG    2
     #define SSOS_TYPE_DOUBLE  3
@@ -70,14 +70,14 @@ if __name__ == "__main__":
     // of SSOS_set_option(key, value):
 
     #define SSOS_OPT_PROG_VERSION   1
-    #define SSOS_OPT_COMM_RANK      2 
+    #define SSOS_OPT_COMM_RANK      2
 
-    
+
     // The following SSOS API functions will be available for
     // use within Python scripts. They are neatly wrapped up for
     // ease of use by the ssos.py script, but can be called
     // directly if desired:
-    
+
     void SSOS_init(const char *prog_name);
     void SSOS_is_online(int *addr_of_YN_int_flag);
     void SSOS_set_option(int option_key, const char *option_value);
@@ -118,10 +118,10 @@ if __name__ == "__main__":
     void SSOS_result_destroy(SSOS_query_results *results);
 
     void SSOS_sense_trigger(const char *sense_handle,
-            int payload_size, void *payload_data); 
+            int payload_size, void *payload_data);
 
     void SSOS_get_runtime(void *addr_of_runtime_ptr_var);
-    
+
     // --------------------
 """)
 
