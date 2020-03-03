@@ -710,6 +710,14 @@ int   SOSD_cloud_finalize(void) {
     if (remove(contact_filename) == -1) {
         dlog(0, "   Error, unable to delete key file!\n");
     }
+    snprintf(contact_filename, 2048, "%s/sosd.%05d.id",
+        SOS->config.options->discovery_dir, SOS->config.comm_rank);
+    dlog(1, "   Removing id file: %s\n", contact_filename);
+
+    if (remove(contact_filename) == -1) {
+        dlog(0, "   Error, unable to delete id file!\n");
+    }
+
 
     return 0;
 }
