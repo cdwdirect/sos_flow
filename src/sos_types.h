@@ -17,7 +17,7 @@
 #include "sos_qhashtbl.h"
 #include "sos_pipe.h"
 #include "sos_buffer.h"
-    
+
 #define FOREACH_ROLE(ROLE)                      \
     ROLE(SOS_ROLE_UNASSIGNED)                   \
     ROLE(SOS_ROLE_CLIENT)                       \
@@ -60,8 +60,6 @@
 
 #define FOREACH_RECEIVES(RECEIVES)              \
     RECEIVES(SOS_RECEIVES_DIRECT_MESSAGES)      \
-    RECEIVES(SOS_RECEIVES_TIMED_CHECKIN)        \
-    RECEIVES(SOS_RECEIVES_MANUAL_CHECKIN)       \
     RECEIVES(SOS_RECEIVES_NO_FEEDBACK)          \
     RECEIVES(SOS_RECEIVES_DAEMON_MODE)          \
     RECEIVES(SOS_RECEIVES___MAX)
@@ -568,6 +566,7 @@ typedef struct {
     pthread_t          *feedback;
     pthread_mutex_t    *feedback_lock;
     pthread_cond_t     *feedback_cond;
+    pthread_barrier_t  *feedback_init_barrier;
     qhashtbl_t         *sense_table;
     qhashtbl_t         *reference_table;
     pthread_mutex_t    *reference_table_lock;
